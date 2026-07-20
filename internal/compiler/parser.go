@@ -1,0 +1,220 @@
+package compiler
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+type parser struct {
+	src []rune
+	pos int
+}
+
+func ParseFile(source string) (FileAST, error) {
+	p := parser{src: []rune(source)}
+	forms := make([]Expr, 0, 8)
+
+	for {
+		p.skipIgnorable()
+		if p.done() {
+			break
+		}
+
+		form, err := p.readExpr()
+		if err != nil {
+			return FileAST{}, err
+		}
+		forms = append(forms, form)
+	}
+
+	return FileAST{Forms: forms}, nil
+}
+
+func (p *parser) readExpr() (Expr, error) {
+	if p.done() {
+		return nil, p.errorf("unexpected end of input")
+	}
+
+	switch p.peek() {
+	case '(':
+		return p.readList('(', ')')
+	case '[':
+		return p.readVector()
+	case '{':
+		return p.readMap()
+	case '"':
+		return p.readString()
+	default:
+		return p.readAtom()
+	}
+}
+
+func (p *parser) readList(open, close rune) (Expr, error) {
+	if p.next() != open {
+		return nil, p.errorf("internal parser mismatch")
+	}
+
+	elements := make([]Expr, 0, 4)
+	for {
+		p.skipIgnorable()
+		if p.done() {
+			return nil, p.errorf("missing closing %q", string(close))
+		}
+
+		if p.peek() == close {
+			p.next()
+			return ListExpr{Elements: elements}, nil
+		}
+
+		item, err := p.readExpr()
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, item)
+	}
+}
+
+func (p *parser) readVector() (Expr, error) {
+	list, err := p.readList('[', ']')
+	if err != nil {
+		return nil, err
+	}
+	return VectorExpr{Elements: list.(ListExpr).Elements}, nil
+}
+
+func (p *parser) readMap() (Expr, error) {
+	list, err := p.readList('{', '}')
+	if err != nil {
+		return nil, err
+	}
+	return MapExpr{Entries: list.(ListExpr).Elements}, nil
+}
+
+func (p *parser) readString() (Expr, error) {
+	start := p.pos
+	p.next() // opening quote
+	escaped := false
+
+	for !p.done() {
+		ch := p.next()
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		if ch == '"' {
+			raw := string(p.src[start:p.pos])
+			value, err := strconv.Unquote(raw)
+			if err != nil {
+				return nil, p.errorf("invalid string literal: %v", err)
+			}
+			return StringExpr{Value: value}, nil
+		}
+	}
+
+	return nil, p.errorf("unterminated string literal")
+}
+
+func (p *parser) readAtom() (Expr, error) {
+	start := p.pos
+	for !p.done() {
+		ch := p.peek()
+		if isDelimiter(ch) {
+			break
+		}
+		p.next()
+	}
+
+	token := string(p.src[start:p.pos])
+	if token == "" {
+		return nil, p.errorf("expected expression")
+	}
+
+	if strings.HasPrefix(token, ":") && len(token) > 1 {
+		return KeywordExpr{Name: token[1:]}, nil
+	}
+
+	if i, err := strconv.ParseInt(token, 10, 64); err == nil {
+		return IntExpr{Value: i}, nil
+	}
+
+	if strings.ContainsAny(token, ".eE") {
+		if f, err := strconv.ParseFloat(token, 64); err == nil {
+			return FloatExpr{Value: f, Raw: token}, nil
+		}
+	}
+
+	return SymbolExpr{Name: token}, nil
+}
+
+func (p *parser) skipIgnorable() {
+	for !p.done() {
+		ch := p.peek()
+		switch {
+		case unicode.IsSpace(ch), ch == ',':
+			p.next()
+		case ch == ';':
+			p.skipComment()
+		default:
+			return
+		}
+	}
+}
+
+func (p *parser) skipComment() {
+	for !p.done() {
+		ch := p.next()
+		if ch == '\n' {
+			return
+		}
+	}
+}
+
+func (p *parser) done() bool {
+	return p.pos >= len(p.src)
+}
+
+func (p *parser) peek() rune {
+	return p.src[p.pos]
+}
+
+func (p *parser) next() rune {
+	ch := p.src[p.pos]
+	p.pos++
+	return ch
+}
+
+func (p *parser) errorf(format string, args ...any) error {
+	line, col := p.lineAndColumn()
+	msg := fmt.Sprintf(format, args...)
+	return fmt.Errorf("parse error at %d:%d: %s", line, col, msg)
+}
+
+func (p *parser) lineAndColumn() (int, int) {
+	line := 1
+	col := 1
+	for i := 0; i < p.pos && i < len(p.src); i++ {
+		if p.src[i] == '\n' {
+			line++
+			col = 1
+			continue
+		}
+		col++
+	}
+	return line, col
+}
+
+func isDelimiter(ch rune) bool {
+	return unicode.IsSpace(ch) ||
+		ch == ',' ||
+		ch == ';' ||
+		ch == '(' || ch == ')' ||
+		ch == '[' || ch == ']' ||
+		ch == '{' || ch == '}' ||
+		ch == '"'
+}

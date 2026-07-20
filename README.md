@@ -29,7 +29,8 @@ Parsing is now AST-based and Clojure-like: whitespace/newlines are insignificant
 ```text
 cmd/flag-lang/          CLI entrypoint
 internal/compiler/      FLAG source to Go code generation
-runtime/                FLAG Value runtime library
+runtime/numerics.go     numeric Value runtime
+runtime/list.go         linked-list Value runtime
 examples/               Sample FLAG programs
 ```
 

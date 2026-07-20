@@ -1,0 +1,3 @@
+(ns hello.core)
+
+(println "Hello from FLAG")

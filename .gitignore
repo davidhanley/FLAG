@@ -1,0 +1,6 @@
+.idea/
+bin/
+dist/
+*.test
+*.out
+hello.go
