@@ -5,15 +5,6 @@ import (
 	"unsafe"
 )
 
-type ValueTag uint8
-
-const (
-	TagLong ValueTag = iota + 1
-	TagDouble
-	TagRatio
-	TagList
-)
-
 type Value struct {
 	d   float64
 	p   unsafe.Pointer
@@ -230,6 +221,8 @@ func ValueToAny(v Value) any {
 		return v.Ratio()
 	case TagList:
 		return listValueToAny(v)
+	case TagArray:
+		return arrayValueToAny(v)
 	default:
 		panic("unknown Value tag")
 	}

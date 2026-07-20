@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"flag-lang/internal/compiler"
+	"flag-lang/internal/repl"
 )
 
 func main() {
@@ -22,12 +23,21 @@ func run(args []string) error {
 	switch args[0] {
 	case "compile":
 		return runCompile(args[1:])
+	case "repl":
+		return runRepl(args[1:])
 	case "help", "-h", "--help":
 		printUsage()
 		return nil
 	default:
 		return usageError("unknown command %q", args[0])
 	}
+}
+
+func runRepl(args []string) error {
+	if len(args) > 0 {
+		return usageError("repl does not take arguments")
+	}
+	return repl.Run(os.Stdin, os.Stdout)
 }
 
 func runCompile(args []string) error {
@@ -91,4 +101,5 @@ func usageError(format string, args ...any) error {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Usage:")
 	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o output.go] <input.flag>")
+	fmt.Fprintln(os.Stderr, "  flag-lang repl")
 }

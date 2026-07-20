@@ -1,77 +1,39 @@
+![flag-lang banner](./flag-lang.jpg)
+
 # flag-lang
 
-`flag-lang` is the starting point for a new Lisp that aims to stay close to Clojure at the source level while compiling to Go instead of the JVM.
+`flag-lang` is a Clojure-inspired language that compiles to Go.
 
-This repository currently provides:
+The goal is to keep the expressiveness of Lisp/Clojure while delivering a faster, lighter runtime model for production workloads.
 
-- a small `flag-lang` compiler CLI
-- a minimal compiler package
-- support for a tiny starter subset of forms
-- an example source program
+## Project goals
 
-## Current language subset
+`flag-lang` is being built to be a **better Clojure** in key operational areas:
 
-The initial scaffold intentionally keeps the language surface small while the project structure settles. The compiler currently understands:
+- **Fast startup:** no JVM warmup cost for small tools/services.
+- **Lower memory usage:** compact runtime representation for common values.
+- **Higher performance:** unboxed values and arrays, plus stack allocation where possible (for example, temporaries in map/filter style sequences).
+- **Small binaries:** around **10MB** for small programs.
+- **Small docker container images:** no VM required, enabling minimal images.
+- **Native interop:** easy linkage to highly optimized **C**, **Go**, and **Rust** code.
 
-- `(ns some.namespace)` at the top of a file
-- `(println "...")`
-- `(print "...")`
-- `(+ a b ...)` numeric expressions
-- `(defn name[params] body)` with numeric params/body expressions
-- function calls such as `(name 47)`
+## Current state
 
-Unsupported forms return explicit compiler errors.
+The repository currently includes:
 
-Parsing is now AST-based and Clojure-like: whitespace/newlines are insignificant, `;` comments are supported, and a source file can contain multiple top-level expressions.
-
-## Project layout
-
-```text
-cmd/flag-lang/          CLI entrypoint
-internal/compiler/      FLAG source to Go code generation
-runtime/numerics.go     numeric Value runtime
-runtime/list.go         linked-list Value runtime
-examples/               Sample FLAG programs
-```
-
-`runtime.Value` now supports:
-- tagged long and double numbers
-- tagged linked lists backed by Go's built-in `container/list` package (pointer in `p`, length stored in numeric field)
+- a compiler CLI (`flag-lang`)
+- a parser that reads Clojure-like source into an AST
+- Go code generation for an initial subset (`defn`, arithmetic, calls, printing)
+- a runtime with tagged values, numerics, ratios, lists, and arrays
+- an interactive REPL path using Yaegi evaluation
 
 ## Quick start
+
+```bash
+go run ./cmd/flag-lang repl
+```
 
 ```bash
 go run ./cmd/flag-lang compile examples/hello.flag -o hello.go
 go run ./hello.go
 ```
-
-## Near-term direction
-
-The scaffold is set up to grow toward:
-
-- richer Clojure-compatible reading and parsing
-- an intermediate representation for analysis and transforms
-- Go code generation beyond print forms
-- namespaces, vars, functions, collections, and control flow
-
-## Runtime benchmark prototypes
-
-The repository also includes a small benchmark package for comparing two `Value` dispatch strategies for numeric operations:
-
-- vtable-style double dispatch
-- tag-byte dispatch with `switch`
-
-Both variants model numeric values with a `d` field plus an `unsafe.Pointer` field so you can experiment with the layout you described for `Value`.
-
-Run the benchmarks with:
-
-```bash
-go test ./internal/runtimebench -bench . -benchmem
-```
-
-The benchmark set covers:
-
-- scalar `long + long`
-- scalar `long + double`
-- reducing an array of numeric values
-- reducing a mixed array of `long` and `double` values

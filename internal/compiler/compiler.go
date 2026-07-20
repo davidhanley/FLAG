@@ -56,7 +56,15 @@ func Compile(source string) ([]byte, error) {
 	}
 
 	for _, fn := range functions {
-		fmt.Fprintf(&out, "func %s(%s) flagrt.Value {\n", fn.goName, typedParamList(fn.params))
+		fmt.Fprintf(&out, "func %s(args ...flagrt.Value) flagrt.Value {\n", fn.goName)
+		if len(fn.params) > 0 {
+			fmt.Fprintf(&out, "\tif len(args) != %d {\n", len(fn.params))
+			fmt.Fprintf(&out, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
+			out.WriteString("\t}\n")
+			for index, param := range fn.params {
+				fmt.Fprintf(&out, "\t%s := args[%d]\n", param, index)
+			}
+		}
 		fmt.Fprintf(&out, "\treturn %s\n", fn.body)
 		out.WriteString("}\n\n")
 	}
@@ -73,6 +81,28 @@ func Compile(source string) ([]byte, error) {
 	}
 
 	return formatted, nil
+}
+
+// CompileExpression translates a single FLAG expression into a Go expression.
+// Numeric expressions are wrapped in runtime conversion so the result is printable as any.
+func CompileExpression(source string) (string, error) {
+	ast, err := ParseFile(source)
+	if err != nil {
+		return "", err
+	}
+	if len(ast.Forms) != 1 {
+		return "", fmt.Errorf("expected exactly one expression")
+	}
+
+	ctx := compileContext{functions: make(map[string]functionDef)}
+	expr, err := exprToGo(ast.Forms[0], ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	if expr.kind == exprKindValue {
+		return fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, expr.code), nil
+	}
+	return expr.code, nil
 }
 
 func compileForms(source string) (string, []functionDef, []printCall, error) {
@@ -299,14 +329,6 @@ func infixExprToGo(args []Expr, runtimeOp string, ctx compileContext, locals map
 		acc = fmt.Sprintf("%s(%s, %s)", runtimeOp, acc, part.code)
 	}
 	return goExpr{code: acc, kind: exprKindValue}, nil
-}
-
-func typedParamList(params []string) string {
-	typed := make([]string, 0, len(params))
-	for _, param := range params {
-		typed = append(typed, fmt.Sprintf("%s %s.Value", param, runtimeAlias))
-	}
-	return strings.Join(typed, ", ")
 }
 
 func toGoIdentifier(name string) (string, error) {

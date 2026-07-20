@@ -116,11 +116,27 @@ func TestCompileDefnAndCall(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		"func sq(x flagrt.Value) flagrt.Value {\n\treturn flagrt.Mul(x, x)\n}",
+		"func sq(args ...flagrt.Value) flagrt.Value {",
+		"if len(args) != 1 {",
+		`panic("sq expects exactly 1 arguments")`,
+		"x := args[0]",
+		"return flagrt.Mul(x, x)",
 		"fmt.Println(flagrt.ValueToAny(sq(flagrt.NewLong(47))))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestCompileExpression(t *testing.T) {
+	got, err := CompileExpression(`(+ 1 2 2.0)`)
+	if err != nil {
+		t.Fatalf("CompileExpression returned error: %v", err)
+	}
+
+	want := "flagrt.ValueToAny(flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewDouble(2.0)))"
+	if got != want {
+		t.Fatalf("unexpected expression:\nwant: %s\ngot:  %s", want, got)
 	}
 }
