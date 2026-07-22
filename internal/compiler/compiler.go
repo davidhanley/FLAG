@@ -15,6 +15,7 @@ type exprKind uint8
 const (
 	exprKindValue exprKind = iota + 1
 	exprKindString
+	exprKindBool
 )
 
 type goExpr struct {
@@ -33,13 +34,19 @@ type functionDef struct {
 	body   string
 }
 
+type varDef struct {
+	goName string
+	expr   string
+}
+
 type compileContext struct {
 	functions map[string]functionDef
+	globals   map[string]exprKind
 }
 
 // Compile translates a small FLAG source file into a Go program.
 func Compile(source string) ([]byte, error) {
-	namespace, functions, calls, err := compileForms(source)
+	namespace, functions, vars, calls, err := compileForms(source)
 	if err != nil {
 		return nil, err
 	}
@@ -56,17 +63,15 @@ func Compile(source string) ([]byte, error) {
 	}
 
 	for _, fn := range functions {
-		fmt.Fprintf(&out, "func %s(args ...flagrt.Value) flagrt.Value {\n", fn.goName)
-		if len(fn.params) > 0 {
-			fmt.Fprintf(&out, "\tif len(args) != %d {\n", len(fn.params))
-			fmt.Fprintf(&out, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
-			out.WriteString("\t}\n")
-			for index, param := range fn.params {
-				fmt.Fprintf(&out, "\t%s := args[%d]\n", param, index)
-			}
-		}
-		fmt.Fprintf(&out, "\treturn %s\n", fn.body)
-		out.WriteString("}\n\n")
+		out.WriteString(renderFunctionDef(fn))
+		out.WriteString("\n")
+	}
+
+	for _, v := range vars {
+		fmt.Fprintf(&out, "var %s = %s\n", v.goName, v.expr)
+	}
+	if len(vars) > 0 {
+		out.WriteString("\n")
 	}
 
 	out.WriteString("func main() {\n")
@@ -94,7 +99,10 @@ func CompileExpression(source string) (string, error) {
 		return "", fmt.Errorf("expected exactly one expression")
 	}
 
-	ctx := compileContext{functions: make(map[string]functionDef)}
+	ctx := compileContext{
+		functions: make(map[string]functionDef),
+		globals:   make(map[string]exprKind),
+	}
 	expr, err := exprToGo(ast.Forms[0], ctx, nil)
 	if err != nil {
 		return "", err
@@ -105,55 +113,140 @@ func CompileExpression(source string) (string, error) {
 	return expr.code, nil
 }
 
-func compileForms(source string) (string, []functionDef, []printCall, error) {
+type ReplCompiler struct {
+	ctx compileContext
+}
+
+type ReplCompiled struct {
+	Setup      string
+	ResultExpr string
+}
+
+func NewReplCompiler() *ReplCompiler {
+	return &ReplCompiler{
+		ctx: compileContext{
+			functions: make(map[string]functionDef),
+			globals:   make(map[string]exprKind),
+		},
+	}
+}
+
+func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 	ast, err := ParseFile(source)
 	if err != nil {
-		return "", nil, nil, err
+		return ReplCompiled{}, err
+	}
+	if len(ast.Forms) != 1 {
+		return ReplCompiled{}, fmt.Errorf("expected exactly one expression")
 	}
 
-	ctx := compileContext{functions: make(map[string]functionDef)}
+	if list, ok := ast.Forms[0].(ListExpr); ok && len(list.Elements) > 0 {
+		if head, ok := list.Elements[0].(SymbolExpr); ok {
+			switch head.Name {
+			case "def":
+				binding, exprKind, isNew, err := compileDefForRepl(list, r.ctx)
+				if err != nil {
+					return ReplCompiled{}, err
+				}
+				r.ctx.globals[binding.goName] = exprKind
+				setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
+				if isNew {
+					setup = fmt.Sprintf("var %s flagrt.Value = %s", binding.goName, binding.expr)
+				}
+				return ReplCompiled{
+					Setup:      setup,
+					ResultExpr: fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, binding.goName),
+				}, nil
+			case "defn":
+				def, err := compileDefn(list, r.ctx)
+				if err != nil {
+					return ReplCompiled{}, err
+				}
+				_, exists := r.ctx.functions[def.goName]
+				r.ctx.functions[def.goName] = def
+
+				setup := fmt.Sprintf("%s = %s", def.goName, renderFunctionLiteral(def))
+				if !exists {
+					setup = fmt.Sprintf("var %s = %s", def.goName, renderFunctionLiteral(def))
+				}
+				return ReplCompiled{
+					Setup:      setup,
+					ResultExpr: fmt.Sprintf("%q", def.goName),
+				}, nil
+			}
+		}
+	}
+
+	expr, err := exprToGo(ast.Forms[0], r.ctx, nil)
+	if err != nil {
+		return ReplCompiled{}, err
+	}
+	if expr.kind == exprKindValue {
+		return ReplCompiled{ResultExpr: fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, expr.code)}, nil
+	}
+	return ReplCompiled{ResultExpr: expr.code}, nil
+}
+
+func compileForms(source string) (string, []functionDef, []varDef, []printCall, error) {
+	ast, err := ParseFile(source)
+	if err != nil {
+		return "", nil, nil, nil, err
+	}
+
+	ctx := compileContext{
+		functions: make(map[string]functionDef),
+		globals:   make(map[string]exprKind),
+	}
 	namespace := ""
 	functions := make([]functionDef, 0, len(ast.Forms))
+	vars := make([]varDef, 0, len(ast.Forms))
 	calls := make([]printCall, 0, len(ast.Forms))
 
 	for _, form := range ast.Forms {
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
-			return "", nil, nil, fmt.Errorf("unsupported form")
+			return "", nil, nil, nil, fmt.Errorf("unsupported form")
 		}
 
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok {
-			return "", nil, nil, fmt.Errorf("unsupported form")
+			return "", nil, nil, nil, fmt.Errorf("unsupported form")
 		}
 
 		switch head.Name {
 		case "ns":
 			if namespace != "" {
-				return "", nil, nil, fmt.Errorf("namespace already declared")
+				return "", nil, nil, nil, fmt.Errorf("namespace already declared")
 			}
 			if len(list.Elements) != 2 {
-				return "", nil, nil, fmt.Errorf("ns expects one namespace symbol")
+				return "", nil, nil, nil, fmt.Errorf("ns expects one namespace symbol")
 			}
 			name, ok := list.Elements[1].(SymbolExpr)
 			if !ok || name.Name == "" {
-				return "", nil, nil, fmt.Errorf("namespace cannot be empty")
+				return "", nil, nil, nil, fmt.Errorf("namespace cannot be empty")
 			}
 			namespace = name.Name
 		case "defn":
 			def, err := compileDefn(list, ctx)
 			if err != nil {
-				return "", nil, nil, err
+				return "", nil, nil, nil, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return "", nil, nil, fmt.Errorf("function %q already defined", def.goName)
+				return "", nil, nil, nil, fmt.Errorf("function %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
 			functions = append(functions, def)
+		case "def":
+			binding, err := compileDef(list, ctx)
+			if err != nil {
+				return "", nil, nil, nil, err
+			}
+			ctx.globals[binding.goName] = exprKindValue
+			vars = append(vars, binding)
 		case "println", "print":
 			arg, err := argumentExprForGoCall(list.Elements[1:], ctx, nil)
 			if err != nil {
-				return "", nil, nil, err
+				return "", nil, nil, nil, err
 			}
 			callName := "Print"
 			if head.Name == "println" {
@@ -161,11 +254,11 @@ func compileForms(source string) (string, []functionDef, []printCall, error) {
 			}
 			calls = append(calls, printCall{function: callName, arg: arg})
 		default:
-			return "", nil, nil, fmt.Errorf("unsupported form")
+			return "", nil, nil, nil, fmt.Errorf("unsupported form")
 		}
 	}
 
-	return namespace, functions, calls, nil
+	return namespace, functions, vars, calls, nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -218,6 +311,43 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	return functionDef{goName: goName, params: params, body: body.code}, nil
 }
 
+func compileDef(form ListExpr, ctx compileContext) (varDef, error) {
+	binding, kind, _, err := compileDefForRepl(form, ctx)
+	if err != nil {
+		return varDef{}, err
+	}
+	if kind != exprKindValue {
+		return varDef{}, fmt.Errorf("def value must evaluate to numeric Value")
+	}
+	return binding, nil
+}
+
+func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, bool, error) {
+	if len(form.Elements) != 3 {
+		return varDef{}, 0, false, fmt.Errorf("def expects name and value")
+	}
+
+	nameExpr, ok := form.Elements[1].(SymbolExpr)
+	if !ok || nameExpr.Name == "" {
+		return varDef{}, 0, false, fmt.Errorf("def expects a symbol name")
+	}
+	goName, err := toGoIdentifier(nameExpr.Name)
+	if err != nil {
+		return varDef{}, 0, false, err
+	}
+
+	valueExpr, err := exprToGo(form.Elements[2], ctx, nil)
+	if err != nil {
+		return varDef{}, 0, false, err
+	}
+	if valueExpr.kind != exprKindValue {
+		return varDef{}, 0, false, fmt.Errorf("def value must evaluate to numeric Value")
+	}
+
+	_, exists := ctx.globals[goName]
+	return varDef{goName: goName, expr: valueExpr.code}, valueExpr.kind, !exists, nil
+}
+
 func argumentExprForGoCall(args []Expr, ctx compileContext, locals map[string]struct{}) (string, error) {
 	if len(args) != 1 {
 		return "", fmt.Errorf("expected one argument")
@@ -253,6 +383,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]struct{}) (goExpr
 				return goExpr{code: ident, kind: exprKindValue}, nil
 			}
 		}
+		if kind, ok := ctx.globals[ident]; ok {
+			return goExpr{code: ident, kind: kind}, nil
+		}
 		return goExpr{}, fmt.Errorf("unknown symbol %q", arg.Name)
 	case ListExpr:
 		return listExprToGo(arg, ctx, locals)
@@ -280,6 +413,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]struct{})
 		return infixExprToGo(list.Elements[1:], runtimeAlias+".Sub", ctx, locals)
 	case "/":
 		return infixExprToGo(list.Elements[1:], runtimeAlias+".Div", ctx, locals)
+	case "=":
+		return equalityExprToGo(list.Elements[1:], ctx, locals)
 	default:
 		goName, err := toGoIdentifier(head.Name)
 		if err != nil {
@@ -331,6 +466,30 @@ func infixExprToGo(args []Expr, runtimeOp string, ctx compileContext, locals map
 	return goExpr{code: acc, kind: exprKindValue}, nil
 }
 
+func equalityExprToGo(args []Expr, ctx compileContext, locals map[string]struct{}) (goExpr, error) {
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("= expects at least two arguments")
+	}
+
+	parts := make([]string, 0, len(args))
+	for _, item := range args {
+		part, err := exprToGo(item, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("= expects numeric Value arguments")
+		}
+		parts = append(parts, part.code)
+	}
+
+	checks := make([]string, 0, len(parts)-1)
+	for i := 0; i < len(parts)-1; i++ {
+		checks = append(checks, fmt.Sprintf("%s.Eq(%s, %s)", runtimeAlias, parts[i], parts[i+1]))
+	}
+	return goExpr{code: strings.Join(checks, " && "), kind: exprKindBool}, nil
+}
+
 func toGoIdentifier(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("empty symbol")
@@ -349,4 +508,26 @@ func toGoIdentifier(name string) (string, error) {
 		}
 	}
 	return name, nil
+}
+
+func renderFunctionDef(fn functionDef) string {
+	return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n", fn.goName, renderFunctionBody(fn))
+}
+
+func renderFunctionLiteral(fn functionDef) string {
+	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderFunctionBody(fn))
+}
+
+func renderFunctionBody(fn functionDef) string {
+	var body strings.Builder
+	if len(fn.params) > 0 {
+		fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
+		fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
+		body.WriteString("\t}\n")
+		for index, param := range fn.params {
+			fmt.Fprintf(&body, "\t%s := args[%d]\n", param, index)
+		}
+	}
+	fmt.Fprintf(&body, "\treturn %s\n", fn.body)
+	return body.String()
 }

@@ -211,6 +211,49 @@ func Div(lhs, rhs Value) Value {
 	}
 }
 
+func Eq(lhs, rhs Value) bool {
+	switch lhs.tag {
+	case TagLong:
+		left := lhs.Long()
+		switch rhs.tag {
+		case TagLong:
+			return left == rhs.Long()
+		case TagDouble:
+			return float64(left) == rhs.Double()
+		case TagRatio:
+			return big.NewRat(left, 1).Cmp(rhs.Ratio()) == 0
+		default:
+			panic("unknown rhs tag for Eq")
+		}
+	case TagDouble:
+		left := lhs.Double()
+		switch rhs.tag {
+		case TagLong:
+			return left == float64(rhs.Long())
+		case TagDouble:
+			return left == rhs.Double()
+		case TagRatio:
+			return left == ratToFloat64(rhs.Ratio())
+		default:
+			panic("unknown rhs tag for Eq")
+		}
+	case TagRatio:
+		left := lhs.Ratio()
+		switch rhs.tag {
+		case TagLong:
+			return left.Cmp(big.NewRat(rhs.Long(), 1)) == 0
+		case TagDouble:
+			return ratToFloat64(left) == rhs.Double()
+		case TagRatio:
+			return left.Cmp(rhs.Ratio()) == 0
+		default:
+			panic("unknown rhs tag for Eq")
+		}
+	default:
+		panic("unknown lhs tag for Eq")
+	}
+}
+
 func ValueToAny(v Value) any {
 	switch v.tag {
 	case TagLong:

@@ -32,3 +32,24 @@ func TestValueToAnyForRatio(t *testing.T) {
 		t.Fatalf("expected converted ratio 3/2, got %s", rat.RatString())
 	}
 }
+
+func TestEqNumeric(t *testing.T) {
+	cases := []struct {
+		name string
+		lhs  Value
+		rhs  Value
+		want bool
+	}{
+		{name: "long eq long", lhs: NewLong(2), rhs: NewLong(2), want: true},
+		{name: "long eq double", lhs: NewLong(3), rhs: NewDouble(3.0), want: true},
+		{name: "ratio eq long", lhs: NewRatio(4, 2), rhs: NewLong(2), want: true},
+		{name: "ratio eq double", lhs: NewRatio(3, 2), rhs: NewDouble(1.5), want: true},
+		{name: "not equal", lhs: NewLong(1), rhs: NewLong(2), want: false},
+	}
+
+	for _, tc := range cases {
+		if got := Eq(tc.lhs, tc.rhs); got != tc.want {
+			t.Fatalf("%s: expected %v, got %v", tc.name, tc.want, got)
+		}
+	}
+}

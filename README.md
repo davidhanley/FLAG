@@ -13,7 +13,7 @@ The goal is to keep the expressiveness of Lisp/Clojure while delivering a faster
 - **Fast startup:** no JVM warmup cost for small tools/services.
 - **Lower memory usage:** compact runtime representation for common values.
 - **Higher performance:** unboxed values and arrays, plus stack allocation where possible (for example, temporaries in map/filter style sequences).
-- **Small binaries:** around **10MB** for small programs.
+- **Small standalone binaries:** around **10MB** for small programs, no VM needed.
 - **Small docker container images:** no VM required, enabling minimal images.
 - **Native interop:** easy linkage to highly optimized **C**, **Go**, and **Rust** code.
 
