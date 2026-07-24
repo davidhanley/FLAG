@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"flag-lang/internal/compiler"
 	"flag-lang/internal/repl"
@@ -23,6 +26,8 @@ func run(args []string) error {
 	switch args[0] {
 	case "compile":
 		return runCompile(args[1:])
+	case "build":
+		return runBuild(args[1:])
 	case "repl":
 		return runRepl(args[1:])
 	case "help", "-h", "--help":
@@ -93,6 +98,71 @@ func runCompile(args []string) error {
 	return nil
 }
 
+func runBuild(args []string) error {
+	outputPath := ""
+	inputPath := ""
+
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch arg {
+		case "-h", "--help", "help":
+			printUsage()
+			return nil
+		case "-o", "--output":
+			index++
+			if index >= len(args) {
+				return usageError("missing value for %s", arg)
+			}
+			outputPath = args[index]
+		default:
+			if len(arg) > 0 && arg[0] == '-' {
+				return usageError("unknown flag %q", arg)
+			}
+			if inputPath != "" {
+				return usageError("build expects exactly one input file")
+			}
+			inputPath = arg
+		}
+	}
+
+	if inputPath == "" {
+		return usageError("build expects exactly one input file")
+	}
+
+	source, err := os.ReadFile(inputPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", inputPath, err)
+	}
+
+	goSource, err := compiler.Compile(string(source))
+	if err != nil {
+		return err
+	}
+
+	if outputPath == "" {
+		base := filepath.Base(inputPath)
+		outputPath = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+
+	tempDir, err := os.MkdirTemp(".", ".flag-build-*")
+	if err != nil {
+		return fmt.Errorf("create temp build dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempMainPath := filepath.Join(tempDir, "main.go")
+	if err := os.WriteFile(tempMainPath, goSource, 0o644); err != nil {
+		return fmt.Errorf("write generated Go: %w", err)
+	}
+
+	cmd := exec.Command("go", "build", "-o", outputPath, tempMainPath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
 func usageError(format string, args ...any) error {
 	printUsage()
 	return fmt.Errorf(format, args...)
@@ -101,5 +171,6 @@ func usageError(format string, args ...any) error {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Usage:")
 	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o output.go] <input.flag>")
+	fmt.Fprintln(os.Stderr, "  flag-lang build [-o output-bin] <input.flag>")
 	fmt.Fprintln(os.Stderr, "  flag-lang repl")
 }

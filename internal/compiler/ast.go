@@ -26,6 +26,12 @@ type MapExpr struct {
 
 func (MapExpr) expr() {}
 
+type SetExpr struct {
+	Elements []Expr
+}
+
+func (SetExpr) expr() {}
+
 type SymbolExpr struct {
 	Name string
 }
@@ -37,6 +43,12 @@ type KeywordExpr struct {
 }
 
 func (KeywordExpr) expr() {}
+
+type QuotedSymbolExpr struct {
+	Name string
+}
+
+func (QuotedSymbolExpr) expr() {}
 
 type StringExpr struct {
 	Value string

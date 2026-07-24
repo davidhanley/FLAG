@@ -53,3 +53,79 @@ func TestEqNumeric(t *testing.T) {
 		}
 	}
 }
+
+func TestLtGtNumeric(t *testing.T) {
+	if !Lt(NewLong(1), NewLong(2)) {
+		t.Fatal("expected 1 < 2")
+	}
+	if Lt(NewLong(2), NewLong(1)) {
+		t.Fatal("expected 2 !< 1")
+	}
+	if !Gt(NewRatio(5, 2), NewDouble(2.0)) {
+		t.Fatal("expected 5/2 > 2.0")
+	}
+	if Gt(NewDouble(1.25), NewRatio(3, 2)) {
+		t.Fatal("expected 1.25 !> 1.5")
+	}
+}
+
+func TestNilValueTruthiness(t *testing.T) {
+	if ValueToAny(NilValue()) != nil {
+		t.Fatal("expected NilValue to convert to nil")
+	}
+	if IsTruthy(NilValue()) {
+		t.Fatal("expected NilValue to be falsey")
+	}
+	if !IsTruthy(NewLong(0)) {
+		t.Fatal("expected numeric zero to be truthy")
+	}
+}
+
+func TestStr(t *testing.T) {
+	if got := Str(); got != "" {
+		t.Fatalf("expected empty str() result, got %q", got)
+	}
+
+	value := Str(
+		"a",
+		NewLong(1),
+		NewDouble(2.5),
+		NewRatio(3, 2),
+		NewSymbol("s"),
+		NewKeyword("k"),
+		true,
+		NewList(NewLong(4), NewLong(5)),
+		NewArray(NewLong(6), NewLong(7)),
+		NilValue(),
+	)
+	if value != "a12.53/2s:ktrue(4 5)[6 7]" {
+		t.Fatalf("unexpected str result: %q", value)
+	}
+}
+
+func TestSymbolAndName(t *testing.T) {
+	sym := Symbol("abc")
+	if sym.tag != TagSymbol {
+		t.Fatalf("expected symbol tag, got %v", sym.tag)
+	}
+
+	if got := Name(sym); got != "abc" {
+		t.Fatalf("expected symbol name abc, got %q", got)
+	}
+	if got := Name(NewKeyword("kw")); got != "kw" {
+		t.Fatalf("expected keyword name kw, got %q", got)
+	}
+
+	kwAsSymbol := Symbol(NewKeyword("kw"))
+	if got := ValueToString(kwAsSymbol); got != "kw" {
+		t.Fatalf("expected symbol conversion to drop keyword marker, got %q", got)
+	}
+
+	keywordAny, ok := ValueToAny(NewKeyword("key")).(Value)
+	if !ok {
+		t.Fatalf("expected Value from ValueToAny, got %T", ValueToAny(NewKeyword("key")))
+	}
+	if got := ValueToString(keywordAny); got != ":key" {
+		t.Fatalf("unexpected keyword value: %q", got)
+	}
+}

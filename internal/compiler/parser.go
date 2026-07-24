@@ -44,6 +44,8 @@ func (p *parser) readExpr() (Expr, error) {
 		return p.readVector()
 	case '{':
 		return p.readMap()
+	case '#':
+		return p.readDispatch()
 	case '"':
 		return p.readString()
 	default:
@@ -92,6 +94,24 @@ func (p *parser) readMap() (Expr, error) {
 	return MapExpr{Entries: list.(ListExpr).Elements}, nil
 }
 
+func (p *parser) readDispatch() (Expr, error) {
+	if p.next() != '#' {
+		return nil, p.errorf("internal parser mismatch")
+	}
+	if p.done() {
+		return nil, p.errorf("unexpected end after #")
+	}
+	if p.peek() != '{' {
+		return nil, p.errorf("unsupported reader dispatch")
+	}
+
+	list, err := p.readList('{', '}')
+	if err != nil {
+		return nil, err
+	}
+	return SetExpr{Elements: list.(ListExpr).Elements}, nil
+}
+
 func (p *parser) readString() (Expr, error) {
 	start := p.pos
 	p.next() // opening quote
@@ -137,6 +157,9 @@ func (p *parser) readAtom() (Expr, error) {
 
 	if strings.HasPrefix(token, ":") && len(token) > 1 {
 		return KeywordExpr{Name: token[1:]}, nil
+	}
+	if strings.HasPrefix(token, "'") && len(token) > 1 {
+		return QuotedSymbolExpr{Name: token[1:]}, nil
 	}
 
 	if i, err := strconv.ParseInt(token, 10, 64); err == nil {

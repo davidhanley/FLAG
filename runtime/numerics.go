@@ -1,7 +1,10 @@
 package runtime
 
 import (
+	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -9,6 +12,14 @@ type Value struct {
 	d   float64
 	p   unsafe.Pointer
 	tag ValueTag
+}
+
+func (v Value) String() string {
+	return ValueToString(v)
+}
+
+func NilValue() Value {
+	return Value{tag: TagNil}
 }
 
 func NewLong(v int64) Value {
@@ -212,45 +223,145 @@ func Div(lhs, rhs Value) Value {
 }
 
 func Eq(lhs, rhs Value) bool {
+	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
+		return compareNumeric(lhs, rhs) == 0
+	}
+	if lhs.tag != rhs.tag {
+		return false
+	}
 	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return left == rhs.Long()
-		case TagDouble:
-			return float64(left) == rhs.Double()
-		case TagRatio:
-			return big.NewRat(left, 1).Cmp(rhs.Ratio()) == 0
-		default:
-			panic("unknown rhs tag for Eq")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return left == float64(rhs.Long())
-		case TagDouble:
-			return left == rhs.Double()
-		case TagRatio:
-			return left == ratToFloat64(rhs.Ratio())
-		default:
-			panic("unknown rhs tag for Eq")
-		}
-	case TagRatio:
-		left := lhs.Ratio()
-		switch rhs.tag {
-		case TagLong:
-			return left.Cmp(big.NewRat(rhs.Long(), 1)) == 0
-		case TagDouble:
-			return ratToFloat64(left) == rhs.Double()
-		case TagRatio:
-			return left.Cmp(rhs.Ratio()) == 0
-		default:
-			panic("unknown rhs tag for Eq")
-		}
+	case TagNil:
+		return true
 	default:
-		panic("unknown lhs tag for Eq")
+		return valueIdentity(lhs) == valueIdentity(rhs)
+	}
+}
+
+func isNumericTag(tag ValueTag) bool {
+	switch tag {
+	case TagLong, TagDouble, TagRatio:
+		return true
+	default:
+		return false
+	}
+}
+
+func Lt(lhs, rhs Value) bool {
+	return compareNumeric(lhs, rhs) < 0
+}
+
+func Gt(lhs, rhs Value) bool {
+	return compareNumeric(lhs, rhs) > 0
+}
+
+func IsTruthy(v Value) bool {
+	return v.tag != TagNil
+}
+
+func Str(args ...any) string {
+	var out strings.Builder
+	for _, arg := range args {
+		out.WriteString(anyToString(arg))
+	}
+	return out.String()
+}
+
+func Println(args ...any) Value {
+	fmt.Println(Str(args...))
+	return NilValue()
+}
+
+func ValueToString(v Value) string {
+	switch v.tag {
+	case TagLong:
+		return strconv.FormatInt(v.Long(), 10)
+	case TagDouble:
+		return strconv.FormatFloat(v.Double(), 'g', -1, 64)
+	case TagRatio:
+		return v.Ratio().RatString()
+	case TagSymbol:
+		symbol := v.SymbolObject()
+		if symbol.IsKeyword {
+			return ":" + symbol.Name
+		}
+		return symbol.Name
+	case TagMap:
+		entries := v.MapEntries()
+		var out strings.Builder
+		out.WriteByte('{')
+		for i, entry := range entries {
+			if i > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(ValueToString(entry.Key))
+			out.WriteByte(' ')
+			out.WriteString(ValueToString(entry.Value))
+		}
+		out.WriteByte('}')
+		return out.String()
+	case TagSet:
+		values := v.SetValues()
+		var out strings.Builder
+		out.WriteString("#{")
+		for i, value := range values {
+			if i > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(ValueToString(value))
+		}
+		out.WriteByte('}')
+		return out.String()
+	case TagNil:
+		return ""
+	case TagList:
+		values := v.ListValues()
+		var out strings.Builder
+		out.WriteByte('(')
+		for i, value := range values {
+			if i > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(ValueToString(value))
+		}
+		out.WriteByte(')')
+		return out.String()
+	case TagArray:
+		values := v.ArrayValues()
+		var out strings.Builder
+		out.WriteByte('[')
+		for i, value := range values {
+			if i > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(ValueToString(value))
+		}
+		out.WriteByte(']')
+		return out.String()
+	default:
+		panic("unknown Value tag")
+	}
+}
+
+func anyToString(arg any) string {
+	switch value := arg.(type) {
+	case Value:
+		return ValueToString(value)
+	case string:
+		return value
+	case *SymbolObject:
+		if value == nil {
+			return ""
+		}
+		if value.IsKeyword {
+			return ":" + value.Name
+		}
+		return value.Name
+	case bool:
+		return strconv.FormatBool(value)
+	case nil:
+		return ""
+	default:
+		return fmt.Sprint(value)
 	}
 }
 
@@ -262,6 +373,10 @@ func ValueToAny(v Value) any {
 		return v.Double()
 	case TagRatio:
 		return v.Ratio()
+	case TagSymbol, TagMap, TagSet:
+		return v
+	case TagNil:
+		return nil
 	case TagList:
 		return listValueToAny(v)
 	case TagArray:
@@ -281,4 +396,58 @@ func (v Value) ratioPointer() *big.Rat {
 func ratToFloat64(r *big.Rat) float64 {
 	f, _ := r.Float64()
 	return f
+}
+
+func compareNumeric(lhs, rhs Value) int {
+	switch lhs.tag {
+	case TagLong:
+		left := lhs.Long()
+		switch rhs.tag {
+		case TagLong:
+			return compareFloat64(float64(left), float64(rhs.Long()))
+		case TagDouble:
+			return compareFloat64(float64(left), rhs.Double())
+		case TagRatio:
+			return big.NewRat(left, 1).Cmp(rhs.Ratio())
+		default:
+			panic("unknown rhs tag for numeric compare")
+		}
+	case TagDouble:
+		left := lhs.Double()
+		switch rhs.tag {
+		case TagLong:
+			return compareFloat64(left, float64(rhs.Long()))
+		case TagDouble:
+			return compareFloat64(left, rhs.Double())
+		case TagRatio:
+			return compareFloat64(left, ratToFloat64(rhs.Ratio()))
+		default:
+			panic("unknown rhs tag for numeric compare")
+		}
+	case TagRatio:
+		left := lhs.Ratio()
+		switch rhs.tag {
+		case TagLong:
+			return left.Cmp(big.NewRat(rhs.Long(), 1))
+		case TagDouble:
+			return compareFloat64(ratToFloat64(left), rhs.Double())
+		case TagRatio:
+			return left.Cmp(rhs.Ratio())
+		default:
+			panic("unknown rhs tag for numeric compare")
+		}
+	default:
+		panic("unknown lhs tag for numeric compare")
+	}
+}
+
+func compareFloat64(lhs, rhs float64) int {
+	switch {
+	case lhs < rhs:
+		return -1
+	case lhs > rhs:
+		return 1
+	default:
+		return 0
+	}
 }

@@ -37,3 +37,8 @@ go run ./cmd/flag-lang repl
 go run ./cmd/flag-lang compile examples/hello.flag -o hello.go
 go run ./hello.go
 ```
+
+```bash
+go run ./cmd/flag-lang build examples/hello.flag -o hello
+./hello
+```

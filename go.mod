@@ -2,4 +2,8 @@ module flag-lang
 
 go 1.26.4
 
-require github.com/traefik/yaegi v0.16.1 // indirect
+require (
+	github.com/benbjohnson/immutable v0.4.3 // indirect
+	github.com/traefik/yaegi v0.16.1 // indirect
+	golang.org/x/exp v0.0.0-20220518171630-0b5c67f07fdf // indirect
+)
