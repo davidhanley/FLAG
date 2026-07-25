@@ -616,6 +616,24 @@ func TestCompilePrintlnWithMultipleArguments(t *testing.T) {
 	}
 }
 
+func TestCompileOpenFileAndFileToStrings(t *testing.T) {
+	output, err := Compile(`(println (first (file-to-strings (open-file "sample.txt"))))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.OpenFile("sample.txt")`,
+		`flagrt.FileToStrings(`,
+		`flagrt.First(`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDefnAndCall(t *testing.T) {
 	output, err := Compile(`
 (defn sq [x] (* x x))

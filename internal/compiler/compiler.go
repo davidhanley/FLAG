@@ -1030,7 +1030,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	case "+", "-", "*", "/", "%", "=", "<", ">",
 		"first", "fist", "rest", "take", "drop",
 		"map", "filter", "reduce", "range", "get",
-		"assoc", "dissoc":
+		"assoc", "dissoc", "open-file", "file-to-strings":
 		return true
 	default:
 		return false
@@ -1099,6 +1099,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return toJSONExprToGo(list.Elements[1:], ctx, locals)
 		case "from-json":
 			return fromJSONExprToGo(list.Elements[1:], ctx, locals)
+		case "open-file":
+			return openFileExprToGo(list.Elements[1:], ctx, locals)
+		case "file-to-strings":
+			return fileToStringsExprToGo(list.Elements[1:], ctx, locals)
 		case "fn":
 			return fnExprToGo(list.Elements[1:], ctx, locals)
 		}
@@ -1490,6 +1494,42 @@ func fromJSONExprToGo(args []Expr, ctx compileContext, locals map[string]exprKin
 		return goExpr{}, fmt.Errorf("from-json expects a string argument")
 	}
 	return goExpr{code: fmt.Sprintf("%s.FromJSON(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func openFileExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("open-file expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	switch arg.kind {
+	case exprKindString:
+		return goExpr{code: fmt.Sprintf("%s.OpenFile(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+	case exprKindValue:
+		return goExpr{code: fmt.Sprintf("%s.OpenFile(%s.Name(%s))", runtimeAlias, runtimeAlias, arg.code), kind: exprKindValue}, nil
+	default:
+		return goExpr{}, fmt.Errorf("open-file expects a string, symbol, or keyword argument")
+	}
+}
+
+func fileToStringsExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("file-to-strings expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	switch arg.kind {
+	case exprKindString:
+		return goExpr{code: fmt.Sprintf("%s.FileToStringsPath(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+	case exprKindValue:
+		return goExpr{code: fmt.Sprintf("%s.FileToStrings(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+	default:
+		return goExpr{}, fmt.Errorf("file-to-strings expects a string, symbol, or keyword argument")
+	}
 }
 
 func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
