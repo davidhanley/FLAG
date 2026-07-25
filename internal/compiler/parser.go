@@ -46,6 +46,8 @@ func (p *parser) readExpr() (Expr, error) {
 		return p.readMap()
 	case '#':
 		return p.readDispatch()
+	case '\'':
+		return p.readQuotedExpr()
 	case '"':
 		return p.readString()
 	default:
@@ -119,6 +121,28 @@ func (p *parser) readDispatch() (Expr, error) {
 	return SetExpr{Elements: list.(ListExpr).Elements}, nil
 }
 
+func (p *parser) readQuotedExpr() (Expr, error) {
+	if p.next() != '\'' {
+		return nil, p.errorf("internal parser mismatch")
+	}
+	p.skipIgnorable()
+	if p.done() {
+		return nil, p.errorf("unexpected end after quote")
+	}
+	quoted, err := p.readExpr()
+	if err != nil {
+		return nil, err
+	}
+	switch value := quoted.(type) {
+	case SymbolExpr:
+		return QuotedSymbolExpr{Name: value.Name}, nil
+	case ListExpr:
+		return QuotedListExpr{Elements: value.Elements}, nil
+	default:
+		return nil, p.errorf("quote currently supports symbols and lists")
+	}
+}
+
 func (p *parser) readString() (Expr, error) {
 	start := p.pos
 	p.next() // opening quote
@@ -165,10 +189,6 @@ func (p *parser) readAtom() (Expr, error) {
 	if strings.HasPrefix(token, ":") && len(token) > 1 {
 		return KeywordExpr{Name: token[1:]}, nil
 	}
-	if strings.HasPrefix(token, "'") && len(token) > 1 {
-		return QuotedSymbolExpr{Name: token[1:]}, nil
-	}
-
 	if i, err := strconv.ParseInt(token, 10, 64); err == nil {
 		return IntExpr{Value: i}, nil
 	}
@@ -243,6 +263,7 @@ func isDelimiter(ch rune) bool {
 	return unicode.IsSpace(ch) ||
 		ch == ',' ||
 		ch == ';' ||
+		ch == '\'' ||
 		ch == '(' || ch == ')' ||
 		ch == '[' || ch == ']' ||
 		ch == '{' || ch == '}' ||

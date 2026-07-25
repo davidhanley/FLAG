@@ -379,6 +379,8 @@ func ValueToString(v Value) string {
 		}
 		out.WriteByte(']')
 		return out.String()
+	case TagLazyList:
+		return "#<lazy-list>"
 	default:
 		panic("unknown Value tag")
 	}
@@ -417,7 +419,7 @@ func ValueToAny(v Value) any {
 		return v.Ratio()
 	case TagBool:
 		return v.Bool()
-	case TagSymbol, TagFunction, TagMap, TagSet:
+	case TagSymbol, TagFunction, TagMap, TagSet, TagLazyList:
 		return v
 	case TagNil:
 		return nil

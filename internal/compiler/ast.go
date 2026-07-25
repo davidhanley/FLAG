@@ -56,6 +56,12 @@ type QuotedSymbolExpr struct {
 
 func (QuotedSymbolExpr) expr() {}
 
+type QuotedListExpr struct {
+	Elements []Expr
+}
+
+func (QuotedListExpr) expr() {}
+
 type StringExpr struct {
 	Value string
 }

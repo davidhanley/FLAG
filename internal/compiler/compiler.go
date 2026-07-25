@@ -892,6 +892,8 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return goExpr{code: fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 	case QuotedSymbolExpr:
 		return goExpr{code: fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+	case QuotedListExpr:
+		return quotedListExprToGo(arg)
 	case VectorExpr:
 		return vectorExprToGo(arg.Elements, ctx, locals)
 	case MapExpr:
@@ -909,6 +911,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		}
 		if arg.Name == "nil" {
 			return goExpr{code: fmt.Sprintf("%s.NilValue()", runtimeAlias), kind: exprKindValue}, nil
+		}
+		if isBuiltinFunctionSymbol(arg.Name) {
+			return goExpr{code: fmt.Sprintf("%s.BuiltinFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 		}
 		ident, err := toGoIdentifier(arg.Name)
 		if err != nil {
@@ -930,6 +935,103 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return listExprToGo(arg, ctx, locals)
 	default:
 		return goExpr{}, fmt.Errorf("unsupported literal")
+	}
+}
+
+func quotedListExprToGo(arg QuotedListExpr) (goExpr, error) {
+	parts := make([]string, 0, len(arg.Elements))
+	for _, item := range arg.Elements {
+		code, err := quotedLiteralToValueCode(item)
+		if err != nil {
+			return goExpr{}, err
+		}
+		parts = append(parts, code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.NewList(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func quotedLiteralToValueCode(expr Expr) (string, error) {
+	switch value := expr.(type) {
+	case IntExpr:
+		return fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, value.Value), nil
+	case FloatExpr:
+		if value.Raw != "" {
+			return fmt.Sprintf("%s.NewDouble(%s)", runtimeAlias, value.Raw), nil
+		}
+		return fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, value.Value), nil
+	case KeywordExpr:
+		return fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, value.Name), nil
+	case SymbolExpr:
+		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+	case QuotedSymbolExpr:
+		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+	case QuotedListExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewList(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case ListExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewList(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case VectorExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case MapExpr:
+		if len(value.Entries)%2 != 0 {
+			return "", fmt.Errorf("quoted map literal expects an even number of forms")
+		}
+		out := make([]string, 0, len(value.Entries))
+		for _, item := range value.Entries {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case SetExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewSet(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	default:
+		return "", fmt.Errorf("unsupported quoted literal %T", expr)
+	}
+}
+
+func isBuiltinFunctionSymbol(name string) bool {
+	switch name {
+	case "+", "-", "*", "/", "%", "=", "<", ">",
+		"first", "fist", "rest",
+		"map", "filter", "reduce", "range",
+		"assoc", "dissoc":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -979,6 +1081,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "filter":
 			return filterCallExprToGo(list.Elements[1:], ctx, locals)
+		case "reduce":
+			return reduceCallExprToGo(list.Elements[1:], ctx, locals)
+		case "range":
+			return rangeCallExprToGo(list.Elements[1:], ctx, locals)
 		case "assoc":
 			return assocExprToGo(list.Elements[1:], ctx, locals)
 		case "dissoc":
@@ -1348,6 +1454,43 @@ func filterCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Filter(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func reduceCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 && len(args) != 3 {
+		return goExpr{}, fmt.Errorf("reduce expects function and collection, or function, initial value, and collection")
+	}
+
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		part, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("reduce arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.Reduce(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func rangeCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 && len(args) != 2 {
+		return goExpr{}, fmt.Errorf("range expects one or two arguments")
+	}
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		part, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("range arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.Range(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func fnExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

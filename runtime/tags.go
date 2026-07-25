@@ -14,4 +14,5 @@ const (
 	TagNil
 	TagList
 	TagArray
+	TagLazyList
 )

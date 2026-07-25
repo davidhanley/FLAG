@@ -93,6 +93,29 @@ func TestParseFileQuotedAndKeywordSymbols(t *testing.T) {
 	}
 }
 
+func TestParseFileQuotedList(t *testing.T) {
+	ast, err := ParseFile(`(println '(1 2 3))`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+	if len(call.Elements) != 2 {
+		t.Fatalf("expected println form with 2 elements, got %d", len(call.Elements))
+	}
+
+	quoted, ok := call.Elements[1].(QuotedListExpr)
+	if !ok {
+		t.Fatalf("expected quoted list, got %#v", call.Elements[1])
+	}
+	if len(quoted.Elements) != 3 {
+		t.Fatalf("expected quoted list length 3, got %d", len(quoted.Elements))
+	}
+}
+
 func TestParseFileSetLiteral(t *testing.T) {
 	ast, err := ParseFile(`(println #{1 2 3})`)
 	if err != nil {
