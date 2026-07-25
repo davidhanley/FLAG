@@ -41,6 +41,18 @@ func NewRatioFromRat(rat *big.Rat) Value {
 	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
 }
 
+func NewBigInt(v int64) Value {
+	return NewBigIntFromBigInt(big.NewInt(v))
+}
+
+func NewBigIntFromBigInt(v *big.Int) Value {
+	if v == nil {
+		panic("NewBigIntFromBigInt expects non-nil big.Int")
+	}
+	copied := new(big.Int).Set(v)
+	return Value{p: unsafe.Pointer(copied), tag: TagBigInt}
+}
+
 func NewBool(v bool) Value {
 	if v {
 		return Value{d: 1, tag: TagBool}
@@ -63,6 +75,13 @@ func (v Value) Ratio() *big.Rat {
 	return v.ratioPointer()
 }
 
+func (v Value) BigInt() *big.Int {
+	if v.tag != TagBigInt {
+		panic("BigInt called on non-bigint Value")
+	}
+	return v.bigIntPointer()
+}
+
 func (v Value) Bool() bool {
 	if v.tag != TagBool {
 		panic("Bool called on non-bool Value")
@@ -71,186 +90,69 @@ func (v Value) Bool() bool {
 }
 
 func Add(lhs, rhs Value) Value {
-	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return NewLong(left + rhs.Long())
-		case TagDouble:
-			return NewDouble(float64(left) + rhs.Double())
-		default:
-			panic("unknown rhs tag for Add")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return NewDouble(left + float64(rhs.Long()))
-		case TagDouble:
-			return NewDouble(left + rhs.Double())
-		default:
-			panic("unknown rhs tag for Add")
-		}
-	case TagRatio:
-		left := new(big.Rat).Set(lhs.Ratio())
-		switch rhs.tag {
-		case TagLong:
-			left.Add(left, big.NewRat(rhs.Long(), 1))
-			return NewRatioFromRat(left)
-		case TagDouble:
-			return NewDouble(ratToFloat64(left) + rhs.Double())
-		case TagRatio:
-			left.Add(left, rhs.Ratio())
-			return NewRatioFromRat(left)
-		default:
-			panic("unknown rhs tag for Add")
-		}
-	default:
-		panic("unknown lhs tag for Add")
+	ensureNumericOperands("Add", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return NewDouble(numericToFloat64(lhs) + numericToFloat64(rhs))
 	}
+	if lhs.tag == TagRatio || rhs.tag == TagRatio {
+		left := valueToRat(lhs)
+		left.Add(left, valueToRat(rhs))
+		return NewRatioFromRat(left)
+	}
+	return addIntegerValues(lhs, rhs)
 }
 
 func Mul(lhs, rhs Value) Value {
-	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return NewLong(left * rhs.Long())
-		case TagDouble:
-			return NewDouble(float64(left) * rhs.Double())
-		default:
-			panic("unknown rhs tag for Mul")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return NewDouble(left * float64(rhs.Long()))
-		case TagDouble:
-			return NewDouble(left * rhs.Double())
-		default:
-			panic("unknown rhs tag for Mul")
-		}
-	case TagRatio:
-		left := new(big.Rat).Set(lhs.Ratio())
-		switch rhs.tag {
-		case TagLong:
-			left.Mul(left, big.NewRat(rhs.Long(), 1))
-			return NewRatioFromRat(left)
-		case TagDouble:
-			return NewDouble(ratToFloat64(left) * rhs.Double())
-		case TagRatio:
-			left.Mul(left, rhs.Ratio())
-			return NewRatioFromRat(left)
-		default:
-			panic("unknown rhs tag for Mul")
-		}
-	default:
-		panic("unknown lhs tag for Mul")
+	ensureNumericOperands("Mul", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return NewDouble(numericToFloat64(lhs) * numericToFloat64(rhs))
 	}
+	if lhs.tag == TagRatio || rhs.tag == TagRatio {
+		left := valueToRat(lhs)
+		left.Mul(left, valueToRat(rhs))
+		return NewRatioFromRat(left)
+	}
+	return mulIntegerValues(lhs, rhs)
 }
 
 func Sub(lhs, rhs Value) Value {
-	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return NewLong(left - rhs.Long())
-		case TagDouble:
-			return NewDouble(float64(left) - rhs.Double())
-		default:
-			panic("unknown rhs tag for Sub")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return NewDouble(left - float64(rhs.Long()))
-		case TagDouble:
-			return NewDouble(left - rhs.Double())
-		default:
-			panic("unknown rhs tag for Sub")
-		}
-	case TagRatio:
-		left := new(big.Rat).Set(lhs.Ratio())
-		switch rhs.tag {
-		case TagLong:
-			left.Sub(left, big.NewRat(rhs.Long(), 1))
-			return NewRatioFromRat(left)
-		case TagDouble:
-			return NewDouble(ratToFloat64(left) - rhs.Double())
-		case TagRatio:
-			left.Sub(left, rhs.Ratio())
-			return NewRatioFromRat(left)
-		default:
-			panic("unknown rhs tag for Sub")
-		}
-	default:
-		panic("unknown lhs tag for Sub")
+	ensureNumericOperands("Sub", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return NewDouble(numericToFloat64(lhs) - numericToFloat64(rhs))
 	}
+	if lhs.tag == TagRatio || rhs.tag == TagRatio {
+		left := valueToRat(lhs)
+		left.Sub(left, valueToRat(rhs))
+		return NewRatioFromRat(left)
+	}
+	return subIntegerValues(lhs, rhs)
 }
 
 func Div(lhs, rhs Value) Value {
-	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return NewRatio(left, rhs.Long())
-		case TagDouble:
-			return NewDouble(float64(left) / rhs.Double())
-		case TagRatio:
-			return NewRatioFromRat(new(big.Rat).Quo(big.NewRat(left, 1), rhs.Ratio()))
-		default:
-			panic("unknown rhs tag for Div")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return NewDouble(left / float64(rhs.Long()))
-		case TagDouble:
-			return NewDouble(left / rhs.Double())
-		case TagRatio:
-			return NewDouble(left / ratToFloat64(rhs.Ratio()))
-		default:
-			panic("unknown rhs tag for Div")
-		}
-	case TagRatio:
-		left := new(big.Rat).Set(lhs.Ratio())
-		switch rhs.tag {
-		case TagLong:
-			return NewRatioFromRat(left.Quo(left, big.NewRat(rhs.Long(), 1)))
-		case TagDouble:
-			return NewDouble(ratToFloat64(left) / rhs.Double())
-		case TagRatio:
-			return NewRatioFromRat(left.Quo(left, rhs.Ratio()))
-		default:
-			panic("unknown rhs tag for Div")
-		}
-	default:
-		panic("unknown lhs tag for Div")
+	ensureNumericOperands("Div", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return NewDouble(numericToFloat64(lhs) / numericToFloat64(rhs))
 	}
+	left := valueToRat(lhs)
+	left.Quo(left, valueToRat(rhs))
+	return NewRatioFromRat(left)
 }
 
 func Mod(lhs, rhs Value) Value {
-	if lhs.tag != TagLong || rhs.tag != TagLong {
+	if !isIntegerTag(lhs.tag) || !isIntegerTag(rhs.tag) {
 		panic("mod expects integer Value arguments")
 	}
-	left := lhs.Long()
-	right := rhs.Long()
-	if right == 0 {
+	left := valueToBigInt(lhs)
+	right := valueToBigInt(rhs)
+	if right.Sign() == 0 {
 		panic("mod by zero")
 	}
 
-	remainder := left % right
-	if remainder != 0 && (remainder < 0) != (right < 0) {
-		remainder += right
+	remainder := new(big.Int).Rem(left, right)
+	if remainder.Sign() != 0 && ((remainder.Sign() < 0) != (right.Sign() < 0)) {
+		remainder.Add(remainder, right)
 	}
-	return NewLong(remainder)
+	return newIntegerValueFromBigInt(remainder)
 }
 
 func Eq(lhs, rhs Value) bool {
@@ -270,7 +172,7 @@ func Eq(lhs, rhs Value) bool {
 
 func isNumericTag(tag ValueTag) bool {
 	switch tag {
-	case TagLong, TagDouble, TagRatio:
+	case TagLong, TagDouble, TagRatio, TagBigInt:
 		return true
 	default:
 		return false
@@ -317,6 +219,8 @@ func ValueToString(v Value) string {
 		return strconv.FormatFloat(v.Double(), 'g', -1, 64)
 	case TagRatio:
 		return v.Ratio().RatString()
+	case TagBigInt:
+		return v.BigInt().String()
 	case TagBool:
 		return strconv.FormatBool(v.Bool())
 	case TagSymbol:
@@ -417,6 +321,8 @@ func ValueToAny(v Value) any {
 		return v.Double()
 	case TagRatio:
 		return v.Ratio()
+	case TagBigInt:
+		return v.BigInt()
 	case TagBool:
 		return v.Bool()
 	case TagSymbol, TagFunction, TagMap, TagSet, TagLazyList:
@@ -445,46 +351,11 @@ func ratToFloat64(r *big.Rat) float64 {
 }
 
 func compareNumeric(lhs, rhs Value) int {
-	switch lhs.tag {
-	case TagLong:
-		left := lhs.Long()
-		switch rhs.tag {
-		case TagLong:
-			return compareFloat64(float64(left), float64(rhs.Long()))
-		case TagDouble:
-			return compareFloat64(float64(left), rhs.Double())
-		case TagRatio:
-			return big.NewRat(left, 1).Cmp(rhs.Ratio())
-		default:
-			panic("unknown rhs tag for numeric compare")
-		}
-	case TagDouble:
-		left := lhs.Double()
-		switch rhs.tag {
-		case TagLong:
-			return compareFloat64(left, float64(rhs.Long()))
-		case TagDouble:
-			return compareFloat64(left, rhs.Double())
-		case TagRatio:
-			return compareFloat64(left, ratToFloat64(rhs.Ratio()))
-		default:
-			panic("unknown rhs tag for numeric compare")
-		}
-	case TagRatio:
-		left := lhs.Ratio()
-		switch rhs.tag {
-		case TagLong:
-			return left.Cmp(big.NewRat(rhs.Long(), 1))
-		case TagDouble:
-			return compareFloat64(ratToFloat64(left), rhs.Double())
-		case TagRatio:
-			return left.Cmp(rhs.Ratio())
-		default:
-			panic("unknown rhs tag for numeric compare")
-		}
-	default:
-		panic("unknown lhs tag for numeric compare")
+	ensureNumericOperands("compare", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return compareFloat64(numericToFloat64(lhs), numericToFloat64(rhs))
 	}
+	return valueToRat(lhs).Cmp(valueToRat(rhs))
 }
 
 func compareFloat64(lhs, rhs float64) int {
@@ -497,3 +368,124 @@ func compareFloat64(lhs, rhs float64) int {
 		return 0
 	}
 }
+
+func (v Value) bigIntPointer() *big.Int {
+	if v.p == nil {
+		panic("bigint Value does not contain big.Int pointer")
+	}
+	return (*big.Int)(v.p)
+}
+
+func isIntegerTag(tag ValueTag) bool {
+	return tag == TagLong || tag == TagBigInt
+}
+
+func ensureNumericOperands(op string, lhs, rhs Value) {
+	if !isNumericTag(lhs.tag) || !isNumericTag(rhs.tag) {
+		panic(op + " expects numeric Value arguments")
+	}
+}
+
+func numericToFloat64(v Value) float64 {
+	switch v.tag {
+	case TagLong:
+		return float64(v.Long())
+	case TagDouble:
+		return v.Double()
+	case TagRatio:
+		return ratToFloat64(v.Ratio())
+	case TagBigInt:
+		f, _ := new(big.Float).SetInt(v.BigInt()).Float64()
+		return f
+	default:
+		panic("numericToFloat64 called on non-numeric Value")
+	}
+}
+
+func valueToRat(v Value) *big.Rat {
+	switch v.tag {
+	case TagLong:
+		return big.NewRat(v.Long(), 1)
+	case TagBigInt:
+		return new(big.Rat).SetInt(v.BigInt())
+	case TagRatio:
+		return new(big.Rat).Set(v.Ratio())
+	default:
+		panic("valueToRat expects integer or ratio Value")
+	}
+}
+
+func valueToBigInt(v Value) *big.Int {
+	switch v.tag {
+	case TagLong:
+		return big.NewInt(v.Long())
+	case TagBigInt:
+		return new(big.Int).Set(v.BigInt())
+	default:
+		panic("valueToBigInt expects integer Value")
+	}
+}
+
+func newIntegerValueFromBigInt(v *big.Int) Value {
+	if v.IsInt64() {
+		return NewLong(v.Int64())
+	}
+	return NewBigIntFromBigInt(v)
+}
+
+func addIntegerValues(lhs, rhs Value) Value {
+	if lhs.tag == TagLong && rhs.tag == TagLong {
+		left := lhs.Long()
+		right := rhs.Long()
+		sum := left + right
+		if (right > 0 && sum < left) || (right < 0 && sum > left) {
+			bigSum := new(big.Int).Add(big.NewInt(left), big.NewInt(right))
+			return NewBigIntFromBigInt(bigSum)
+		}
+		return NewLong(sum)
+	}
+	sum := new(big.Int).Add(valueToBigInt(lhs), valueToBigInt(rhs))
+	return newIntegerValueFromBigInt(sum)
+}
+
+func subIntegerValues(lhs, rhs Value) Value {
+	if lhs.tag == TagLong && rhs.tag == TagLong {
+		left := lhs.Long()
+		right := rhs.Long()
+		diff := left - right
+		if (right < 0 && diff < left) || (right > 0 && diff > left) {
+			bigDiff := new(big.Int).Sub(big.NewInt(left), big.NewInt(right))
+			return NewBigIntFromBigInt(bigDiff)
+		}
+		return NewLong(diff)
+	}
+	diff := new(big.Int).Sub(valueToBigInt(lhs), valueToBigInt(rhs))
+	return newIntegerValueFromBigInt(diff)
+}
+
+func mulIntegerValues(lhs, rhs Value) Value {
+	if lhs.tag == TagLong && rhs.tag == TagLong {
+		left := lhs.Long()
+		right := rhs.Long()
+		if left == 0 || right == 0 {
+			return NewLong(0)
+		}
+		if (left == minInt64 && right == -1) || (left == -1 && right == minInt64) {
+			bigProd := new(big.Int).Mul(big.NewInt(left), big.NewInt(right))
+			return NewBigIntFromBigInt(bigProd)
+		}
+		product := left * right
+		if product/right != left {
+			bigProd := new(big.Int).Mul(big.NewInt(left), big.NewInt(right))
+			return NewBigIntFromBigInt(bigProd)
+		}
+		return NewLong(product)
+	}
+	product := new(big.Int).Mul(valueToBigInt(lhs), valueToBigInt(rhs))
+	return newIntegerValueFromBigInt(product)
+}
+
+const (
+	maxInt64 = int64(^uint64(0) >> 1)
+	minInt64 = -maxInt64 - 1
+)

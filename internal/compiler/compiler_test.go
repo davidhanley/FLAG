@@ -298,6 +298,8 @@ func TestCompileFirstAndRestFunctions(t *testing.T) {
 (println (first [1 2 3]))
 (println (fist [1 2 3]))
 (println (rest [1 2 3]))
+(println (take 2 [1 2 3]))
+(println (drop 1 [1 2 3]))
 `)
 	if err != nil {
 		t.Fatalf("Compile returned error: %v", err)
@@ -307,6 +309,8 @@ func TestCompileFirstAndRestFunctions(t *testing.T) {
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str(flagrt.First(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
 		`fmt.Println(flagrt.Str(flagrt.Rest(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
+		`fmt.Println(flagrt.Str(flagrt.Take(flagrt.NewLong(2), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
+		`fmt.Println(flagrt.Str(flagrt.Drop(flagrt.NewLong(1), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -328,6 +332,28 @@ func TestCompileMapFunction(t *testing.T) {
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str(flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
 		`fmt.Println(flagrt.Str(flagrt.Map(flagrt.NewFunction(add2), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20), flagrt.NewLong(30)))))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileJSONFunctions(t *testing.T) {
+	output, err := Compile(`
+(println (to-json {:a 1 :b [2 3]}))
+(println (from-json "{\"a\":1}"))
+(println (from-json (to-json {:x 9})))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.ToJSON(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewArray(flagrt.NewLong(2), flagrt.NewLong(3))))))`,
+		`fmt.Println(flagrt.Str(flagrt.FromJSON("{\"a\":1}")))`,
+		`fmt.Println(flagrt.Str(flagrt.FromJSON(flagrt.ToJSON(flagrt.NewMap(flagrt.NewKeyword("x"), flagrt.NewLong(9))))))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)

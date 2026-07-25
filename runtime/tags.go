@@ -4,6 +4,7 @@ type ValueTag uint8
 
 const (
 	TagLong ValueTag = iota + 1
+	TagBigInt
 	TagDouble
 	TagRatio
 	TagBool

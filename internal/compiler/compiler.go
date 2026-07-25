@@ -1028,7 +1028,7 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", ">",
-		"first", "fist", "rest",
+		"first", "fist", "rest", "take", "drop",
 		"map", "filter", "reduce", "range", "get",
 		"assoc", "dissoc":
 		return true
@@ -1079,6 +1079,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return firstExprToGo(list.Elements[1:], ctx, locals)
 		case "rest":
 			return restExprToGo(list.Elements[1:], ctx, locals)
+		case "take":
+			return takeExprToGo(list.Elements[1:], ctx, locals)
+		case "drop":
+			return dropExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "filter":
@@ -1091,6 +1095,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return assocExprToGo(list.Elements[1:], ctx, locals)
 		case "dissoc":
 			return dissocExprToGo(list.Elements[1:], ctx, locals)
+		case "to-json":
+			return toJSONExprToGo(list.Elements[1:], ctx, locals)
+		case "from-json":
+			return fromJSONExprToGo(list.Elements[1:], ctx, locals)
 		case "fn":
 			return fnExprToGo(list.Elements[1:], ctx, locals)
 		}
@@ -1418,6 +1426,70 @@ func restExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		return goExpr{}, fmt.Errorf("rest expects an argument that evaluates to Value")
 	}
 	return goExpr{code: fmt.Sprintf("%s.Rest(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func takeExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("take expects count and sequence")
+	}
+	countExpr, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	seqExpr, err := exprToGo(args[1], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if countExpr.kind != exprKindValue || seqExpr.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("take arguments must evaluate to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.Take(%s, %s)", runtimeAlias, countExpr.code, seqExpr.code), kind: exprKindValue}, nil
+}
+
+func dropExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("drop expects count and sequence")
+	}
+	countExpr, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	seqExpr, err := exprToGo(args[1], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if countExpr.kind != exprKindValue || seqExpr.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("drop arguments must evaluate to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.Drop(%s, %s)", runtimeAlias, countExpr.code, seqExpr.code), kind: exprKindValue}, nil
+}
+
+func toJSONExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("to-json expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if arg.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("to-json expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.ToJSON(%s)", runtimeAlias, arg.code), kind: exprKindString}, nil
+}
+
+func fromJSONExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("from-json expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if arg.kind != exprKindString {
+		return goExpr{}, fmt.Errorf("from-json expects a string argument")
+	}
+	return goExpr{code: fmt.Sprintf("%s.FromJSON(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
 }
 
 func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

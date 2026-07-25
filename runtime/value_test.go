@@ -160,3 +160,43 @@ func TestSymbolAndName(t *testing.T) {
 		t.Fatalf("unexpected keyword value: %q", got)
 	}
 }
+
+func TestIntegerOverflowPromotesToBigInt(t *testing.T) {
+	added := Add(NewLong(9223372036854775807), NewLong(1))
+	if added.tag != TagBigInt {
+		t.Fatalf("expected bigint from add overflow, got %v", added.tag)
+	}
+	if added.BigInt().Cmp(big.NewInt(0).Add(big.NewInt(9223372036854775807), big.NewInt(1))) != 0 {
+		t.Fatalf("unexpected add overflow value: %s", added.BigInt().String())
+	}
+
+	subbed := Sub(NewLong(-9223372036854775808), NewLong(1))
+	if subbed.tag != TagBigInt {
+		t.Fatalf("expected bigint from sub overflow, got %v", subbed.tag)
+	}
+
+	mulled := Mul(NewLong(3037000500), NewLong(3037000500))
+	if mulled.tag != TagBigInt {
+		t.Fatalf("expected bigint from mul overflow, got %v", mulled.tag)
+	}
+}
+
+func TestBigIntNumericInterop(t *testing.T) {
+	huge := Add(NewLong(9223372036854775807), NewLong(1))
+	if !Eq(Sub(huge, NewLong(1)), NewLong(9223372036854775807)) {
+		t.Fatal("expected bigint-long arithmetic interop to preserve value")
+	}
+	if !Gt(huge, NewLong(9223372036854775807)) {
+		t.Fatal("expected bigint compare to work")
+	}
+
+	mod := Mod(huge, NewLong(2))
+	if mod.tag != TagLong || mod.Long() != 0 {
+		t.Fatalf("expected bigint mod 2 => 0, got %#v", mod)
+	}
+
+	ratio := Div(huge, NewLong(2))
+	if ratio.tag != TagRatio {
+		t.Fatalf("expected ratio from bigint division, got %v", ratio.tag)
+	}
+}
