@@ -270,6 +270,29 @@ func TestCompileAssocAndDissocFunctions(t *testing.T) {
 	}
 }
 
+func TestCompileMapLookupForms(t *testing.T) {
+	output, err := Compile(`
+(def m {:a 1})
+(println (get m :a))
+(println (:a m))
+(println (m :a))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.BuiltinFunction("get"), m, flagrt.NewKeyword("a"))))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.NewKeyword("a"), m)))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(m, flagrt.NewKeyword("a"))))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileFirstAndRestFunctions(t *testing.T) {
 	output, err := Compile(`
 (println (first [1 2 3]))

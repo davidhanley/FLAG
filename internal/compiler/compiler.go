@@ -912,23 +912,25 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		if arg.Name == "nil" {
 			return goExpr{code: fmt.Sprintf("%s.NilValue()", runtimeAlias), kind: exprKindValue}, nil
 		}
+		ident, err := toGoIdentifier(arg.Name)
+		if err == nil {
+			if locals != nil {
+				if kind, ok := locals[ident]; ok {
+					return goExpr{code: ident, kind: kind}, nil
+				}
+			}
+			if kind, ok := ctx.globals[ident]; ok {
+				return goExpr{code: ident, kind: kind}, nil
+			}
+			if _, ok := ctx.functions[ident]; ok {
+				return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, ident), kind: exprKindValue}, nil
+			}
+		}
 		if isBuiltinFunctionSymbol(arg.Name) {
 			return goExpr{code: fmt.Sprintf("%s.BuiltinFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 		}
-		ident, err := toGoIdentifier(arg.Name)
 		if err != nil {
 			return goExpr{}, err
-		}
-		if locals != nil {
-			if kind, ok := locals[ident]; ok {
-				return goExpr{code: ident, kind: kind}, nil
-			}
-		}
-		if kind, ok := ctx.globals[ident]; ok {
-			return goExpr{code: ident, kind: kind}, nil
-		}
-		if _, ok := ctx.functions[ident]; ok {
-			return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, ident), kind: exprKindValue}, nil
 		}
 		return goExpr{}, fmt.Errorf("unknown symbol %q", arg.Name)
 	case ListExpr:
@@ -1027,7 +1029,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", ">",
 		"first", "fist", "rest",
-		"map", "filter", "reduce", "range",
+		"map", "filter", "reduce", "range", "get",
 		"assoc", "dissoc":
 		return true
 	default:
