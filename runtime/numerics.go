@@ -41,6 +41,13 @@ func NewRatioFromRat(rat *big.Rat) Value {
 	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
 }
 
+func NewBool(v bool) Value {
+	if v {
+		return Value{d: 1, tag: TagBool}
+	}
+	return Value{tag: TagBool}
+}
+
 func (v Value) Long() int64 {
 	return *(*int64)(unsafe.Pointer(&v.d))
 }
@@ -54,6 +61,13 @@ func (v Value) Ratio() *big.Rat {
 		panic("Ratio called on non-ratio Value")
 	}
 	return v.ratioPointer()
+}
+
+func (v Value) Bool() bool {
+	if v.tag != TagBool {
+		panic("Bool called on non-bool Value")
+	}
+	return v.d != 0
 }
 
 func Add(lhs, rhs Value) Value {
@@ -222,6 +236,23 @@ func Div(lhs, rhs Value) Value {
 	}
 }
 
+func Mod(lhs, rhs Value) Value {
+	if lhs.tag != TagLong || rhs.tag != TagLong {
+		panic("mod expects integer Value arguments")
+	}
+	left := lhs.Long()
+	right := rhs.Long()
+	if right == 0 {
+		panic("mod by zero")
+	}
+
+	remainder := left % right
+	if remainder != 0 && (remainder < 0) != (right < 0) {
+		remainder += right
+	}
+	return NewLong(remainder)
+}
+
 func Eq(lhs, rhs Value) bool {
 	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
 		return compareNumeric(lhs, rhs) == 0
@@ -255,7 +286,14 @@ func Gt(lhs, rhs Value) bool {
 }
 
 func IsTruthy(v Value) bool {
-	return v.tag != TagNil
+	switch v.tag {
+	case TagNil:
+		return false
+	case TagBool:
+		return v.Bool()
+	default:
+		return true
+	}
 }
 
 func Str(args ...any) string {
@@ -279,6 +317,8 @@ func ValueToString(v Value) string {
 		return strconv.FormatFloat(v.Double(), 'g', -1, 64)
 	case TagRatio:
 		return v.Ratio().RatString()
+	case TagBool:
+		return strconv.FormatBool(v.Bool())
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {
@@ -375,6 +415,8 @@ func ValueToAny(v Value) any {
 		return v.Double()
 	case TagRatio:
 		return v.Ratio()
+	case TagBool:
+		return v.Bool()
 	case TagSymbol, TagFunction, TagMap, TagSet:
 		return v
 	case TagNil:

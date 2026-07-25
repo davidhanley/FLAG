@@ -85,6 +85,7 @@ func TestCompilePrintlnWithSubAndDivExpressions(t *testing.T) {
 	output, err := Compile(`
 (println (- 10 3 2))
 (println (/ 3 2))
+(println (% -5 3))
 `)
 	if err != nil {
 		t.Fatalf("Compile returned error: %v", err)
@@ -94,6 +95,7 @@ func TestCompilePrintlnWithSubAndDivExpressions(t *testing.T) {
 	for _, want := range []string{
 		"fmt.Println(flagrt.Str(flagrt.Sub(flagrt.Sub(flagrt.NewLong(10), flagrt.NewLong(3)), flagrt.NewLong(2))))",
 		"fmt.Println(flagrt.Str(flagrt.Div(flagrt.NewLong(3), flagrt.NewLong(2))))",
+		"fmt.Println(flagrt.Str(flagrt.Mod(flagrt.NewLong(-5), flagrt.NewLong(3))))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -108,7 +110,7 @@ func TestCompilePrintlnWithEqualsExpression(t *testing.T) {
 	}
 
 	got := string(output)
-	want := "fmt.Println(flagrt.Str(flagrt.Eq(flagrt.NewLong(1), flagrt.NewDouble(1.0)) && flagrt.Eq(flagrt.NewDouble(1.0), flagrt.NewLong(1))))"
+	want := "fmt.Println(flagrt.Str(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewDouble(1.0)) && flagrt.Eq(flagrt.NewDouble(1.0), flagrt.NewLong(1)))))"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected equals expression:\n%s", got)
 	}
@@ -145,10 +147,10 @@ func TestCompilePrintlnWithIfExpression(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		"if flagrt.Eq(flagrt.NewLong(1), flagrt.NewDouble(1.0)) {",
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewDouble(1.0)))) {",
 		"return flagrt.NewLong(42)",
 		"return flagrt.NewLong(0)",
-		"if flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)) {",
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))) {",
 		"return flagrt.NilValue()",
 	} {
 		if !strings.Contains(got, want) {
@@ -297,6 +299,121 @@ func TestCompileMapFunction(t *testing.T) {
 	}
 }
 
+func TestCompileFilterFunction(t *testing.T) {
+	output, err := Compile(`
+(println (filter (fn [x] (if (> x 1) 1)) [1 2 3]))
+(defn gt2 [x] (if (> x 2) 1))
+(println (filter gt2 [1 2 3 4]))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.Filter(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
+		`fmt.Println(flagrt.Str(flagrt.Filter(flagrt.NewFunction(gt2), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3), flagrt.NewLong(4)))))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileWhenMacro(t *testing.T) {
+	output, err := Compile(`
+(println (when true 42))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"if flagrt.IsTruthy(flagrt.NewBool(true)) {",
+		"return flagrt.NewLong(42)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileNotEqualsMacro(t *testing.T) {
+	output, err := Compile(`(println (not= 1 2))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))) {",
+		"return flagrt.NewBool(false)",
+		"return flagrt.NewBool(true)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileCondMacro(t *testing.T) {
+	output, err := Compile(`(println (cond false 1 (= 1 1) 2 :else 3))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"if flagrt.IsTruthy(flagrt.NewBool(false)) {",
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(1)))) {",
+		"return flagrt.NewLong(2)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileThreadFirstMacro(t *testing.T) {
+	output, err := Compile(`(println (-> 5 (+ 1) (* 2)))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	want := "fmt.Println(flagrt.Str(flagrt.Mul(flagrt.Add(flagrt.NewLong(5), flagrt.NewLong(1)), flagrt.NewLong(2))))"
+	if !strings.Contains(got, want) {
+		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+	}
+}
+
+func TestCompileThreadLastMacro(t *testing.T) {
+	output, err := Compile(`(println (->> 5 (- 10) (/ 3)))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	want := "fmt.Println(flagrt.Str(flagrt.Div(flagrt.NewLong(3), flagrt.Sub(flagrt.NewLong(10), flagrt.NewLong(5)))))"
+	if !strings.Contains(got, want) {
+		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+	}
+}
+
+func TestCompileSomeThreadFirstMacro(t *testing.T) {
+	output, err := Compile(`(println (some-> 5 (+ 1) (* 2)))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"__some_arrow_0 :=",
+		"__some_arrow_1 :=",
+		"flagrt.Eq(__some_arrow_0, flagrt.NilValue())",
+		"flagrt.Mul(__some_arrow_1, flagrt.NewLong(2))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileFnLiteralAndCall(t *testing.T) {
 	output, err := Compile(`(println ((fn [x] (* x 3)) 4))`)
 	if err != nil {
@@ -379,7 +496,7 @@ func TestCompilePrintlnWithMultipleArguments(t *testing.T) {
 	}
 
 	got := string(output)
-	want := `fmt.Println(flagrt.Str("a", flagrt.NewLong(1), true))`
+	want := `fmt.Println(flagrt.Str("a", flagrt.NewLong(1), flagrt.NewBool(true)))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected println call:\n%s", got)
 	}
@@ -421,6 +538,61 @@ func TestCompileRecursiveDefnFib(t *testing.T) {
 	for _, want := range []string{
 		"func fib(args ...flagrt.Value) flagrt.Value {",
 		"return flagrt.Add(flagrt.Call(flagrt.NewFunction(fib), flagrt.Sub(x, flagrt.NewLong(1))), flagrt.Call(flagrt.NewFunction(fib), flagrt.Sub(x, flagrt.NewLong(2))))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompilePredicateDefnEven(t *testing.T) {
+	output, err := Compile(`
+(defn even [x] (= (% x 2) 0))
+(println (even 4))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func even(args ...flagrt.Value) flagrt.Value {",
+		"return flagrt.NewBool(flagrt.Eq(flagrt.Mod(x, flagrt.NewLong(2)), flagrt.NewLong(0)))",
+		"fmt.Println(flagrt.Str(flagrt.Call(flagrt.NewFunction(even), flagrt.NewLong(4))))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileDefnCanReturnAnyValueType(t *testing.T) {
+	output, err := Compile(`
+(defn mklist [x] (rest [0 x]))
+(defn mkarray [x] [x 2])
+(defn mksym [x] 'foo)
+(defn mkmap [x] {:a x})
+(defn mkset [x] #{x})
+(defn mkfn [x] (fn [y] (+ x y)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`func mklist(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.Rest(flagrt.NewArray(flagrt.NewLong(0), x))`,
+		`func mkarray(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewArray(x, flagrt.NewLong(2))`,
+		`func mksym(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewSymbol("foo")`,
+		`func mkmap(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewMap(flagrt.NewKeyword("a"), x)`,
+		`func mkset(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewSet(x)`,
+		`func mkfn(args ...flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)

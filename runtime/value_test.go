@@ -22,6 +22,27 @@ func TestSubAndDiv(t *testing.T) {
 	}
 }
 
+func TestModIntegers(t *testing.T) {
+	cases := []struct {
+		name string
+		lhs  int64
+		rhs  int64
+		want int64
+	}{
+		{name: "positive", lhs: 5, rhs: 3, want: 2},
+		{name: "negative dividend", lhs: -5, rhs: 3, want: 1},
+		{name: "negative divisor", lhs: 5, rhs: -3, want: -1},
+		{name: "both negative", lhs: -5, rhs: -3, want: -2},
+	}
+
+	for _, tc := range cases {
+		got := Mod(NewLong(tc.lhs), NewLong(tc.rhs))
+		if got.tag != TagLong || got.Long() != tc.want {
+			t.Fatalf("%s: expected %d, got %#v", tc.name, tc.want, got)
+		}
+	}
+}
+
 func TestValueToAnyForRatio(t *testing.T) {
 	div := Div(NewLong(3), NewLong(2))
 	rat, ok := ValueToAny(div).(*big.Rat)
@@ -79,6 +100,15 @@ func TestNilValueTruthiness(t *testing.T) {
 	if !IsTruthy(NewLong(0)) {
 		t.Fatal("expected numeric zero to be truthy")
 	}
+	if IsTruthy(NewBool(false)) {
+		t.Fatal("expected false boolean Value to be falsey")
+	}
+	if !IsTruthy(NewBool(true)) {
+		t.Fatal("expected true boolean Value to be truthy")
+	}
+	if got, ok := ValueToAny(NewBool(true)).(bool); !ok || !got {
+		t.Fatalf("expected ValueToAny(bool) to return true, got %#v", ValueToAny(NewBool(true)))
+	}
 }
 
 func TestStr(t *testing.T) {
@@ -91,6 +121,7 @@ func TestStr(t *testing.T) {
 		NewLong(1),
 		NewDouble(2.5),
 		NewRatio(3, 2),
+		NewBool(false),
 		NewSymbol("s"),
 		NewKeyword("k"),
 		true,
@@ -98,7 +129,7 @@ func TestStr(t *testing.T) {
 		NewArray(NewLong(6), NewLong(7)),
 		NilValue(),
 	)
-	if value != "a12.53/2s:ktrue(4 5)[6 7]" {
+	if value != "a12.53/2falses:ktrue(4 5)[6 7]" {
 		t.Fatalf("unexpected str result: %q", value)
 	}
 }

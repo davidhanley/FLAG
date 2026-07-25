@@ -6,6 +6,7 @@ const (
 	TagLong ValueTag = iota + 1
 	TagDouble
 	TagRatio
+	TagBool
 	TagSymbol
 	TagFunction
 	TagMap
