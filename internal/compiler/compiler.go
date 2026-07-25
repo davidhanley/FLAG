@@ -30,9 +30,12 @@ type mainStmt struct {
 }
 
 type functionDef struct {
-	goName string
-	params []string
-	body   string
+	goName       string
+	variadicName string
+	arityName    string
+	params       []string
+	localInits   []string
+	body         string
 }
 
 type varDef struct {
@@ -41,9 +44,12 @@ type varDef struct {
 }
 
 type compileContext struct {
-	functions map[string]functionDef
-	globals   map[string]exprKind
-	macros    map[string]macroDef
+	functions         map[string]functionDef
+	globals           map[string]exprKind
+	macros            map[string]macroDef
+	selfFunctionName  string
+	selfFunctionArity int
+	selfArityName     string
 }
 
 type macroDef struct {
@@ -211,13 +217,24 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 				}
 				_, exists := r.ctx.functions[def.goName]
 				r.ctx.functions[def.goName] = def
+				r.ctx.globals[def.goName] = exprKindValue
 
-				setup := fmt.Sprintf("%s = %s", def.goName, renderFunctionLiteral(def))
+				setupParts := make([]string, 0, 6)
 				if !exists {
-					setup = fmt.Sprintf("var %s = %s", def.goName, renderFunctionLiteral(def))
+					setupParts = append(setupParts,
+						fmt.Sprintf("var %s %s", def.arityName, renderDirectFunctionType(def)),
+						fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+						fmt.Sprintf("var %s flagrt.Value", def.goName),
+					)
 				}
+				setupParts = append(setupParts,
+					fmt.Sprintf("%s = %s", def.arityName, renderDirectFunctionLiteral(def)),
+					fmt.Sprintf("%s = %s", def.variadicName, renderVariadicFunctionLiteral(def)),
+					fmt.Sprintf("%s = %s.NewFunction(%s)", def.goName, runtimeAlias, def.variadicName),
+				)
+
 				return ReplCompiled{
-					Setup:      setup,
+					Setup:      strings.Join(setupParts, ";;"),
 					ResultExpr: fmt.Sprintf("%q", def.goName),
 				}, nil
 			case "defmacro":
@@ -311,7 +328,12 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, e
 				return "", nil, nil, nil, fmt.Errorf("function %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
+			ctx.globals[def.goName] = exprKindValue
 			functions = append(functions, def)
+			vars = append(vars, varDef{
+				goName: def.goName,
+				expr:   fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+			})
 		case "def":
 			binding, kind, err := compileDef(list, ctx)
 			if err != nil {
@@ -371,31 +393,54 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 
 	params := make([]string, 0, len(paramsExpr.Elements))
 	localSymbols := make(map[string]exprKind, len(paramsExpr.Elements))
-	for _, paramExpr := range paramsExpr.Elements {
-		param, ok := paramExpr.(SymbolExpr)
-		if !ok || param.Name == "" {
-			return functionDef{}, fmt.Errorf("defn parameters must be symbols")
+	localInits := make([]string, 0, len(paramsExpr.Elements))
+	tempCounter := 0
+	declared := make(map[string]struct{}, len(paramsExpr.Elements))
+
+	for idx, paramExpr := range paramsExpr.Elements {
+		if sym, ok := paramExpr.(SymbolExpr); ok && sym.Name != "" {
+			goParam, err := toGoIdentifier(sym.Name)
+			if err != nil {
+				return functionDef{}, err
+			}
+			if _, exists := declared[goParam]; exists {
+				return functionDef{}, fmt.Errorf("duplicate parameter %q", sym.Name)
+			}
+			declared[goParam] = struct{}{}
+			localSymbols[goParam] = exprKindValue
+			params = append(params, goParam)
+			continue
 		}
 
-		goParam, err := toGoIdentifier(param.Name)
-		if err != nil {
-			return functionDef{}, err
+		paramName := fmt.Sprintf("__arg%d", idx)
+		params = append(params, paramName)
+		emitter := newDestructureEmitter(ctx, localSymbols, &localInits, &tempCounter, declared)
+		if err := emitter.bind(paramExpr, paramName); err != nil {
+			return functionDef{}, fmt.Errorf("defn parameter %d: %w", idx+1, err)
 		}
-		if _, exists := localSymbols[goParam]; exists {
-			return functionDef{}, fmt.Errorf("duplicate parameter %q", param.Name)
-		}
-		localSymbols[goParam] = exprKindValue
-		params = append(params, goParam)
 	}
 
 	fnCtx := compileContext{
-		functions: make(map[string]functionDef, len(ctx.functions)+1),
-		globals:   ctx.globals,
+		functions:         make(map[string]functionDef, len(ctx.functions)+1),
+		globals:           make(map[string]exprKind, len(ctx.globals)+1),
+		macros:            ctx.macros,
+		selfFunctionName:  goName,
+		selfFunctionArity: len(params),
+		selfArityName:     fmt.Sprintf("%s_arity_%d", goName, len(params)),
 	}
+	for name, kind := range ctx.globals {
+		fnCtx.globals[name] = kind
+	}
+	fnCtx.globals[goName] = exprKindValue
 	for name, def := range ctx.functions {
 		fnCtx.functions[name] = def
 	}
-	fnCtx.functions[goName] = functionDef{goName: goName, params: params}
+	fnCtx.functions[goName] = functionDef{
+		goName:       goName,
+		variadicName: goName + "_variadic",
+		arityName:    fnCtx.selfArityName,
+		params:       params,
+	}
 
 	body, err := exprToGo(form.Elements[3], fnCtx, localSymbols)
 	if err != nil {
@@ -405,7 +450,14 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, fmt.Errorf("defn body must evaluate to Value")
 	}
 
-	return functionDef{goName: goName, params: params, body: body.code}, nil
+	return functionDef{
+		goName:       goName,
+		variadicName: goName + "_variadic",
+		arityName:    fmt.Sprintf("%s_arity_%d", goName, len(params)),
+		params:       params,
+		localInits:   localInits,
+		body:         body.code,
+	}, nil
 }
 
 func compileDef(form ListExpr, ctx compileContext) (varDef, exprKind, error) {
@@ -1112,6 +1164,23 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 }
 
 func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok &&
+		calleeSymbol.Name == ctx.selfFunctionName &&
+		len(argsExpr) == ctx.selfFunctionArity {
+		args := make([]string, 0, len(argsExpr))
+		for _, item := range argsExpr {
+			part, err := exprToGo(item, ctx, locals)
+			if err != nil {
+				return goExpr{}, err
+			}
+			if part.kind != exprKindValue {
+				return goExpr{}, fmt.Errorf("function argument must evaluate to Value")
+			}
+			args = append(args, part.code)
+		}
+		return goExpr{code: fmt.Sprintf("%s(%s)", ctx.selfArityName, strings.Join(args, ", ")), kind: exprKindValue}, nil
+	}
+
 	callee, err := exprToGo(calleeExpr, ctx, locals)
 	if err != nil {
 		return goExpr{}, err
@@ -1313,25 +1382,26 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		localKinds[name] = kind
 	}
 
-	bindings := make([]string, 0, len(bindingsExpr.Elements)/2)
+	bindings := make([]string, 0, len(bindingsExpr.Elements)*2)
+	tempCounter := 0
+	declared := make(map[string]struct{}, len(bindingsExpr.Elements))
 	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
-		nameExpr, ok := bindingsExpr.Elements[i].(SymbolExpr)
-		if !ok || nameExpr.Name == "" {
-			return goExpr{}, fmt.Errorf("let binding name must be a symbol")
-		}
-
-		goName, err := toGoIdentifier(nameExpr.Name)
-		if err != nil {
-			return goExpr{}, err
-		}
-
 		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
 		if err != nil {
 			return goExpr{}, err
 		}
+		if valueExpr.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("let binding value must evaluate to Value")
+		}
 
-		bindings = append(bindings, fmt.Sprintf("\t%s := %s\n", goName, valueExpr.code))
-		localKinds[goName] = valueExpr.kind
+		sourceName := fmt.Sprintf("__bind%d", tempCounter)
+		tempCounter++
+		bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
+
+		emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
+		if err := emitter.bind(bindingsExpr.Elements[i], sourceName); err != nil {
+			return goExpr{}, err
+		}
 	}
 
 	bodyExprs := args[1:]
@@ -1339,8 +1409,14 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		if len(bindingsExpr.Elements) == 0 {
 			return goExpr{}, fmt.Errorf("let without body requires at least one binding")
 		}
-		lastBindingName := bindingsExpr.Elements[len(bindingsExpr.Elements)-2].(SymbolExpr)
-		bodyExprs = []Expr{lastBindingName}
+		lastPattern := bindingsExpr.Elements[len(bindingsExpr.Elements)-2]
+		if sym, ok := lastPattern.(SymbolExpr); ok {
+			bodyExprs = []Expr{sym}
+		} else if kw, ok := lastPattern.(KeywordExpr); ok {
+			bodyExprs = []Expr{kw}
+		} else {
+			bodyExprs = []Expr{SymbolExpr{Name: "nil"}}
+		}
 	}
 
 	compiledBody := make([]goExpr, 0, len(bodyExprs))
@@ -1370,6 +1446,339 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	out.WriteString("}()")
 
 	return goExpr{code: out.String(), kind: result.kind}, nil
+}
+
+type destructureEmitter struct {
+	ctx         compileContext
+	locals      map[string]exprKind
+	lines       *[]string
+	tempCounter *int
+	declared    map[string]struct{}
+}
+
+type destructureKeyBinding struct {
+	keyExpr     string
+	bindingExpr Expr
+}
+
+func newDestructureEmitter(
+	ctx compileContext,
+	locals map[string]exprKind,
+	lines *[]string,
+	tempCounter *int,
+	declared map[string]struct{},
+) destructureEmitter {
+	return destructureEmitter{
+		ctx:         ctx,
+		locals:      locals,
+		lines:       lines,
+		tempCounter: tempCounter,
+		declared:    declared,
+	}
+}
+
+func (e destructureEmitter) bind(pattern Expr, sourceCode string) error {
+	switch p := pattern.(type) {
+	case SymbolExpr:
+		if p.Name == "&" {
+			return fmt.Errorf("unexpected & in binding")
+		}
+		return e.bindSymbol(p, sourceCode)
+	case VectorExpr:
+		return e.bindVector(p, sourceCode)
+	case MapExpr:
+		return e.bindMap(p, sourceCode)
+	default:
+		return fmt.Errorf("unsupported binding form %T", pattern)
+	}
+}
+
+func (e destructureEmitter) bindSymbol(sym SymbolExpr, sourceCode string) error {
+	if sym.Name == "" {
+		return fmt.Errorf("binding symbol cannot be empty")
+	}
+	name, err := toGoIdentifier(sym.Name)
+	if err != nil {
+		return err
+	}
+	if _, exists := e.declared[name]; exists {
+		return fmt.Errorf("duplicate binding %q", sym.Name)
+	}
+	e.declared[name] = struct{}{}
+	e.locals[name] = exprKindValue
+	*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s\n", name, sourceCode))
+	return nil
+}
+
+func (e destructureEmitter) bindVector(pattern VectorExpr, sourceCode string) error {
+	positionals := make([]Expr, 0, len(pattern.Elements))
+	var restPattern Expr
+	var asPattern Expr
+	seenRest := false
+
+	for i := 0; i < len(pattern.Elements); i++ {
+		if kw, ok := pattern.Elements[i].(KeywordExpr); ok && kw.Name == "as" {
+			if i+1 >= len(pattern.Elements) {
+				return fmt.Errorf("vector destructuring :as expects a binding form")
+			}
+			if asPattern != nil {
+				return fmt.Errorf("vector destructuring supports only one :as")
+			}
+			asPattern = pattern.Elements[i+1]
+			i++
+			continue
+		}
+		if sym, ok := pattern.Elements[i].(SymbolExpr); ok && sym.Name == "&" {
+			if seenRest {
+				return fmt.Errorf("vector destructuring supports only one & binding")
+			}
+			if i+1 >= len(pattern.Elements) {
+				return fmt.Errorf("vector destructuring & expects a binding form")
+			}
+			restPattern = pattern.Elements[i+1]
+			seenRest = true
+			i++
+			continue
+		}
+		if seenRest {
+			return fmt.Errorf("vector destructuring only allows :as after & binding")
+		}
+		positionals = append(positionals, pattern.Elements[i])
+	}
+
+	if asPattern != nil {
+		if err := e.bind(asPattern, sourceCode); err != nil {
+			return err
+		}
+	}
+
+	current := sourceCode
+	for _, positional := range positionals {
+		nextName := e.freshTemp("__dseq")
+		*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s.SeqFirst(%s)\n", nextName, runtimeAlias, current))
+		if err := e.bind(positional, nextName); err != nil {
+			return err
+		}
+		current = fmt.Sprintf("%s.SeqRest(%s)", runtimeAlias, current)
+	}
+
+	if restPattern != nil {
+		if err := e.bind(restPattern, current); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
+	bindings := make([]destructureKeyBinding, 0, len(pattern.Entries)/2)
+	var asPattern Expr
+	defaults := make(map[string]Expr)
+
+	for i := 0; i < len(pattern.Entries); i += 2 {
+		if i+1 >= len(pattern.Entries) {
+			return fmt.Errorf("map destructuring expects key/value pairs")
+		}
+		key := pattern.Entries[i]
+		value := pattern.Entries[i+1]
+
+		if kw, ok := key.(KeywordExpr); ok {
+			switch kw.Name {
+			case "as":
+				asPattern = value
+				continue
+			case "or":
+				defaultMap, ok := value.(MapExpr)
+				if !ok {
+					return fmt.Errorf("map destructuring :or expects a map")
+				}
+				def, err := collectDestructureDefaults(defaultMap)
+				if err != nil {
+					return err
+				}
+				for name, expr := range def {
+					defaults[name] = expr
+				}
+				continue
+			case "keys":
+				entries, err := expandMapDestructureKeys(value)
+				if err != nil {
+					return err
+				}
+				bindings = append(bindings, entries...)
+				continue
+			case "syms":
+				entries, err := expandMapDestructureSyms(value)
+				if err != nil {
+					return err
+				}
+				bindings = append(bindings, entries...)
+				continue
+			case "strs":
+				entries, err := expandMapDestructureStrs(value)
+				if err != nil {
+					return err
+				}
+				bindings = append(bindings, entries...)
+				continue
+			}
+		}
+
+		keyExpr, err := compileDestructureMapKeyToValue(key)
+		if err != nil {
+			return err
+		}
+		bindings = append(bindings, destructureKeyBinding{keyExpr: keyExpr, bindingExpr: value})
+	}
+
+	if asPattern != nil {
+		if err := e.bind(asPattern, sourceCode); err != nil {
+			return err
+		}
+	}
+
+	for _, binding := range bindings {
+		valueExpr := fmt.Sprintf("%s.Get(%s, %s)", runtimeAlias, sourceCode, binding.keyExpr)
+		if sym, ok := binding.bindingExpr.(SymbolExpr); ok {
+			if defExpr, exists := defaults[sym.Name]; exists {
+				defaultCode, err := exprToGo(defExpr, e.ctx, e.locals)
+				if err != nil {
+					return fmt.Errorf("map destructuring default for %q: %w", sym.Name, err)
+				}
+				if defaultCode.kind != exprKindValue {
+					return fmt.Errorf("map destructuring default for %q must evaluate to Value", sym.Name)
+				}
+				valueExpr = fmt.Sprintf("%s.Get(%s, %s, %s)", runtimeAlias, sourceCode, binding.keyExpr, defaultCode.code)
+			}
+		}
+		if err := e.bind(binding.bindingExpr, valueExpr); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e destructureEmitter) freshTemp(prefix string) string {
+	name := fmt.Sprintf("%s%d", prefix, *e.tempCounter)
+	*e.tempCounter = *e.tempCounter + 1
+	return name
+}
+
+func collectDestructureDefaults(defaults MapExpr) (map[string]Expr, error) {
+	if len(defaults.Entries)%2 != 0 {
+		return nil, fmt.Errorf("map destructuring :or expects key/value pairs")
+	}
+	out := make(map[string]Expr, len(defaults.Entries)/2)
+	for i := 0; i < len(defaults.Entries); i += 2 {
+		name, err := destructureDefaultName(defaults.Entries[i])
+		if err != nil {
+			return nil, err
+		}
+		out[name] = defaults.Entries[i+1]
+	}
+	return out, nil
+}
+
+func destructureDefaultName(expr Expr) (string, error) {
+	switch value := expr.(type) {
+	case SymbolExpr:
+		if value.Name == "" {
+			return "", fmt.Errorf("map destructuring :or key cannot be empty")
+		}
+		return value.Name, nil
+	case KeywordExpr:
+		if value.Name == "" {
+			return "", fmt.Errorf("map destructuring :or key cannot be empty")
+		}
+		return value.Name, nil
+	default:
+		return "", fmt.Errorf("map destructuring :or keys must be symbols or keywords")
+	}
+}
+
+func expandMapDestructureKeys(expr Expr) ([]destructureKeyBinding, error) {
+	vector, ok := expr.(VectorExpr)
+	if !ok {
+		return nil, fmt.Errorf("map destructuring :keys expects a vector")
+	}
+	out := make([]destructureKeyBinding, 0, len(vector.Elements))
+	for _, entry := range vector.Elements {
+		sym, ok := entry.(SymbolExpr)
+		if !ok || sym.Name == "" {
+			return nil, fmt.Errorf("map destructuring :keys entries must be symbols")
+		}
+		out = append(out, destructureKeyBinding{
+			keyExpr:     fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, sym.Name),
+			bindingExpr: sym,
+		})
+	}
+	return out, nil
+}
+
+func expandMapDestructureSyms(expr Expr) ([]destructureKeyBinding, error) {
+	vector, ok := expr.(VectorExpr)
+	if !ok {
+		return nil, fmt.Errorf("map destructuring :syms expects a vector")
+	}
+	out := make([]destructureKeyBinding, 0, len(vector.Elements))
+	for _, entry := range vector.Elements {
+		sym, ok := entry.(SymbolExpr)
+		if !ok || sym.Name == "" {
+			return nil, fmt.Errorf("map destructuring :syms entries must be symbols")
+		}
+		out = append(out, destructureKeyBinding{
+			keyExpr:     fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, sym.Name),
+			bindingExpr: sym,
+		})
+	}
+	return out, nil
+}
+
+func expandMapDestructureStrs(expr Expr) ([]destructureKeyBinding, error) {
+	vector, ok := expr.(VectorExpr)
+	if !ok {
+		return nil, fmt.Errorf("map destructuring :strs expects a vector")
+	}
+	out := make([]destructureKeyBinding, 0, len(vector.Elements))
+	for _, entry := range vector.Elements {
+		str, ok := entry.(StringExpr)
+		if !ok {
+			return nil, fmt.Errorf("map destructuring :strs entries must be strings")
+		}
+		name, err := toGoIdentifier(str.Value)
+		if err != nil {
+			return nil, fmt.Errorf("map destructuring :strs entry %q is not a valid symbol name", str.Value)
+		}
+		sym := SymbolExpr{Name: name}
+		out = append(out, destructureKeyBinding{
+			keyExpr:     fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, str.Value),
+			bindingExpr: sym,
+		})
+	}
+	return out, nil
+}
+
+func compileDestructureMapKeyToValue(expr Expr) (string, error) {
+	switch value := expr.(type) {
+	case KeywordExpr:
+		return fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, value.Name), nil
+	case SymbolExpr:
+		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+	case QuotedSymbolExpr:
+		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+	case IntExpr:
+		return fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, value.Value), nil
+	case FloatExpr:
+		if value.Raw != "" {
+			return fmt.Sprintf("%s.NewDouble(%s)", runtimeAlias, value.Raw), nil
+		}
+		return fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, value.Value), nil
+	case StringExpr:
+		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Value), nil
+	default:
+		return "", fmt.Errorf("unsupported map destructuring key %T", expr)
+	}
 }
 
 func symbolExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -1719,23 +2128,30 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 		localKinds[name] = kind
 	}
 	paramNames := make(map[string]struct{}, len(paramsExpr.Elements))
+	localInits := make([]string, 0, len(paramsExpr.Elements))
+	tempCounter := 0
 
-	for _, paramExpr := range paramsExpr.Elements {
-		param, ok := paramExpr.(SymbolExpr)
-		if !ok || param.Name == "" {
-			return goExpr{}, fmt.Errorf("%s parameters must be symbols", label)
+	for idx, paramExpr := range paramsExpr.Elements {
+		if param, ok := paramExpr.(SymbolExpr); ok && param.Name != "" {
+			goParam, err := toGoIdentifier(param.Name)
+			if err != nil {
+				return goExpr{}, err
+			}
+			if _, exists := paramNames[goParam]; exists {
+				return goExpr{}, fmt.Errorf("duplicate parameter %q", param.Name)
+			}
+			paramNames[goParam] = struct{}{}
+			localKinds[goParam] = exprKindValue
+			params = append(params, goParam)
+			continue
 		}
 
-		goParam, err := toGoIdentifier(param.Name)
-		if err != nil {
-			return goExpr{}, err
+		paramName := fmt.Sprintf("__arg%d", idx)
+		params = append(params, paramName)
+		emitter := newDestructureEmitter(ctx, localKinds, &localInits, &tempCounter, paramNames)
+		if err := emitter.bind(paramExpr, paramName); err != nil {
+			return goExpr{}, fmt.Errorf("%s parameter %d: %w", label, idx+1, err)
 		}
-		if _, exists := paramNames[goParam]; exists {
-			return goExpr{}, fmt.Errorf("duplicate parameter %q", param.Name)
-		}
-		paramNames[goParam] = struct{}{}
-		localKinds[goParam] = exprKindValue
-		params = append(params, goParam)
 	}
 
 	body, err := exprToGo(bodyExpr, ctx, localKinds)
@@ -1747,9 +2163,10 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	}
 
 	def := functionDef{
-		goName: label,
-		params: params,
-		body:   body.code,
+		goName:     label,
+		params:     params,
+		localInits: localInits,
+		body:       body.code,
 	}
 	return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, renderFunctionLiteral(def)), kind: exprKindValue}, nil
 }
@@ -1916,23 +2333,93 @@ func toGoIdentifier(name string) (string, error) {
 }
 
 func renderFunctionDef(fn functionDef) string {
-	return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n", fn.goName, renderFunctionBody(fn))
+	return fmt.Sprintf("func %s(%s) flagrt.Value {\n%s\treturn %s\n}\n\nfunc %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
+		fn.arityName,
+		renderDirectParamList(fn),
+		renderLocalInits(fn.localInits),
+		fn.body,
+		fn.variadicName,
+		renderVariadicFunctionBody(fn),
+	)
 }
 
 func renderFunctionLiteral(fn functionDef) string {
-	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderFunctionBody(fn))
+	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderStandaloneVariadicBody(fn))
 }
 
-func renderFunctionBody(fn functionDef) string {
+func renderDirectFunctionType(fn functionDef) string {
+	return fmt.Sprintf("func(%s) flagrt.Value", renderDirectParamTypes(fn))
+}
+
+func renderDirectFunctionLiteral(fn functionDef) string {
+	return fmt.Sprintf("func(%s) flagrt.Value {\n%s\treturn %s\n}", renderDirectParamList(fn), renderLocalInits(fn.localInits), fn.body)
+}
+
+func renderVariadicFunctionLiteral(fn functionDef) string {
+	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderVariadicFunctionBody(fn))
+}
+
+func renderVariadicFunctionBody(fn functionDef) string {
 	var body strings.Builder
-	if len(fn.params) > 0 {
-		fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
-		fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
-		body.WriteString("\t}\n")
-		for index, param := range fn.params {
-			fmt.Fprintf(&body, "\t%s := args[%d]\n", param, index)
-		}
+	fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
+	fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
+	body.WriteString("\t}\n")
+	if len(fn.params) == 0 {
+		fmt.Fprintf(&body, "\treturn %s()\n", fn.arityName)
+		return body.String()
+	}
+	callArgs := make([]string, 0, len(fn.params))
+	for index := range fn.params {
+		callArgs = append(callArgs, fmt.Sprintf("args[%d]", index))
+	}
+	fmt.Fprintf(&body, "\treturn %s(%s)\n", fn.arityName, strings.Join(callArgs, ", "))
+	return body.String()
+}
+
+func renderStandaloneVariadicBody(fn functionDef) string {
+	var body strings.Builder
+	fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
+	fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
+	body.WriteString("\t}\n")
+	for index, param := range fn.params {
+		fmt.Fprintf(&body, "\t%s := args[%d]\n", param, index)
+	}
+	for _, init := range fn.localInits {
+		body.WriteString(init)
 	}
 	fmt.Fprintf(&body, "\treturn %s\n", fn.body)
 	return body.String()
+}
+
+func renderLocalInits(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	for _, line := range lines {
+		out.WriteString(line)
+	}
+	return out.String()
+}
+
+func renderDirectParamList(fn functionDef) string {
+	if len(fn.params) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(fn.params))
+	for _, param := range fn.params {
+		parts = append(parts, fmt.Sprintf("%s flagrt.Value", param))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func renderDirectParamTypes(fn functionDef) string {
+	if len(fn.params) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(fn.params))
+	for range fn.params {
+		parts = append(parts, "flagrt.Value")
+	}
+	return strings.Join(parts, ", ")
 }

@@ -352,10 +352,46 @@ func ratToFloat64(r *big.Rat) float64 {
 
 func compareNumeric(lhs, rhs Value) int {
 	ensureNumericOperands("compare", lhs, rhs)
+	if lhs.tag == TagLong && rhs.tag == TagLong {
+		return compareInt64(lhs.Long(), rhs.Long())
+	}
+	if lhs.tag == TagBigInt && rhs.tag == TagBigInt {
+		return lhs.BigInt().Cmp(rhs.BigInt())
+	}
+	if lhs.tag == TagLong && rhs.tag == TagBigInt {
+		return compareLongAndBigInt(lhs.Long(), rhs.BigInt())
+	}
+	if lhs.tag == TagBigInt && rhs.tag == TagLong {
+		return -compareLongAndBigInt(rhs.Long(), lhs.BigInt())
+	}
+	if lhs.tag == TagRatio && rhs.tag == TagRatio {
+		return lhs.Ratio().Cmp(rhs.Ratio())
+	}
 	if lhs.tag == TagDouble || rhs.tag == TagDouble {
 		return compareFloat64(numericToFloat64(lhs), numericToFloat64(rhs))
 	}
 	return valueToRat(lhs).Cmp(valueToRat(rhs))
+}
+
+func compareInt64(lhs, rhs int64) int {
+	switch {
+	case lhs < rhs:
+		return -1
+	case lhs > rhs:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func compareLongAndBigInt(lhs int64, rhs *big.Int) int {
+	if rhs.IsInt64() {
+		return compareInt64(lhs, rhs.Int64())
+	}
+	if rhs.Sign() > 0 {
+		return -1
+	}
+	return 1
 }
 
 func compareFloat64(lhs, rhs float64) int {
