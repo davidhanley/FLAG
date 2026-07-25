@@ -7,6 +7,7 @@ const (
 	TagDouble
 	TagRatio
 	TagSymbol
+	TagFunction
 	TagMap
 	TagSet
 	TagNil

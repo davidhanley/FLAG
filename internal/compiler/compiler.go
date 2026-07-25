@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -236,11 +237,11 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, e
 			ctx.functions[def.goName] = def
 			functions = append(functions, def)
 		case "def":
-			binding, err := compileDef(list, ctx)
+			binding, kind, err := compileDef(list, ctx)
 			if err != nil {
 				return "", nil, nil, nil, err
 			}
-			ctx.globals[binding.goName] = exprKindValue
+			ctx.globals[binding.goName] = kind
 			vars = append(vars, binding)
 		case "println":
 			arg, err := strArgExprForGoCall(list.Elements[1:], ctx, nil)
@@ -325,15 +326,15 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	return functionDef{goName: goName, params: params, body: body.code}, nil
 }
 
-func compileDef(form ListExpr, ctx compileContext) (varDef, error) {
+func compileDef(form ListExpr, ctx compileContext) (varDef, exprKind, error) {
 	binding, kind, _, err := compileDefForRepl(form, ctx)
 	if err != nil {
-		return varDef{}, err
+		return varDef{}, 0, err
 	}
 	if kind != exprKindValue {
-		return varDef{}, fmt.Errorf("def value must evaluate to numeric Value")
+		return varDef{}, 0, fmt.Errorf("def value must evaluate to Value")
 	}
-	return binding, nil
+	return binding, kind, nil
 }
 
 func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, bool, error) {
@@ -355,7 +356,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 		return varDef{}, 0, false, err
 	}
 	if valueExpr.kind != exprKindValue {
-		return varDef{}, 0, false, fmt.Errorf("def value must evaluate to numeric Value")
+		return varDef{}, 0, false, fmt.Errorf("def value must evaluate to Value")
 	}
 
 	_, exists := ctx.globals[goName]
@@ -399,10 +400,14 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return goExpr{code: fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 	case QuotedSymbolExpr:
 		return goExpr{code: fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+	case VectorExpr:
+		return vectorExprToGo(arg.Elements, ctx, locals)
 	case MapExpr:
 		return mapExprToGo(arg.Entries, ctx, locals)
 	case SetExpr:
 		return setExprToGo(arg.Elements, ctx, locals)
+	case HashFnExpr:
+		return hashFnExprToGo(arg, ctx, locals)
 	case SymbolExpr:
 		if arg.Name == "true" {
 			return goExpr{code: "true", kind: exprKindBool}, nil
@@ -422,6 +427,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		if kind, ok := ctx.globals[ident]; ok {
 			return goExpr{code: ident, kind: kind}, nil
 		}
+		if _, ok := ctx.functions[ident]; ok {
+			return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, ident), kind: exprKindValue}, nil
+		}
 		return goExpr{}, fmt.Errorf("unknown symbol %q", arg.Name)
 	case ListExpr:
 		return listExprToGo(arg, ctx, locals)
@@ -436,63 +444,73 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 	}
 
 	head, ok := list.Elements[0].(SymbolExpr)
-	if !ok {
-		return goExpr{}, fmt.Errorf("unsupported form")
+	if ok {
+		switch head.Name {
+		case "+":
+			return infixExprToGo(list.Elements[1:], runtimeAlias+".Add", ctx, locals)
+		case "*":
+			return infixExprToGo(list.Elements[1:], runtimeAlias+".Mul", ctx, locals)
+		case "-":
+			return infixExprToGo(list.Elements[1:], runtimeAlias+".Sub", ctx, locals)
+		case "/":
+			return infixExprToGo(list.Elements[1:], runtimeAlias+".Div", ctx, locals)
+		case "=":
+			return equalityExprToGo(list.Elements[1:], ctx, locals)
+		case "<":
+			return comparisonExprToGo(list.Elements[1:], runtimeAlias+".Lt", "<", ctx, locals)
+		case ">":
+			return comparisonExprToGo(list.Elements[1:], runtimeAlias+".Gt", ">", ctx, locals)
+		case "str":
+			return strExprToGo(list.Elements[1:], ctx, locals)
+		case "println":
+			return printlnExprToGo(list.Elements[1:], ctx, locals)
+		case "if":
+			return ifExprToGo(list.Elements[1:], ctx, locals)
+		case "let":
+			return letExprToGo(list.Elements[1:], ctx, locals)
+		case "symbol":
+			return symbolExprToGo(list.Elements[1:], ctx, locals)
+		case "name":
+			return nameExprToGo(list.Elements[1:], ctx, locals)
+		case "first", "fist":
+			return firstExprToGo(list.Elements[1:], ctx, locals)
+		case "rest":
+			return restExprToGo(list.Elements[1:], ctx, locals)
+		case "map":
+			return mapCallExprToGo(list.Elements[1:], ctx, locals)
+		case "assoc":
+			return assocExprToGo(list.Elements[1:], ctx, locals)
+		case "dissoc":
+			return dissocExprToGo(list.Elements[1:], ctx, locals)
+		case "fn":
+			return fnExprToGo(list.Elements[1:], ctx, locals)
+		}
 	}
 
-	switch head.Name {
-	case "+":
-		return infixExprToGo(list.Elements[1:], runtimeAlias+".Add", ctx, locals)
-	case "*":
-		return infixExprToGo(list.Elements[1:], runtimeAlias+".Mul", ctx, locals)
-	case "-":
-		return infixExprToGo(list.Elements[1:], runtimeAlias+".Sub", ctx, locals)
-	case "/":
-		return infixExprToGo(list.Elements[1:], runtimeAlias+".Div", ctx, locals)
-	case "=":
-		return equalityExprToGo(list.Elements[1:], ctx, locals)
-	case "<":
-		return comparisonExprToGo(list.Elements[1:], runtimeAlias+".Lt", "<", ctx, locals)
-	case ">":
-		return comparisonExprToGo(list.Elements[1:], runtimeAlias+".Gt", ">", ctx, locals)
-	case "str":
-		return strExprToGo(list.Elements[1:], ctx, locals)
-	case "println":
-		return printlnExprToGo(list.Elements[1:], ctx, locals)
-	case "if":
-		return ifExprToGo(list.Elements[1:], ctx, locals)
-	case "let":
-		return letExprToGo(list.Elements[1:], ctx, locals)
-	case "symbol":
-		return symbolExprToGo(list.Elements[1:], ctx, locals)
-	case "name":
-		return nameExprToGo(list.Elements[1:], ctx, locals)
-	case "assoc":
-		return assocExprToGo(list.Elements[1:], ctx, locals)
-	case "dissoc":
-		return dissocExprToGo(list.Elements[1:], ctx, locals)
-	default:
-		goName, err := toGoIdentifier(head.Name)
+	return callExprToGo(list.Elements[0], list.Elements[1:], ctx, locals)
+}
+
+func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	callee, err := exprToGo(calleeExpr, ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if callee.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("first element in list must evaluate to a function")
+	}
+
+	args := make([]string, 0, len(argsExpr))
+	for _, item := range argsExpr {
+		part, err := exprToGo(item, ctx, locals)
 		if err != nil {
 			return goExpr{}, err
 		}
-		if _, ok := ctx.functions[goName]; !ok {
-			return goExpr{}, fmt.Errorf("unknown function %q", head.Name)
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("function argument must evaluate to Value")
 		}
-
-		args := make([]string, 0, len(list.Elements)-1)
-		for _, item := range list.Elements[1:] {
-			part, err := exprToGo(item, ctx, locals)
-			if err != nil {
-				return goExpr{}, err
-			}
-			if part.kind != exprKindValue {
-				return goExpr{}, fmt.Errorf("function argument must evaluate to numeric Value")
-			}
-			args = append(args, part.code)
-		}
-		return goExpr{code: fmt.Sprintf("%s(%s)", goName, strings.Join(args, ", ")), kind: exprKindValue}, nil
+		args = append(args, part.code)
 	}
+	return goExpr{code: fmt.Sprintf("%s.Call(%s)", runtimeAlias, strings.Join(append([]string{callee.code}, args...), ", ")), kind: exprKindValue}, nil
 }
 
 func infixExprToGo(args []Expr, runtimeOp string, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -710,6 +728,200 @@ func nameExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	}
 }
 
+func firstExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("first expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if arg.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("first expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.First(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func restExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("rest expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if arg.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("rest expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.Rest(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("map expects function and at least one sequence")
+	}
+
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		part, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("map arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.Map(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func fnExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("fn expects parameter vector and body expression")
+	}
+	paramsExpr, ok := args[0].(VectorExpr)
+	if !ok {
+		return goExpr{}, fmt.Errorf("fn expects a parameter vector")
+	}
+	return compileLambda(paramsExpr, args[1], ctx, locals, "fn")
+}
+
+func hashFnExprToGo(hashFn HashFnExpr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	maxParam := 0
+	collectHashFnPlaceholders(hashFn.Body, &maxParam)
+
+	params := make([]Expr, 0, maxParam)
+	for i := 1; i <= maxParam; i++ {
+		params = append(params, SymbolExpr{Name: hashFnParamName(i)})
+	}
+	body := replaceHashFnPlaceholders(hashFn.Body)
+	return compileLambda(VectorExpr{Elements: params}, body, ctx, locals, "#()")
+}
+
+func collectHashFnPlaceholders(expr Expr, maxParam *int) {
+	switch value := expr.(type) {
+	case SymbolExpr:
+		if index, ok := hashFnPlaceholderIndex(value.Name); ok && index > *maxParam {
+			*maxParam = index
+		}
+	case ListExpr:
+		for _, item := range value.Elements {
+			collectHashFnPlaceholders(item, maxParam)
+		}
+	case VectorExpr:
+		for _, item := range value.Elements {
+			collectHashFnPlaceholders(item, maxParam)
+		}
+	case MapExpr:
+		for _, item := range value.Entries {
+			collectHashFnPlaceholders(item, maxParam)
+		}
+	case SetExpr:
+		for _, item := range value.Elements {
+			collectHashFnPlaceholders(item, maxParam)
+		}
+	case HashFnExpr:
+		// Nested #() has its own placeholder scope.
+	}
+}
+
+func replaceHashFnPlaceholders(expr Expr) Expr {
+	switch value := expr.(type) {
+	case SymbolExpr:
+		if index, ok := hashFnPlaceholderIndex(value.Name); ok {
+			return SymbolExpr{Name: hashFnParamName(index)}
+		}
+		return value
+	case ListExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return ListExpr{Elements: out}
+	case VectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return VectorExpr{Elements: out}
+	case MapExpr:
+		out := make([]Expr, 0, len(value.Entries))
+		for _, item := range value.Entries {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return MapExpr{Entries: out}
+	case SetExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return SetExpr{Elements: out}
+	case HashFnExpr:
+		return value
+	default:
+		return expr
+	}
+}
+
+func hashFnPlaceholderIndex(name string) (int, bool) {
+	if name == "%" {
+		return 1, true
+	}
+	if strings.HasPrefix(name, "%") && len(name) > 1 {
+		index, err := strconv.Atoi(name[1:])
+		if err == nil && index > 0 {
+			return index, true
+		}
+	}
+	return 0, false
+}
+
+func hashFnParamName(index int) string {
+	return fmt.Sprintf("__p%d", index)
+}
+
+func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, locals map[string]exprKind, label string) (goExpr, error) {
+	params := make([]string, 0, len(paramsExpr.Elements))
+	localKinds := make(map[string]exprKind, len(locals)+len(paramsExpr.Elements))
+	for name, kind := range locals {
+		localKinds[name] = kind
+	}
+	paramNames := make(map[string]struct{}, len(paramsExpr.Elements))
+
+	for _, paramExpr := range paramsExpr.Elements {
+		param, ok := paramExpr.(SymbolExpr)
+		if !ok || param.Name == "" {
+			return goExpr{}, fmt.Errorf("%s parameters must be symbols", label)
+		}
+
+		goParam, err := toGoIdentifier(param.Name)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if _, exists := paramNames[goParam]; exists {
+			return goExpr{}, fmt.Errorf("duplicate parameter %q", param.Name)
+		}
+		paramNames[goParam] = struct{}{}
+		localKinds[goParam] = exprKindValue
+		params = append(params, goParam)
+	}
+
+	body, err := exprToGo(bodyExpr, ctx, localKinds)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if body.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("%s body must evaluate to Value", label)
+	}
+
+	def := functionDef{
+		goName: label,
+		params: params,
+		body:   body.code,
+	}
+	return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, renderFunctionLiteral(def)), kind: exprKindValue}, nil
+}
+
 func mapExprToGo(entries []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(entries)%2 != 0 {
 		return goExpr{}, fmt.Errorf("map literal expects key/value pairs")
@@ -727,6 +939,21 @@ func mapExprToGo(entries []Expr, ctx compileContext, locals map[string]exprKind)
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func vectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	parts := make([]string, 0, len(elements))
+	for _, element := range elements {
+		part, err := exprToGo(element, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("vector literal entries must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func setExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

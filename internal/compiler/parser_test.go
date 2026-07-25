@@ -112,3 +112,28 @@ func TestParseFileSetLiteral(t *testing.T) {
 		t.Fatalf("expected set with 3 elements, got %d", len(setExpr.Elements))
 	}
 }
+
+func TestParseFileHashFnLiteral(t *testing.T) {
+	ast, err := ParseFile(`(println #(* % 3))`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+
+	hashFn, ok := call.Elements[1].(HashFnExpr)
+	if !ok {
+		t.Fatalf("expected hash-fn literal, got %#v", call.Elements[1])
+	}
+
+	body, ok := hashFn.Body.(ListExpr)
+	if !ok {
+		t.Fatalf("expected hash-fn body to be list, got %T", hashFn.Body)
+	}
+	if len(body.Elements) != 3 {
+		t.Fatalf("expected hash-fn body with 3 elements, got %d", len(body.Elements))
+	}
+}

@@ -32,6 +32,12 @@ type SetExpr struct {
 
 func (SetExpr) expr() {}
 
+type HashFnExpr struct {
+	Body Expr
+}
+
+func (HashFnExpr) expr() {}
+
 type SymbolExpr struct {
 	Name string
 }

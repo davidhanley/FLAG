@@ -74,6 +74,18 @@ func ArrayAppend(arrayValue Value, item Value) Value {
 	return newArrayValue(next, length+1)
 }
 
+func ArrayRest(arrayValue Value) Value {
+	if arrayValue.tag != TagArray {
+		panic("ArrayRest expects array Value")
+	}
+	length := arrayValue.ArrayLen()
+	items := arrayValue.arrayItems()
+	if length == 0 {
+		return newArrayValue(items[:0], 0)
+	}
+	return newArrayValue(items[1:length], length-1)
+}
+
 func arrayValueToAny(v Value) []any {
 	values := v.ArrayValues()
 	out := make([]any, 0, len(values))

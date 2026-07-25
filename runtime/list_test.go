@@ -78,6 +78,23 @@ func TestValueToAnyForList(t *testing.T) {
 	}
 }
 
+func TestFirstAndRestForList(t *testing.T) {
+	listValue := NewList(NewLong(1), NewLong(2), NewLong(3))
+	if got := First(listValue); got.Long() != 1 {
+		t.Fatalf("expected first element 1, got %v", got)
+	}
+
+	rest := Rest(listValue)
+	if rest.tag != TagList {
+		t.Fatalf("expected rest to be list, got %v", rest.tag)
+	}
+	checkListValues(t, rest, []Value{NewLong(2), NewLong(3)})
+
+	if got := First(NewList()); got.tag != TagNil {
+		t.Fatalf("expected first of empty list to be nil, got %v", got.tag)
+	}
+}
+
 func checkListValues(t *testing.T, listValue Value, want []Value) {
 	t.Helper()
 

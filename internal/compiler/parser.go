@@ -102,6 +102,13 @@ func (p *parser) readDispatch() (Expr, error) {
 		return nil, p.errorf("unexpected end after #")
 	}
 	if p.peek() != '{' {
+		if p.peek() == '(' {
+			list, err := p.readList('(', ')')
+			if err != nil {
+				return nil, err
+			}
+			return HashFnExpr{Body: list}, nil
+		}
 		return nil, p.errorf("unsupported reader dispatch")
 	}
 

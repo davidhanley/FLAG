@@ -285,6 +285,8 @@ func ValueToString(v Value) string {
 			return ":" + symbol.Name
 		}
 		return symbol.Name
+	case TagFunction:
+		return "#<fn>"
 	case TagMap:
 		entries := v.MapEntries()
 		var out strings.Builder
@@ -373,7 +375,7 @@ func ValueToAny(v Value) any {
 		return v.Double()
 	case TagRatio:
 		return v.Ratio()
-	case TagSymbol, TagMap, TagSet:
+	case TagSymbol, TagFunction, TagMap, TagSet:
 		return v
 	case TagNil:
 		return nil

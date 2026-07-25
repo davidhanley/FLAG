@@ -99,6 +99,28 @@ func TestValueToAnyForArray(t *testing.T) {
 	}
 }
 
+func TestFirstAndRestForArray(t *testing.T) {
+	arrayValue := NewArray(NewLong(1), NewLong(2), NewLong(3))
+	if got := First(arrayValue); got.Long() != 1 {
+		t.Fatalf("expected first element 1, got %v", got)
+	}
+
+	rest := Rest(arrayValue)
+	if rest.tag != TagArray {
+		t.Fatalf("expected rest to be array, got %v", rest.tag)
+	}
+	if rest.ArrayLen() != 2 {
+		t.Fatalf("expected rest length 2, got %d", rest.ArrayLen())
+	}
+	if ArrayGet(rest, 0).Long() != 2 || ArrayGet(rest, 1).Long() != 3 {
+		t.Fatalf("unexpected rest values: %#v", rest.ArrayValues())
+	}
+
+	if got := First(NewArray()); got.tag != TagNil {
+		t.Fatalf("expected first of empty array to be nil, got %v", got.tag)
+	}
+}
+
 func assertPanics(t *testing.T, fn func()) {
 	t.Helper()
 	defer func() {
