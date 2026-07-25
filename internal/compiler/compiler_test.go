@@ -408,6 +408,27 @@ func TestCompileMapFunction(t *testing.T) {
 	}
 }
 
+func TestCompilePMapFunction(t *testing.T) {
+	output, err := Compile(`
+(println (pmap (fn [x] (* x x)) [1 2 3]))
+(defn add2 [a b] (+ a b))
+(println (pmap add2 [1 2 3] [10 20 30]))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.PMap(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
+		`fmt.Println(flagrt.Str(flagrt.PMap(add2, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20), flagrt.NewLong(30)))))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileJSONFunctions(t *testing.T) {
 	output, err := Compile(`
 (println (to-json {:a 1 :b [2 3]}))

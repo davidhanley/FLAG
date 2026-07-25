@@ -1081,7 +1081,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", ">",
 		"first", "fist", "rest", "take", "drop",
-		"map", "filter", "reduce", "range", "get",
+		"map", "pmap", "filter", "reduce", "range", "get",
 		"assoc", "dissoc", "open-file", "file-to-strings":
 		return true
 	default:
@@ -1137,6 +1137,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return dropExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
+		case "pmap":
+			return pmapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "filter":
 			return filterCallExprToGo(list.Elements[1:], ctx, locals)
 		case "reduce":
@@ -1958,6 +1960,25 @@ func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Map(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func pmapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("pmap expects function and at least one sequence")
+	}
+
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		part, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("pmap arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.PMap(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func filterCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
