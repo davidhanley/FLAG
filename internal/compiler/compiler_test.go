@@ -64,6 +64,24 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 }
 
+func TestCompileDefnAllowsHyphenatedNames(t *testing.T) {
+	output, err := Compile(`
+(defn get-scores-list-base [base] base)
+(get-scores-list-base 7)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "func get_scores_list_base_arity_1(") {
+		t.Fatalf("generated Go did not contain hyphenated identifier rewrite:\n%s", got)
+	}
+	if !strings.Contains(got, `_ = flagrt.Call(get_scores_list_base, flagrt.NewLong(7))`) {
+		t.Fatalf("generated Go did not contain expected call:\n%s", got)
+	}
+}
+
 func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	output, err := Compile(`
 		(ns   hello.core)
@@ -564,6 +582,7 @@ func TestCompileReduceWithBuiltinPlusFunction(t *testing.T) {
 
 func TestCompileRangeFunction(t *testing.T) {
 	output, err := Compile(`
+(println (range))
 (println (range 1 5))
 (println (range 5))
 `)
@@ -572,6 +591,7 @@ func TestCompileRangeFunction(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.Range()))`,
 		`fmt.Println(flagrt.Str(flagrt.Range(flagrt.NewLong(1), flagrt.NewLong(5))))`,
 		`fmt.Println(flagrt.Str(flagrt.Range(flagrt.NewLong(5))))`,
 	} {

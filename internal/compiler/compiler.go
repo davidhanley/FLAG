@@ -2121,8 +2121,8 @@ func reduceCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 }
 
 func rangeCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 && len(args) != 2 {
-		return goExpr{}, fmt.Errorf("range expects one or two arguments")
+	if len(args) != 0 && len(args) != 1 && len(args) != 2 {
+		return goExpr{}, fmt.Errorf("range expects zero, one, or two arguments")
 	}
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
@@ -2439,19 +2439,26 @@ func toGoIdentifier(name string) (string, error) {
 		return "", fmt.Errorf("empty symbol")
 	}
 
+	var out strings.Builder
 	runes := []rune(name)
 	for i, ch := range runes {
 		if i == 0 {
 			if ch != '_' && !unicode.IsLetter(ch) {
 				return "", fmt.Errorf("unsupported symbol %q", name)
 			}
+			out.WriteRune(ch)
+			continue
+		}
+		if ch == '-' {
+			out.WriteByte('_')
 			continue
 		}
 		if ch != '_' && !unicode.IsLetter(ch) && !unicode.IsDigit(ch) {
 			return "", fmt.Errorf("unsupported symbol %q", name)
 		}
+		out.WriteRune(ch)
 	}
-	return name, nil
+	return out.String(), nil
 }
 
 func renderFunctionDef(fn functionDef) string {
