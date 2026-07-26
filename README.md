@@ -26,6 +26,7 @@ The repository currently includes:
 - Go code generation for an initial subset (`defn`, arithmetic, calls, printing)
 - a runtime with tagged values, numerics, ratios, lists, and arrays
 - an interactive REPL path using Yaegi evaluation
+- small libraries for HTML rendering and CSV parsing
 
 ## Quick start
 
@@ -34,11 +35,11 @@ go run ./cmd/flag-lang repl
 ```
 
 ```bash
-go run ./cmd/flag-lang compile examples/hello.flag -o hello.go
+go run ./cmd/flag-lang compile examples/hello/src/main.flag -o hello.go
 go run ./hello.go
 ```
 
 ```bash
-go run ./cmd/flag-lang build examples/hello.flag -o hello
+go run ./cmd/flag-lang build examples/hello -o hello
 ./hello
 ```

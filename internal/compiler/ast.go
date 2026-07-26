@@ -32,6 +32,10 @@ type SetExpr struct {
 
 func (SetExpr) expr() {}
 
+type CommentExpr struct{}
+
+func (CommentExpr) expr() {}
+
 type HashFnExpr struct {
 	Body Expr
 }

@@ -26,6 +26,9 @@ func ParseFile(source string) (FileAST, error) {
 		if err != nil {
 			return FileAST{}, err
 		}
+		if _, ok := form.(CommentExpr); ok {
+			continue
+		}
 		forms = append(forms, form)
 	}
 
@@ -69,12 +72,20 @@ func (p *parser) readList(open, close rune) (Expr, error) {
 
 		if p.peek() == close {
 			p.next()
+			if len(elements) > 0 {
+				if sym, ok := elements[0].(SymbolExpr); ok && sym.Name == "comment" {
+					return CommentExpr{}, nil
+				}
+			}
 			return ListExpr{Elements: elements}, nil
 		}
 
 		item, err := p.readExpr()
 		if err != nil {
 			return nil, err
+		}
+		if _, ok := item.(CommentExpr); ok {
+			continue
 		}
 		elements = append(elements, item)
 	}

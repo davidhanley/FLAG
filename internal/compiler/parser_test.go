@@ -93,6 +93,37 @@ func TestParseFileQuotedAndKeywordSymbols(t *testing.T) {
 	}
 }
 
+func TestParseFileCommentFormTopLevel(t *testing.T) {
+	ast, err := ParseFile(`(println 1)
+(comment (println 2) (+ 1 2))
+(println 3)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	if len(ast.Forms) != 2 {
+		t.Fatalf("expected 2 top-level forms, got %d", len(ast.Forms))
+	}
+}
+
+func TestParseFileCommentFormNested(t *testing.T) {
+	ast, err := ParseFile(`(do 1 (comment (println 2) {:a 1}) 3)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	form, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected ListExpr, got %T", ast.Forms[0])
+	}
+	if len(form.Elements) != 3 {
+		t.Fatalf("expected comment form to be removed, got %d elements", len(form.Elements))
+	}
+	if value, ok := form.Elements[2].(IntExpr); !ok || value.Value != 3 {
+		t.Fatalf("expected trailing form to remain, got %#v", form.Elements[2])
+	}
+}
+
 func TestParseFileQuotedList(t *testing.T) {
 	ast, err := ParseFile(`(println '(1 2 3))`)
 	if err != nil {

@@ -29,6 +29,41 @@ func TestCompilePrintProgram(t *testing.T) {
 	}
 }
 
+func TestCompileDocstringsArePreservedAsComments(t *testing.T) {
+	output, err := Compile(`
+(defn greet "Say hi" [name] name)
+(def msg "A greeting" 42)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"// Say hi",
+		"// A greeting",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
+	output, err := Compile(`
+(defmacro identity "Return the argument unchanged" [x] x)
+(println (identity 7))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewLong(7)))`) {
+		t.Fatalf("generated Go did not contain expected macro expansion:\n%s", got)
+	}
+}
+
 func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	output, err := Compile(`
 		(ns   hello.core)
@@ -355,6 +390,28 @@ func TestCompileMapLookupForms(t *testing.T) {
 		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.BuiltinFunction("get"), m, flagrt.NewKeyword("a"))))`,
 		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.NewKeyword("a"), m)))`,
 		`fmt.Println(flagrt.Str(flagrt.Call(m, flagrt.NewKeyword("a"))))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileGoFunctionInteropForms(t *testing.T) {
+	output, err := Compile(`
+(def f (go-fn "fmt.Sprintf"))
+(f "dave is %d years old" 23)
+(println (go-fn-args "fmt.Sprintf"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`var f = flagrt.GoFunction("fmt.Sprintf")`,
+		`_ = flagrt.Call(f, flagrt.NewSymbol("dave is %d years old"), flagrt.NewLong(23))`,
+		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
