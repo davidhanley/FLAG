@@ -225,6 +225,8 @@ func ValueToString(v Value) string {
 		return strconv.FormatBool(v.Bool())
 	case TagString:
 		return strconv.Quote(v.StringValue())
+	case TagFile:
+		return "#<file " + v.FileObject().Path + ">"
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {
@@ -332,7 +334,7 @@ func ValueToAny(v Value) any {
 		return v.Bool()
 	case TagString:
 		return v.StringValue()
-	case TagSymbol, TagFunction, TagMap, TagSet, TagLazyList:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList:
 		return v
 	case TagNil:
 		return nil

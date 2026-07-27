@@ -47,6 +47,8 @@ func exprPos(expr Expr) (int, int, bool) {
 		return value.Line, value.Col, value.Line > 0 && value.Col > 0
 	case StringExpr:
 		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+	case CharExpr:
+		return value.Line, value.Col, value.Line > 0 && value.Col > 0
 	case IntExpr:
 		return value.Line, value.Col, value.Line > 0 && value.Col > 0
 	case FloatExpr:
@@ -69,6 +71,17 @@ func exprToSourceString(expr Expr) string {
 	switch value := expr.(type) {
 	case StringExpr:
 		return strconv.Quote(value.Value)
+	case CharExpr:
+		switch value.Value {
+		case ' ':
+			return `\space`
+		case '\n':
+			return `\newline`
+		case '\t':
+			return `\tab`
+		default:
+			return "\\" + string(value.Value)
+		}
 	case IntExpr:
 		return fmt.Sprintf("%d", value.Value)
 	case FloatExpr:
@@ -1127,7 +1140,7 @@ func threadFirstStep(step Expr, acc Expr) (Expr, error) {
 		}
 		return ListExpr{Elements: out}, nil
 	default:
-		return nil, fmt.Errorf("-> step must be a symbol or list")
+		return ListExpr{Elements: []Expr{copyExpr(step), copyExpr(acc)}}, nil
 	}
 }
 
@@ -1147,7 +1160,7 @@ func threadLastStep(step Expr, acc Expr) (Expr, error) {
 		out = append(out, copyExpr(acc))
 		return ListExpr{Elements: out}, nil
 	default:
-		return nil, fmt.Errorf("->> step must be a symbol or list")
+		return ListExpr{Elements: []Expr{copyExpr(step), copyExpr(acc)}}, nil
 	}
 }
 
@@ -1177,6 +1190,8 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 	switch arg := expr.(type) {
 	case StringExpr:
 		return goExpr{code: fmt.Sprintf("%q", arg.Value), kind: exprKindString}, nil
+	case CharExpr:
+		return goExpr{code: fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(arg.Value)), kind: exprKindValue}, nil
 	case IntExpr:
 		return goExpr{code: fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
 	case RatioExpr:
@@ -1226,6 +1241,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		}
 		if isBuiltinFunctionSymbol(arg.Name) {
 			return goExpr{code: fmt.Sprintf("%s.BuiltinFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+		}
+		if strings.Contains(arg.Name, "/") {
+			return goExpr{code: fmt.Sprintf("%s.GoFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 		}
 		if err != nil {
 			return goExpr{}, err
@@ -1376,6 +1394,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return doExprToGo(list.Elements[1:], ctx, locals)
 		case "let":
 			return letExprToGo(list.Elements[1:], ctx, locals)
+		case "with-open":
+			return withOpenExprToGo(list.Elements[1:], ctx, locals)
 		case "symbol":
 			return symbolExprToGo(list.Elements[1:], ctx, locals)
 		case "name":
@@ -1693,6 +1713,80 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		}
 	}
 
+	compiledBody := make([]goExpr, 0, len(bodyExprs))
+	for _, bodyExpr := range bodyExprs {
+		compiled, err := exprToGo(bodyExpr, ctx, localKinds)
+		if err != nil {
+			return goExpr{}, err
+		}
+		compiledBody = append(compiledBody, compiled)
+	}
+
+	result := compiledBody[len(compiledBody)-1]
+	typeName, err := goTypeForExprKind(result.kind)
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s {\n", typeName)
+	for _, binding := range bindings {
+		out.WriteString(binding)
+	}
+	for i := 0; i < len(compiledBody)-1; i++ {
+		fmt.Fprintf(&out, "\t_ = %s\n", compiledBody[i].code)
+	}
+	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	out.WriteString("}()")
+
+	return goExpr{code: out.String(), kind: result.kind}, nil
+}
+
+func withOpenExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("with-open expects a binding vector and body")
+	}
+
+	bindingsExpr, ok := args[0].(VectorExpr)
+	if !ok {
+		return goExpr{}, fmt.Errorf("with-open expects a binding vector")
+	}
+	if len(bindingsExpr.Elements)%2 != 0 {
+		return goExpr{}, fmt.Errorf("with-open binding vector expects name/value pairs")
+	}
+
+	localKinds := make(map[string]exprKind, len(locals)+len(bindingsExpr.Elements)/2)
+	for name, kind := range locals {
+		localKinds[name] = kind
+	}
+
+	bindings := make([]string, 0, len(bindingsExpr.Elements)*2)
+	tempCounter := 0
+	declared := make(map[string]struct{}, len(bindingsExpr.Elements))
+	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
+		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if valueExpr.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("with-open binding value must evaluate to Value")
+		}
+
+		sourceName := fmt.Sprintf("__bind%d", tempCounter)
+		tempCounter++
+		bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
+		bindings = append(bindings, fmt.Sprintf("\tdefer %s.Close()\n", sourceName))
+
+		emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
+		if err := emitter.bind(bindingsExpr.Elements[i], sourceName); err != nil {
+			return goExpr{}, err
+		}
+	}
+
+	bodyExprs := args[1:]
+	if len(bodyExprs) == 0 {
+		return goExpr{}, fmt.Errorf("with-open expects at least one body form")
+	}
 	compiledBody := make([]goExpr, 0, len(bodyExprs))
 	for _, bodyExpr := range bodyExprs {
 		compiled, err := exprToGo(bodyExpr, ctx, localKinds)
@@ -2050,6 +2144,8 @@ func compileDestructureMapKeyToValue(expr Expr) (string, error) {
 		return fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, value.Value), nil
 	case StringExpr:
 		return fmt.Sprintf("%s.NewString(%q)", runtimeAlias, value.Value), nil
+	case CharExpr:
+		return fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(value.Value)), nil
 	default:
 		return "", fmt.Errorf("unsupported map destructuring key %T", expr)
 	}

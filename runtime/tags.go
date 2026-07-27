@@ -9,6 +9,7 @@ const (
 	TagRatio
 	TagBool
 	TagString
+	TagFile
 	TagSymbol
 	TagFunction
 	TagMap

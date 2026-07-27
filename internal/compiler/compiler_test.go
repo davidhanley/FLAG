@@ -190,6 +190,18 @@ func TestCompilePrintlnWithRatioLiteral(t *testing.T) {
 	}
 }
 
+func TestCompilePrintlnWithCharLiteral(t *testing.T) {
+	output, err := Compile(`(println \M)`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewString("M")))`) {
+		t.Fatalf("generated Go did not contain char literal:\n%s", got)
+	}
+}
+
 func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
 	_, err := Compile("(println {:a (< 1 2)})")
 	if err == nil {
@@ -215,6 +227,39 @@ func TestCompilePrintlnWithSubAndDivExpressions(t *testing.T) {
 		"fmt.Println(flagrt.Str(flagrt.Sub(flagrt.Sub(flagrt.NewLong(10), flagrt.NewLong(3)), flagrt.NewLong(2))))",
 		"fmt.Println(flagrt.Str(flagrt.Div(flagrt.NewLong(3), flagrt.NewLong(2))))",
 		"fmt.Println(flagrt.Str(flagrt.Mod(flagrt.NewLong(-5), flagrt.NewLong(3))))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileMapLiteralWithCharKeys(t *testing.T) {
+	output, err := Compile(`(println {\M :male \F :female})`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, `flagrt.NewString("M")`) || !strings.Contains(got, `flagrt.NewString("F")`) {
+		t.Fatalf("generated Go did not contain char map keys:\n%s", got)
+	}
+}
+
+func TestCompileWithOpenEmitsDefer(t *testing.T) {
+	output, err := Compile(`
+(with-open [rdr (open-file "sample.txt")]
+  (first (file-to-strings rdr)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"defer __bind0.Close()",
+		"flagrt.OpenFile(\"sample.txt\")",
+		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -517,6 +562,30 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
 		`_ = flagrt.Call(f, flagrt.NewString("dave is %d years old"), flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
+	output, err := Compile(`
+(println (string/trim "  hello  "))
+(println (string/replace "hello world" "world" "FLAG"))
+(println (character/toUppercase "hello"))
+(println (long/parse "42"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.Call(flagrt.GoFunction("string/trim"), flagrt.NewString("  hello  "))`,
+		`flagrt.Call(flagrt.GoFunction("string/replace"), flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`,
+		`flagrt.Call(flagrt.GoFunction("character/toUppercase"), flagrt.NewString("hello"))`,
+		`flagrt.Call(flagrt.GoFunction("long/parse"), flagrt.NewString("42"))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)

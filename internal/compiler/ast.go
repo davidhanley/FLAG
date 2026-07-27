@@ -92,6 +92,14 @@ type StringExpr struct {
 
 func (StringExpr) expr() {}
 
+type CharExpr struct {
+	Value rune
+	Line  int
+	Col   int
+}
+
+func (CharExpr) expr() {}
+
 type IntExpr struct {
 	Value int64
 	Line  int

@@ -107,6 +107,29 @@ func TestParseFileRatioLiteral(t *testing.T) {
 	}
 }
 
+func TestParseFileCharLiteral(t *testing.T) {
+	ast, err := ParseFile(`(println \M \space)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+	if len(call.Elements) != 3 {
+		t.Fatalf("expected println form with 3 elements, got %d", len(call.Elements))
+	}
+	firstChar, ok := call.Elements[1].(CharExpr)
+	if !ok || firstChar.Value != 'M' {
+		t.Fatalf("expected char literal M, got %#v", call.Elements[1])
+	}
+	spaceChar, ok := call.Elements[2].(CharExpr)
+	if !ok || spaceChar.Value != ' ' {
+		t.Fatalf("expected char literal space, got %#v", call.Elements[2])
+	}
+}
+
 func TestParseFileQuotedAndKeywordSymbols(t *testing.T) {
 	ast, err := ParseFile(`(println 'abc :xyz)`)
 	if err != nil {

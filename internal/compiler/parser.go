@@ -225,6 +225,22 @@ func (p *parser) readAtom() (Expr, error) {
 	if strings.HasPrefix(token, ":") && len(token) > 1 {
 		return KeywordExpr{Name: token[1:], Line: line, Col: col}, nil
 	}
+	if strings.HasPrefix(token, "\\") && len(token) > 1 {
+		charText := token[1:]
+		switch charText {
+		case "space":
+			return CharExpr{Value: ' ', Line: line, Col: col}, nil
+		case "newline":
+			return CharExpr{Value: '\n', Line: line, Col: col}, nil
+		case "tab":
+			return CharExpr{Value: '\t', Line: line, Col: col}, nil
+		}
+		runes := []rune(charText)
+		if len(runes) == 1 {
+			return CharExpr{Value: runes[0], Line: line, Col: col}, nil
+		}
+		return nil, p.errorf("unsupported character literal")
+	}
 	if strings.Count(token, "/") == 1 && !strings.HasPrefix(token, "/") && !strings.HasSuffix(token, "/") {
 		parts := strings.SplitN(token, "/", 2)
 		numerator, err := strconv.ParseInt(parts[0], 10, 64)
