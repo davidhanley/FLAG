@@ -36,10 +36,15 @@ go run ./cmd/flag-lang repl
 
 ```bash
 go run ./cmd/flag-lang compile examples/hello/src/main.flag -o hello.go
+go build -o /dev/null hello.go
 go run ./hello.go
 ```
 
 ```bash
 go run ./cmd/flag-lang build examples/hello -o hello
 ./hello
+```
+
+```bash
+go run ./cmd/flag-lang test examples/FRS
 ```

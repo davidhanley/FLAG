@@ -59,6 +59,7 @@ func (p *parser) readExpr() (Expr, error) {
 }
 
 func (p *parser) readList(open, close rune) (Expr, error) {
+	line, col := p.lineAndColumn()
 	if p.next() != open {
 		return nil, p.errorf("internal parser mismatch")
 	}
@@ -77,7 +78,7 @@ func (p *parser) readList(open, close rune) (Expr, error) {
 					return CommentExpr{}, nil
 				}
 			}
-			return ListExpr{Elements: elements}, nil
+			return ListExpr{Elements: elements, Line: line, Col: col}, nil
 		}
 
 		item, err := p.readExpr()
@@ -92,22 +93,25 @@ func (p *parser) readList(open, close rune) (Expr, error) {
 }
 
 func (p *parser) readVector() (Expr, error) {
+	line, col := p.lineAndColumn()
 	list, err := p.readList('[', ']')
 	if err != nil {
 		return nil, err
 	}
-	return VectorExpr{Elements: list.(ListExpr).Elements}, nil
+	return VectorExpr{Elements: list.(ListExpr).Elements, Line: line, Col: col}, nil
 }
 
 func (p *parser) readMap() (Expr, error) {
+	line, col := p.lineAndColumn()
 	list, err := p.readList('{', '}')
 	if err != nil {
 		return nil, err
 	}
-	return MapExpr{Entries: list.(ListExpr).Elements}, nil
+	return MapExpr{Entries: list.(ListExpr).Elements, Line: line, Col: col}, nil
 }
 
 func (p *parser) readDispatch() (Expr, error) {
+	line, col := p.lineAndColumn()
 	if p.next() != '#' {
 		return nil, p.errorf("internal parser mismatch")
 	}
@@ -120,7 +124,7 @@ func (p *parser) readDispatch() (Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			return HashFnExpr{Body: list}, nil
+			return HashFnExpr{Body: list, Line: line, Col: col}, nil
 		}
 		return nil, p.errorf("unsupported reader dispatch")
 	}
@@ -129,10 +133,11 @@ func (p *parser) readDispatch() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return SetExpr{Elements: list.(ListExpr).Elements}, nil
+	return SetExpr{Elements: list.(ListExpr).Elements, Line: line, Col: col}, nil
 }
 
 func (p *parser) readQuotedExpr() (Expr, error) {
+	line, col := p.lineAndColumn()
 	if p.next() != '\'' {
 		return nil, p.errorf("internal parser mismatch")
 	}
@@ -146,15 +151,20 @@ func (p *parser) readQuotedExpr() (Expr, error) {
 	}
 	switch value := quoted.(type) {
 	case SymbolExpr:
-		return QuotedSymbolExpr{Name: value.Name}, nil
+		return QuotedSymbolExpr{Name: value.Name, Line: line, Col: col}, nil
 	case ListExpr:
-		return QuotedListExpr{Elements: value.Elements}, nil
+		return QuotedListExpr{Elements: value.Elements, Line: line, Col: col}, nil
 	default:
 		return nil, p.errorf("quote currently supports symbols and lists")
 	}
 }
 
 func (p *parser) readString() (Expr, error) {
+	line, col := p.lineAndColumn()
+	if p.pos+2 < len(p.src) && p.src[p.pos] == '"' && p.src[p.pos+1] == '"' && p.src[p.pos+2] == '"' {
+		return p.readMultilineString(line, col)
+	}
+
 	start := p.pos
 	p.next() // opening quote
 	escaped := false
@@ -175,14 +185,29 @@ func (p *parser) readString() (Expr, error) {
 			if err != nil {
 				return nil, p.errorf("invalid string literal: %v", err)
 			}
-			return StringExpr{Value: value}, nil
+			return StringExpr{Value: value, Line: line, Col: col}, nil
 		}
 	}
 
 	return nil, p.errorf("unterminated string literal")
 }
 
+func (p *parser) readMultilineString(line, col int) (Expr, error) {
+	p.pos += 3
+	start := p.pos
+	for !p.done() {
+		if p.pos+2 < len(p.src) && p.src[p.pos] == '"' && p.src[p.pos+1] == '"' && p.src[p.pos+2] == '"' {
+			value := string(p.src[start:p.pos])
+			p.pos += 3
+			return StringExpr{Value: value, Line: line, Col: col}, nil
+		}
+		p.next()
+	}
+	return nil, p.errorf("unterminated string literal")
+}
+
 func (p *parser) readAtom() (Expr, error) {
+	line, col := p.lineAndColumn()
 	start := p.pos
 	for !p.done() {
 		ch := p.peek()
@@ -198,19 +223,32 @@ func (p *parser) readAtom() (Expr, error) {
 	}
 
 	if strings.HasPrefix(token, ":") && len(token) > 1 {
-		return KeywordExpr{Name: token[1:]}, nil
+		return KeywordExpr{Name: token[1:], Line: line, Col: col}, nil
+	}
+	if strings.Count(token, "/") == 1 && !strings.HasPrefix(token, "/") && !strings.HasSuffix(token, "/") {
+		parts := strings.SplitN(token, "/", 2)
+		numerator, err := strconv.ParseInt(parts[0], 10, 64)
+		if err == nil {
+			denominator, err := strconv.ParseInt(parts[1], 10, 64)
+			if err == nil {
+				if denominator == 0 {
+					return nil, p.errorf("ratio denominator cannot be zero")
+				}
+				return RatioExpr{Numerator: numerator, Denominator: denominator, Line: line, Col: col}, nil
+			}
+		}
 	}
 	if i, err := strconv.ParseInt(token, 10, 64); err == nil {
-		return IntExpr{Value: i}, nil
+		return IntExpr{Value: i, Line: line, Col: col}, nil
 	}
 
 	if strings.ContainsAny(token, ".eE") {
 		if f, err := strconv.ParseFloat(token, 64); err == nil {
-			return FloatExpr{Value: f, Raw: token}, nil
+			return FloatExpr{Value: f, Raw: token, Line: line, Col: col}, nil
 		}
 	}
 
-	return SymbolExpr{Name: token}, nil
+	return SymbolExpr{Name: token, Line: line, Col: col}, nil
 }
 
 func (p *parser) skipIgnorable() {

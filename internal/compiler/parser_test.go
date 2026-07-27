@@ -69,6 +69,44 @@ func TestParseFileUnterminatedString(t *testing.T) {
 	}
 }
 
+func TestParseFileMultilineString(t *testing.T) {
+	ast, err := ParseFile("(println \"\"\"hello\nworld\"\"\")")
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+	str, ok := call.Elements[1].(StringExpr)
+	if !ok {
+		t.Fatalf("expected multiline string, got %#v", call.Elements[1])
+	}
+	if str.Value != "hello\nworld" {
+		t.Fatalf("expected multiline string value, got %q", str.Value)
+	}
+}
+
+func TestParseFileRatioLiteral(t *testing.T) {
+	ast, err := ParseFile(`(println 5/6)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+	ratio, ok := call.Elements[1].(RatioExpr)
+	if !ok {
+		t.Fatalf("expected ratio literal, got %#v", call.Elements[1])
+	}
+	if ratio.Numerator != 5 || ratio.Denominator != 6 {
+		t.Fatalf("expected 5/6 ratio, got %d/%d", ratio.Numerator, ratio.Denominator)
+	}
+}
+
 func TestParseFileQuotedAndKeywordSymbols(t *testing.T) {
 	ast, err := ParseFile(`(println 'abc :xyz)`)
 	if err != nil {

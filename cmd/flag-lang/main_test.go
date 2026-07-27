@@ -34,6 +34,32 @@ func TestRunCompileAcceptsOutputFlagAfterInput(t *testing.T) {
 	}
 }
 
+func TestRunCompileWritesDefaultGoFile(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "hello.flag")
+	defaultOutput := filepath.Join(dir, "hello.go")
+
+	source := `(ns hello.core)
+(println "Hello from FLAG")
+`
+	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile input: %v", err)
+	}
+
+	if err := run([]string{"compile", inputPath}); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+
+	generated, err := os.ReadFile(defaultOutput)
+	if err != nil {
+		t.Fatalf("ReadFile output: %v", err)
+	}
+
+	if !strings.Contains(string(generated), `fmt.Println(flagrt.Str("Hello from FLAG"))`) {
+		t.Fatalf("unexpected output:\n%s", generated)
+	}
+}
+
 func TestRunBuildCreatesRunnableBinary(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "fib.flag")
@@ -111,5 +137,57 @@ func TestRunBuildExampleProjectDirectory(t *testing.T) {
 	}
 	if strings.TrimSpace(string(result)) != "Hello from FLAG" {
 		t.Fatalf("unexpected output from example binary: %q", result)
+	}
+}
+
+func TestRunTestRunsAssociatedTests(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "math.flag")
+	testPath := filepath.Join(dir, "math_test.flag")
+
+	source := `(ns math.core)
+(defn add1 [x] (+ x 1))
+`
+	tests := `(ns math.core-test)
+(deftest add1-test
+  (is (= (add1 2) 3)))
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	if err := os.WriteFile(testPath, []byte(tests), 0o644); err != nil {
+		t.Fatalf("WriteFile test: %v", err)
+	}
+
+	if err := run([]string{"test", dir}); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+}
+
+func TestRunTestRemapsTestFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "math.flag")
+	testPath := filepath.Join(dir, "math_test.flag")
+
+	source := `(ns math.core)
+(defn add1 [x] (+ x 1))
+`
+	tests := `(ns math.core-test)
+(deftest bad-test
+	  (println {:a (< 1 2)}))
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+	if err := os.WriteFile(testPath, []byte(tests), 0o644); err != nil {
+		t.Fatalf("WriteFile test: %v", err)
+	}
+
+	err := run([]string{"test", dir})
+	if err == nil {
+		t.Fatal("run succeeded unexpectedly")
+	}
+	if !strings.Contains(err.Error(), "at 3:") {
+		t.Fatalf("expected remapped line number in error, got: %v", err)
 	}
 }

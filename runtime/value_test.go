@@ -200,3 +200,19 @@ func TestBigIntNumericInterop(t *testing.T) {
 		t.Fatalf("expected ratio from bigint division, got %v", ratio.tag)
 	}
 }
+
+func TestStringValues(t *testing.T) {
+	got := NewString("hello")
+	if got.tag != TagString {
+		t.Fatalf("expected string tag, got %v", got.tag)
+	}
+	if ValueToString(got) != `"hello"` {
+		t.Fatalf("expected quoted string value, got %q", ValueToString(got))
+	}
+	if Str(got) != "hello" {
+		t.Fatalf("expected raw string from Str, got %q", Str(got))
+	}
+	if native, ok := ValueToAny(got).(string); !ok || native != "hello" {
+		t.Fatalf("expected native string from ValueToAny, got %#v", ValueToAny(got))
+	}
+}

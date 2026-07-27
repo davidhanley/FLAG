@@ -223,6 +223,8 @@ func ValueToString(v Value) string {
 		return v.BigInt().String()
 	case TagBool:
 		return strconv.FormatBool(v.Bool())
+	case TagString:
+		return strconv.Quote(v.StringValue())
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {
@@ -293,6 +295,9 @@ func ValueToString(v Value) string {
 func anyToString(arg any) string {
 	switch value := arg.(type) {
 	case Value:
+		if value.tag == TagString {
+			return value.StringValue()
+		}
 		return ValueToString(value)
 	case string:
 		return value
@@ -325,6 +330,8 @@ func ValueToAny(v Value) any {
 		return v.BigInt()
 	case TagBool:
 		return v.Bool()
+	case TagString:
+		return v.StringValue()
 	case TagSymbol, TagFunction, TagMap, TagSet, TagLazyList:
 		return v
 	case TagNil:

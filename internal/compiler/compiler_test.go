@@ -64,6 +64,32 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 }
 
+func TestCompileDeftestAndAssertions(t *testing.T) {
+	output, err := Compile(`
+(deftest sample-test
+  (testing "inner"
+    (let [x 1]
+      (is (= x 1))
+      (is (= x 2) "x should be 2"))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func sample_test() flagrt.Value {",
+		"func sample_test_variadic(args ...flagrt.Value) flagrt.Value {",
+		`panic("(= x 1)")`,
+		`panic("x should be 2")`,
+		"return flagrt.NilValue()",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDefnAllowsHyphenatedNames(t *testing.T) {
 	output, err := Compile(`
 (defn get-scores-list-base [base] base)
@@ -79,6 +105,24 @@ func TestCompileDefnAllowsHyphenatedNames(t *testing.T) {
 	}
 	if !strings.Contains(got, `_ = flagrt.Call(get_scores_list_base, flagrt.NewLong(7))`) {
 		t.Fatalf("generated Go did not contain expected call:\n%s", got)
+	}
+}
+
+func TestCompileDefnDashAliasWorks(t *testing.T) {
+	output, err := Compile(`
+(defn- hidden-helper [x] (+ x 1))
+(hidden-helper 2)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "func hidden_helper_arity_1(") {
+		t.Fatalf("generated Go did not contain defn- lowering:\n%s", got)
+	}
+	if !strings.Contains(got, `_ = flagrt.Call(hidden_helper, flagrt.NewLong(2))`) {
+		t.Fatalf("generated Go did not contain defn- call:\n%s", got)
 	}
 }
 
@@ -131,6 +175,28 @@ func TestCompilePrintlnWithAdditionExpression(t *testing.T) {
 	got := string(output)
 	if !strings.Contains(got, "fmt.Println(flagrt.Str(flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewDouble(2.0))))") {
 		t.Fatalf("generated Go did not contain expected addition expression:\n%s", got)
+	}
+}
+
+func TestCompilePrintlnWithRatioLiteral(t *testing.T) {
+	output, err := Compile(`(println 5/6)`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewRatio(5, 6)))`) {
+		t.Fatalf("generated Go did not contain ratio literal:\n%s", got)
+	}
+}
+
+func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
+	_, err := Compile("(println {:a (< 1 2)})")
+	if err == nil {
+		t.Fatal("Compile succeeded for invalid map literal")
+	}
+	if !strings.Contains(err.Error(), "map literal entries must evaluate to Value at 1:") {
+		t.Fatalf("expected location in error, got: %v", err)
 	}
 }
 
@@ -350,6 +416,27 @@ func TestCompilePrintlnWithMapAndSetLiterals(t *testing.T) {
 	}
 }
 
+func TestCompilePrintlnWithStringCollectionLiterals(t *testing.T) {
+	output, err := Compile(`
+(println {:name "DAVID HANLEY" :age 30})
+(println ["hello" {:msg "world"}])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.NewString("DAVID HANLEY")`,
+		`flagrt.NewString("hello")`,
+		`flagrt.NewString("world")`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileSymbolAndNameFunctions(t *testing.T) {
 	output, err := Compile(`
 (println (name :xyz))
@@ -428,7 +515,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = flagrt.Call(f, flagrt.NewSymbol("dave is %d years old"), flagrt.NewLong(23))`,
+		`_ = flagrt.Call(f, flagrt.NewString("dave is %d years old"), flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
