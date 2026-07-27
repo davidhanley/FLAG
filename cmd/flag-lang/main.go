@@ -234,10 +234,10 @@ func runTest(args []string) error {
 	runCmd := exec.Command(outputPath)
 	runOutput, err := runCmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("flag test failed: %w\n%s", err, strings.TrimSpace(string(runOutput)))
+		return fmt.Errorf("flag test failed: %w\n%s", err, strings.TrimSpace(remapTestRuntimeOutput(string(runOutput), sourceOffset)))
 	}
-	if len(strings.TrimSpace(string(runOutput))) > 0 {
-		fmt.Fprint(os.Stdout, string(runOutput))
+	if remapped := remapTestRuntimeOutput(string(runOutput), sourceOffset); len(strings.TrimSpace(remapped)) > 0 {
+		fmt.Fprint(os.Stdout, remapped)
 	}
 
 	return nil
@@ -338,6 +338,7 @@ func remapCompileError(err error, offset int) error {
 	if offset <= 0 {
 		return err
 	}
+
 	msg := err.Error()
 	const marker = " at "
 	idx := strings.LastIndex(msg, marker)
@@ -353,6 +354,31 @@ func remapCompileError(err error, offset int) error {
 	}
 	line -= offset
 	return fmt.Errorf("%s at %d:%d", msg[:idx], line, col)
+}
+
+func remapTestRuntimeOutput(output string, offset int) string {
+	if offset <= 0 || output == "" {
+		return output
+	}
+
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		idx := strings.LastIndex(line, "at ")
+		if idx < 0 {
+			continue
+		}
+		rest := line[idx+3:]
+		var n, col, consumed int
+		if _, err := fmt.Sscanf(rest, "%d:%d%n", &n, &col, &consumed); err == nil && n > offset {
+			lines[i] = fmt.Sprintf("%sat %d:%d%s", line[:idx], n-offset, col, rest[consumed:])
+			continue
+		}
+		consumed = 0
+		if _, err := fmt.Sscanf(rest, "%d%n", &n, &consumed); err == nil && n > offset {
+			lines[i] = fmt.Sprintf("%sat %d%s", line[:idx], n-offset, rest[consumed:])
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func collectSourceAndTestFiles(root string) ([]string, []string, error) {

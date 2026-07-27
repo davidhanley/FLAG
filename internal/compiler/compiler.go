@@ -76,6 +76,8 @@ func exprToSourceString(expr Expr) string {
 			return value.Raw
 		}
 		return strconv.FormatFloat(value.Value, 'g', -1, 64)
+	case RatioExpr:
+		return fmt.Sprintf("%d/%d", value.Numerator, value.Denominator)
 	case KeywordExpr:
 		return ":" + value.Name
 	case SymbolExpr:
@@ -115,6 +117,13 @@ func exprToSourceString(expr Expr) string {
 
 type mainStmt struct {
 	code string
+}
+
+type testCase struct {
+	goName     string
+	label      string
+	line       int
+	bodySource string
 }
 
 type functionDef struct {
@@ -190,9 +199,12 @@ func loadStandardMacros(ctx *compileContext) error {
 
 // Compile translates a small FLAG source file into a Go program.
 func Compile(source string) ([]byte, error) {
-	namespace, functions, vars, stmts, needsFmt, err := compileForms(source)
+	namespace, functions, vars, stmts, tests, needsFmt, err := compileForms(source)
 	if err != nil {
 		return nil, err
+	}
+	if len(tests) > 0 {
+		needsFmt = true
 	}
 
 	var out bytes.Buffer
@@ -200,6 +212,9 @@ func Compile(source string) ([]byte, error) {
 	out.WriteString("import (\n")
 	if needsFmt {
 		out.WriteString("\t\"fmt\"\n")
+	}
+	if len(tests) > 0 {
+		out.WriteString("\t\"os\"\n")
 	}
 	out.WriteString("\tflagrt \"flag-lang/runtime\"\n")
 	out.WriteString(")\n\n")
@@ -226,9 +241,51 @@ func Compile(source string) ([]byte, error) {
 		out.WriteString("\n")
 	}
 
+	if len(tests) > 0 {
+		out.WriteString("type flagTestCase struct {\n")
+		out.WriteString("\tname string\n")
+		out.WriteString("\tline int\n")
+		out.WriteString("\tbody string\n")
+		out.WriteString("\tfn func() flagrt.Value\n")
+		out.WriteString("}\n\n")
+		out.WriteString("func runFlagTestCase(tc flagTestCase) (passed bool) {\n")
+		out.WriteString("\tdefer func() {\n")
+		out.WriteString("\t\tif r := recover(); r != nil {\n")
+		out.WriteString("\t\t\tfmt.Printf(\"FAIL %s\\n%s\\n%s\\n\", tc.name, tc.body, r)\n")
+		out.WriteString("\t\t\treturn\n")
+		out.WriteString("\t\t}\n")
+		out.WriteString("\t\tpassed = true\n")
+		out.WriteString("\t\tfmt.Printf(\"PASS %s\\n\", tc.name)\n")
+		out.WriteString("\t}()\n")
+		out.WriteString("\ttc.fn()\n")
+		out.WriteString("\treturn passed\n")
+		out.WriteString("}\n\n")
+	}
+
 	out.WriteString("func main() {\n")
-	for _, stmt := range stmts {
-		fmt.Fprintf(&out, "\t%s\n", stmt.code)
+	if len(tests) > 0 {
+		out.WriteString("\ttests := []flagTestCase{\n")
+		for _, tc := range tests {
+			fmt.Fprintf(&out, "\t\t{name: %q, line: %d, body: %q, fn: %s},\n", tc.label, tc.line, tc.bodySource, tc.goName)
+		}
+		out.WriteString("\t}\n")
+		out.WriteString("\tpassed := 0\n")
+		out.WriteString("\tfailed := 0\n")
+		out.WriteString("\tfor _, tc := range tests {\n")
+		out.WriteString("\t\tif runFlagTestCase(tc) {\n")
+		out.WriteString("\t\t\tpassed++\n")
+		out.WriteString("\t\t} else {\n")
+		out.WriteString("\t\t\tfailed++\n")
+		out.WriteString("\t\t}\n")
+		out.WriteString("\t}\n")
+		out.WriteString("\tfmt.Printf(\"%d passed, %d failed\\n\", passed, failed)\n")
+		out.WriteString("\tif failed > 0 {\n")
+		out.WriteString("\t\tos.Exit(1)\n")
+		out.WriteString("\t}\n")
+	} else {
+		for _, stmt := range stmts {
+			fmt.Fprintf(&out, "\t%s\n", stmt.code)
+		}
 	}
 	out.WriteString("}\n")
 
@@ -378,20 +435,21 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 	return ReplCompiled{ResultExpr: expr.code}, nil
 }
 
-func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, bool, error) {
+func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, []testCase, bool, error) {
 	ast, err := ParseFile(source)
 	if err != nil {
-		return "", nil, nil, nil, false, err
+		return "", nil, nil, nil, nil, false, err
 	}
 
 	ctx, err := newCompileContext()
 	if err != nil {
-		return "", nil, nil, nil, false, err
+		return "", nil, nil, nil, nil, false, err
 	}
 	namespace := ""
 	functions := make([]functionDef, 0, len(ast.Forms))
 	vars := make([]varDef, 0, len(ast.Forms))
 	stmts := make([]mainStmt, 0, len(ast.Forms))
+	tests := make([]testCase, 0, len(ast.Forms))
 	needsFmt := false
 
 	for _, form := range ast.Forms {
@@ -399,7 +457,7 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, b
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
 				name, def, err := compileDefmacro(list)
 				if err != nil {
-					return "", nil, nil, nil, false, err
+					return "", nil, nil, nil, nil, false, err
 				}
 				ctx.macros[name] = def
 				continue
@@ -408,40 +466,40 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, b
 
 		expanded, err := macroExpand(form, ctx, 0)
 		if err != nil {
-			return "", nil, nil, nil, false, err
+			return "", nil, nil, nil, nil, false, err
 		}
 
 		form = expanded
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
-			return "", nil, nil, nil, false, fmt.Errorf("unsupported form")
+			return "", nil, nil, nil, nil, false, fmt.Errorf("unsupported form")
 		}
 
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok {
-			return "", nil, nil, nil, false, fmt.Errorf("unsupported form")
+			return "", nil, nil, nil, nil, false, fmt.Errorf("unsupported form")
 		}
 
 		switch head.Name {
 		case "ns":
 			if namespace != "" {
-				return "", nil, nil, nil, false, fmt.Errorf("namespace already declared")
+				return "", nil, nil, nil, nil, false, fmt.Errorf("namespace already declared")
 			}
 			if len(list.Elements) != 2 {
-				return "", nil, nil, nil, false, fmt.Errorf("ns expects one namespace symbol")
+				return "", nil, nil, nil, nil, false, fmt.Errorf("ns expects one namespace symbol")
 			}
 			name, ok := list.Elements[1].(SymbolExpr)
 			if !ok || name.Name == "" {
-				return "", nil, nil, nil, false, fmt.Errorf("namespace cannot be empty")
+				return "", nil, nil, nil, nil, false, fmt.Errorf("namespace cannot be empty")
 			}
 			namespace = name.Name
 		case "defn", "defn-":
 			def, err := compileDefn(list, ctx)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return "", nil, nil, nil, false, fmt.Errorf("function %q already defined", def.goName)
+				return "", nil, nil, nil, nil, false, fmt.Errorf("function %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
 			ctx.globals[def.goName] = exprKindValue
@@ -453,51 +511,62 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, b
 		case "deftest":
 			def, err := compileDeftest(list, ctx)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return "", nil, nil, nil, false, fmt.Errorf("test %q already defined", def.goName)
+				return "", nil, nil, nil, nil, false, fmt.Errorf("test %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
 			functions = append(functions, def)
-			stmts = append(stmts, mainStmt{code: fmt.Sprintf("%s()", def.arityName)})
+			testName := def.goName
+			if len(list.Elements) > 1 {
+				if sym, ok := list.Elements[1].(SymbolExpr); ok && sym.Name != "" {
+					testName = sym.Name
+				}
+			}
+			tests = append(tests, testCase{
+				goName:     def.arityName,
+				label:      testName,
+				line:       list.Line,
+				bodySource: exprToSourceString(ListExpr{Elements: list.Elements[2:], Line: list.Line, Col: list.Col}),
+			})
 		case "def":
 			binding, kind, err := compileDef(list, ctx)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			ctx.globals[binding.goName] = kind
 			vars = append(vars, binding)
 		case "defmacro":
 			name, def, err := compileDefmacro(list)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			ctx.macros[name] = def
 		case "println":
 			needsFmt = true
 			arg, err := strArgExprForGoCall(list.Elements[1:], ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Println(%s)", arg)})
 		case "print":
 			needsFmt = true
 			arg, err := argumentExprForGoCall(list.Elements[1:], ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Print(%s)", arg)})
 		default:
 			expr, err := exprToGo(form, ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, false, err
+				return "", nil, nil, nil, nil, false, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("_ = %s", expr.code)})
 		}
 	}
 
-	return namespace, functions, vars, stmts, needsFmt, nil
+	return namespace, functions, vars, stmts, tests, needsFmt, nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -1300,7 +1369,7 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 		case "testing":
 			return testingExprToGo(list.Elements[1:], ctx, locals)
 		case "is":
-			return isExprToGo(list.Elements[1:], ctx, locals)
+			return isExprToGo(list, ctx, locals)
 		case "if":
 			return ifExprToGo(list.Elements[1:], ctx, locals)
 		case "do":
@@ -2646,7 +2715,8 @@ func testingBodyExprToGo(args []Expr, ctx compileContext, locals map[string]expr
 	return goExpr{code: out.String(), kind: exprKindValue}, nil
 }
 
-func isExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+func isExprToGo(form ListExpr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	args := form.Elements[1:]
 	if len(args) != 1 && len(args) != 2 {
 		return goExpr{}, fmt.Errorf("is expects an expression and optional message")
 	}
@@ -2667,6 +2737,9 @@ func isExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 			return goExpr{}, fmt.Errorf("is message must be a string")
 		}
 		message = msg.Value
+	}
+	if line, col, ok := exprPos(form); ok {
+		message = fmt.Sprintf("at %d:%d: %s", line, col, message)
 	}
 
 	var out strings.Builder

@@ -79,9 +79,9 @@ func TestCompileDeftestAndAssertions(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"func sample_test() flagrt.Value {",
-		"func sample_test_variadic(args ...flagrt.Value) flagrt.Value {",
-		`panic("(= x 1)")`,
-		`panic("x should be 2")`,
+		"func runFlagTestCase(tc flagTestCase) (passed bool) {",
+		`panic("at 5:7: (= x 1)")`,
+		`panic("at 6:7: x should be 2")`,
 		"return flagrt.NilValue()",
 	} {
 		if !strings.Contains(got, want) {
