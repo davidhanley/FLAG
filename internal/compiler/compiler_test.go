@@ -108,6 +108,29 @@ func TestCompileDefnAllowsHyphenatedNames(t *testing.T) {
 	}
 }
 
+func TestCompileDefnAllowsPredicateAndBangNames(t *testing.T) {
+	output, err := Compile(`
+(defn foreign-name? [x] x)
+(defn mutate! [x] x)
+(foreign-name? 1)
+(mutate! 2)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"func foreign_name_q_arity_1(",
+		"func mutate_bang_arity_1(",
+		"_ = flagrt.Call(foreign_name_q, flagrt.NewLong(1))",
+		"_ = flagrt.Call(mutate_bang, flagrt.NewLong(2))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDefnDashAliasWorks(t *testing.T) {
 	output, err := Compile(`
 (defn- hidden-helper [x] (+ x 1))
@@ -264,6 +287,149 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestCompileDoallAndStringPredicates(t *testing.T) {
+	output, err := Compile(`
+(doall (remove str/blank? (map str/upper-case [" a " "" "b"])))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.DoAll(`,
+		`flagrt.Remove(`,
+		`flagrt.GoFunction("str/blank?")`,
+		`flagrt.GoFunction("str/upper-case")`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileLineSeqAndIOReader(t *testing.T) {
+	output, err := Compile(`
+(line-seq (io/reader "sample.txt"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.LineSeq(`,
+		`flagrt.GoFunction("io/reader")`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileRegexCompileAndMatches(t *testing.T) {
+	output, err := Compile(`
+(deftest regex-test
+  (is ((regex/compile "^he.*o$") "hello"))
+  (is (re-matches (re-pattern "^he.*o$") "hello")))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.GoFunction("regex/compile")`,
+		`flagrt.BuiltinFunction("re-pattern")`,
+		`flagrt.BuiltinFunction("re-matches")`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileSomeExpression(t *testing.T) {
+	output, err := Compile(`
+(some (fn [x] (when (> x 2) x)) [1 2 3 4])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.Some(`,
+		`flagrt.NewFunction`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileSetExpression(t *testing.T) {
+	output, err := Compile(`
+(set [1 1 2])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	if !strings.Contains(string(output), `flagrt.Set(`) {
+		t.Fatalf("generated Go did not contain set helper:\n%s", string(output))
+	}
+}
+
+func TestCompileContainsExpression(t *testing.T) {
+	output, err := Compile(`
+(contains? #{1 2} 2)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, `flagrt.Contains(`) {
+		t.Fatalf("generated Go did not contain contains helper:\n%s", got)
+	}
+}
+
+func TestCompileNotEmptyExpression(t *testing.T) {
+	output, err := Compile(`
+(not-empty [1 2])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	if !strings.Contains(string(output), `flagrt.NotEmpty(`) {
+		t.Fatalf("generated Go did not contain not-empty helper:\n%s", string(output))
+	}
+}
+
+func TestCompileCountExpression(t *testing.T) {
+	output, err := Compile(`
+(count [1 2 3])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	if !strings.Contains(string(output), `flagrt.Count(`) {
+		t.Fatalf("generated Go did not contain count helper:\n%s", string(output))
+	}
+	if !strings.Contains(string(output), `flagrt.NewLong(int64(flagrt.Count(`) {
+		t.Fatalf("expected count to return NewLong(int64(...)):\n%s", string(output))
+	}
+}
+
+func TestCompileUnknownSymbolIncludesLineNumber(t *testing.T) {
+	_, err := Compile(`
+(println nope)
+`)
+	if err == nil {
+		t.Fatal("Compile succeeded unexpectedly")
+	}
+	if !strings.Contains(err.Error(), `unknown symbol "nope"`) || !strings.Contains(err.Error(), "at 2:") {
+		t.Fatalf("expected line-numbered unknown symbol error, got: %v", err)
 	}
 }
 
@@ -775,6 +941,26 @@ func TestCompileWhenMacro(t *testing.T) {
 	}
 }
 
+func TestCompileWhenLetMacro(t *testing.T) {
+	output, err := Compile(`
+(println (when-let [x 42] x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"var __flag_when_let_tmp = __bind0",
+		"if flagrt.IsTruthy(__flag_when_let_tmp) {",
+		"var x = __bind0",
+		"return x",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileNotEqualsMacro(t *testing.T) {
 	output, err := Compile(`(println (not= 1 2))`)
 	if err != nil {
@@ -844,6 +1030,28 @@ func TestCompileSomeThreadFirstMacro(t *testing.T) {
 		"var __some_arrow_1 =",
 		"flagrt.Eq(__some_arrow_0, flagrt.NilValue())",
 		"flagrt.Mul(__some_arrow_1, flagrt.NewLong(2))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileCondThreadFirstMacro(t *testing.T) {
+	output, err := Compile(`(println (cond-> 5 true (+ 1) false (* 2) true (- 3)))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"var __cond_arrow_0 =",
+		"var __cond_arrow_1 =",
+		"var __cond_arrow_2 =",
+		"if flagrt.IsTruthy(flagrt.NewBool(true)) {",
+		"if flagrt.IsTruthy(flagrt.NewBool(false)) {",
+		"flagrt.Add(__cond_arrow_0, flagrt.NewLong(1))",
+		"flagrt.Mul(__cond_arrow_1, flagrt.NewLong(2))",
+		"flagrt.Sub(__cond_arrow_2, flagrt.NewLong(3))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
