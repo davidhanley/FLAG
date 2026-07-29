@@ -3,6 +3,7 @@ package runtime
 import (
 	"math/big"
 	"testing"
+	"time"
 )
 
 func TestSubAndDiv(t *testing.T) {
@@ -214,5 +215,27 @@ func TestStringValues(t *testing.T) {
 	}
 	if native, ok := ValueToAny(got).(string); !ok || native != "hello" {
 		t.Fatalf("expected native string from ValueToAny, got %#v", ValueToAny(got))
+	}
+}
+
+func TestDateValues(t *testing.T) {
+	got := NewDateFromYMD(2026, 3, 8)
+	if got.tag != TagDate {
+		t.Fatalf("expected date tag, got %v", got.tag)
+	}
+	if ValueToString(got) != "{:year 2026 :month 3 :day 8}" {
+		t.Fatalf("unexpected date string: %q", ValueToString(got))
+	}
+	if year := Get(got, NewKeyword("year")); year.Long() != 2026 {
+		t.Fatalf("expected year 2026, got %v", ValueToAny(year))
+	}
+	if month := Call(NewKeyword("month"), got); month.Long() != 3 {
+		t.Fatalf("expected month 3, got %v", ValueToAny(month))
+	}
+	if native, ok := ValueToAny(got).(time.Time); !ok || native.UTC().Year() != 2026 || native.UTC().Month() != 3 || native.UTC().Day() != 8 {
+		t.Fatalf("expected native time.Time from ValueToAny, got %#v", ValueToAny(got))
+	}
+	if got := anyToValue(time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC)); got.tag != TagDate {
+		t.Fatalf("expected anyToValue(time.Time) to produce date, got %v", got.tag)
 	}
 }

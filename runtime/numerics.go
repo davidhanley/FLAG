@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -225,6 +226,8 @@ func ValueToString(v Value) string {
 		return strconv.FormatBool(v.Bool())
 	case TagString:
 		return strconv.Quote(v.StringValue())
+	case TagDate:
+		return dateString(v)
 	case TagFile:
 		return "#<file " + v.FileObject().Path + ">"
 	case TagSymbol:
@@ -315,6 +318,8 @@ func anyToString(arg any) string {
 		return strconv.FormatBool(value)
 	case nil:
 		return ""
+	case time.Time:
+		return dateString(NewDate(value))
 	default:
 		return fmt.Sprint(value)
 	}
@@ -334,6 +339,8 @@ func ValueToAny(v Value) any {
 		return v.Bool()
 	case TagString:
 		return v.StringValue()
+	case TagDate:
+		return v.DateTime()
 	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList:
 		return v
 	case TagNil:

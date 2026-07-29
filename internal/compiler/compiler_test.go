@@ -329,6 +329,17 @@ func TestCompileLineSeqAndIOReader(t *testing.T) {
 	}
 }
 
+func TestCompileLastExpression(t *testing.T) {
+	output, err := Compile(`(println (last [1 2 3]))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, `flagrt.Last(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))`) {
+		t.Fatalf("generated Go did not contain last helper:\n%s", got)
+	}
+}
+
 func TestCompileRegexCompileAndMatches(t *testing.T) {
 	output, err := Compile(`
 (deftest regex-test
@@ -430,6 +441,18 @@ func TestCompileUnknownSymbolIncludesLineNumber(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `unknown symbol "nope"`) || !strings.Contains(err.Error(), "at 2:") {
 		t.Fatalf("expected line-numbered unknown symbol error, got: %v", err)
+	}
+}
+
+func TestCompileDefnArityErrorIncludesLineNumber(t *testing.T) {
+	_, err := Compile(`
+(defn broken [x])
+`)
+	if err == nil {
+		t.Fatal("Compile succeeded unexpectedly")
+	}
+	if !strings.Contains(err.Error(), "defn expects name, optional docstring, vector params, and body") || !strings.Contains(err.Error(), "at 2:") {
+		t.Fatalf("expected line-numbered defn error, got: %v", err)
 	}
 }
 
@@ -805,6 +828,21 @@ func TestCompileMapFunction(t *testing.T) {
 	}
 }
 
+func TestCompileZipMapFunction(t *testing.T) {
+	output, err := Compile(`
+(println (zipmap [:a :b :c] [10 20]))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	want := `fmt.Println(flagrt.Str(flagrt.ZipMap(flagrt.NewArray(flagrt.NewKeyword("a"), flagrt.NewKeyword("b"), flagrt.NewKeyword("c")), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20)))))`
+	if !strings.Contains(got, want) {
+		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+	}
+}
+
 func TestCompilePMapFunction(t *testing.T) {
 	output, err := Compile(`
 (println (pmap (fn [x] (* x x)) [1 2 3]))
@@ -1016,6 +1054,27 @@ func TestCompileThreadLastMacro(t *testing.T) {
 	want := "fmt.Println(flagrt.Str(flagrt.Div(flagrt.NewLong(3), flagrt.Sub(flagrt.NewLong(10), flagrt.NewLong(5)))))"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+	}
+}
+
+func TestCompileCompMacro(t *testing.T) {
+	output, err := Compile(`
+(def trim-and-upper (comp str/trim str/upper-case))
+(println (trim-and-upper "  hi  "))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.GoFunction("str/trim")`,
+		`flagrt.GoFunction("str/upper-case")`,
+		"flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {",
+		"flagrt.Call(__flag_comp_fn_0, flagrt.Call(__flag_comp_fn_1, __flag_comp_x))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
 	}
 }
 
@@ -1240,6 +1299,8 @@ func TestCompileDefnCanReturnAnyValueType(t *testing.T) {
 (defn mkmap [x] {:a x})
 (defn mkset [x] #{x})
 (defn mkfn [x] (fn [y] (+ x y)))
+(defn mkstr [x] (str "id-" x))
+(defn mkbool [x] (< x 3))
 `)
 	if err != nil {
 		t.Fatalf("Compile returned error: %v", err)
@@ -1259,6 +1320,10 @@ func TestCompileDefnCanReturnAnyValueType(t *testing.T) {
 		`return flagrt.NewSet(x)`,
 		`func mkfn_arity_1(x flagrt.Value) flagrt.Value {`,
 		`return flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
+		`func mkstr_arity_1(x flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewString(flagrt.Str("id-", x))`,
+		`func mkbool_arity_1(x flagrt.Value) flagrt.Value {`,
+		`return flagrt.NewBool(flagrt.Lt(x, flagrt.NewLong(3)))`,
 		`var mklist = flagrt.NewFunction(mklist_variadic)`,
 	} {
 		if !strings.Contains(got, want) {

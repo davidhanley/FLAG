@@ -594,12 +594,12 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, [
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	if len(form.Elements) != 4 && len(form.Elements) != 5 {
-		return functionDef{}, fmt.Errorf("defn expects name, optional docstring, vector params, and body")
+		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
 	}
 
 	nameExpr, ok := form.Elements[1].(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
-		return functionDef{}, fmt.Errorf("defn expects a function name")
+		return functionDef{}, exprError(form, "defn expects a function name")
 	}
 
 	doc := ""
@@ -608,7 +608,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	if len(form.Elements) == 5 {
 		docExpr, ok := form.Elements[2].(StringExpr)
 		if !ok {
-			return functionDef{}, fmt.Errorf("defn docstring must be a string")
+			return functionDef{}, exprError(form.Elements[2], "defn docstring must be a string")
 		}
 		doc = docExpr.Value
 		paramsIndex = 3
@@ -622,7 +622,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 
 	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
 	if !ok {
-		return functionDef{}, fmt.Errorf("defn expects a parameter vector")
+		return functionDef{}, exprError(form.Elements[paramsIndex], "defn expects a parameter vector")
 	}
 	params, localSymbols, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, nil, "defn")
 	if err != nil {
@@ -660,8 +660,9 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	if err != nil {
 		return functionDef{}, err
 	}
-	if body.kind != exprKindValue {
-		return functionDef{}, fmt.Errorf("defn body must evaluate to Value")
+	body, err = coerceExprToValue(body, form.Elements[bodyIndex], "defn body")
+	if err != nil {
+		return functionDef{}, err
 	}
 
 	return functionDef{
@@ -689,19 +690,19 @@ func compileDef(form ListExpr, ctx compileContext) (varDef, exprKind, error) {
 
 func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, bool, error) {
 	if len(form.Elements) != 3 && len(form.Elements) != 4 {
-		return varDef{}, 0, false, fmt.Errorf("def expects name, optional docstring, and value")
+		return varDef{}, 0, false, exprError(form, "def expects name, optional docstring, and value")
 	}
 
 	nameExpr, ok := form.Elements[1].(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
-		return varDef{}, 0, false, fmt.Errorf("def expects a symbol name")
+		return varDef{}, 0, false, exprError(form, "def expects a symbol name")
 	}
 	doc := ""
 	valueIndex := 2
 	if len(form.Elements) == 4 {
 		docExpr, ok := form.Elements[2].(StringExpr)
 		if !ok {
-			return varDef{}, 0, false, fmt.Errorf("def docstring must be a string")
+			return varDef{}, 0, false, exprError(form.Elements[2], "def docstring must be a string")
 		}
 		doc = docExpr.Value
 		valueIndex = 3
@@ -715,8 +716,9 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 	if err != nil {
 		return varDef{}, 0, false, err
 	}
-	if valueExpr.kind != exprKindValue {
-		return varDef{}, 0, false, fmt.Errorf("def value must evaluate to Value")
+	valueExpr, err = coerceExprToValue(valueExpr, form.Elements[valueIndex], "def value")
+	if err != nil {
+		return varDef{}, 0, false, err
 	}
 
 	_, exists := ctx.globals[goName]
@@ -988,6 +990,9 @@ func applyMacroBuiltin(name string, args []Expr) (Expr, bool, error) {
 	case "macro-when-let":
 		expanded, err := expandWhenLetMacro(args)
 		return expanded, true, err
+	case "macro-comp":
+		expanded, err := expandCompMacro(args)
+		return expanded, true, err
 	default:
 		return nil, false, nil
 	}
@@ -1219,6 +1224,41 @@ func expandWhenLetMacro(args []Expr) (Expr, error) {
 	}}, nil
 }
 
+func expandCompMacro(args []Expr) (Expr, error) {
+	if len(args) == 0 {
+		tempSym := SymbolExpr{Name: "__flag_comp_x"}
+		return ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "fn"},
+			VectorExpr{Elements: []Expr{tempSym}},
+			tempSym,
+		}}, nil
+	}
+
+	tempSym := SymbolExpr{Name: "__flag_comp_x"}
+	body := copyExpr(tempSym)
+	bindings := make([]Expr, 0, len(args)*2)
+	for i := len(args) - 1; i >= 0; i-- {
+		fnName := fmt.Sprintf("__flag_comp_fn_%d", i)
+		fnSym := SymbolExpr{Name: fnName}
+		fnCall := ListExpr{Elements: []Expr{
+			fnSym,
+			body,
+		}}
+		body = fnCall
+		bindings = append([]Expr{fnSym, copyExpr(args[i])}, bindings...)
+	}
+
+	return ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "let"},
+		VectorExpr{Elements: bindings},
+		ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "fn"},
+			VectorExpr{Elements: []Expr{tempSym}},
+			body,
+		}},
+	}}, nil
+}
+
 func threadFirstStep(step Expr, acc Expr) (Expr, error) {
 	switch value := step.(type) {
 	case SymbolExpr:
@@ -1441,8 +1481,8 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", ">",
-		"first", "fist", "rest", "take", "drop",
-		"map", "pmap", "filter", "reduce", "range", "get",
+		"first", "fist", "rest", "last", "take", "drop",
+		"map", "zipmap", "pmap", "filter", "reduce", "range", "get",
 		"identity", "not-empty", "count",
 		"remove", "doall", "line-seq", "some", "set", "contains?",
 		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int",
@@ -1505,6 +1545,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return firstExprToGo(list.Elements[1:], ctx, locals)
 		case "rest":
 			return restExprToGo(list.Elements[1:], ctx, locals)
+		case "last":
+			return lastExprToGo(list.Elements[1:], ctx, locals)
 		case "take":
 			return takeExprToGo(list.Elements[1:], ctx, locals)
 		case "drop":
@@ -1515,6 +1557,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return countExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
+		case "zipmap":
+			return zipmapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "pmap":
 			return pmapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "filter":
@@ -2328,6 +2372,20 @@ func restExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	return goExpr{code: fmt.Sprintf("%s.Rest(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
 }
 
+func lastExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("last expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	if arg.kind != exprKindValue {
+		return goExpr{}, fmt.Errorf("last expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.Last(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
 func takeExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 2 {
 		return goExpr{}, fmt.Errorf("take expects count and sequence")
@@ -2481,6 +2539,24 @@ func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Map(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func zipmapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("zipmap expects exactly two sequence arguments")
+	}
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		part, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, fmt.Errorf("zipmap arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.ZipMap(%s, %s)", runtimeAlias, parts[0], parts[1]), kind: exprKindValue}, nil
 }
 
 func pmapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -2879,8 +2955,9 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	if err != nil {
 		return goExpr{}, err
 	}
-	if body.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("%s body must evaluate to Value", label)
+	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label))
+	if err != nil {
+		return goExpr{}, err
 	}
 
 	def := functionDef{
@@ -2895,6 +2972,19 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 		def.hasRest = true
 	}
 	return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, renderFunctionLiteral(def)), kind: exprKindValue}, nil
+}
+
+func coerceExprToValue(expr goExpr, source Expr, label string) (goExpr, error) {
+	switch expr.kind {
+	case exprKindValue:
+		return expr, nil
+	case exprKindBool:
+		return goExpr{code: fmt.Sprintf("%s.NewBool(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
+	case exprKindString:
+		return goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
+	default:
+		return goExpr{}, exprError(source, fmt.Sprintf("%s must evaluate to Value", label))
+	}
 }
 
 func bindLambdaParams(
