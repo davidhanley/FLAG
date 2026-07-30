@@ -107,6 +107,26 @@ func TestParseFileRatioLiteral(t *testing.T) {
 	}
 }
 
+func TestParseFileBigIntLiteral(t *testing.T) {
+	ast, err := ParseFile(`(println 10N -999999999999999999999N)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+
+	call, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected first form to be ListExpr, got %T", ast.Forms[0])
+	}
+	first, ok := call.Elements[1].(BigIntExpr)
+	if !ok || first.Value != "10" {
+		t.Fatalf("expected bigint literal 10N, got %#v", call.Elements[1])
+	}
+	second, ok := call.Elements[2].(BigIntExpr)
+	if !ok || second.Value != "-999999999999999999999" {
+		t.Fatalf("expected bigint literal with sign, got %#v", call.Elements[2])
+	}
+}
+
 func TestParseFileCharLiteral(t *testing.T) {
 	ast, err := ParseFile(`(println \M \space)`)
 	if err != nil {
@@ -250,5 +270,31 @@ func TestParseFileHashFnLiteral(t *testing.T) {
 	}
 	if len(body.Elements) != 3 {
 		t.Fatalf("expected hash-fn body with 3 elements, got %d", len(body.Elements))
+	}
+}
+
+func TestParseFileMetadataExpr(t *testing.T) {
+	ast, err := ParseFile(`(let [^{:volatile true} seen {}] seen)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+	form, ok := ast.Forms[0].(ListExpr)
+	if !ok {
+		t.Fatalf("expected list form, got %T", ast.Forms[0])
+	}
+	bindings, ok := form.Elements[1].(VectorExpr)
+	if !ok || len(bindings.Elements) < 1 {
+		t.Fatalf("expected let binding vector, got %#v", form.Elements[1])
+	}
+	meta, ok := bindings.Elements[0].(MetaExpr)
+	if !ok {
+		t.Fatalf("expected metadata binding form, got %#v", bindings.Elements[0])
+	}
+	if _, ok := meta.Meta.(MapExpr); !ok {
+		t.Fatalf("expected metadata map, got %T", meta.Meta)
+	}
+	target, ok := meta.Target.(SymbolExpr)
+	if !ok || target.Name != "seen" {
+		t.Fatalf("expected metadata target symbol seen, got %#v", meta.Target)
 	}
 }

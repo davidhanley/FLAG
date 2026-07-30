@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -44,6 +45,14 @@ func NewRatioFromRat(rat *big.Rat) Value {
 
 func NewBigInt(v int64) Value {
 	return NewBigIntFromBigInt(big.NewInt(v))
+}
+
+func NewBigIntFromString(raw string) Value {
+	parsed, ok := new(big.Int).SetString(raw, 10)
+	if !ok {
+		panic("NewBigIntFromString expects a valid base-10 integer")
+	}
+	return NewBigIntFromBigInt(parsed)
 }
 
 func NewBigIntFromBigInt(v *big.Int) Value {
@@ -139,6 +148,35 @@ func Div(lhs, rhs Value) Value {
 	return NewRatioFromRat(left)
 }
 
+func Abs(value Value) Value {
+	if !isNumericTag(value.tag) {
+		panic("abs expects numeric Value argument")
+	}
+	switch value.tag {
+	case TagLong:
+		v := value.Long()
+		if v >= 0 {
+			return value
+		}
+		if v == minInt64 {
+			return NewBigIntFromBigInt(new(big.Int).Abs(big.NewInt(v)))
+		}
+		return NewLong(-v)
+	case TagDouble:
+		return NewDouble(math.Abs(value.Double()))
+	case TagRatio:
+		rat := new(big.Rat).Set(value.Ratio())
+		if rat.Sign() < 0 {
+			rat.Neg(rat)
+		}
+		return NewRatioFromRat(rat)
+	case TagBigInt:
+		return NewBigIntFromBigInt(new(big.Int).Abs(value.BigInt()))
+	default:
+		panic("abs expects numeric Value argument")
+	}
+}
+
 func Mod(lhs, rhs Value) Value {
 	if !isIntegerTag(lhs.tag) || !isIntegerTag(rhs.tag) {
 		panic("mod expects integer Value arguments")
@@ -181,11 +219,29 @@ func isNumericTag(tag ValueTag) bool {
 }
 
 func Lt(lhs, rhs Value) bool {
-	return compareNumeric(lhs, rhs) < 0
+	return compareOrdered(lhs, rhs) < 0
 }
 
 func Gt(lhs, rhs Value) bool {
-	return compareNumeric(lhs, rhs) > 0
+	return compareOrdered(lhs, rhs) > 0
+}
+
+func Le(lhs, rhs Value) bool {
+	return compareOrdered(lhs, rhs) <= 0
+}
+
+func Ge(lhs, rhs Value) bool {
+	return compareOrdered(lhs, rhs) >= 0
+}
+
+func compareOrdered(lhs, rhs Value) int {
+	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
+		return compareNumeric(lhs, rhs)
+	}
+	if lhs.tag == TagString && rhs.tag == TagString {
+		return strings.Compare(lhs.StringValue(), rhs.StringValue())
+	}
+	panic("comparison expects numeric or string Value arguments")
 }
 
 func IsTruthy(v Value) bool {

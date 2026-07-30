@@ -91,6 +91,46 @@ func TestLtGtNumeric(t *testing.T) {
 	}
 }
 
+func TestOrderedComparisonsNumericAndString(t *testing.T) {
+	if !Le(NewLong(2), NewLong(2)) {
+		t.Fatal("expected 2 <= 2")
+	}
+	if !Ge(NewLong(3), NewLong(2)) {
+		t.Fatal("expected 3 >= 2")
+	}
+	if !Lt(NewString("apple"), NewString("banana")) {
+		t.Fatal(`expected "apple" < "banana"`)
+	}
+	if !Le(NewString("apple"), NewString("apple")) {
+		t.Fatal(`expected "apple" <= "apple"`)
+	}
+	if !Gt(NewString("cat"), NewString("banana")) {
+		t.Fatal(`expected "cat" > "banana"`)
+	}
+	if !Ge(NewString("cat"), NewString("cat")) {
+		t.Fatal(`expected "cat" >= "cat"`)
+	}
+}
+
+func TestAbsAcrossNumericTypes(t *testing.T) {
+	if got := Abs(NewLong(-7)); got.tag != TagLong || got.Long() != 7 {
+		t.Fatalf("expected abs long 7, got %#v", got)
+	}
+
+	if got := Abs(NewDouble(-3.5)); got.tag != TagDouble || got.Double() != 3.5 {
+		t.Fatalf("expected abs double 3.5, got %#v", got)
+	}
+
+	if got := Abs(NewRatio(-3, 2)); got.tag != TagRatio || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+		t.Fatalf("expected abs ratio 3/2, got %#v", got)
+	}
+
+	minAbs := Abs(NewLong(minInt64))
+	if minAbs.tag != TagBigInt || minAbs.BigInt().Cmp(new(big.Int).Abs(big.NewInt(minInt64))) != 0 {
+		t.Fatalf("expected bigint abs for min int64, got %#v", minAbs)
+	}
+}
+
 func TestNilValueTruthiness(t *testing.T) {
 	if ValueToAny(NilValue()) != nil {
 		t.Fatal("expected NilValue to convert to nil")
@@ -199,6 +239,16 @@ func TestBigIntNumericInterop(t *testing.T) {
 	ratio := Div(huge, NewLong(2))
 	if ratio.tag != TagRatio {
 		t.Fatalf("expected ratio from bigint division, got %v", ratio.tag)
+	}
+}
+
+func TestNewBigIntFromString(t *testing.T) {
+	got := NewBigIntFromString("9223372036854775808")
+	if got.tag != TagBigInt {
+		t.Fatalf("expected bigint tag, got %v", got.tag)
+	}
+	if got.BigInt().String() != "9223372036854775808" {
+		t.Fatalf("unexpected bigint value: %s", got.BigInt().String())
 	}
 }
 

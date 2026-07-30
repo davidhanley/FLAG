@@ -40,6 +40,15 @@ type SetExpr struct {
 
 func (SetExpr) expr() {}
 
+type MetaExpr struct {
+	Meta   Expr
+	Target Expr
+	Line   int
+	Col    int
+}
+
+func (MetaExpr) expr() {}
+
 type CommentExpr struct{}
 
 func (CommentExpr) expr() {}
@@ -107,6 +116,14 @@ type IntExpr struct {
 }
 
 func (IntExpr) expr() {}
+
+type BigIntExpr struct {
+	Value string
+	Line  int
+	Col   int
+}
+
+func (BigIntExpr) expr() {}
 
 type FloatExpr struct {
 	Value float64

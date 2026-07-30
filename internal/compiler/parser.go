@@ -47,6 +47,8 @@ func (p *parser) readExpr() (Expr, error) {
 		return p.readVector()
 	case '{':
 		return p.readMap()
+	case '^':
+		return p.readMetadataExpr()
 	case '#':
 		return p.readDispatch()
 	case '\'':
@@ -134,6 +136,30 @@ func (p *parser) readDispatch() (Expr, error) {
 		return nil, err
 	}
 	return SetExpr{Elements: list.(ListExpr).Elements, Line: line, Col: col}, nil
+}
+
+func (p *parser) readMetadataExpr() (Expr, error) {
+	line, col := p.lineAndColumn()
+	if p.next() != '^' {
+		return nil, p.errorf("internal parser mismatch")
+	}
+	p.skipIgnorable()
+	if p.done() {
+		return nil, p.errorf("unexpected end after metadata prefix")
+	}
+	meta, err := p.readExpr()
+	if err != nil {
+		return nil, err
+	}
+	p.skipIgnorable()
+	if p.done() {
+		return nil, p.errorf("metadata prefix expects a target expression")
+	}
+	target, err := p.readExpr()
+	if err != nil {
+		return nil, err
+	}
+	return MetaExpr{Meta: meta, Target: target, Line: line, Col: col}, nil
 }
 
 func (p *parser) readQuotedExpr() (Expr, error) {
@@ -254,6 +280,12 @@ func (p *parser) readAtom() (Expr, error) {
 			}
 		}
 	}
+	if strings.HasSuffix(token, "N") {
+		candidate := strings.TrimSuffix(token, "N")
+		if isSignedDecimalInteger(candidate) {
+			return BigIntExpr{Value: candidate, Line: line, Col: col}, nil
+		}
+	}
 	if i, err := strconv.ParseInt(token, 10, 64); err == nil {
 		return IntExpr{Value: i, Line: line, Col: col}, nil
 	}
@@ -265,6 +297,25 @@ func (p *parser) readAtom() (Expr, error) {
 	}
 
 	return SymbolExpr{Name: token, Line: line, Col: col}, nil
+}
+
+func isSignedDecimalInteger(token string) bool {
+	if token == "" {
+		return false
+	}
+	start := 0
+	if token[0] == '+' || token[0] == '-' {
+		if len(token) == 1 {
+			return false
+		}
+		start = 1
+	}
+	for i := start; i < len(token); i++ {
+		if token[i] < '0' || token[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *parser) skipIgnorable() {
@@ -328,6 +379,7 @@ func isDelimiter(ch rune) bool {
 	return unicode.IsSpace(ch) ||
 		ch == ',' ||
 		ch == ';' ||
+		ch == '^' ||
 		ch == '\'' ||
 		ch == '(' || ch == ')' ||
 		ch == '[' || ch == ']' ||
