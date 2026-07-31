@@ -335,8 +335,8 @@ func TestCompileDoallAndStringPredicates(t *testing.T) {
 	for _, want := range []string{
 		`flagrt.DoAll(`,
 		`flagrt.Remove(`,
-		`flagrt.GoFunction("str/blank?")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringBlank`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -376,7 +376,7 @@ func TestCompileLineSeqAndIOReader(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`flagrt.LineSeq(`,
-		`flagrt.GoFunction("io/reader")`,
+		`flagrt.GoBind_runtime_OpenFile`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -429,7 +429,7 @@ func TestCompileRegexCompileAndMatches(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.GoFunction("regex/compile")`,
+		`flagrt.GoBind_runtime_RegexCompile`,
 		`flagrt.BuiltinFunction("re-pattern")`,
 		`flagrt.BuiltinFunction("re-matches")`,
 	} {
@@ -1190,17 +1190,32 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.GoFunction("string/trim"), flagrt.NewString("  hello  "))`,
-		`flagrt.Call(flagrt.GoFunction("string/replace"), flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`,
-		`flagrt.Call(flagrt.GoFunction("str/join"), flagrt.NewString("-"), flagrt.NewArray(flagrt.NewString("male"), flagrt.NewString("18-34"), flagrt.NewString("overall")))`,
-		`flagrt.Call(flagrt.GoFunction("str/capitalize"), flagrt.NewString("hELLO"))`,
-		`flagrt.Call(flagrt.GoFunction("character/toUppercase"), flagrt.NewString("hello"))`,
-		`flagrt.Call(flagrt.GoFunction("long/parse"), flagrt.NewString("42"))`,
-		`flagrt.Call(flagrt.GoFunction("math/abs"), flagrt.NewLong(-42))`,
+		`flagrt.Call(flagrt.GoBind_packages_StringTrim, flagrt.NewString("  hello  "))`,
+		`flagrt.Call(flagrt.GoBind_packages_StringReplace, flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`,
+		`flagrt.Call(flagrt.GoBind_packages_StringJoin, flagrt.NewString("-"), flagrt.NewArray(flagrt.NewString("male"), flagrt.NewString("18-34"), flagrt.NewString("overall")))`,
+		`flagrt.Call(flagrt.GoBind_packages_StringCapitalize, flagrt.NewString("hELLO"))`,
+		`flagrt.Call(flagrt.GoBind_packages_ToUppercase, flagrt.NewString("hello"))`,
+		`flagrt.Call(flagrt.GoBind_packages_LongParse, flagrt.NewString("42"))`,
+		`flagrt.Call(flagrt.GoBind_runtime_Abs, flagrt.NewLong(-42))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+
+	// Statically bound calls must not fall back to the runtime reflection bridge.
+	if strings.Contains(got, "GoFunction(") {
+		t.Fatalf("expected no runtime GoFunction lookup for namespaced calls:\n%s", got)
+	}
+}
+
+func TestCompileUnknownGoFunctionIsCompileError(t *testing.T) {
+	_, err := Compile(`(defn oops [s] (str/trmi s))`)
+	if err == nil {
+		t.Fatal("expected a compile error for an unknown go function, got nil")
+	}
+	if !strings.Contains(err.Error(), `unknown go function "str/trmi"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -1330,8 +1345,8 @@ func TestCompileJuxtFunction(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`flagrt.Juxt(`,
-		`flagrt.GoFunction("str/trim")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringTrim`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1756,8 +1771,8 @@ func TestCompileCompMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.GoFunction("str/trim")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringTrim`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 		"flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {",
 		"flagrt.Call(__flag_comp_fn_0, flagrt.Call(__flag_comp_fn_1, __flag_comp_x))",
 	} {

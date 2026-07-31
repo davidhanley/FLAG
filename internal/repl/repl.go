@@ -128,7 +128,7 @@ func replInputComplete(source string) (bool, error) {
 }
 
 func runtimeSymbols() map[string]map[string]reflect.Value {
-	return map[string]map[string]reflect.Value{
+	symbols := map[string]map[string]reflect.Value{
 		"flagrt/flagrt": {
 			"Value":                      reflect.ValueOf((*flagrt.Value)(nil)),
 			"NewLong":                    reflect.ValueOf(flagrt.NewLong),
@@ -198,4 +198,10 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"ArrayRest":                  reflect.ValueOf(flagrt.ArrayRest),
 		},
 	}
+	// Merge the generated static Go-function adapters (GoBind_*), which the
+	// compiler emits for namespaced calls such as (str/trim s).
+	for name, value := range flagrt.GoBindSymbols() {
+		symbols["flagrt/flagrt"][name] = value
+	}
+	return symbols
 }

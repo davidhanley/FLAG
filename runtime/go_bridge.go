@@ -30,6 +30,20 @@ func RegisterGoFunction(name string, fn any) {
 	goFnRegistryMu.Unlock()
 }
 
+// RegisteredGoFunctionValues returns a snapshot of the current Go-function
+// registry. It exists for the build-time binding generator (internal/gobindgen),
+// which reflects over the registrations to emit static, reflection-free
+// adapters; it is not used on any runtime call path.
+func RegisteredGoFunctionValues() map[string]reflect.Value {
+	goFnRegistryMu.RLock()
+	defer goFnRegistryMu.RUnlock()
+	out := make(map[string]reflect.Value, len(goFnRegistry))
+	for name, fn := range goFnRegistry {
+		out[name] = fn
+	}
+	return out
+}
+
 func RegisterGoSymbols(symbols map[string]map[string]reflect.Value) {
 	for packagePath, packageSymbols := range symbols {
 		RegisterGoPackageFunctions(packagePath, packageSymbols)

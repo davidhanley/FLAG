@@ -1473,8 +1473,14 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		if isBuiltinFunctionSymbol(arg.Name) {
 			return goExpr{code: fmt.Sprintf("%s.BuiltinFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 		}
+		if bind, ok := goFnBindings[arg.Name]; ok {
+			// Namespaced Go functions are bound statically at compile time to a
+			// generated, reflection-free adapter (see internal/gobindgen); no
+			// runtime name lookup occurs.
+			return goExpr{code: fmt.Sprintf("%s.%s", runtimeAlias, bind), kind: exprKindValue}, nil
+		}
 		if strings.Contains(arg.Name, "/") {
-			return goExpr{code: fmt.Sprintf("%s.GoFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+			return goExpr{}, exprError(arg, fmt.Sprintf("unknown go function %q", arg.Name))
 		}
 		if err != nil {
 			return goExpr{}, err
