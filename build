@@ -1,0 +1,1 @@
+go build -o bin/flag-lang ./cmd/flag-lang 
