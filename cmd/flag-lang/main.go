@@ -151,18 +151,12 @@ func runBuild(args []string) error {
 		outputPath = strings.TrimSuffix(base, filepath.Ext(base))
 	}
 
-	tempDir, err := os.MkdirTemp(".", ".flag-build-*")
+	goPath, err := writeGeneratedGo(inputPath, goSource)
 	if err != nil {
-		return fmt.Errorf("create temp build dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	tempMainPath := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(tempMainPath, goSource, 0o644); err != nil {
-		return fmt.Errorf("write generated Go: %w", err)
+		return err
 	}
 
-	cmd := exec.Command("go", "build", "-o", outputPath, tempMainPath)
+	cmd := exec.Command("go", "build", "-o", outputPath, goPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
 	}
@@ -221,6 +215,13 @@ func runTest(args []string) error {
 		outputPath = filepath.Join(tempDir, "flag-test")
 	}
 
+	// The test harness (source + tests) is built and run from a temp file; it is
+	// never written next to the source. For inspection we persist only the
+	// program itself (flag functions, no test harness) as <name>.go.
+	if err := writeProgramGo(inputPath); err != nil {
+		return err
+	}
+
 	tempMainPath := filepath.Join(tempDir, "main.go")
 	if err := os.WriteFile(tempMainPath, goSource, 0o644); err != nil {
 		return fmt.Errorf("write generated Go: %w", err)
@@ -241,6 +242,85 @@ func runTest(args []string) error {
 	}
 
 	return nil
+}
+
+// writeProgramGo compiles the program (flag functions only, excluding any
+// associated tests) and persists it next to the source as <name>.go so it can
+// be inspected. Failures to read or compile the program only warn: they must
+// not fail an otherwise-successful test run.
+func writeProgramGo(inputPath string) error {
+	programSource, err := readProgramSource(inputPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
+		return nil
+	}
+	programGo, err := compiler.Compile(string(programSource))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
+		return nil
+	}
+	_, err = writeGeneratedGo(inputPath, programGo)
+	return err
+}
+
+// readProgramSource returns the merged program source for inputPath, excluding
+// test files. For a file it returns the file itself (or its sibling source file
+// when a *_test file was named); for a directory it merges all non-test sources.
+func readProgramSource(inputPath string) ([]byte, error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+	if !stat.IsDir() {
+		path := inputPath
+		if isTestSourceFile(inputPath) {
+			path = siblingSourceFile(inputPath)
+			if path == "" {
+				return nil, fmt.Errorf("could not find source file for %s", inputPath)
+			}
+		}
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		return source, nil
+	}
+
+	sourceFiles, _, err := collectSourceAndTestFiles(inputPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(sourceFiles) == 0 {
+		return nil, fmt.Errorf("no non-test source files found in %s", inputPath)
+	}
+	return mergeSourceFiles(sourceFiles)
+}
+
+// writeGeneratedGo persists the generated Go next to the .flag source so it can
+// be inspected. For a directory input it writes <dir>/<dirname>.go; for a file
+// input it writes the sibling <base>.go. Build and test share one filename per
+// input so they never leave two `package main` files in the same directory.
+func writeGeneratedGo(inputPath string, goSource []byte) (string, error) {
+	info, err := os.Stat(inputPath)
+	if err != nil {
+		return "", fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+
+	var dir, base string
+	if info.IsDir() {
+		dir = inputPath
+		base = filepath.Base(filepath.Clean(inputPath))
+	} else {
+		dir = filepath.Dir(inputPath)
+		base = strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+	}
+
+	goPath := filepath.Join(dir, base+".go")
+	if err := os.WriteFile(goPath, goSource, 0o644); err != nil {
+		return "", fmt.Errorf("write generated Go: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", goPath)
+	return goPath, nil
 }
 
 func readBuildSource(inputPath string) ([]byte, error) {
@@ -570,9 +650,13 @@ func findBuildSourceFiles(root string) ([]string, error) {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".flag" || ext == ".clj" || ext == ".cljc" {
-			files = append(files, path)
+		if ext != ".flag" && ext != ".clj" && ext != ".cljc" {
+			return nil
 		}
+		if isTestSourceFile(path) {
+			return nil
+		}
+		files = append(files, path)
 		return nil
 	})
 	if err != nil {
