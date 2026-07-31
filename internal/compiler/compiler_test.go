@@ -1178,6 +1178,8 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 	output, err := Compile(`
 (println (string/trim "  hello  "))
 (println (string/replace "hello world" "world" "FLAG"))
+(println (str/join "-" ["male" "18-34" "overall"]))
+(println (str/capitalize "hELLO"))
 (println (character/toUppercase "hello"))
 (println (long/parse "42"))
 (println (math/abs -42))
@@ -1190,6 +1192,8 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 	for _, want := range []string{
 		`flagrt.Call(flagrt.GoFunction("string/trim"), flagrt.NewString("  hello  "))`,
 		`flagrt.Call(flagrt.GoFunction("string/replace"), flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`,
+		`flagrt.Call(flagrt.GoFunction("str/join"), flagrt.NewString("-"), flagrt.NewArray(flagrt.NewString("male"), flagrt.NewString("18-34"), flagrt.NewString("overall")))`,
+		`flagrt.Call(flagrt.GoFunction("str/capitalize"), flagrt.NewString("hELLO"))`,
 		`flagrt.Call(flagrt.GoFunction("character/toUppercase"), flagrt.NewString("hello"))`,
 		`flagrt.Call(flagrt.GoFunction("long/parse"), flagrt.NewString("42"))`,
 		`flagrt.Call(flagrt.GoFunction("math/abs"), flagrt.NewLong(-42))`,
