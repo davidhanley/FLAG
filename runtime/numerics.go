@@ -34,6 +34,13 @@ func NewDouble(v float64) Value {
 	return Value{d: v, tag: TagDouble}
 }
 
+func Double(v Value) Value {
+	if !isNumericTag(v.tag) {
+		panic("double expects numeric Value")
+	}
+	return NewDouble(numericToFloat64(v))
+}
+
 func NewRatio(numerator, denominator int64) Value {
 	rat := big.NewRat(numerator, denominator)
 	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
@@ -175,6 +182,44 @@ func Abs(value Value) Value {
 	default:
 		panic("abs expects numeric Value argument")
 	}
+}
+
+func Max(values ...Value) Value {
+	if len(values) == 0 {
+		panic("max expects at least one argument")
+	}
+	best := values[0]
+	if !isNumericTag(best.tag) {
+		panic("max expects numeric Value arguments")
+	}
+	for _, value := range values[1:] {
+		if !isNumericTag(value.tag) {
+			panic("max expects numeric Value arguments")
+		}
+		if compareNumeric(best, value) <= 0 {
+			best = value
+		}
+	}
+	return best
+}
+
+func Min(values ...Value) Value {
+	if len(values) == 0 {
+		panic("min expects at least one argument")
+	}
+	best := values[0]
+	if !isNumericTag(best.tag) {
+		panic("min expects numeric Value arguments")
+	}
+	for _, value := range values[1:] {
+		if !isNumericTag(value.tag) {
+			panic("min expects numeric Value arguments")
+		}
+		if compareNumeric(best, value) >= 0 {
+			best = value
+		}
+	}
+	return best
 }
 
 func Mod(lhs, rhs Value) Value {

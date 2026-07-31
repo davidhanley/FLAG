@@ -131,6 +131,65 @@ func TestAbsAcrossNumericTypes(t *testing.T) {
 	}
 }
 
+func TestMaxAndMinAcrossNumericTypes(t *testing.T) {
+	if got := Max(NewLong(7)); got.tag != TagLong || got.Long() != 7 {
+		t.Fatalf("expected single-arg max passthrough, got %#v", got)
+	}
+	if got := Min(NewDouble(3.5)); got.tag != TagDouble || got.Double() != 3.5 {
+		t.Fatalf("expected single-arg min passthrough, got %#v", got)
+	}
+
+	maxed := Max(NewLong(2), NewRatio(5, 2), NewDouble(2.25), NewBigInt(2))
+	if maxed.tag != TagRatio || maxed.Ratio().Cmp(big.NewRat(5, 2)) != 0 {
+		t.Fatalf("expected max ratio 5/2, got %#v", maxed)
+	}
+
+	mined := Min(NewLong(2), NewRatio(3, 2), NewDouble(1.75), NewBigInt(5))
+	if mined.tag != TagRatio || mined.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+		t.Fatalf("expected min ratio 3/2, got %#v", mined)
+	}
+
+	tiedMax := Max(NewLong(2), NewDouble(2.0))
+	if tiedMax.tag != TagDouble || tiedMax.Double() != 2.0 {
+		t.Fatalf("expected max to prefer later equal argument, got %#v", tiedMax)
+	}
+
+	tiedMin := Min(NewLong(2), NewBigInt(2))
+	if tiedMin.tag != TagBigInt || tiedMin.BigInt().Cmp(big.NewInt(2)) != 0 {
+		t.Fatalf("expected min to prefer later equal argument, got %#v", tiedMin)
+	}
+}
+
+func TestBuiltinPlusSupportsZeroAndUnaryArity(t *testing.T) {
+	plus := BuiltinFunction("+")
+
+	if got := Call(plus); got.tag != TagLong || got.Long() != 0 {
+		t.Fatalf("expected zero-arity + to return 0, got %#v", got)
+	}
+
+	if got := Call(plus, NewRatio(3, 2)); got.tag != TagRatio || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+		t.Fatalf("expected unary + to return its argument, got %#v", got)
+	}
+
+	assertPanics(t, func() {
+		Call(plus, NewString("x"))
+	})
+}
+
+func TestCallSupportsSetInvocation(t *testing.T) {
+	set := NewSet(NewLong(1), NewLong(2))
+
+	if got := Call(set, NewLong(2)); got.tag != TagLong || got.Long() != 2 {
+		t.Fatalf("expected set lookup to return matching value, got %#v", got)
+	}
+	if got := Call(set, NewLong(3)); got.tag != TagNil {
+		t.Fatalf("expected set lookup miss to return nil, got %#v", got)
+	}
+	if got := Call(set, NewLong(3), NewString("missing")); got.tag != TagString || got.StringValue() != "missing" {
+		t.Fatalf("expected set lookup miss with default, got %#v", got)
+	}
+}
+
 func TestNilValueTruthiness(t *testing.T) {
 	if ValueToAny(NilValue()) != nil {
 		t.Fatal("expected NilValue to convert to nil")
@@ -181,16 +240,26 @@ func TestSymbolAndName(t *testing.T) {
 		t.Fatalf("expected symbol tag, got %v", sym.tag)
 	}
 
+	kw := Keyword("kw")
+	if kw.tag != TagSymbol || !kw.SymbolObject().IsKeyword {
+		t.Fatalf("expected keyword tag, got %#v", kw)
+	}
+
 	if got := Name(sym); got != "abc" {
 		t.Fatalf("expected symbol name abc, got %q", got)
 	}
-	if got := Name(NewKeyword("kw")); got != "kw" {
+	if got := Name(kw); got != "kw" {
 		t.Fatalf("expected keyword name kw, got %q", got)
 	}
 
-	kwAsSymbol := Symbol(NewKeyword("kw"))
+	kwAsSymbol := Symbol(kw)
 	if got := ValueToString(kwAsSymbol); got != "kw" {
 		t.Fatalf("expected symbol conversion to drop keyword marker, got %q", got)
+	}
+
+	kwFromSym := Keyword(sym)
+	if got := ValueToString(kwFromSym); got != ":abc" {
+		t.Fatalf("expected keyword conversion from symbol, got %q", got)
 	}
 
 	keywordAny, ok := ValueToAny(NewKeyword("key")).(Value)
@@ -287,5 +356,20 @@ func TestDateValues(t *testing.T) {
 	}
 	if got := anyToValue(time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC)); got.tag != TagDate {
 		t.Fatalf("expected anyToValue(time.Time) to produce date, got %v", got.tag)
+	}
+}
+
+func TestSymbolAndKeywordAcceptStringValues(t *testing.T) {
+	if got := Symbol(NewString("alpha")); got.tag != TagSymbol || got.SymbolObject().IsKeyword || got.SymbolObject().Name != "alpha" {
+		t.Fatalf("unexpected symbol result: %#v", got)
+	}
+	if got := Keyword(NewString("beta")); got.tag != TagSymbol || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "beta" {
+		t.Fatalf("unexpected keyword result: %#v", got)
+	}
+}
+
+func TestDoubleCoercesNumericValues(t *testing.T) {
+	if got := Double(NewLong(3)); got.tag != TagDouble || got.Double() != 3.0 {
+		t.Fatalf("unexpected double result: %#v", got)
 	}
 }
