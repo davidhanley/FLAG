@@ -1,0 +1,38 @@
+(defmacro when [test & body]
+  (if test (do body)))
+
+(defmacro when-not [test & body]
+  (if test nil (do body)))
+
+(defmacro inc [x]
+  (+ x 1))
+
+(defmacro dec [x]
+  (- x 1))
+
+(defmacro not= [a b]
+  (if (= a b) false true))
+
+(defmacro cond [& clauses]
+  (macro-cond clauses))
+
+(defmacro -> [x & forms]
+  (macro-thread-first x forms))
+
+(defmacro ->> [x & forms]
+  (macro-thread-last x forms))
+
+(defmacro some-> [x & forms]
+  (macro-some-thread-first x forms))
+
+(defmacro some->> [x & forms]
+  (macro-some-thread-last x forms))
+
+(defmacro cond-> [x & clauses]
+  (macro-cond-thread-first x clauses))
+
+(defmacro when-let [bindings & body]
+  (macro-when-let bindings body))
+
+(defmacro comp [& fns]
+  (macro-comp fns))
