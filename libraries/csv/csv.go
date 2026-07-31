@@ -17,6 +17,7 @@ func ReadCSV(source any) [][]string {
 
         reader :=  csv.NewReader(r)
         reader.FieldsPerRecord = -1
+        reader.LazyQuotes = true
 
 	records, err := reader.ReadAll()
 	if err != nil {
@@ -41,6 +42,7 @@ func ReadCSVPath(path string) [][]string {
 
         reader := csv.NewReader(f)
         reader.FieldsPerRecord = -1
+        reader.LazyQuotes = true
 
 	records, err := reader.ReadAll()
 	if err != nil {
@@ -52,6 +54,7 @@ func ReadCSVPath(path string) [][]string {
 func ReadCSVReader(r io.Reader) [][]string {
         reader :=  csv.NewReader(r)
         reader.FieldsPerRecord = -1
+        reader.LazyQuotes = true
 
 	records, err := reader.ReadAll()
 	if err != nil {
