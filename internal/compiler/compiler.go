@@ -655,7 +655,9 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 				}
 				setupParts = append(setupParts, fmt.Sprintf("%s()", def.arityName))
 				return ReplCompiled{Setup: strings.Join(setupParts, ";;")}, nil
-			case "defn", "defn-":
+			case "defn-":
+				return ReplCompiled{}, fmt.Errorf("defn- is not supported; list public names in the module :exports instead")
+			case "defn":
 				def, err := compileDefn(list, r.ctx)
 				if err != nil {
 					return ReplCompiled{}, err
@@ -940,7 +942,9 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		switch head.Name {
 		case "ns":
 			return compileResult{}, nil, exprError(list, "ns must be the first form (or use a module header map)")
-		case "defn", "defn-":
+		case "defn-":
+			return compileResult{}, nil, exprError(list, "defn- is not supported; list public names in the module :exports instead")
+		case "defn":
 			def, err := compileDefn(list, *ctx)
 			if err != nil {
 				return compileResult{}, nil, err

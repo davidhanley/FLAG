@@ -152,21 +152,15 @@ func TestCompileDefnAllowsPredicateAndBangNames(t *testing.T) {
 	}
 }
 
-func TestCompileDefnDashAliasWorks(t *testing.T) {
-	output, err := Compile(`
+func TestCompileDefnDashRejected(t *testing.T) {
+	_, err := Compile(`
 (defn- hidden-helper [x] (+ x 1))
-(hidden-helper 2)
 `)
-	if err != nil {
-		t.Fatalf("Compile returned error: %v", err)
+	if err == nil {
+		t.Fatal("expected defn- to be rejected")
 	}
-
-	got := string(output)
-	if !strings.Contains(got, "func hidden_helper_arity_1(") {
-		t.Fatalf("generated Go did not contain defn- lowering:\n%s", got)
-	}
-	if !strings.Contains(got, `_ = flagrt.Call(hidden_helper, flagrt.NewLong(2))`) {
-		t.Fatalf("generated Go did not contain defn- call:\n%s", got)
+	if !strings.Contains(err.Error(), "defn- is not supported") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

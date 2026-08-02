@@ -110,8 +110,8 @@ func TestRunMultiLineForm(t *testing.T) {
 	}
 }
 
-func TestRunDefnDashAlias(t *testing.T) {
-	input := strings.NewReader("(defn- hidden-helper [x] (+ x 1))\n(hidden-helper 2)\n:quit\n")
+func TestRunDefnDashRejected(t *testing.T) {
+	input := strings.NewReader("(defn- hidden-helper [x] (+ x 1))\n:quit\n")
 	var output bytes.Buffer
 
 	if err := Run(input, &output); err != nil {
@@ -119,10 +119,7 @@ func TestRunDefnDashAlias(t *testing.T) {
 	}
 
 	got := output.String()
-	if strings.Contains(got, "error:") {
-		t.Fatalf("expected no REPL errors, got:\n%s", got)
-	}
-	if !strings.Contains(got, "3") {
-		t.Fatalf("expected defn- result in output, got:\n%s", got)
+	if !strings.Contains(got, "defn- is not supported") {
+		t.Fatalf("expected defn- rejection error, got:\n%s", got)
 	}
 }
