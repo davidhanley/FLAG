@@ -173,6 +173,137 @@ type compileContext struct {
 	selfFunctionName  string
 	selfFunctionArity int
 	selfArityName     string
+	// constants, when non-nil, hoists each distinct constant literal (keywords,
+	// symbols, strings, ratios, bigints, and collections built entirely from
+	// constants) to a single package-level var so it is constructed once at
+	// program start instead of on every evaluation. It is a pointer so nested
+	// scopes (defn bodies, etc.) share one interner, and identical constants
+	// across all merged flag files collapse to the same var. Left nil for the
+	// REPL / single-expression paths, which emit constants inline.
+	constants *constantInterner
+}
+
+// constantInterner collects the distinct constant constructor expressions used
+// in a program and assigns each a stable Go var name, deduplicating by the
+// generated constructor code.
+type constantInterner struct {
+	order  []constDecl       // var declarations, in first-seen order
+	byCode map[string]string // constructor code -> Go var name
+	used   map[string]bool   // Go var names already handed out (collision guard)
+}
+
+type constDecl struct {
+	name string
+	code string
+}
+
+func newConstantInterner() *constantInterner {
+	return &constantInterner{byCode: map[string]string{}, used: map[string]bool{}}
+}
+
+// ref returns the Go var name for a constant constructor, allocating one on
+// first use. hint seeds a readable, valid identifier; dedup is by code.
+func (c *constantInterner) ref(hint, code string) string {
+	if v, ok := c.byCode[code]; ok {
+		return v
+	}
+	base := "flag" + hint
+	v := base
+	for i := 1; c.used[v]; i++ {
+		v = fmt.Sprintf("%s_%d", base, i)
+	}
+	c.byCode[code] = v
+	c.used[v] = true
+	c.order = append(c.order, constDecl{name: v, code: code})
+	return v
+}
+
+// decls returns one package-level var definition per interned constant.
+func (c *constantInterner) decls() []varDef {
+	out := make([]varDef, 0, len(c.order))
+	for _, d := range c.order {
+		out = append(out, varDef{goName: d.name, expr: d.code})
+	}
+	return out
+}
+
+func sanitizeKeywordIdent(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
+}
+
+// constCode returns a reference to the hoisted package-level var for a constant
+// constructor when interning is enabled, otherwise the inline constructor code.
+func (ctx compileContext) constCode(hint, code string) string {
+	if ctx.constants == nil {
+		return code
+	}
+	return ctx.constants.ref(hint, code)
+}
+
+// keywordCode returns the Go expression for a keyword literal, hoisting it when
+// interning is enabled. Keyword var names stay flagKw_<name> for readability.
+func (ctx compileContext) keywordCode(name string) string {
+	return ctx.constCode("Kw_"+sanitizeKeywordIdent(name), fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, name))
+}
+
+// stringLiteralValueCode returns the Value-constructing code for a string
+// literal source, hoisting it when interning is enabled. It returns ok=false
+// when source is not a plain string literal (e.g. a runtime-computed string),
+// in which case the caller emits an inline NewString of its own.
+func (ctx compileContext) stringLiteralValueCode(source Expr, quotedCode string) (string, bool) {
+	str, ok := source.(StringExpr)
+	if !ok {
+		return "", false
+	}
+	hint := "Str_" + sanitizeKeywordIdent(truncateHint(str.Value))
+	return ctx.constCode(hint, fmt.Sprintf("%s.NewString(%s)", runtimeAlias, quotedCode)), true
+}
+
+func truncateHint(s string) string {
+	const max = 24
+	if len(s) <= max {
+		return s
+	}
+	return s[:max]
+}
+
+// isConstExpr reports whether expr is a compile-time constant: a literal, or a
+// collection literal built entirely from constants. Symbols are constant only
+// for the built-in literals true/false/nil.
+func isConstExpr(expr Expr) bool {
+	switch e := expr.(type) {
+	case StringExpr, CharExpr, IntExpr, FloatExpr, RatioExpr, BigIntExpr, KeywordExpr, QuotedSymbolExpr, QuotedListExpr:
+		return true
+	case SymbolExpr:
+		return e.Name == "true" || e.Name == "false" || e.Name == "nil"
+	case VectorExpr:
+		return allConstExprs(e.Elements)
+	case SetExpr:
+		return allConstExprs(e.Elements)
+	case MapExpr:
+		return allConstExprs(e.Entries)
+	case MetaExpr:
+		return isConstExpr(e.Target)
+	default:
+		return false
+	}
+}
+
+func allConstExprs(exprs []Expr) bool {
+	for _, e := range exprs {
+		if !isConstExpr(e) {
+			return false
+		}
+	}
+	return true
 }
 
 type macroDef struct {
@@ -498,6 +629,7 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, [
 	if err != nil {
 		return "", nil, nil, nil, nil, false, err
 	}
+	ctx.constants = newConstantInterner()
 	namespace := ""
 	functions := make([]functionDef, 0, len(ast.Forms))
 	vars := make([]varDef, 0, len(ast.Forms))
@@ -619,6 +751,9 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, [
 		}
 	}
 
+	// Emit one package-level var per distinct keyword literal, constructed once.
+	vars = append(vars, ctx.constants.decls()...)
+
 	return namespace, functions, vars, stmts, tests, needsFmt, nil
 }
 
@@ -662,6 +797,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		functions:         make(map[string]functionDef, len(ctx.functions)+1),
 		globals:           make(map[string]exprKind, len(ctx.globals)+1),
 		macros:            ctx.macros,
+		constants:         ctx.constants,
 		selfFunctionName:  goName,
 		selfFunctionArity: len(params),
 		selfArityName:     fmt.Sprintf("%s_arity_%d", goName, len(params)),
@@ -691,7 +827,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, err
 	}
 	bodySource := bodyExprs[len(bodyExprs)-1]
-	body, err = coerceExprToValue(body, bodySource, "defn body")
+	body, err = coerceExprToValue(body, bodySource, "defn body", ctx)
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -747,7 +883,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 	if err != nil {
 		return varDef{}, 0, false, err
 	}
-	valueExpr, err = coerceExprToValue(valueExpr, form.Elements[valueIndex], "def value")
+	valueExpr, err = coerceExprToValue(valueExpr, form.Elements[valueIndex], "def value", ctx)
 	if err != nil {
 		return varDef{}, 0, false, err
 	}
@@ -1415,24 +1551,30 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 	case StringExpr:
 		return goExpr{code: fmt.Sprintf("%q", arg.Value), kind: exprKindString}, nil
 	case CharExpr:
-		return goExpr{code: fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(arg.Value)), kind: exprKindValue}, nil
+		code := fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(arg.Value))
+		return goExpr{code: ctx.constCode("Char", code), kind: exprKindValue}, nil
 	case IntExpr:
+		// Longs are scalar Values (no heap allocation), so hoisting adds clutter
+		// without benefit; emit inline.
 		return goExpr{code: fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
 	case BigIntExpr:
-		return goExpr{code: fmt.Sprintf("%s.NewBigIntFromString(%q)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
+		code := fmt.Sprintf("%s.NewBigIntFromString(%q)", runtimeAlias, arg.Value)
+		return goExpr{code: ctx.constCode("Big_"+sanitizeKeywordIdent(arg.Value), code), kind: exprKindValue}, nil
 	case RatioExpr:
-		return goExpr{code: fmt.Sprintf("%s.NewRatio(%d, %d)", runtimeAlias, arg.Numerator, arg.Denominator), kind: exprKindValue}, nil
+		code := fmt.Sprintf("%s.NewRatio(%d, %d)", runtimeAlias, arg.Numerator, arg.Denominator)
+		return goExpr{code: ctx.constCode(fmt.Sprintf("Ratio_%d_%d", arg.Numerator, arg.Denominator), code), kind: exprKindValue}, nil
 	case FloatExpr:
 		if arg.Raw != "" {
 			return goExpr{code: fmt.Sprintf("%s.NewDouble(%s)", runtimeAlias, arg.Raw), kind: exprKindValue}, nil
 		}
 		return goExpr{code: fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
 	case KeywordExpr:
-		return goExpr{code: fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+		return goExpr{code: ctx.keywordCode(arg.Name), kind: exprKindValue}, nil
 	case QuotedSymbolExpr:
-		return goExpr{code: fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+		code := fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, arg.Name)
+		return goExpr{code: ctx.constCode("Sym_"+sanitizeKeywordIdent(arg.Name), code), kind: exprKindValue}, nil
 	case QuotedListExpr:
-		return quotedListExprToGo(arg)
+		return quotedListExprToGo(arg, ctx)
 	case VectorExpr:
 		return vectorExprToGo(arg.Elements, ctx, locals)
 	case MapExpr:
@@ -1473,8 +1615,14 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		if isBuiltinFunctionSymbol(arg.Name) {
 			return goExpr{code: fmt.Sprintf("%s.BuiltinFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
 		}
+		if bind, ok := goFnBindings[arg.Name]; ok {
+			// Namespaced Go functions are bound statically at compile time to a
+			// generated, reflection-free adapter (see internal/gobindgen); no
+			// runtime name lookup occurs.
+			return goExpr{code: fmt.Sprintf("%s.%s", runtimeAlias, bind), kind: exprKindValue}, nil
+		}
 		if strings.Contains(arg.Name, "/") {
-			return goExpr{code: fmt.Sprintf("%s.GoFunction(%q)", runtimeAlias, arg.Name), kind: exprKindValue}, nil
+			return goExpr{}, exprError(arg, fmt.Sprintf("unknown go function %q", arg.Name))
 		}
 		if err != nil {
 			return goExpr{}, err
@@ -1487,7 +1635,7 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 	}
 }
 
-func quotedListExprToGo(arg QuotedListExpr) (goExpr, error) {
+func quotedListExprToGo(arg QuotedListExpr, ctx compileContext) (goExpr, error) {
 	parts := make([]string, 0, len(arg.Elements))
 	for _, item := range arg.Elements {
 		code, err := quotedLiteralToValueCode(item)
@@ -1496,7 +1644,9 @@ func quotedListExprToGo(arg QuotedListExpr) (goExpr, error) {
 		}
 		parts = append(parts, code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewList(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	// A quoted list is built entirely from literals, so it is constant: hoist it.
+	code := fmt.Sprintf("%s.NewList(%s)", runtimeAlias, strings.Join(parts, ", "))
+	return goExpr{code: ctx.constCode("List", code), kind: exprKindValue}, nil
 }
 
 func quotedLiteralToValueCode(expr Expr) (string, error) {
@@ -1805,7 +1955,7 @@ func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals m
 				return goExpr{}, err
 			}
 
-			valueCode, err := functionArgToValueCode(part)
+			valueCode, err := functionArgToValueCode(part, item, ctx)
 			if err != nil {
 				return goExpr{}, err
 			}
@@ -1828,7 +1978,7 @@ func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals m
 		if err != nil {
 			return goExpr{}, err
 		}
-		valueCode, err := functionArgToValueCode(part)
+		valueCode, err := functionArgToValueCode(part, item, ctx)
 		if err != nil {
 			return goExpr{}, err
 		}
@@ -1896,11 +2046,14 @@ func stringishExprToStringCode(expr goExpr) (string, error) {
 	}
 }
 
-func functionArgToValueCode(arg goExpr) (string, error) {
+func functionArgToValueCode(arg goExpr, source Expr, ctx compileContext) (string, error) {
 	switch arg.kind {
 	case exprKindValue:
 		return arg.code, nil
 	case exprKindString:
+		if code, ok := ctx.stringLiteralValueCode(source, arg.code); ok {
+			return code, nil
+		}
 		return fmt.Sprintf("%s.NewString(%s)", runtimeAlias, arg.code), nil
 	default:
 		return "", fmt.Errorf("function argument must evaluate to Value")
@@ -2063,11 +2216,11 @@ func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 			return goExpr{}, err
 		}
 		if falseExpr.kind != trueExpr.kind {
-			trueExpr, err = coerceExprToValue(trueExpr, args[1], "if true branch")
+			trueExpr, err = coerceExprToValue(trueExpr, args[1], "if true branch", ctx)
 			if err != nil {
 				return goExpr{}, err
 			}
-			falseExpr, err = coerceExprToValue(falseExpr, args[2], "if false branch")
+			falseExpr, err = coerceExprToValue(falseExpr, args[2], "if false branch", ctx)
 			if err != nil {
 				return goExpr{}, err
 			}
@@ -2133,7 +2286,7 @@ func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	if err != nil {
 		return goExpr{}, err
 	}
-	target, err = coerceExprToValue(target, args[0], "doto target")
+	target, err = coerceExprToValue(target, args[0], "doto target", ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -2146,7 +2299,7 @@ func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		if err != nil {
 			return goExpr{}, err
 		}
-		stepCode, err := coerceExprToValue(step, form, "doto step")
+		stepCode, err := coerceExprToValue(step, form, "doto step", ctx)
 		if err != nil {
 			return goExpr{}, err
 		}
@@ -2175,15 +2328,15 @@ func exInfoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind)
 	if err != nil {
 		return goExpr{}, err
 	}
-	dataCode, err := coerceExprToValue(data, args[1], "ex-info data")
+	dataCode, err := coerceExprToValue(data, args[1], "ex-info data", ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
 
 	parts := []string{
-		fmt.Sprintf("%s.NewKeyword(\"message\")", runtimeAlias),
+		ctx.keywordCode("message"),
 		fmt.Sprintf("%s.NewString(%s)", runtimeAlias, msg.code),
-		fmt.Sprintf("%s.NewKeyword(\"data\")", runtimeAlias),
+		ctx.keywordCode("data"),
 		dataCode.code,
 	}
 	if len(args) == 3 {
@@ -2191,12 +2344,12 @@ func exInfoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind)
 		if err != nil {
 			return goExpr{}, err
 		}
-		causeCode, err := coerceExprToValue(cause, args[2], "ex-info cause")
+		causeCode, err := coerceExprToValue(cause, args[2], "ex-info cause", ctx)
 		if err != nil {
 			return goExpr{}, err
 		}
 		parts = append(parts,
-			fmt.Sprintf("%s.NewKeyword(\"cause\")", runtimeAlias),
+			ctx.keywordCode("cause"),
 			causeCode.code,
 		)
 	}
@@ -2211,7 +2364,7 @@ func throwExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-	valueCode, err := coerceExprToValue(arg, args[0], "throw")
+	valueCode, err := coerceExprToValue(arg, args[0], "throw", ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -2265,7 +2418,7 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 		if err != nil {
 			return goExpr{}, err
 		}
-		body, err = coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "for body")
+		body, err = coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "for body", ctx)
 		if err != nil {
 			return goExpr{}, err
 		}
@@ -2331,7 +2484,7 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 		if err != nil {
 			return goExpr{}, err
 		}
-		if _, err := coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "doseq body"); err != nil {
+		if _, err := coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "doseq body", ctx); err != nil {
 			return goExpr{}, err
 		}
 		return goExpr{code: fmt.Sprintf("func() %s.Value {\n\t_ = %s\n\treturn %s.NewArray()\n}()", runtimeAlias, body.code, runtimeAlias), kind: exprKindValue}, nil
@@ -2785,7 +2938,7 @@ func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
 				}
 				continue
 			case "keys":
-				entries, err := expandMapDestructureKeys(value)
+				entries, err := expandMapDestructureKeys(value, e.ctx)
 				if err != nil {
 					return err
 				}
@@ -2808,7 +2961,7 @@ func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
 			}
 		}
 
-		keyExpr, err := compileDestructureMapKeyToValue(key)
+		keyExpr, err := compileDestructureMapKeyToValue(key, e.ctx)
 		if err != nil {
 			return err
 		}
@@ -2881,7 +3034,7 @@ func destructureDefaultName(expr Expr) (string, error) {
 	}
 }
 
-func expandMapDestructureKeys(expr Expr) ([]destructureKeyBinding, error) {
+func expandMapDestructureKeys(expr Expr, ctx compileContext) ([]destructureKeyBinding, error) {
 	vector, ok := expr.(VectorExpr)
 	if !ok {
 		return nil, fmt.Errorf("map destructuring :keys expects a vector")
@@ -2893,7 +3046,7 @@ func expandMapDestructureKeys(expr Expr) ([]destructureKeyBinding, error) {
 			return nil, fmt.Errorf("map destructuring :keys entries must be symbols")
 		}
 		out = append(out, destructureKeyBinding{
-			keyExpr:     fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, sym.Name),
+			keyExpr:     ctx.keywordCode(sym.Name),
 			bindingExpr: sym,
 		})
 	}
@@ -2943,10 +3096,10 @@ func expandMapDestructureStrs(expr Expr) ([]destructureKeyBinding, error) {
 	return out, nil
 }
 
-func compileDestructureMapKeyToValue(expr Expr) (string, error) {
+func compileDestructureMapKeyToValue(expr Expr, ctx compileContext) (string, error) {
 	switch value := expr.(type) {
 	case KeywordExpr:
-		return fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, value.Name), nil
+		return ctx.keywordCode(value.Name), nil
 	case SymbolExpr:
 		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
 	case QuotedSymbolExpr:
@@ -3771,7 +3924,7 @@ func notExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	if err != nil {
 		return goExpr{}, err
 	}
-	argCode, err := coerceExprToValue(arg, args[0], "not")
+	argCode, err := coerceExprToValue(arg, args[0], "not", ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -3848,7 +4001,7 @@ func formatExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind)
 		if err != nil {
 			return goExpr{}, err
 		}
-		valueCode, err := functionArgToValueCode(part)
+		valueCode, err := functionArgToValueCode(part, arg, ctx)
 		if err != nil {
 			return goExpr{}, fmt.Errorf("format arguments must evaluate to Value")
 		}
@@ -3900,7 +4053,7 @@ func updateBangExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	if err != nil {
 		return goExpr{}, err
 	}
-	replacement, err = coerceExprToValue(replacement, args[1], "update! replacement")
+	replacement, err = coerceExprToValue(replacement, args[1], "update! replacement", ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -4202,7 +4355,7 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	if err != nil {
 		return goExpr{}, err
 	}
-	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label))
+	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), ctx)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -4221,13 +4374,16 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, renderFunctionLiteral(def)), kind: exprKindValue}, nil
 }
 
-func coerceExprToValue(expr goExpr, source Expr, label string) (goExpr, error) {
+func coerceExprToValue(expr goExpr, source Expr, label string, ctx compileContext) (goExpr, error) {
 	switch expr.kind {
 	case exprKindValue:
 		return expr, nil
 	case exprKindBool:
 		return goExpr{code: fmt.Sprintf("%s.NewBool(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
 	case exprKindString:
+		if code, ok := ctx.stringLiteralValueCode(source, expr.code); ok {
+			return goExpr{code: code, kind: exprKindValue}, nil
+		}
 		return goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
 	default:
 		return goExpr{}, exprError(source, fmt.Sprintf("%s must evaluate to Value", label))
@@ -4321,7 +4477,11 @@ func mapExprToGo(entries []Expr, ctx compileContext, locals map[string]exprKind)
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	code := fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(parts, ", "))
+	if allConstExprs(entries) {
+		code = ctx.constCode("Map", code)
+	}
+	return goExpr{code: code, kind: exprKindValue}, nil
 }
 
 func vectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4339,7 +4499,11 @@ func vectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprK
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	code := fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(parts, ", "))
+	if allConstExprs(elements) {
+		code = ctx.constCode("Vec", code)
+	}
+	return goExpr{code: code, kind: exprKindValue}, nil
 }
 
 func setExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4357,7 +4521,11 @@ func setExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewSet(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	code := fmt.Sprintf("%s.NewSet(%s)", runtimeAlias, strings.Join(parts, ", "))
+	if allConstExprs(elements) {
+		code = ctx.constCode("Set", code)
+	}
+	return goExpr{code: code, kind: exprKindValue}, nil
 }
 
 func assocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

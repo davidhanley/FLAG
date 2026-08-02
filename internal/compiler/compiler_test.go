@@ -229,7 +229,7 @@ func TestCompilePrintlnWithRatioLiteral(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewRatio(5, 6)))`) {
+	if !strings.Contains(got, `flagrt.NewRatio(5, 6)`) {
 		t.Fatalf("generated Go did not contain ratio literal:\n%s", got)
 	}
 }
@@ -241,7 +241,7 @@ func TestCompilePrintlnWithBigIntLiteral(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewBigIntFromString("10")))`) {
+	if !strings.Contains(got, `flagrt.NewBigIntFromString("10")`) {
 		t.Fatalf("generated Go did not contain bigint literal:\n%s", got)
 	}
 }
@@ -253,7 +253,7 @@ func TestCompilePrintlnWithCharLiteral(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewString("M")))`) {
+	if !strings.Contains(got, `flagrt.NewString("M")`) {
 		t.Fatalf("generated Go did not contain char literal:\n%s", got)
 	}
 }
@@ -335,8 +335,8 @@ func TestCompileDoallAndStringPredicates(t *testing.T) {
 	for _, want := range []string{
 		`flagrt.DoAll(`,
 		`flagrt.Remove(`,
-		`flagrt.GoFunction("str/blank?")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringBlank`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -358,7 +358,7 @@ func TestCompileDefnAllowsMultipleBodyForms(t *testing.T) {
 	for _, want := range []string{
 		`_ = flagrt.Println("hi")`,
 		`return name`,
-		`fmt.Println(flagrt.Str(flagrt.Call(greet, flagrt.NewString("Ada"))))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(greet, flagStr_Ada)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -376,7 +376,7 @@ func TestCompileLineSeqAndIOReader(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`flagrt.LineSeq(`,
-		`flagrt.GoFunction("io/reader")`,
+		`flagrt.GoBind_runtime_OpenFile`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -390,7 +390,7 @@ func TestCompileLastExpression(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	if !strings.Contains(got, `flagrt.Last(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))`) {
+	if !strings.Contains(got, `flagrt.Last(flagVec)`) {
 		t.Fatalf("generated Go did not contain last helper:\n%s", got)
 	}
 }
@@ -401,7 +401,7 @@ func TestCompileReverseExpression(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	if !strings.Contains(got, `flagrt.Reverse(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))`) {
+	if !strings.Contains(got, `flagrt.Reverse(flagVec)`) {
 		t.Fatalf("generated Go did not contain reverse helper:\n%s", got)
 	}
 }
@@ -429,7 +429,7 @@ func TestCompileRegexCompileAndMatches(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.GoFunction("regex/compile")`,
+		`flagrt.GoBind_runtime_RegexCompile`,
 		`flagrt.BuiltinFunction("re-pattern")`,
 		`flagrt.BuiltinFunction("re-matches")`,
 	} {
@@ -914,7 +914,7 @@ func TestCompileLetVolatileBindingAndUpdateBang(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"var seen = __bind0",
-		"seen = flagrt.MapAssoc(seen, flagrt.NewKeyword(\"b\"), flagrt.NewLong(2))",
+		"seen = flagrt.MapAssoc(seen, flagKw_b, flagrt.NewLong(2))",
 		"return seen",
 	} {
 		if !strings.Contains(got, want) {
@@ -972,8 +972,8 @@ func TestCompileLetMapDestructuring(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var m = __bind0`,
-		`flagrt.Get(__bind0, flagrt.NewKeyword("a"))`,
-		`flagrt.Get(__bind0, flagrt.NewKeyword("b"), flagrt.NewLong(9))`,
+		`flagrt.Get(__bind0, flagKw_a)`,
+		`flagrt.Get(__bind0, flagKw_b, flagrt.NewLong(9))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -995,9 +995,9 @@ func TestCompileDefnWithDestructuredParams(t *testing.T) {
 	for _, want := range []string{
 		"func f_arity_2(__arg0 flagrt.Value, __arg1 flagrt.Value) flagrt.Value {",
 		"flagrt.SeqFirst(__arg0)",
-		`flagrt.Get(__arg1, flagrt.NewKeyword("x"))`,
+		`flagrt.Get(__arg1, flagKw_x)`,
 		"return flagrt.Add(a, x)",
-		"fmt.Println(flagrt.Str(flagrt.Call(f, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewMap(flagrt.NewKeyword(\"x\"), flagrt.NewLong(3)))))",
+		"fmt.Println(flagrt.Str(flagrt.Call(f, flagVec, flagMap)))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1012,7 +1012,7 @@ func TestCompilePrintlnWithSymbolLiterals(t *testing.T) {
 	}
 
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.NewSymbol("abc"), flagrt.NewKeyword("xyz")))`
+	want := `fmt.Println(flagrt.Str(flagSym_abc, flagKw_xyz))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected symbol literals:\n%s", got)
 	}
@@ -1025,7 +1025,7 @@ func TestCompilePrintlnWithQuotedListLiteral(t *testing.T) {
 	}
 
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.NewList(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3))))`
+	want := `fmt.Println(flagrt.Str(flagList))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected quoted list literal:\n%s", got)
 	}
@@ -1042,8 +1042,8 @@ func TestCompilePrintlnWithMapAndSetLiterals(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewLong(2))))`,
-		`fmt.Println(flagrt.Str(flagrt.NewSet(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3))))`,
+		`fmt.Println(flagrt.Str(flagMap))`,
+		`fmt.Println(flagrt.Str(flagSet))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1085,9 +1085,9 @@ func TestCompileSymbolAndNameFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.Name(flagrt.NewKeyword("xyz"))))`,
+		`fmt.Println(flagrt.Str(flagrt.Name(flagKw_xyz)))`,
 		`fmt.Println(flagrt.Str(flagrt.Name(flagrt.Symbol("abc"))))`,
-		`fmt.Println(flagrt.Str(flagrt.Symbol(flagrt.NewKeyword("xyz"))))`,
+		`fmt.Println(flagrt.Str(flagrt.Symbol(flagKw_xyz)))`,
 		`fmt.Println(flagrt.Str(flagrt.Keyword("abc")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -1107,8 +1107,8 @@ func TestCompileAssocAndDissocFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.MapAssoc(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1)), flagrt.NewKeyword("b"), flagrt.NewLong(2))))`,
-		`fmt.Println(flagrt.Str(flagrt.MapDissoc(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewLong(2)), flagrt.NewKeyword("b"))))`,
+		`fmt.Println(flagrt.Str(flagrt.MapAssoc(flagMap, flagKw_b, flagrt.NewLong(2))))`,
+		`fmt.Println(flagrt.Str(flagrt.MapDissoc(flagMap_1, flagKw_b)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1142,9 +1142,9 @@ func TestCompileMapLookupForms(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.BuiltinFunction("get"), m, flagrt.NewKeyword("a"))))`,
-		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.NewKeyword("a"), m)))`,
-		`fmt.Println(flagrt.Str(flagrt.Call(m, flagrt.NewKeyword("a"))))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(flagrt.BuiltinFunction("get"), m, flagKw_a)))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(flagKw_a, m)))`,
+		`fmt.Println(flagrt.Str(flagrt.Call(m, flagKw_a)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1165,7 +1165,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = flagrt.Call(f, flagrt.NewString("dave is %d years old"), flagrt.NewLong(23))`,
+		`_ = flagrt.Call(f, flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -1178,6 +1178,8 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 	output, err := Compile(`
 (println (string/trim "  hello  "))
 (println (string/replace "hello world" "world" "FLAG"))
+(println (str/join "-" ["male" "18-34" "overall"]))
+(println (str/capitalize "hELLO"))
 (println (character/toUppercase "hello"))
 (println (long/parse "42"))
 (println (math/abs -42))
@@ -1188,15 +1190,32 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.GoFunction("string/trim"), flagrt.NewString("  hello  "))`,
-		`flagrt.Call(flagrt.GoFunction("string/replace"), flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`,
-		`flagrt.Call(flagrt.GoFunction("character/toUppercase"), flagrt.NewString("hello"))`,
-		`flagrt.Call(flagrt.GoFunction("long/parse"), flagrt.NewString("42"))`,
-		`flagrt.Call(flagrt.GoFunction("math/abs"), flagrt.NewLong(-42))`,
+		`flagrt.Call(flagrt.GoBind_packages_StringTrim, flagStr___hello__)`,
+		`flagrt.Call(flagrt.GoBind_packages_StringReplace, flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
+		`flagrt.Call(flagrt.GoBind_packages_StringJoin, flagStr__, flagVec)`,
+		`flagrt.Call(flagrt.GoBind_packages_StringCapitalize, flagStr_hELLO)`,
+		`flagrt.Call(flagrt.GoBind_packages_ToUppercase, flagStr_hello)`,
+		`flagrt.Call(flagrt.GoBind_packages_LongParse, flagStr_42)`,
+		`flagrt.Call(flagrt.GoBind_runtime_Abs, flagrt.NewLong(-42))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+
+	// Statically bound calls must not fall back to the runtime reflection bridge.
+	if strings.Contains(got, "GoFunction(") {
+		t.Fatalf("expected no runtime GoFunction lookup for namespaced calls:\n%s", got)
+	}
+}
+
+func TestCompileUnknownGoFunctionIsCompileError(t *testing.T) {
+	_, err := Compile(`(defn oops [s] (str/trmi s))`)
+	if err == nil {
+		t.Fatal("expected a compile error for an unknown go function, got nil")
+	}
+	if !strings.Contains(err.Error(), `unknown go function "str/trmi"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -1215,11 +1234,11 @@ func TestCompileFirstAndRestFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.First(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
-		`fmt.Println(flagrt.Str(flagrt.Rest(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
-		`fmt.Println(flagrt.Str(flagrt.Next(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
-		`fmt.Println(flagrt.Str(flagrt.Take(flagrt.NewLong(2), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
-		`fmt.Println(flagrt.Str(flagrt.Drop(flagrt.NewLong(1), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
+		`fmt.Println(flagrt.Str(flagrt.First(flagVec)))`,
+		`fmt.Println(flagrt.Str(flagrt.Rest(flagVec)))`,
+		`fmt.Println(flagrt.Str(flagrt.Next(flagVec)))`,
+		`fmt.Println(flagrt.Str(flagrt.Take(flagrt.NewLong(2), flagVec)))`,
+		`fmt.Println(flagrt.Str(flagrt.Drop(flagrt.NewLong(1), flagVec)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1240,7 +1259,7 @@ func TestCompileMapFunction(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str(flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
-		`fmt.Println(flagrt.Str(flagrt.Map(add2, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20), flagrt.NewLong(30)))))`,
+		`fmt.Println(flagrt.Str(flagrt.Map(add2, flagVec, flagVec_1)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1270,7 +1289,7 @@ func TestCompileConcatFunction(t *testing.T) {
 	}
 
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.Concat(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewArray(flagrt.NewLong(3)), flagrt.NilValue())))`
+	want := `fmt.Println(flagrt.Str(flagrt.Concat(flagVec, flagVec_1, flagrt.NilValue())))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1307,8 +1326,8 @@ func TestCompileSortByFunction(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.SortBy(flagrt.BuiltinFunction("identity"), flagrt.NewArray(flagrt.NewLong(3), flagrt.NewLong(1), flagrt.NewLong(2)))`,
-		`flagrt.SortBy(flagrt.BuiltinFunction("identity"), flagrt.BuiltinFunction(">"), flagrt.NewArray(flagrt.NewLong(3), flagrt.NewLong(1), flagrt.NewLong(2)))`,
+		`flagrt.SortBy(flagrt.BuiltinFunction("identity"), flagVec)`,
+		`flagrt.SortBy(flagrt.BuiltinFunction("identity"), flagrt.BuiltinFunction(">"), flagVec)`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1326,8 +1345,8 @@ func TestCompileJuxtFunction(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`flagrt.Juxt(`,
-		`flagrt.GoFunction("str/trim")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringTrim`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1381,7 +1400,8 @@ func TestCompileHashMapFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewLong(2))))`
+	// (hash-map ...) is a call form, not a map literal, so it is not hoisted.
+	want := `fmt.Println(flagrt.Str(flagrt.NewMap(flagKw_a, flagrt.NewLong(1), flagKw_b, flagrt.NewLong(2))))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1417,7 +1437,7 @@ func TestCompileMergeFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.Merge(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1)), flagrt.NewMap(flagrt.NewKeyword("b"), flagrt.NewLong(2)), flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(3)))))`
+	want := `fmt.Println(flagrt.Str(flagrt.Merge(flagMap, flagMap_1, flagMap_2)))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1431,7 +1451,7 @@ func TestCompileSelectKeysFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.SelectKeys(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewLong(2), flagrt.NewKeyword("c"), flagrt.NewLong(3)), flagrt.NewArray(flagrt.NewKeyword("c"), flagrt.NewKeyword("a")))))`
+	want := `fmt.Println(flagrt.Str(flagrt.SelectKeys(flagMap, flagVec)))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1465,7 +1485,7 @@ func TestCompileZipMapFunction(t *testing.T) {
 	}
 
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.ZipMap(flagrt.NewArray(flagrt.NewKeyword("a"), flagrt.NewKeyword("b"), flagrt.NewKeyword("c")), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20)))))`
+	want := `fmt.Println(flagrt.Str(flagrt.ZipMap(flagVec, flagVec_1)))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1484,7 +1504,7 @@ func TestCompilePMapFunction(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str(flagrt.PMap(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
-		`fmt.Println(flagrt.Str(flagrt.PMap(add2, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)), flagrt.NewArray(flagrt.NewLong(10), flagrt.NewLong(20), flagrt.NewLong(30)))))`,
+		`fmt.Println(flagrt.Str(flagrt.PMap(add2, flagVec, flagVec_1)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1504,9 +1524,9 @@ func TestCompileJSONFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.ToJSON(flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1), flagrt.NewKeyword("b"), flagrt.NewArray(flagrt.NewLong(2), flagrt.NewLong(3))))))`,
+		`fmt.Println(flagrt.Str(flagrt.ToJSON(flagMap)))`,
 		`fmt.Println(flagrt.Str(flagrt.FromJSON("{\"a\":1}")))`,
-		`fmt.Println(flagrt.Str(flagrt.FromJSON(flagrt.ToJSON(flagrt.NewMap(flagrt.NewKeyword("x"), flagrt.NewLong(9))))))`,
+		`fmt.Println(flagrt.Str(flagrt.FromJSON(flagrt.ToJSON(flagMap_1))))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1527,7 +1547,7 @@ func TestCompileFilterFunction(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str(flagrt.Filter(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {`,
-		`fmt.Println(flagrt.Str(flagrt.Filter(gt2, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3), flagrt.NewLong(4)))))`,
+		`fmt.Println(flagrt.Str(flagrt.Filter(gt2, flagVec_1)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1547,8 +1567,8 @@ func TestCompileReduceFunction(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.Reduce(add2, flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
-		`fmt.Println(flagrt.Str(flagrt.Reduce(add2, flagrt.NewLong(10), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3)))))`,
+		`fmt.Println(flagrt.Str(flagrt.Reduce(add2, flagVec)))`,
+		`fmt.Println(flagrt.Str(flagrt.Reduce(add2, flagrt.NewLong(10), flagVec)))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1562,7 +1582,7 @@ func TestCompileReduceWithBuiltinPlusFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	want := `fmt.Println(flagrt.Str(flagrt.Reduce(flagrt.BuiltinFunction("+"), flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2), flagrt.NewLong(3), flagrt.NewLong(4)))))`
+	want := `fmt.Println(flagrt.Str(flagrt.Reduce(flagrt.BuiltinFunction("+"), flagVec)))`
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 	}
@@ -1752,8 +1772,8 @@ func TestCompileCompMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.GoFunction("str/trim")`,
-		`flagrt.GoFunction("str/upper-case")`,
+		`flagrt.GoBind_packages_StringTrim`,
+		`flagrt.GoBind_packages_StringUpperCase`,
 		"flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {",
 		"flagrt.Call(__flag_comp_fn_0, flagrt.Call(__flag_comp_fn_1, __flag_comp_x))",
 	} {
@@ -2037,9 +2057,9 @@ func TestCompileDefnCanReturnAnyValueType(t *testing.T) {
 		`func mkarray_arity_1(x flagrt.Value) flagrt.Value {`,
 		`return flagrt.NewArray(x, flagrt.NewLong(2))`,
 		`func mksym_arity_1(x flagrt.Value) flagrt.Value {`,
-		`return flagrt.NewSymbol("foo")`,
+		`return flagSym_foo`,
 		`func mkmap_arity_1(x flagrt.Value) flagrt.Value {`,
-		`return flagrt.NewMap(flagrt.NewKeyword("a"), x)`,
+		`return flagrt.NewMap(flagKw_a, x)`,
 		`func mkset_arity_1(x flagrt.Value) flagrt.Value {`,
 		`return flagrt.NewSet(x)`,
 		`func mkfn_arity_1(x flagrt.Value) flagrt.Value {`,
