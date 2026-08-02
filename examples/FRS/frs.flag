@@ -325,7 +325,7 @@
     :races-to-count 3
     :display-name "Cup Championship"}})
 
-(defn- compute-sex-results
+(defn compute-sex-results
   """Build the athlete result sheet for one sex from race maps.
         Category rules determine foreign filtering, point minimum, and races to count."""
   [races sex category-rules]
@@ -345,12 +345,12 @@
          (map #(create-athlete-row % races-to-count))
          (vec))))
 
-(defn- load-recent-races []
+(defn load-recent-races []
   (doto (->> (scan-directories)
              (keep #(read-race % recent-enough?)))
     write-races-considered))
 
-(defn- compute-overall-result-sheet-from-races [races category-key]
+(defn compute-overall-result-sheet-from-races [races category-key]
   (let [category-rules (get categories category-key)]
     {:male   (compute-sex-results races :male category-rules)
      :female (compute-sex-results races :female category-rules)}))
