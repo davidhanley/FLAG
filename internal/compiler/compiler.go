@@ -428,7 +428,18 @@ func Compile(source string) ([]byte, error) {
 
 // CompileProgram loads entryPath and its import graph, then emits one Go program.
 func CompileProgram(entryPath string) ([]byte, error) {
-	result, err := compileProgram(entryPath)
+	result, err := compileProgram(entryPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	return emitGoProgram(result)
+}
+
+// CompileProgramWithTests is like CompileProgram, but appends the body forms of
+// each test file to the entry module (after stripping their module headers).
+// That keeps same-module test access to private defs while still resolving imports.
+func CompileProgramWithTests(entryPath string, testPaths []string) ([]byte, error) {
+	result, err := compileProgram(entryPath, testPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -720,7 +731,7 @@ func compileSource(source, path string) (compileResult, error) {
 			return compileResult{}, fmt.Errorf("module imports require compiling from a file path (use flag-lang build <file.flag>)")
 		}
 		// Single-file compile with imports: load full program from this path.
-		return compileProgram(path)
+		return compileProgram(path, nil)
 	}
 
 	ctx, err := newCompileContext()
@@ -748,10 +759,15 @@ func compileSource(source, path string) (compileResult, error) {
 	return result, nil
 }
 
-func compileProgram(entryPath string) (compileResult, error) {
+func compileProgram(entryPath string, testPaths []string) (compileResult, error) {
 	prog, err := LoadProgram(entryPath)
 	if err != nil {
 		return compileResult{}, err
+	}
+	if len(testPaths) > 0 {
+		if err := appendTestForms(prog.Entry, testPaths); err != nil {
+			return compileResult{}, err
+		}
 	}
 
 	// Shared environment across modules: functions/globals accumulate; each
@@ -910,6 +926,34 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 	tests := make([]testCase, 0, len(mod.Forms))
 	needsFmt := false
 	defined := map[string]string{}
+
+	// Native library re-exports (:go-exports) become package-level vars bound to
+	// generated flagrt.GoBind_* adapters.
+	if mod.HasModuleHeader {
+		for localName, hostKey := range mod.Header.GoExports {
+			rtIdent, ok := libraryGoBinds[hostKey]
+			if !ok {
+				return compileResult{}, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
+			}
+			goName, err := moduleGoIdent(ctx.namespace, localName)
+			if err != nil {
+				return compileResult{}, nil, err
+			}
+			if _, exists := ctx.globals[goName]; exists {
+				return compileResult{}, nil, fmt.Errorf("symbol %q already defined", localName)
+			}
+			if err := ctx.bindModuleName(localName, goName); err != nil {
+				return compileResult{}, nil, err
+			}
+			ctx.globals[goName] = exprKindValue
+			defined[localName] = goName
+			vars = append(vars, varDef{
+				flagName: localName,
+				goName:   goName,
+				expr:     fmt.Sprintf("%s.%s", runtimeAlias, rtIdent),
+			})
+		}
+	}
 
 	for _, form := range mod.Forms {
 		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {

@@ -13,7 +13,7 @@ func TestCSVReadCSVThroughBridgeFromPath(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	records := Call(GoFunction("csv/read-csv"), NewSymbol(path))
+	records := Call(GoBind_csv_ReadCSV, NewSymbol(path))
 	if records.tag != TagArray || records.ArrayLen() != 2 {
 		t.Fatalf("unexpected csv record shape: %#v", records)
 	}
@@ -29,7 +29,7 @@ func TestCSVReadCSVThroughBridgeFromOpenFile(t *testing.T) {
 	file := OpenFile(path)
 	defer func() { _ = file.Close() }()
 
-	records := Call(GoFunction("csv/read-csv"), file)
+	records := Call(GoBind_csv_ReadCSV, file)
 	if records.tag != TagArray || records.ArrayLen() != 2 {
 		t.Fatalf("unexpected csv record shape from open file: %#v", records)
 	}
