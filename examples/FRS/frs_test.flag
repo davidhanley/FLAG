@@ -1,4 +1,4 @@
-(ns c-frs.core-test)
+{:namespace "c-frs.core-test"}
 
 (deftest test-fractions
   (testing "fractional seq"

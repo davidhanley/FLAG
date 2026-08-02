@@ -79,12 +79,8 @@ func runCompile(args []string) error {
 		return usageError("compile expects exactly one input file")
 	}
 
-	source, err := os.ReadFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", inputPath, err)
-	}
-
-	goSource, err := compiler.Compile(string(source))
+	// Compile from path so module :imports can resolve relative files.
+	goSource, err := compiler.CompileProgram(inputPath)
 	if err != nil {
 		return err
 	}
@@ -137,11 +133,7 @@ func runBuild(args []string) error {
 		return usageError("build expects exactly one input file or directory")
 	}
 
-	source, err := readBuildSource(inputPath)
-	if err != nil {
-		return err
-	}
-	goSource, err := compiler.Compile(string(source))
+	goSource, err := compileBuildInput(inputPath)
 	if err != nil {
 		return err
 	}
@@ -151,9 +143,19 @@ func runBuild(args []string) error {
 		outputPath = strings.TrimSuffix(base, filepath.Ext(base))
 	}
 
-	goPath, err := writeGeneratedGo(inputPath, goSource)
+	// Persist generated Go next to the source for inspection (best-effort).
+	_, _ = writeGeneratedGo(inputPath, goSource)
+
+	// Always build from a temp file so multi-file module projects do not leave
+	// multiple package-main .go files that break `go test ./...`.
+	tempDir, err := os.MkdirTemp(".", ".flag-build-*")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp build dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+	goPath := filepath.Join(tempDir, "main.go")
+	if err := os.WriteFile(goPath, goSource, 0o644); err != nil {
+		return fmt.Errorf("write generated Go: %w", err)
 	}
 
 	cmd := exec.Command("go", "build", "-o", outputPath, goPath)
@@ -244,23 +246,53 @@ func runTest(args []string) error {
 	return nil
 }
 
+// compileBuildInput compiles a file via the module graph, or a directory via
+// the legacy "merge all sources" path (until directory entry points are defined).
+func compileBuildInput(inputPath string) ([]byte, error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+	if !stat.IsDir() {
+		return compiler.CompileProgram(inputPath)
+	}
+	// Directory: prefer main.flag / main.clj as a modular entry when present.
+	for _, name := range []string{"main.flag", "main.clj", "main.cljc"} {
+		candidate := filepath.Join(inputPath, name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return compiler.CompileProgram(candidate)
+		}
+	}
+	source, err := readBuildSource(inputPath)
+	if err != nil {
+		return nil, err
+	}
+	return compiler.Compile(string(source))
+}
+
 // writeProgramGo compiles the program (flag functions only, excluding any
 // associated tests) and persists it next to the source as <name>.go so it can
 // be inspected. Failures to read or compile the program only warn: they must
 // not fail an otherwise-successful test run.
 func writeProgramGo(inputPath string) error {
-	programSource, err := readProgramSource(inputPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
-		return nil
+	path := inputPath
+	if !isDir(inputPath) && isTestSourceFile(inputPath) {
+		if sibling := siblingSourceFile(inputPath); sibling != "" {
+			path = sibling
+		}
 	}
-	programGo, err := compiler.Compile(string(programSource))
+	programGo, err := compileBuildInput(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
 		return nil
 	}
 	_, err = writeGeneratedGo(inputPath, programGo)
 	return err
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // readProgramSource returns the merged program source for inputPath, excluding
@@ -571,19 +603,45 @@ func isTestSourceFile(path string) bool {
 	return strings.HasSuffix(base, "_test")
 }
 
+// stripLeadingNamespaceForm removes a legacy (ns ...) form or a module header
+// map ({:namespace ...}) from the start of a source buffer so test files can be
+// merged into a program that already declared its module.
 func stripLeadingNamespaceForm(source []byte) ([]byte, error) {
 	i := 0
 	for i < len(source) && isWhitespaceByte(source[i]) {
 		i++
 	}
+	if i >= len(source) {
+		return source, nil
+	}
+
+	// Module header map: first non-whitespace form starts with '{'.
+	if source[i] == '{' {
+		end, err := scanBalanced(source, i, '{', '}')
+		if err != nil {
+			return nil, err
+		}
+		return append([]byte{}, source[end:]...), nil
+	}
+
+	// Legacy (ns ...)
 	if i+4 > len(source) || source[i] != '(' || !strings.HasPrefix(string(source[i+1:i+4]), "ns ") && !(i+3 < len(source) && source[i+1] == 'n' && source[i+2] == 's' && isDelimiterByte(source[i+3])) {
 		return source, nil
 	}
 
+	end, err := scanBalanced(source, i, '(', ')')
+	if err != nil {
+		return nil, fmt.Errorf("unterminated namespace form")
+	}
+	return append([]byte{}, source[end:]...), nil
+}
+
+// scanBalanced returns the index just past a balanced open/close region starting at start.
+func scanBalanced(source []byte, start int, open, close byte) (int, error) {
 	depth := 0
 	inString := false
 	escaped := false
-	for j := i; j < len(source); j++ {
+	for j := start; j < len(source); j++ {
 		ch := source[j]
 		if inString {
 			if escaped {
@@ -609,17 +667,28 @@ func stripLeadingNamespaceForm(source []byte) ([]byte, error) {
 			}
 			continue
 		}
+		// Nested collections inside a map/list.
 		switch ch {
-		case '(':
+		case open:
 			depth++
-		case ')':
+		case close:
 			depth--
 			if depth == 0 {
-				return append([]byte{}, source[j+1:]...), nil
+				return j + 1, nil
+			}
+		case '(':
+			if open != '(' {
+				// Track nested lists inside maps via a simple paren depth only when
+				// scanning maps? Braces inside strings already ignored; lists use
+				// different delimiters so '{}' map scan is independent of ().
 			}
 		}
+		// When scanning a map, also ignore balanced nested [] () that don't affect {}.
+		// The depth counter only tracks open/close of the target pair, which is correct
+		// for maps containing vectors/lists as long as those don't contain unescaped
+		// top-level braces (they shouldn't in module headers).
 	}
-	return nil, fmt.Errorf("unterminated namespace form")
+	return 0, fmt.Errorf("unterminated form starting with %q", string(open))
 }
 
 func isWhitespaceByte(ch byte) bool {

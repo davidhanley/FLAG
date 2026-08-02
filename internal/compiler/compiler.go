@@ -150,6 +150,7 @@ type testCase struct {
 }
 
 type functionDef struct {
+	flagName     string // original FLAG name (e.g. "move", "flag_main")
 	goName       string
 	variadicName string
 	arityName    string
@@ -161,18 +162,26 @@ type functionDef struct {
 }
 
 type varDef struct {
-	goName string
-	doc    string
-	expr   string
+	flagName string
+	goName   string
+	doc      string
+	expr     string
 }
 
 type compileContext struct {
 	functions         map[string]functionDef
 	globals           map[string]exprKind
 	macros            map[string]macroDef
-	selfFunctionName  string
+	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
+	// namespace is the current module :namespace for Go name mangling.
+	// Empty means legacy single-file mode (no module prefix on idents).
+	namespace string
+	// moduleSymbols maps FLAG names as written in this module (bare local
+	// names, :refer names, and qualified import names like "chess/move") to
+	// the Go identifier of the binding.
+	moduleSymbols map[string]string
 	// constants, when non-nil, hoists each distinct constant literal (keywords,
 	// symbols, strings, ratios, bigints, and collections built entirely from
 	// constants) to a single package-level var so it is constructed once at
@@ -181,6 +190,61 @@ type compileContext struct {
 	// across all merged flag files collapse to the same var. Left nil for the
 	// REPL / single-expression paths, which emit constants inline.
 	constants *constantInterner
+}
+
+// bindModuleName records a FLAG name -> Go ident mapping for this module.
+func (ctx *compileContext) bindModuleName(flagName, goName string) error {
+	if ctx.moduleSymbols == nil {
+		return nil
+	}
+	if prev, ok := ctx.moduleSymbols[flagName]; ok && prev != goName {
+		return fmt.Errorf("symbol %q already bound to %s", flagName, prev)
+	}
+	ctx.moduleSymbols[flagName] = goName
+	if ctx.namespace != "" && !strings.Contains(flagName, "/") {
+		qualified := ctx.namespace + "/" + flagName
+		if prev, ok := ctx.moduleSymbols[qualified]; ok && prev != goName {
+			return fmt.Errorf("symbol %q already bound to %s", qualified, prev)
+		}
+		ctx.moduleSymbols[qualified] = goName
+	}
+	return nil
+}
+
+// resolveModuleSymbol returns the Go identifier for a FLAG symbol name when
+// it is registered in the module symbol table.
+func (ctx *compileContext) resolveModuleSymbol(flagName string) (string, bool) {
+	if ctx.moduleSymbols == nil {
+		return "", false
+	}
+	goName, ok := ctx.moduleSymbols[flagName]
+	return goName, ok
+}
+
+func copyCompileContext(ctx compileContext) compileContext {
+	out := compileContext{
+		functions:         make(map[string]functionDef, len(ctx.functions)),
+		globals:           make(map[string]exprKind, len(ctx.globals)),
+		macros:            ctx.macros,
+		constants:         ctx.constants,
+		namespace:         ctx.namespace,
+		selfFunctionName:  ctx.selfFunctionName,
+		selfFunctionArity: ctx.selfFunctionArity,
+		selfArityName:     ctx.selfArityName,
+	}
+	for k, v := range ctx.functions {
+		out.functions[k] = v
+	}
+	for k, v := range ctx.globals {
+		out.globals[k] = v
+	}
+	if ctx.moduleSymbols != nil {
+		out.moduleSymbols = make(map[string]string, len(ctx.moduleSymbols))
+		for k, v := range ctx.moduleSymbols {
+			out.moduleSymbols[k] = v
+		}
+	}
+	return out
 }
 
 // constantInterner collects the distinct constant constructor expressions used
@@ -318,9 +382,10 @@ var standardMacrosSource string
 
 func newCompileContext() (compileContext, error) {
 	ctx := compileContext{
-		functions: make(map[string]functionDef),
-		globals:   make(map[string]exprKind),
-		macros:    make(map[string]macroDef),
+		functions:     make(map[string]functionDef),
+		globals:       make(map[string]exprKind),
+		macros:        make(map[string]macroDef),
+		moduleSymbols: make(map[string]string),
 	}
 	if err := loadStandardMacros(&ctx); err != nil {
 		return compileContext{}, err
@@ -351,18 +416,42 @@ func loadStandardMacros(ctx *compileContext) error {
 	return nil
 }
 
-// Compile translates a small FLAG source file into a Go program.
+// Compile translates a FLAG source string into a Go program.
+// Module headers are supported; :imports require CompileProgram with a file path.
 func Compile(source string) ([]byte, error) {
-	namespace, functions, vars, stmts, tests, needsFmt, err := compileForms(source)
+	result, err := compileSource(source, "")
 	if err != nil {
 		return nil, err
 	}
+	return emitGoProgram(result)
+}
+
+// CompileProgram loads entryPath and its import graph, then emits one Go program.
+func CompileProgram(entryPath string) ([]byte, error) {
+	result, err := compileProgram(entryPath)
+	if err != nil {
+		return nil, err
+	}
+	return emitGoProgram(result)
+}
+
+type compileResult struct {
+	namespace string
+	functions []functionDef
+	vars      []varDef
+	stmts     []mainStmt
+	tests     []testCase
+	needsFmt  bool
+}
+
+func emitGoProgram(result compileResult) ([]byte, error) {
+	namespace, functions, vars, stmts, tests, needsFmt := result.namespace, result.functions, result.vars, result.stmts, result.tests, result.needsFmt
 	if len(tests) > 0 {
 		needsFmt = true
 	}
 	var entryFunction *functionDef
 	for i := range functions {
-		if functions[i].goName == "flag_main" {
+		if functions[i].flagName == "flag_main" || functions[i].goName == "flag_main" {
 			entryFunction = &functions[i]
 			break
 		}
@@ -619,91 +708,272 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 	return ReplCompiled{ResultExpr: expr.code}, nil
 }
 
-func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, []testCase, bool, error) {
-	ast, err := ParseFile(source)
+func compileSource(source, path string) (compileResult, error) {
+	mod, err := parseModuleFile(path, source)
 	if err != nil {
-		return "", nil, nil, nil, nil, false, err
+		return compileResult{}, err
+	}
+	if mod.HasModuleHeader && len(mod.Header.Imports) > 0 {
+		if path == "" {
+			return compileResult{}, fmt.Errorf("module imports require compiling from a file path (use flag-lang build <file.flag>)")
+		}
+		// Single-file compile with imports: load full program from this path.
+		return compileProgram(path)
 	}
 
 	ctx, err := newCompileContext()
 	if err != nil {
-		return "", nil, nil, nil, nil, false, err
+		return compileResult{}, err
 	}
 	ctx.constants = newConstantInterner()
-	namespace := ""
-	functions := make([]functionDef, 0, len(ast.Forms))
-	vars := make([]varDef, 0, len(ast.Forms))
-	stmts := make([]mainStmt, 0, len(ast.Forms))
-	tests := make([]testCase, 0, len(ast.Forms))
-	needsFmt := false
+	if mod.HasModuleHeader {
+		ctx.namespace = mod.Header.Namespace
+	}
 
-	for _, form := range ast.Forms {
+	result, defined, err := compileModuleBody(mod, &ctx, true)
+	if err != nil {
+		return compileResult{}, err
+	}
+	if mod.HasModuleHeader {
+		if err := validateExports(mod, defined); err != nil {
+			return compileResult{}, err
+		}
+		result.namespace = mod.Header.Namespace
+	} else if mod.LegacyNS != "" {
+		result.namespace = mod.LegacyNS
+	}
+	result.vars = append(result.vars, ctx.constants.decls()...)
+	return result, nil
+}
+
+func compileProgram(entryPath string) (compileResult, error) {
+	prog, err := LoadProgram(entryPath)
+	if err != nil {
+		return compileResult{}, err
+	}
+
+	// Shared environment across modules: functions/globals accumulate; each
+	// module gets its own moduleSymbols seeded from imports.
+	shared, err := newCompileContext()
+	if err != nil {
+		return compileResult{}, err
+	}
+	shared.constants = newConstantInterner()
+
+	// path -> bare local name -> go ident for all defs in that module
+	moduleDefs := map[string]map[string]string{}
+	byPath := prog.byPath
+
+	var allFunctions []functionDef
+	var allVars []varDef
+	var allStmts []mainStmt
+	var allTests []testCase
+	needsFmt := false
+	entryNS := displayNamespace(prog.Entry)
+
+	for _, mod := range prog.Modules {
+		ctx := copyCompileContext(shared)
+		ctx.constants = shared.constants
+		if mod.HasModuleHeader {
+			ctx.namespace = mod.Header.Namespace
+			if err := seedImports(&ctx, mod, byPath, moduleDefs); err != nil {
+				return compileResult{}, err
+			}
+		}
+
+		allowTopLevel := mod == prog.Entry
+		partial, defined, err := compileModuleBody(mod, &ctx, allowTopLevel)
+		if err != nil {
+			if mod.Path != "" {
+				return compileResult{}, fmt.Errorf("%s: %w", mod.Path, err)
+			}
+			return compileResult{}, err
+		}
+		if mod.HasModuleHeader {
+			if err := validateExports(mod, defined); err != nil {
+				return compileResult{}, fmt.Errorf("%s: %w", mod.Path, err)
+			}
+		}
+
+		defs := map[string]string{}
+		for name, goName := range defined {
+			defs[name] = goName
+		}
+		moduleDefs[mod.Path] = defs
+
+		for k, v := range ctx.functions {
+			shared.functions[k] = v
+		}
+		for k, v := range ctx.globals {
+			shared.globals[k] = v
+		}
+		for k, v := range ctx.macros {
+			shared.macros[k] = v
+		}
+
+		allFunctions = append(allFunctions, partial.functions...)
+		allVars = append(allVars, partial.vars...)
+		allStmts = append(allStmts, partial.stmts...)
+		allTests = append(allTests, partial.tests...)
+		needsFmt = needsFmt || partial.needsFmt
+	}
+
+	allVars = append(allVars, shared.constants.decls()...)
+	return compileResult{
+		namespace: entryNS,
+		functions: allFunctions,
+		vars:      allVars,
+		stmts:     allStmts,
+		tests:     allTests,
+		needsFmt:  needsFmt,
+	}, nil
+}
+
+func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string) error {
+	if !mod.HasModuleHeader {
+		return nil
+	}
+	usedPrefixes := map[string]string{} // prefix -> import path
+	for _, spec := range mod.Header.Imports {
+		resolved, err := resolveImportPath(mod.Path, spec.Path)
+		if err != nil {
+			return fmt.Errorf("import %q: %w", spec.Path, err)
+		}
+		provider, ok := byPath[resolved]
+		if !ok {
+			return fmt.Errorf("import %q: module not loaded", spec.Path)
+		}
+		if !provider.HasModuleHeader {
+			return fmt.Errorf("import %q: target %s has no module header", spec.Path, resolved)
+		}
+		prefix := spec.As
+		if prefix == "" {
+			prefix = provider.Header.Namespace
+		}
+		if prev, ok := usedPrefixes[prefix]; ok && prev != resolved {
+			return fmt.Errorf("import prefix %q already used by %s", prefix, prev)
+		}
+		usedPrefixes[prefix] = resolved
+
+		exports := moduleExportSet(provider)
+		defs := moduleDefs[resolved]
+		if defs == nil {
+			return fmt.Errorf("import %q: provider not compiled yet", spec.Path)
+		}
+
+		for exp := range exports {
+			goName, ok := defs[exp]
+			if !ok {
+				return fmt.Errorf("import %q: exported %q has no definition", spec.Path, exp)
+			}
+			qual := prefix + "/" + exp
+			if err := ctx.bindModuleName(qual, goName); err != nil {
+				return err
+			}
+		}
+		for _, ref := range spec.Refer {
+			if !exports[ref] {
+				return fmt.Errorf("import %q: cannot :refer %q (not in :exports)", spec.Path, ref)
+			}
+			goName, ok := defs[ref]
+			if !ok {
+				return fmt.Errorf("import %q: referred %q has no definition", spec.Path, ref)
+			}
+			if err := ctx.bindModuleName(ref, goName); err != nil {
+				return fmt.Errorf("import %q: :refer %q: %w", spec.Path, ref, err)
+			}
+		}
+	}
+	return nil
+}
+
+func validateExports(mod *Module, defined map[string]string) error {
+	if !mod.HasModuleHeader {
+		return nil
+	}
+	for _, name := range mod.Header.Exports {
+		if _, ok := defined[name]; !ok {
+			return fmt.Errorf("export %q is not defined in module %q", name, mod.Header.Namespace)
+		}
+	}
+	return nil
+}
+
+// compileModuleBody compiles the body forms of a module into ctx.
+// defined maps bare FLAG local names defined in this module to Go idents.
+func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, error) {
+	functions := make([]functionDef, 0, len(mod.Forms))
+	vars := make([]varDef, 0, len(mod.Forms))
+	stmts := make([]mainStmt, 0, len(mod.Forms))
+	tests := make([]testCase, 0, len(mod.Forms))
+	needsFmt := false
+	defined := map[string]string{}
+
+	for _, form := range mod.Forms {
 		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
 				name, def, err := compileDefmacro(list)
 				if err != nil {
-					return "", nil, nil, nil, nil, false, err
+					return compileResult{}, nil, err
 				}
 				ctx.macros[name] = def
 				continue
 			}
 		}
 
-		expanded, err := macroExpand(form, ctx, 0)
+		expanded, err := macroExpand(form, *ctx, 0)
 		if err != nil {
-			return "", nil, nil, nil, nil, false, err
+			return compileResult{}, nil, err
 		}
 
 		form = expanded
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
-			return "", nil, nil, nil, nil, false, fmt.Errorf("unsupported form")
+			return compileResult{}, nil, fmt.Errorf("unsupported form")
 		}
 
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok {
-			return "", nil, nil, nil, nil, false, fmt.Errorf("unsupported form")
+			return compileResult{}, nil, fmt.Errorf("unsupported form")
 		}
 
 		switch head.Name {
 		case "ns":
-			if namespace != "" {
-				return "", nil, nil, nil, nil, false, fmt.Errorf("namespace already declared")
-			}
-			if len(list.Elements) != 2 {
-				return "", nil, nil, nil, nil, false, fmt.Errorf("ns expects one namespace symbol")
-			}
-			name, ok := list.Elements[1].(SymbolExpr)
-			if !ok || name.Name == "" {
-				return "", nil, nil, nil, nil, false, fmt.Errorf("namespace cannot be empty")
-			}
-			namespace = name.Name
+			return compileResult{}, nil, exprError(list, "ns must be the first form (or use a module header map)")
 		case "defn", "defn-":
-			def, err := compileDefn(list, ctx)
+			def, err := compileDefn(list, *ctx)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return "", nil, nil, nil, nil, false, fmt.Errorf("function %q already defined", def.goName)
+				return compileResult{}, nil, fmt.Errorf("function %q already defined", def.goName)
+			}
+			if err := ctx.bindModuleName(def.flagName, def.goName); err != nil {
+				return compileResult{}, nil, err
 			}
 			ctx.functions[def.goName] = def
 			ctx.globals[def.goName] = exprKindValue
+			defined[def.flagName] = def.goName
 			functions = append(functions, def)
 			vars = append(vars, varDef{
-				goName: def.goName,
-				expr:   fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+				flagName: def.flagName,
+				goName:   def.goName,
+				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
 			})
 		case "deftest":
-			def, err := compileDeftest(list, ctx)
+			def, err := compileDeftest(list, *ctx)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return "", nil, nil, nil, nil, false, fmt.Errorf("test %q already defined", def.goName)
+				return compileResult{}, nil, fmt.Errorf("test %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
 			functions = append(functions, def)
-			testName := def.goName
+			testName := def.flagName
+			if testName == "" {
+				testName = def.goName
+			}
 			if len(list.Elements) > 1 {
 				if sym, ok := list.Elements[1].(SymbolExpr); ok && sym.Name != "" {
 					testName = sym.Name
@@ -716,45 +986,61 @@ func compileForms(source string) (string, []functionDef, []varDef, []mainStmt, [
 				bodySource: exprToSourceString(ListExpr{Elements: list.Elements[2:], Line: list.Line, Col: list.Col}),
 			})
 		case "def":
-			binding, kind, err := compileDef(list, ctx)
+			binding, kind, err := compileDef(list, *ctx)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
+			}
+			if err := ctx.bindModuleName(binding.flagName, binding.goName); err != nil {
+				return compileResult{}, nil, err
 			}
 			ctx.globals[binding.goName] = kind
+			defined[binding.flagName] = binding.goName
 			vars = append(vars, binding)
 		case "defmacro":
 			name, def, err := compileDefmacro(list)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			ctx.macros[name] = def
 		case "println":
+			if !allowTopLevel {
+				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+			}
 			needsFmt = true
-			arg, err := strArgExprForGoCall(list.Elements[1:], ctx, nil)
+			arg, err := strArgExprForGoCall(list.Elements[1:], *ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Println(%s)", arg)})
 		case "print":
+			if !allowTopLevel {
+				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+			}
 			needsFmt = true
-			arg, err := argumentExprForGoCall(list.Elements[1:], ctx, nil)
+			arg, err := argumentExprForGoCall(list.Elements[1:], *ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Print(%s)", arg)})
 		default:
-			expr, err := exprToGo(form, ctx, nil)
+			if !allowTopLevel {
+				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+			}
+			expr, err := exprToGo(form, *ctx, nil)
 			if err != nil {
-				return "", nil, nil, nil, nil, false, err
+				return compileResult{}, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("_ = %s", expr.code)})
 		}
 	}
 
-	// Emit one package-level var per distinct keyword literal, constructed once.
-	vars = append(vars, ctx.constants.decls()...)
-
-	return namespace, functions, vars, stmts, tests, needsFmt, nil
+	return compileResult{
+		functions: functions,
+		vars:      vars,
+		stmts:     stmts,
+		tests:     tests,
+		needsFmt:  needsFmt,
+	}, defined, nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -776,7 +1062,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		bodyStartIndex = 4
 	}
 
-	goName, err := toGoIdentifier(nameExpr.Name)
+	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -793,26 +1079,16 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
 	}
 
-	fnCtx := compileContext{
-		functions:         make(map[string]functionDef, len(ctx.functions)+1),
-		globals:           make(map[string]exprKind, len(ctx.globals)+1),
-		macros:            ctx.macros,
-		constants:         ctx.constants,
-		selfFunctionName:  goName,
-		selfFunctionArity: len(params),
-		selfArityName:     fmt.Sprintf("%s_arity_%d", goName, len(params)),
-	}
+	fnCtx := copyCompileContext(ctx)
+	fnCtx.selfFunctionName = nameExpr.Name
+	fnCtx.selfFunctionArity = len(params)
+	fnCtx.selfArityName = fmt.Sprintf("%s_arity_%d", goName, len(params))
 	if hasRest {
 		fnCtx.selfArityName = goName + "_variadic"
 	}
-	for name, kind := range ctx.globals {
-		fnCtx.globals[name] = kind
-	}
 	fnCtx.globals[goName] = exprKindValue
-	for name, def := range ctx.functions {
-		fnCtx.functions[name] = def
-	}
 	fnCtx.functions[goName] = functionDef{
+		flagName:     nameExpr.Name,
 		goName:       goName,
 		variadicName: goName + "_variadic",
 		arityName:    fnCtx.selfArityName,
@@ -820,6 +1096,8 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		doc:          doc,
 		params:       params,
 	}
+	// Allow recursive bare / qualified references inside the body.
+	_ = fnCtx.bindModuleName(nameExpr.Name, goName)
 
 	bodyExprs := form.Elements[bodyStartIndex:]
 	body, err := doExprToGo(bodyExprs, fnCtx, localSymbols)
@@ -833,6 +1111,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	}
 
 	return functionDef{
+		flagName:     nameExpr.Name,
 		goName:       goName,
 		variadicName: goName + "_variadic",
 		arityName:    fnCtx.selfArityName,
@@ -874,7 +1153,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 		doc = docExpr.Value
 		valueIndex = 3
 	}
-	goName, err := toGoIdentifier(nameExpr.Name)
+	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
 	if err != nil {
 		return varDef{}, 0, false, err
 	}
@@ -889,7 +1168,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 	}
 
 	_, exists := ctx.globals[goName]
-	return varDef{goName: goName, doc: doc, expr: valueExpr.code}, valueExpr.kind, !exists, nil
+	return varDef{flagName: nameExpr.Name, goName: goName, doc: doc, expr: valueExpr.code}, valueExpr.kind, !exists, nil
 }
 
 func compileDefmacro(form ListExpr) (string, macroDef, error) {
@@ -956,7 +1235,7 @@ func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, fmt.Errorf("deftest expects a test name")
 	}
 
-	goName, err := toGoIdentifier(nameExpr.Name)
+	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -967,6 +1246,7 @@ func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 	}
 
 	return functionDef{
+		flagName:     nameExpr.Name,
 		goName:       goName,
 		variadicName: goName + "_variadic",
 		arityName:    goName,
@@ -1595,9 +1875,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		if arg.Name == "nil" {
 			return goExpr{code: fmt.Sprintf("%s.NilValue()", runtimeAlias), kind: exprKindValue}, nil
 		}
-		ident, err := toGoIdentifier(arg.Name)
-		if err == nil {
-			if locals != nil {
+		// Locals are always bare (params/let); never qualified.
+		if !strings.Contains(arg.Name, "/") {
+			if ident, err := toGoIdentifier(arg.Name); err == nil && locals != nil {
 				if kind, ok := locals[ident]; ok {
 					if kind == exprKindMutableValue {
 						return goExpr{code: ident, kind: exprKindValue}, nil
@@ -1605,6 +1885,19 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 					return goExpr{code: ident, kind: kind}, nil
 				}
 			}
+		}
+		// Module table: bare locals, :refer names, and qualified imports.
+		if goIdent, ok := ctx.resolveModuleSymbol(arg.Name); ok {
+			if kind, ok := ctx.globals[goIdent]; ok {
+				return goExpr{code: goIdent, kind: kind}, nil
+			}
+			if _, ok := ctx.functions[goIdent]; ok {
+				return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, goIdent), kind: exprKindValue}, nil
+			}
+			return goExpr{code: goIdent, kind: exprKindValue}, nil
+		}
+		ident, err := toGoIdentifier(arg.Name)
+		if err == nil {
 			if kind, ok := ctx.globals[ident]; ok {
 				return goExpr{code: ident, kind: kind}, nil
 			}
@@ -1622,7 +1915,7 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 			return goExpr{code: fmt.Sprintf("%s.%s", runtimeAlias, bind), kind: exprKindValue}, nil
 		}
 		if strings.Contains(arg.Name, "/") {
-			return goExpr{}, exprError(arg, fmt.Sprintf("unknown go function %q", arg.Name))
+			return goExpr{}, exprError(arg, fmt.Sprintf("unknown symbol %q", arg.Name))
 		}
 		if err != nil {
 			return goExpr{}, err

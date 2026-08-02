@@ -1214,7 +1214,7 @@ func TestCompileUnknownGoFunctionIsCompileError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a compile error for an unknown go function, got nil")
 	}
-	if !strings.Contains(err.Error(), `unknown go function "str/trmi"`) {
+	if !strings.Contains(err.Error(), `unknown symbol "str/trmi"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

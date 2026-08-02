@@ -140,6 +140,66 @@ func TestRunBuildExampleProjectDirectory(t *testing.T) {
 	}
 }
 
+func TestRunBuildExampleModules(t *testing.T) {
+	// Multi-file module graph: math -> greeter -> main (qualified, :as, :refer).
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "modules"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	entry := filepath.Join(exampleDir, "main.flag")
+	outputPath := filepath.Join(t.TempDir(), "modules-bin")
+
+	// Remove any inspection .go artifacts so this directory is never a Go package.
+	cleanupModulesGo := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "modules.go"))
+	}
+	cleanupModulesGo()
+	t.Cleanup(cleanupModulesGo)
+
+	if err := run([]string{"build", entry, "-o", outputPath}); err != nil {
+		t.Fatalf("build modules entry: %v", err)
+	}
+
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("modules binary failed: %v\n%s", err, string(result))
+	}
+	want := "5\nHello, world x2 = 10\nHI FLAG"
+	if strings.TrimSpace(string(result)) != want {
+		t.Fatalf("unexpected modules output:\n got: %q\nwant: %q", result, want)
+	}
+}
+
+func TestRunBuildExampleModulesDirectory(t *testing.T) {
+	// Directory build should pick up main.flag as the modular entry.
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "modules"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	outputPath := filepath.Join(t.TempDir(), "modules-dir-bin")
+
+	cleanupModulesGo := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "modules.go"))
+	}
+	cleanupModulesGo()
+	t.Cleanup(cleanupModulesGo)
+
+	if err := run([]string{"build", exampleDir, "-o", outputPath}); err != nil {
+		t.Fatalf("build modules directory: %v", err)
+	}
+
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("modules directory binary failed: %v\n%s", err, string(result))
+	}
+	want := "5\nHello, world x2 = 10\nHI FLAG"
+	if strings.TrimSpace(string(result)) != want {
+		t.Fatalf("unexpected modules directory output:\n got: %q\nwant: %q", result, want)
+	}
+}
+
 func TestRunTestRunsAssociatedTests(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "math.flag")
