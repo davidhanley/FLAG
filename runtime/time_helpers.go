@@ -2,6 +2,20 @@ package runtime
 
 import "time"
 
+// Sleep pauses the current goroutine for the given number of milliseconds
+// (truncated toward zero if a float is passed). Returns nil.
+func Sleep(ms Value) Value {
+	if !isNumericTag(ms.tag) {
+		panic("sleep expects milliseconds as a number")
+	}
+	n := ms.Long()
+	if n < 0 {
+		panic("sleep expects non-negative milliseconds")
+	}
+	time.Sleep(time.Duration(n) * time.Millisecond)
+	return NilValue()
+}
+
 func TimeNow() Value {
 	return NewDate(time.Now().UTC())
 }

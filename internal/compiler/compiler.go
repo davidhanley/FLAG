@@ -225,7 +225,7 @@ func copyCompileContext(ctx compileContext) compileContext {
 	out := compileContext{
 		functions:         make(map[string]functionDef, len(ctx.functions)),
 		globals:           make(map[string]exprKind, len(ctx.globals)),
-		macros:            ctx.macros,
+		macros:            make(map[string]macroDef, len(ctx.macros)),
 		constants:         ctx.constants,
 		namespace:         ctx.namespace,
 		selfFunctionName:  ctx.selfFunctionName,
@@ -237,6 +237,9 @@ func copyCompileContext(ctx compileContext) compileContext {
 	}
 	for k, v := range ctx.globals {
 		out.globals[k] = v
+	}
+	for k, v := range ctx.macros {
+		out.macros[k] = v
 	}
 	if ctx.moduleSymbols != nil {
 		out.moduleSymbols = make(map[string]string, len(ctx.moduleSymbols))
@@ -753,12 +756,12 @@ func compileSource(source, path string) (compileResult, error) {
 		ctx.namespace = mod.Header.Namespace
 	}
 
-	result, defined, err := compileModuleBody(mod, &ctx, true)
+	result, defined, definedMacros, err := compileModuleBody(mod, &ctx, true)
 	if err != nil {
 		return compileResult{}, err
 	}
 	if mod.HasModuleHeader {
-		if err := validateExports(mod, defined); err != nil {
+		if err := validateExports(mod, defined, definedMacros); err != nil {
 			return compileResult{}, err
 		}
 		result.namespace = mod.Header.Namespace
@@ -788,8 +791,10 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	}
 	shared.constants = newConstantInterner()
 
-	// path -> bare local name -> go ident for all defs in that module
+	// path -> bare local name -> go ident for all function/var defs in that module
 	moduleDefs := map[string]map[string]string{}
+	// path -> exported macros defined in that module
+	moduleMacros := map[string]map[string]macroDef{}
 	byPath := prog.byPath
 
 	var allFunctions []functionDef
@@ -804,13 +809,13 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 		ctx.constants = shared.constants
 		if mod.HasModuleHeader {
 			ctx.namespace = mod.Header.Namespace
-			if err := seedImports(&ctx, mod, byPath, moduleDefs); err != nil {
+			if err := seedImports(&ctx, mod, byPath, moduleDefs, moduleMacros); err != nil {
 				return compileResult{}, err
 			}
 		}
 
 		allowTopLevel := mod == prog.Entry
-		partial, defined, err := compileModuleBody(mod, &ctx, allowTopLevel)
+		partial, defined, definedMacros, err := compileModuleBody(mod, &ctx, allowTopLevel)
 		if err != nil {
 			if mod.Path != "" {
 				return compileResult{}, fmt.Errorf("%s: %w", mod.Path, err)
@@ -818,7 +823,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 			return compileResult{}, err
 		}
 		if mod.HasModuleHeader {
-			if err := validateExports(mod, defined); err != nil {
+			if err := validateExports(mod, defined, definedMacros); err != nil {
 				return compileResult{}, fmt.Errorf("%s: %w", mod.Path, err)
 			}
 		}
@@ -828,15 +833,15 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 			defs[name] = goName
 		}
 		moduleDefs[mod.Path] = defs
+		moduleMacros[mod.Path] = definedMacros
 
+		// Functions/globals accumulate for cross-module Go linkage; macros do not
+		// leak into shared — only seedImports installs them for importers.
 		for k, v := range ctx.functions {
 			shared.functions[k] = v
 		}
 		for k, v := range ctx.globals {
 			shared.globals[k] = v
-		}
-		for k, v := range ctx.macros {
-			shared.macros[k] = v
 		}
 
 		allFunctions = append(allFunctions, partial.functions...)
@@ -857,7 +862,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	}, nil
 }
 
-func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string) error {
+func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]macroDef) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
@@ -888,54 +893,102 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 		if defs == nil {
 			return fmt.Errorf("import %q: provider not compiled yet", spec.Path)
 		}
+		macros := moduleMacros[resolved]
+		if macros == nil {
+			macros = map[string]macroDef{}
+		}
 
 		for exp := range exports {
-			goName, ok := defs[exp]
-			if !ok {
-				return fmt.Errorf("import %q: exported %q has no definition", spec.Path, exp)
+			if goName, ok := defs[exp]; ok {
+				qual := prefix + "/" + exp
+				if err := ctx.bindModuleName(qual, goName); err != nil {
+					return err
+				}
+				continue
 			}
-			qual := prefix + "/" + exp
-			if err := ctx.bindModuleName(qual, goName); err != nil {
-				return err
+			if mac, ok := macros[exp]; ok {
+				// Qualified macro name so expansions can use async/go without :refer.
+				ctx.macros[prefix+"/"+exp] = mac
+				continue
 			}
+			return fmt.Errorf("import %q: exported %q has no definition", spec.Path, exp)
 		}
 		for _, ref := range spec.Refer {
 			if !exports[ref] {
 				return fmt.Errorf("import %q: cannot :refer %q (not in :exports)", spec.Path, ref)
 			}
-			goName, ok := defs[ref]
-			if !ok {
-				return fmt.Errorf("import %q: referred %q has no definition", spec.Path, ref)
+			if goName, ok := defs[ref]; ok {
+				if err := ctx.bindModuleName(ref, goName); err != nil {
+					return fmt.Errorf("import %q: :refer %q: %w", spec.Path, ref, err)
+				}
+				continue
 			}
-			if err := ctx.bindModuleName(ref, goName); err != nil {
-				return fmt.Errorf("import %q: :refer %q: %w", spec.Path, ref, err)
+			if mac, ok := macros[ref]; ok {
+				// :refer installs bare macro name; ok to overwrite same-name macro.
+				ctx.macros[ref] = mac
+				continue
 			}
+			return fmt.Errorf("import %q: referred %q has no definition", spec.Path, ref)
 		}
 	}
 	return nil
 }
 
-func validateExports(mod *Module, defined map[string]string) error {
+func validateExports(mod *Module, defined map[string]string, definedMacros map[string]macroDef) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
 	for _, name := range mod.Header.Exports {
-		if _, ok := defined[name]; !ok {
-			return fmt.Errorf("export %q is not defined in module %q", name, mod.Header.Namespace)
+		if _, ok := defined[name]; ok {
+			continue
 		}
+		if _, ok := definedMacros[name]; ok {
+			continue
+		}
+		return fmt.Errorf("export %q is not defined in module %q", name, mod.Header.Namespace)
 	}
 	return nil
 }
 
 // compileModuleBody compiles the body forms of a module into ctx.
 // defined maps bare FLAG local names defined in this module to Go idents.
-func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, error) {
+// definedMacros maps macro names defined in this module.
+func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, map[string]macroDef, error) {
 	functions := make([]functionDef, 0, len(mod.Forms))
 	vars := make([]varDef, 0, len(mod.Forms))
 	stmts := make([]mainStmt, 0, len(mod.Forms))
 	tests := make([]testCase, 0, len(mod.Forms))
 	needsFmt := false
 	defined := map[string]string{}
+	definedMacros := map[string]macroDef{}
+
+	// Native library re-exports (:go-exports) become package-level vars bound to
+	// generated flagrt.GoBind_* adapters.
+	if mod.HasModuleHeader {
+		for localName, hostKey := range mod.Header.GoExports {
+			rtIdent, ok := libraryGoBinds[hostKey]
+			if !ok {
+				return compileResult{}, nil, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
+			}
+			goName, err := moduleGoIdent(ctx.namespace, localName)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			if _, exists := ctx.globals[goName]; exists {
+				return compileResult{}, nil, nil, fmt.Errorf("symbol %q already defined", localName)
+			}
+			if err := ctx.bindModuleName(localName, goName); err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			ctx.globals[goName] = exprKindValue
+			defined[localName] = goName
+			vars = append(vars, varDef{
+				flagName: localName,
+				goName:   goName,
+				expr:     fmt.Sprintf("%s.%s", runtimeAlias, rtIdent),
+			})
+		}
+	}
 
 	// Native library re-exports (:go-exports) become package-level vars bound to
 	// generated flagrt.GoBind_* adapters.
@@ -970,44 +1023,45 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
 				name, def, err := compileDefmacro(list)
 				if err != nil {
-					return compileResult{}, nil, err
+					return compileResult{}, nil, nil, err
 				}
 				ctx.macros[name] = def
+				definedMacros[name] = def
 				continue
 			}
 		}
 
 		expanded, err := macroExpand(form, *ctx, 0)
 		if err != nil {
-			return compileResult{}, nil, err
+			return compileResult{}, nil, nil, err
 		}
 
 		form = expanded
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
-			return compileResult{}, nil, fmt.Errorf("unsupported form")
+			return compileResult{}, nil, nil, fmt.Errorf("unsupported form")
 		}
 
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok {
-			return compileResult{}, nil, fmt.Errorf("unsupported form")
+			return compileResult{}, nil, nil, fmt.Errorf("unsupported form")
 		}
 
 		switch head.Name {
 		case "ns":
-			return compileResult{}, nil, exprError(list, "ns must be the first form (or use a module header map)")
+			return compileResult{}, nil, nil, exprError(list, "ns must be the first form (or use a module header map)")
 		case "defn-":
-			return compileResult{}, nil, exprError(list, "defn- is not supported; list public names in the module :exports instead")
+			return compileResult{}, nil, nil, exprError(list, "defn- is not supported; list public names in the module :exports instead")
 		case "defn":
 			def, err := compileDefn(list, *ctx)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return compileResult{}, nil, fmt.Errorf("function %q already defined", def.goName)
+				return compileResult{}, nil, nil, fmt.Errorf("function %q already defined", def.goName)
 			}
 			if err := ctx.bindModuleName(def.flagName, def.goName); err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			ctx.functions[def.goName] = def
 			ctx.globals[def.goName] = exprKindValue
@@ -1021,10 +1075,10 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		case "deftest":
 			def, err := compileDeftest(list, *ctx)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			if _, exists := ctx.functions[def.goName]; exists {
-				return compileResult{}, nil, fmt.Errorf("test %q already defined", def.goName)
+				return compileResult{}, nil, nil, fmt.Errorf("test %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
 			functions = append(functions, def)
@@ -1046,10 +1100,10 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		case "def":
 			binding, kind, err := compileDef(list, *ctx)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			if err := ctx.bindModuleName(binding.flagName, binding.goName); err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			ctx.globals[binding.goName] = kind
 			defined[binding.flagName] = binding.goName
@@ -1057,36 +1111,37 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		case "defmacro":
 			name, def, err := compileDefmacro(list)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			ctx.macros[name] = def
+			definedMacros[name] = def
 		case "println":
 			if !allowTopLevel {
-				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
 			}
 			needsFmt = true
 			arg, err := strArgExprForGoCall(list.Elements[1:], *ctx, nil)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Println(%s)", arg)})
 		case "print":
 			if !allowTopLevel {
-				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
 			}
 			needsFmt = true
 			arg, err := argumentExprForGoCall(list.Elements[1:], *ctx, nil)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Print(%s)", arg)})
 		default:
 			if !allowTopLevel {
-				return compileResult{}, nil, exprError(list, "top-level expressions are only allowed in the entry module")
+				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
 			}
 			expr, err := exprToGo(form, *ctx, nil)
 			if err != nil {
-				return compileResult{}, nil, err
+				return compileResult{}, nil, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("_ = %s", expr.code)})
 		}
@@ -1098,7 +1153,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		stmts:     stmts,
 		tests:     tests,
 		needsFmt:  needsFmt,
-	}, defined, nil
+	}, defined, definedMacros, nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -2539,6 +2594,56 @@ func comparisonExprToGo(args []Expr, runtimeOp, operator string, ctx compileCont
 		checks = append(checks, fmt.Sprintf("%s(%s, %s)", runtimeOp, parts[i], parts[i+1]))
 	}
 	return goExpr{code: strings.Join(checks, " && "), kind: exprKindBool}, nil
+}
+
+// goFormExprToGo lowers (go body...) to a goroutine that evaluates body for
+// side effects and returns nil immediately to the caller.
+func goFormExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) == 0 {
+		return goExpr{}, fmt.Errorf("go expects at least one body expression")
+	}
+	body, err := doExprToGo(args, ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	body, err = coerceExprToValue(body, args[len(args)-1], "go body", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	// IIFE so the form is an expression; go launches async work and returns nil.
+	code := fmt.Sprintf(
+		"func() %s.Value {\n"+
+			"\tgo func() {\n"+
+			"\t\tdefer func() {\n"+
+			"\t\t\tif r := recover(); r != nil {\n"+
+			"\t\t\t\t%s.ReportGoPanic(r)\n"+
+			"\t\t\t}\n"+
+			"\t\t}()\n"+
+			"\t\t_ = %s\n"+
+			"\t}()\n"+
+			"\treturn %s.NilValue()\n"+
+			"}()",
+		runtimeAlias, runtimeAlias, body.code, runtimeAlias,
+	)
+	return goExpr{code: code, kind: exprKindValue}, nil
+}
+
+// futureFormExprToGo lowers (future body...) to NewFuture(func() Value { body }).
+// The result is a zero-arg function: call it to block for the value.
+func futureFormExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) == 0 {
+		return goExpr{}, fmt.Errorf("future expects at least one body expression")
+	}
+	body, err := doExprToGo(args, ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	body, err = coerceExprToValue(body, args[len(args)-1], "future body", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	code := fmt.Sprintf("%s.NewFuture(func() %s.Value { return %s })", runtimeAlias, runtimeAlias, body.code)
+	return goExpr{code: code, kind: exprKindValue}, nil
 }
 
 func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4579,6 +4684,77 @@ func randIntExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 		return goExpr{}, fmt.Errorf("rand-int expects an argument that evaluates to Value")
 	}
 	return goExpr{code: fmt.Sprintf("%s.RandInt(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func sleepExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("sleep expects exactly one argument (milliseconds)")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	arg, err = coerceExprToValue(arg, args[0], "sleep argument", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("%s.Sleep(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func makeChannelExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) > 1 {
+		return goExpr{}, fmt.Errorf("make-channel expects 0 or 1 arguments")
+	}
+	if len(args) == 0 {
+		return goExpr{code: fmt.Sprintf("%s.MakeChannel()", runtimeAlias), kind: exprKindValue}, nil
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	arg, err = coerceExprToValue(arg, args[0], "make-channel capacity", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("%s.MakeChannel(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
+}
+
+func channelSendExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("channel-send expects channel and value")
+	}
+	ch, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	ch, err = coerceExprToValue(ch, args[0], "channel-send channel", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	val, err := exprToGo(args[1], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	val, err = coerceExprToValue(val, args[1], "channel-send value", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("%s.ChannelSend(%s, %s)", runtimeAlias, ch.code, val.code), kind: exprKindValue}, nil
+}
+
+func channelReceiveExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("channel-receive expects a channel")
+	}
+	ch, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	ch, err = coerceExprToValue(ch, args[0], "channel-receive channel", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("%s.ChannelReceive(%s)", runtimeAlias, ch.code), kind: exprKindValue}, nil
 }
 
 func fnExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

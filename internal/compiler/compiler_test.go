@@ -129,6 +129,16 @@ func TestCompileMainDefnBecomesProgramEntryPoint(t *testing.T) {
 	}
 }
 
+func TestCompileGoWithoutAsyncImportFails(t *testing.T) {
+	_, err := Compile(`
+{:namespace "x"}
+(go (println "nope"))
+`)
+	if err == nil {
+		t.Fatal("expected unknown symbol without async import")
+	}
+}
+
 func TestCompileModuleMainIsProgramEntryPoint(t *testing.T) {
 	output, err := Compile(`
 {:namespace "app"}

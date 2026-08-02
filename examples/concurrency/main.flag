@@ -1,0 +1,55 @@
+{:namespace "concurrency"
+ :imports   [["async.lib" :refer [go future sleep
+                                  make-channel channel-send channel-receive
+                                  select]]]}
+
+;; Demo of the async package (import with :refer).
+;;   go / future  — macros
+;;   sleep, channels — functions
+
+(defn fib
+  [n]
+  (if (< n 3)
+    1
+    (+ (fib (- n 1)) (fib (- n 2)))))
+
+(defn main
+  [& _args]
+  (println "main: start")
+
+  (go (do
+        (println "go: computing fib(28)...")
+        (let [n (fib 28)]
+          (println (str "go: fib(28) = " n)))))
+
+  (go (do
+        (sleep 50)
+        (println "go: later task done")))
+
+  (let [f (future (do
+                    (println "future: computing fib(20)...")
+                    (fib 20)))]
+    (println "main: future started (not waiting yet)")
+    (println (str "main: future result = " (f)))
+    (println (str "main: future again = " (f))))
+
+  (let [ch (make-channel)]
+    (go (do
+          (println "channel: sending 7")
+          (channel-send ch 7)))
+    (println (str "channel: received " (channel-receive ch))))
+
+  (let [a (make-channel 1)
+        b (make-channel 1)
+        empty (make-channel 1)
+        ^{:volatile true} sum 0]
+    (channel-send a 10)
+    (channel-send b 20)
+    (let [n (select a (fn [v] (update! sum (+ sum v)))
+                    empty (fn [v] (update! sum (+ sum v)))
+                    b (fn [v] (update! sum (+ sum v))))]
+      (println (str "select: processed " n " channels, sum = " sum))))
+
+  (println "main: kicked off work")
+  (sleep 500)
+  (println "main: end"))

@@ -1,0 +1,28 @@
+;; Concurrency package: import and :refer what you need.
+;;
+;;   {:imports [["async.lib" :refer [go future sleep
+;;                                    make-channel channel-send channel-receive
+;;                                    select]]]}
+;;
+;; go / future are macros that expand to go-run / future-run (also exported
+;; under async/… for the expansion). sleep, channels, and select are functions.
+{:namespace "async"
+ :exports   [go future go-run future-run
+             sleep make-channel channel-send channel-receive select]
+ :go-exports {go-run          "async/go-run"
+              future-run      "async/future-run"
+              sleep           "async/sleep"
+              make-channel    "async/make-channel"
+              channel-send    "async/channel-send"
+              channel-receive "async/channel-receive"
+              select          "async/select"}}
+
+(defmacro go
+  "Evaluate body on a new goroutine; return nil immediately."
+  [& body]
+  (async/go-run (fn [] (do body))))
+
+(defmacro future
+  "Evaluate body on a new goroutine; return a 0-arg fn that blocks for the result."
+  [& body]
+  (async/future-run (fn [] (do body))))

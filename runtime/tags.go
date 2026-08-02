@@ -19,4 +19,5 @@ const (
 	TagList
 	TagArray
 	TagLazyList
+	TagChannel
 )

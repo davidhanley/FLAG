@@ -1,0 +1,12 @@
+;; FLAG surface for the pure Go package libraries/csv.
+;; Adapters: runtime/csv_bind.go  Policy: docs/go-libraries.md
+;;
+;; (csv/read-csv-path path)
+;; (csv/read-csv-path path {:fields-per-record -1 :lazy-quotes true})
+;; (csv/read-csv rdr)   ; path string, open file/reader, or line seq
+{:namespace "csv"
+ :exports   [read-csv read-csv-path read-csv-reader read-csv-lines]
+ :go-exports {read-csv        "csv/read-csv"
+              read-csv-path   "csv/read-csv-path"
+              read-csv-reader "csv/read-csv-reader"
+              read-csv-lines  "csv/read-csv-lines"}}

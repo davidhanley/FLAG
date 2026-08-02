@@ -140,6 +140,100 @@ func TestRunBuildExampleProjectDirectory(t *testing.T) {
 	}
 }
 
+func TestRunBuildGoFormRunsAsync(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "async.flag")
+	outputPath := filepath.Join(dir, "async-bin")
+	// Requires libraries/async.lib on the search path (repo root / go.mod walk).
+	source := `
+{:namespace "demo"
+ :imports [["async.lib" :refer [go sleep]]]}
+(go (do (sleep 30) (println "from-go")))
+(println "from-main")
+(sleep 100)
+`
+	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("run: %v\n%s", err, result)
+	}
+	out := string(result)
+	if !strings.Contains(out, "from-main") {
+		t.Fatalf("expected from-main in output:\n%s", out)
+	}
+	if !strings.Contains(out, "from-go") {
+		t.Fatalf("expected from-go in output:\n%s", out)
+	}
+}
+
+// Acceptance: examples/concurrency FLAG tests (sleep, go, fib) via `flag-lang test`.
+func TestAcceptanceConcurrencyFlagTests(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "concurrency"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "concurrency.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", exampleDir}); err != nil {
+		t.Fatalf("flag-lang test examples/concurrency: %v", err)
+	}
+}
+
+// Acceptance: build and run the concurrency demo binary.
+func TestAcceptanceConcurrencyDemo(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "concurrency"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	entry := filepath.Join(exampleDir, "main.flag")
+	outputPath := filepath.Join(t.TempDir(), "concurrency-bin")
+
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "concurrency.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"build", entry, "-o", outputPath}); err != nil {
+		t.Fatalf("build concurrency example: %v", err)
+	}
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("concurrency binary failed: %v\n%s", err, result)
+	}
+	out := string(result)
+	for _, want := range []string{
+		"main: start",
+		"go: computing fib(28)...",
+		"go: fib(28) = 317811",
+		"go: later task done",
+		"future: computing fib(20)...",
+		"main: future started (not waiting yet)",
+		"main: future result = 6765",
+		"main: future again = 6765",
+		"channel: sending 7",
+		"channel: received 7",
+		"select: processed 2 channels, sum = 30",
+		"main: kicked off work",
+		"main: end",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
 func TestRunBuildExampleModules(t *testing.T) {
 	// Multi-file module graph: math -> greeter -> main (qualified, :as, :refer).
 	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "modules"))
