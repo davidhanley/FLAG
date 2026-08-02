@@ -460,11 +460,21 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 	if len(tests) > 0 {
 		needsFmt = true
 	}
+	// Program entry: prefer flag_main, then main (common Clojure/Go style).
+	// Match on FLAG names so module-mangled go names (e.g. c_frs_core__main) work.
 	var entryFunction *functionDef
 	for i := range functions {
-		if functions[i].flagName == "flag_main" || functions[i].goName == "flag_main" {
+		if functions[i].flagName == "flag_main" {
 			entryFunction = &functions[i]
 			break
+		}
+	}
+	if entryFunction == nil {
+		for i := range functions {
+			if functions[i].flagName == "main" || functions[i].goName == "flag_main" || functions[i].goName == "main" {
+				entryFunction = &functions[i]
+				break
+			}
 		}
 	}
 
