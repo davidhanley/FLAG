@@ -331,6 +331,8 @@ func ValueToString(v Value) string {
 		return dateString(v)
 	case TagFile:
 		return "#<file " + v.FileObject().Path + ">"
+	case TagChannel:
+		return "#<channel>"
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {

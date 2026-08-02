@@ -52,6 +52,8 @@ func valueIdentity(v Value) string {
 		return "D:" + v.DateTime().UTC().Format("2006-01-02")
 	case TagFile:
 		return "H:" + v.FileObject().Path + ":" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FileObject()))), 16)
+	case TagChannel:
+		return "C:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.ChannelObject()))), 16)
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {

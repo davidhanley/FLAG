@@ -1,0 +1,80 @@
+{:namespace "concurrency-test"}
+
+;; Tests run in the entry module (same-module), so they see async :refer bindings
+;; from main.flag's imports after CompileProgramWithTests appends these forms.
+
+(deftest go-returns-nil-immediately
+  (testing "go returns nil without waiting for the body"
+    (is (= nil (go (sleep 2000))))))
+
+(deftest go-runs-body-asynchronously
+  (testing "go body executes on another goroutine"
+    (let [^{:volatile true} done false]
+      (go (do (sleep 10) (update! done true)))
+      (is (= false done) "go body update should not have run yet")
+      (sleep 50)
+      (is (= true done) "go body update should have set done"))))
+
+(deftest go-body-can-compute
+  (testing "go body can call fib and store the result"
+    (let [^{:volatile true} result 0]
+      (go (update! result (fib 10)))
+      (sleep 100)
+      (is (= 55 result)))))
+
+(deftest future-returns-callable
+  (testing "future result is obtained by calling the returned function"
+    (let [f (future (+ 20 22))]
+      (is (= 42 (f)))
+      (is (= 42 (f)) "second call returns cached result"))))
+
+(deftest future-blocks-until-ready
+  (testing "calling the future waits for a slow body"
+    (let [f (future (do (sleep 30) 99))]
+      (is (= 99 (f))))))
+
+(deftest future-runs-asynchronously
+  (testing "future starts work without blocking the creator"
+    (let [^{:volatile true} done false
+          f (future (do (sleep 30) (update! done true) 7))]
+      (is (= false done) "body should not have finished yet")
+      (is (= 7 (f)) "call blocks until result is ready")
+      (is (= true done)))))
+
+(deftest channel-send-receive
+  (testing "unbuffered channel round-trip via go"
+    (let [ch (make-channel)]
+      (go (channel-send ch 42))
+      (is (= 42 (channel-receive ch))))))
+
+(deftest channel-buffered
+  (testing "buffered channel send does not need a waiting receiver"
+    (let [ch (make-channel 1)]
+      (channel-send ch "ok")
+      (is (= "ok" (channel-receive ch))))))
+
+(deftest channel-with-future
+  (testing "producer future and receive in main"
+    (let [ch (make-channel)
+          _ (future (channel-send ch (fib 10)))]
+      (is (= 55 (channel-receive ch))))))
+
+(deftest select-processes-ready-channels
+  (testing "select calls handlers for ready channels only and returns count"
+    (let [a (make-channel 1)
+          b (make-channel 1)
+          empty (make-channel 1)
+          ^{:volatile true} seen []]
+      (channel-send a 1)
+      (channel-send b 2)
+      (let [n (select a (fn [v] (update! seen (conj seen v)))
+                      empty (fn [v] (update! seen (conj seen v)))
+                      b (fn [v] (update! seen (conj seen v))))]
+        (is (= 2 n))
+        (is (= [1 2] seen))))))
+
+(deftest select-returns-zero-when-none-ready
+  (testing "select does not block on empty channels"
+    (let [ch (make-channel 1)
+          n (select ch (fn [v] v))]
+      (is (= 0 n)))))

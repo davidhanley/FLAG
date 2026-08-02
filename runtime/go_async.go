@@ -1,0 +1,68 @@
+package runtime
+
+import (
+	"fmt"
+	"os"
+)
+
+// ReportGoPanic logs a panic that escaped a (go ...) / go-run body.
+func ReportGoPanic(r any) {
+	fmt.Fprintf(os.Stderr, "flag-lang: panic in (go): %v\n", r)
+}
+
+// GoRun runs a zero-argument FLAG function on a new goroutine and returns nil
+// immediately. Used by the async/go macro: (async/go-run (fn [] body...)).
+func GoRun(fn Value) Value {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ReportGoPanic(r)
+			}
+		}()
+		_ = Call(fn)
+	}()
+	return NilValue()
+}
+
+// NewFuture runs compute on a new goroutine and returns a zero-argument FLAG
+// function. Calling that function blocks until the body finishes, then returns
+// its value (or re-panics). Further calls return the same cached result without
+// blocking. Signaling uses a closed done channel.
+func NewFuture(compute func() Value) Value {
+	if compute == nil {
+		panic("NewFuture expects non-nil function")
+	}
+	done := make(chan struct{})
+	var (
+		result   Value
+		panicVal any
+	)
+	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				panicVal = r
+			}
+		}()
+		result = compute()
+	}()
+
+	return NewFunction(func(args ...Value) Value {
+		if len(args) != 0 {
+			panic("future result expects 0 arguments")
+		}
+		<-done
+		if panicVal != nil {
+			panic(panicVal)
+		}
+		return result
+	})
+}
+
+// FutureRun is the FLAG-callable form of NewFuture: takes a zero-arg function.
+// Used by the async/future macro: (async/future-run (fn [] body...)).
+func FutureRun(fn Value) Value {
+	return NewFuture(func() Value {
+		return Call(fn)
+	})
+}

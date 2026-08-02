@@ -1,0 +1,6 @@
+{:namespace "burp"
+ :exports   [html html5 escape raw]
+ :go-exports {html   "burp/html"
+              html5  "burp/html5"
+              escape "burp/escape"
+              raw    "burp/raw"}}
