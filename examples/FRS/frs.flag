@@ -1,4 +1,4 @@
-{:namespace "c-frs.core"
+{:namespace "frs"
  :imports   ["csv.lib" "burp.lib"]}
 
 (def fractions
