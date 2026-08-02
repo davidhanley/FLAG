@@ -8,18 +8,10 @@ package compiler
 // symbol absent from this table is a compile-time error.
 var goFnBindings = map[string]string{
 	"Character/toUpperCase":  "GoBind_packages_ToUppercase",
-	"burp/escape":            "GoBind_burp_Escape",
-	"burp/html":              "GoBind_burp_Html",
-	"burp/html5":             "GoBind_burp_Html5",
-	"burp/raw":               "GoBind_burp_Raw",
 	"c/from-string":          "GoBind_packages_DateFromString",
 	"character/toUpperCase":  "GoBind_packages_ToUppercase",
 	"character/toUppercase":  "GoBind_packages_ToUppercase",
 	"clojure.java.io/reader": "GoBind_runtime_OpenFile",
-	"csv/read-csv":           "GoBind_csv_ReadCSV",
-	"csv/read-csv-lines":     "GoBind_csv_ReadCSVLines",
-	"csv/read-csv-path":      "GoBind_csv_ReadCSVPath",
-	"csv/read-csv-reader":    "GoBind_csv_ReadCSVReader",
 	"date/from-string":       "GoBind_packages_DateFromString",
 	"dateTime/formatter":     "GoBind_packages_DateTimeFormatter",
 	"dateTime/now":           "GoBind_runtime_TimeNow",

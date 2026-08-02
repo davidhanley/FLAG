@@ -2,10 +2,11 @@ package runtime
 
 import "testing"
 
-func TestBurpHtmlThroughGoFunctionBridge(t *testing.T) {
-	fn := GoFunction("burp/html")
+func TestBurpHtmlThroughStaticBind(t *testing.T) {
+	// Burp is a libraries/*.lib module for FLAG code; the runtime still exposes
+	// the static GoBind_* adapters used by that library.
 	got := Call(
-		fn,
+		GoBind_burp_Html,
 		NewArray(
 			NewKeyword("div#app.hero"),
 			NewMap(NewKeyword("data-role"), NewSymbol("main")),

@@ -63,6 +63,17 @@ func goArgTime(name string, idx int, v Value) time.Time {
 }
 
 func goArgReader(name string, idx int, v Value) io.Reader {
+	if v.tag == TagFile {
+		f := v.FileObject()
+		if f == nil || f.File == nil || f.closed {
+			panic(fmt.Sprintf("%s argument %d: expected open file", name, idx+1))
+		}
+		// Prefer the buffered view if line-seq already advanced the file.
+		if f.lineReader != nil {
+			return f.lineReader
+		}
+		return f.File
+	}
 	if raw, ok := ValueToAny(v).(io.Reader); ok {
 		return raw
 	}

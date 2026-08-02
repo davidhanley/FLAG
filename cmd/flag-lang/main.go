@@ -197,14 +197,9 @@ func runTest(args []string) error {
 		return usageError("test expects exactly one input file or directory")
 	}
 
-	source, sourceOffset, err := readTestSource(inputPath)
+	goSource, sourceOffset, err := compileTestInput(inputPath)
 	if err != nil {
 		return err
-	}
-
-	goSource, err := compiler.Compile(string(source))
-	if err != nil {
-		return remapCompileError(err, sourceOffset)
 	}
 
 	tempDir, err := os.MkdirTemp(".", ".flag-test-*")
@@ -246,8 +241,84 @@ func runTest(args []string) error {
 	return nil
 }
 
+// compileTestInput builds Go for `flag-lang test`. Modular programs with
+// :imports use CompileProgramWithTests; legacy projects still merge sources.
+func compileTestInput(inputPath string) ([]byte, int, error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return nil, 0, fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+
+	if !stat.IsDir() {
+		sourcePath := inputPath
+		testPath := ""
+		if isTestSourceFile(inputPath) {
+			sourcePath = siblingSourceFile(inputPath)
+			if sourcePath == "" {
+				return nil, 0, fmt.Errorf("could not find source file for %s", inputPath)
+			}
+			testPath = inputPath
+		} else {
+			testPath = siblingTestFile(inputPath)
+		}
+		hasImports, err := compiler.ModuleHasImports(sourcePath)
+		if err != nil {
+			return nil, 0, err
+		}
+		if hasImports {
+			var tests []string
+			if testPath != "" {
+				if _, err := os.Stat(testPath); err == nil {
+					tests = []string{testPath}
+				}
+			}
+			goSource, err := compiler.CompileProgramWithTests(sourcePath, tests)
+			return goSource, 0, err
+		}
+		source, sourceOffset, err := readTestSource(inputPath)
+		if err != nil {
+			return nil, 0, err
+		}
+		goSource, err := compiler.Compile(string(source))
+		if err != nil {
+			return nil, sourceOffset, remapCompileError(err, sourceOffset)
+		}
+		return goSource, sourceOffset, nil
+	}
+
+	sourceFiles, testFiles, err := collectSourceAndTestFiles(inputPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(sourceFiles) == 0 {
+		return nil, 0, fmt.Errorf("no source files found in %s", inputPath)
+	}
+	// Prefer modular compile when there is a single program file with imports
+	// (e.g. examples/FRS/frs.flag importing csv.lib / burp.lib).
+	if len(sourceFiles) == 1 {
+		hasImports, err := compiler.ModuleHasImports(sourceFiles[0])
+		if err != nil {
+			return nil, 0, err
+		}
+		if hasImports {
+			goSource, err := compiler.CompileProgramWithTests(sourceFiles[0], testFiles)
+			return goSource, 0, err
+		}
+	}
+
+	source, sourceOffset, err := readTestSource(inputPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	goSource, err := compiler.Compile(string(source))
+	if err != nil {
+		return nil, sourceOffset, remapCompileError(err, sourceOffset)
+	}
+	return goSource, sourceOffset, nil
+}
+
 // compileBuildInput compiles a file via the module graph, or a directory via
-// the legacy "merge all sources" path (until directory entry points are defined).
+// main.flag / a single modular source / legacy merge.
 func compileBuildInput(inputPath string) ([]byte, error) {
 	stat, err := os.Stat(inputPath)
 	if err != nil {
@@ -261,6 +332,20 @@ func compileBuildInput(inputPath string) ([]byte, error) {
 		candidate := filepath.Join(inputPath, name)
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return compiler.CompileProgram(candidate)
+		}
+	}
+	// Single modular source with :imports (e.g. examples/FRS/frs.flag).
+	sourceFiles, err := findBuildSourceFiles(inputPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(sourceFiles) == 1 {
+		hasImports, err := compiler.ModuleHasImports(sourceFiles[0])
+		if err != nil {
+			return nil, err
+		}
+		if hasImports {
+			return compiler.CompileProgram(sourceFiles[0])
 		}
 	}
 	source, err := readBuildSource(inputPath)

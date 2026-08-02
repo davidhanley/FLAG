@@ -129,6 +129,26 @@ func TestCompileMainDefnBecomesProgramEntryPoint(t *testing.T) {
 	}
 }
 
+func TestCompileModuleMainIsProgramEntryPoint(t *testing.T) {
+	output, err := Compile(`
+{:namespace "app"}
+(defn main [& _args]
+  (println "running"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"func app__flag_main_variadic",
+		`_ = flagrt.Call(app__flag_main, args...)`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDefnAllowsPredicateAndBangNames(t *testing.T) {
 	output, err := Compile(`
 (defn foreign-name? [x] x)

@@ -26,7 +26,8 @@ The repository currently includes:
 - Go code generation for an initial subset (`defn`, arithmetic, calls, printing)
 - a runtime with tagged values, numerics, ratios, lists, and arrays
 - an interactive REPL path using Yaegi evaluation
-- small libraries for HTML rendering and CSV parsing
+- libraries under `libraries/` (e.g. `burp.lib`, `csv.lib`) imported like any module
+- Go interop policy: pure Go packages + adapters ([docs/go-libraries.md](docs/go-libraries.md))
 
 ## Quick start
 
