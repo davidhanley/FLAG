@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	burp "flag-lang/libraries/burp"
-	csv "flag-lang/libraries/csv"
 	packages "flag-lang/runtime/packages"
 )
 
@@ -52,41 +51,7 @@ func adaptGoBind_burp_Raw(args ...Value) Value {
 // GoBind_burp_Raw dispatches burp/raw.
 var GoBind_burp_Raw = NewFunction(adaptGoBind_burp_Raw)
 
-func adaptGoBind_csv_ReadCSV(args ...Value) Value {
-	goArgArityExact("csv/read-csv", args, 1)
-	a0 := goArgAny(args[0])
-	return goRetStringMatrix(csv.ReadCSV(a0))
-}
-
-// GoBind_csv_ReadCSV dispatches csv/read-csv.
-var GoBind_csv_ReadCSV = NewFunction(adaptGoBind_csv_ReadCSV)
-
-func adaptGoBind_csv_ReadCSVLines(args ...Value) Value {
-	goArgArityExact("csv/read-csv-lines", args, 1)
-	a0 := goArgAny(args[0])
-	return goRetStringMatrix(csv.ReadCSVLines(a0))
-}
-
-// GoBind_csv_ReadCSVLines dispatches csv/read-csv-lines.
-var GoBind_csv_ReadCSVLines = NewFunction(adaptGoBind_csv_ReadCSVLines)
-
-func adaptGoBind_csv_ReadCSVPath(args ...Value) Value {
-	goArgArityExact("csv/read-csv-path", args, 1)
-	a0 := goArgString("csv/read-csv-path", 0, args[0])
-	return goRetStringMatrix(csv.ReadCSVPath(a0))
-}
-
-// GoBind_csv_ReadCSVPath dispatches csv/read-csv-path.
-var GoBind_csv_ReadCSVPath = NewFunction(adaptGoBind_csv_ReadCSVPath)
-
-func adaptGoBind_csv_ReadCSVReader(args ...Value) Value {
-	goArgArityExact("csv/read-csv-reader", args, 1)
-	a0 := goArgReader("csv/read-csv-reader", 0, args[0])
-	return goRetStringMatrix(csv.ReadCSVReader(a0))
-}
-
-// GoBind_csv_ReadCSVReader dispatches csv/read-csv-reader.
-var GoBind_csv_ReadCSVReader = NewFunction(adaptGoBind_csv_ReadCSVReader)
+// CSV adapters live in csv_bind.go (hand-written pure-Go coverlet).
 
 func adaptGoBind_packages_DateFromString(args ...Value) Value {
 	goArgArityExact("c/from-string", args, 1)

@@ -27,6 +27,7 @@ The repository currently includes:
 - a runtime with tagged values, numerics, ratios, lists, and arrays
 - an interactive REPL path using Yaegi evaluation
 - libraries under `libraries/` (e.g. `burp.lib`, `csv.lib`) imported like any module
+- Go interop policy: pure Go packages + adapters ([docs/go-libraries.md](docs/go-libraries.md))
 
 ## Quick start
 
