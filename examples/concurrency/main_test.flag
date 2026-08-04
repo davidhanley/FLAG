@@ -43,6 +43,11 @@
       (is (= true (f :ready?)) "future should report ready after completion")
       (is (= true done)))))
 
+(deftest future-can-pipe-result
+  (testing "future can return a channel when piped"
+    (let [ch (future :piped? true (do (sleep 30) 99))]
+      (is (= 99 (channel-receive ch))))))
+
 (deftest channel-send-receive
   (testing "unbuffered channel round-trip via go"
     (let [ch (make-channel)]

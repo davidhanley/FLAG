@@ -7,10 +7,11 @@
 ;; go / future are macros that expand to go-run / future-run (also exported
 ;; under async/… for the expansion). sleep, channels, and select are functions.
 {:namespace "async"
- :exports   [go future go-run future-run
+ :exports   [go future go-run future-run future-piped-run
              sleep make-channel channel-send channel-receive select]
  :go-exports {go-run          "async/go-run"
               future-run      "async/future-run"
+              future-piped-run "async/future-piped-run"
               sleep           "async/sleep"
               make-channel    "async/make-channel"
               channel-send    "async/channel-send"
@@ -23,6 +24,10 @@
   (async/go-run (fn [] (do body))))
 
 (defmacro future
-  "Evaluate body on a new goroutine; return a 0-arg fn that blocks for the result."
+  "Evaluate body on a new goroutine; return a 0-arg fn, or a channel when :piped? true."
   [& body]
-  (async/future-run (fn [] (do body))))
+  (macro-case (do body)
+    [[:piped? true & forms]
+     (async/future-piped-run (fn [] (do forms)))]
+    [[& forms]
+     (async/future-run (fn [] (do forms)))]))

@@ -75,6 +75,25 @@ func FutureRun(fn Value) Value {
 	})
 }
 
+// FuturePipeRun is the FLAG-callable form of a piped future: it runs a zero-arg
+// function and returns a channel that receives the result once.
+func FuturePipeRun(fn Value) Value {
+	if fn.tag != TagFunction {
+		panic("FuturePipeRun expects a function Value")
+	}
+	ch := make(chan Value, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ReportGoPanic(r)
+				ch <- NilValue()
+			}
+		}()
+		ch <- Call(fn)
+	}()
+	return newChannelValue(ch)
+}
+
 func isKeyword(v Value, name string) bool {
 	return v.tag == TagSymbol && v.SymbolObject().IsKeyword && v.SymbolObject().Name == name
 }

@@ -8,6 +8,7 @@ package compiler
 var libraryGoBinds = map[string]string{
 	"async/go-run":           "GoBind_async_GoRun",
 	"async/future-run":       "GoBind_async_FutureRun",
+	"async/future-piped-run": "GoBind_async_FuturePipeRun",
 	"async/sleep":            "GoBind_async_Sleep",
 	"async/make-channel":     "GoBind_async_MakeChannel",
 	"async/channel-send":     "GoBind_async_ChannelSend",
