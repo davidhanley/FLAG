@@ -41,7 +41,7 @@ Demo and tests: [`examples/concurrency`](../examples/concurrency).
 | Name | Kind | Role |
 |------|------|------|
 | `go` | macro | Fire-and-forget body on a new goroutine; returns `nil` |
-| `future` | macro | Body on a goroutine; returns a 0-arg function that waits for the result |
+| `future` | macro | Body on a goroutine; returns a callable result fn |
 | `go-run` | function | Engine for `go`: runs a 0-arg function asynchronously |
 | `future-run` | function | Engine for `future`: runs a 0-arg function; returns a result fn |
 | `sleep` | function | Pause the current goroutine for *n* milliseconds |
@@ -87,14 +87,16 @@ Usually you only `:refer` the macros plus the channel/sleep API. `go-run` and
 ```
 
 - Starts `body...` on a **new goroutine**
-- Returns a **zero-argument function** (not a special “future object”)
+- Returns a **callable result function** (not a special “future object”)
 - **Call** that function to get the result: `(f)` — no `@` / `deref`
+- Call it with `:ready?` to check readiness without blocking: `(f :ready?)`
 - First call **blocks** until the body finishes; later calls return the **cached** value without waiting
 - If the body panics, the panic is **re-raised** when you call the result function
 
 ```clojure
 (let [f (future (fib 40))]
   (println "started")
+  (println (f :ready?))  ;; false while computing
   (println (f))    ;; blocks until ready
   (println (f)))   ;; cached
 ```

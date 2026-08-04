@@ -990,34 +990,6 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
-	// Native library re-exports (:go-exports) become package-level vars bound to
-	// generated flagrt.GoBind_* adapters.
-	if mod.HasModuleHeader {
-		for localName, hostKey := range mod.Header.GoExports {
-			rtIdent, ok := libraryGoBinds[hostKey]
-			if !ok {
-				return compileResult{}, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
-			}
-			goName, err := moduleGoIdent(ctx.namespace, localName)
-			if err != nil {
-				return compileResult{}, nil, err
-			}
-			if _, exists := ctx.globals[goName]; exists {
-				return compileResult{}, nil, fmt.Errorf("symbol %q already defined", localName)
-			}
-			if err := ctx.bindModuleName(localName, goName); err != nil {
-				return compileResult{}, nil, err
-			}
-			ctx.globals[goName] = exprKindValue
-			defined[localName] = goName
-			vars = append(vars, varDef{
-				flagName: localName,
-				goName:   goName,
-				expr:     fmt.Sprintf("%s.%s", runtimeAlias, rtIdent),
-			})
-		}
-	}
-
 	for _, form := range mod.Forms {
 		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {

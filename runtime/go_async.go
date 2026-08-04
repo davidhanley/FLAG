@@ -48,8 +48,16 @@ func NewFuture(compute func() Value) Value {
 	}()
 
 	return NewFunction(func(args ...Value) Value {
+		if len(args) == 1 && isKeyword(args[0], "ready?") {
+			select {
+			case <-done:
+				return NewBool(true)
+			default:
+				return NewBool(false)
+			}
+		}
 		if len(args) != 0 {
-			panic("future result expects 0 arguments")
+			panic("future result expects 0 arguments or :ready?")
 		}
 		<-done
 		if panicVal != nil {
@@ -65,4 +73,8 @@ func FutureRun(fn Value) Value {
 	return NewFuture(func() Value {
 		return Call(fn)
 	})
+}
+
+func isKeyword(v Value, name string) bool {
+	return v.tag == TagSymbol && v.SymbolObject().IsKeyword && v.SymbolObject().Name == name
 }
