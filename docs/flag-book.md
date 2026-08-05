@@ -133,6 +133,7 @@ Concurrency as a **library**, not core:
 | Hello | [examples/hello](../examples/hello) | Minimal program |
 | Modules | [examples/modules/README.md](../examples/modules/README.md) | Multi-file import, `:as`, `:refer` |
 | Concurrency | [examples/concurrency/README.md](../examples/concurrency/README.md) | `async.lib` end-to-end + tests |
+| HTTP | [examples/http/README.md](../examples/http/README.md) | Local server, routing, GET/POST client calls |
 | FRS | [examples/FRS](../examples/FRS) | Larger real app (CSV, HTML, scoring) |
 
 Run examples with:

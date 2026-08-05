@@ -234,6 +234,62 @@ func TestAcceptanceConcurrencyDemo(t *testing.T) {
 	}
 }
 
+// Acceptance: examples/http FLAG tests for local server routing and client calls.
+func TestAcceptanceHTTPFlagTests(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "http"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "http.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", exampleDir}); err != nil {
+		t.Fatalf("flag-lang test examples/http: %v", err)
+	}
+}
+
+// Acceptance: build and run the HTTP demo binary.
+func TestAcceptanceHTTPDemo(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "http"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	entry := filepath.Join(exampleDir, "main.flag")
+	outputPath := filepath.Join(t.TempDir(), "http-bin")
+
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "http.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"build", entry, "-o", outputPath}); err != nil {
+		t.Fatalf("build http example: %v", err)
+	}
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("http binary failed: %v\n%s", err, result)
+	}
+	out := string(result)
+	for _, want := range []string{
+		"server: 127.0.0.1:",
+		"GET / -> 200 home",
+		"GET /hello/:name -> 200 hello flag from FLAG",
+		"POST /echo -> 201 echo payload method=POST",
+		"GET /static/*path -> 200 static css/site.css",
+		"DELETE /echo -> 405 method not allowed",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
 func TestRunBuildExampleModules(t *testing.T) {
 	// Multi-file module graph: math -> greeter -> main (qualified, :as, :refer).
 	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "modules"))
