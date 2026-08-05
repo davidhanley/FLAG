@@ -38,8 +38,15 @@
     (let [^{:volatile true} done false
           f (future (do (sleep 30) (update! done true) 7))]
       (is (= false done) "body should not have finished yet")
+      (is (= false (f :ready?)) "future should report not ready before completion")
       (is (= 7 (f)) "call blocks until result is ready")
+      (is (= true (f :ready?)) "future should report ready after completion")
       (is (= true done)))))
+
+(deftest future-can-pipe-result
+  (testing "future can return a channel when piped"
+    (let [ch (future :piped? true (do (sleep 30) 99))]
+      (is (= 99 (channel-receive ch))))))
 
 (deftest channel-send-receive
   (testing "unbuffered channel round-trip via go"

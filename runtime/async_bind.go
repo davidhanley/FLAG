@@ -7,6 +7,7 @@ package runtime
 var (
 	GoBind_async_GoRun          = NewFunction(adaptAsyncGoRun)
 	GoBind_async_FutureRun      = NewFunction(adaptAsyncFutureRun)
+	GoBind_async_FuturePipeRun  = NewFunction(adaptAsyncFuturePipeRun)
 	GoBind_async_Sleep          = NewFunction(adaptAsyncSleep)
 	GoBind_async_MakeChannel    = NewFunction(adaptAsyncMakeChannel)
 	GoBind_async_ChannelSend    = NewFunction(adaptAsyncChannelSend)
@@ -22,6 +23,11 @@ func adaptAsyncGoRun(args ...Value) Value {
 func adaptAsyncFutureRun(args ...Value) Value {
 	goArgArityExact("async/future-run", args, 1)
 	return FutureRun(args[0])
+}
+
+func adaptAsyncFuturePipeRun(args ...Value) Value {
+	goArgArityExact("async/future-piped-run", args, 1)
+	return FuturePipeRun(args[0])
 }
 
 func adaptAsyncSleep(args ...Value) Value {

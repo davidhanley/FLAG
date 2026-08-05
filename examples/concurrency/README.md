@@ -10,7 +10,7 @@ Full API reference: **[docs/async.md](../../docs/async.md)**.
                                 select]]]}
 ```
 
-- `(go body...)` / `(future body...)` — macros
+- `(go body...)` / `(future body...)` — macros; future values also answer `(f :ready?)` and may be piped with `:piped? true`
 - `(make-channel)`, `(channel-send)`, `(channel-receive)`, `(sleep ms)` — functions
 - `(select ch f ch f…)` — non-blocking multi-receive; calls each ready handler; returns count
 
@@ -54,4 +54,6 @@ main: end
 ```
 
 `(sleep 500)` at the end of `main` keeps the process alive for fire-and-forget
-`(go …)` work. The future result is obtained with `(f)`, not a special deref.
+`(go …)` work. The future result is obtained with `(f)`, not a special deref,
+and `(f :ready?)` checks readiness without blocking. Use `(future :piped? true
+...)` when you want a channel instead of a callable result function.

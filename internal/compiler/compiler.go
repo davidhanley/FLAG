@@ -990,34 +990,6 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
-	// Native library re-exports (:go-exports) become package-level vars bound to
-	// generated flagrt.GoBind_* adapters.
-	if mod.HasModuleHeader {
-		for localName, hostKey := range mod.Header.GoExports {
-			rtIdent, ok := libraryGoBinds[hostKey]
-			if !ok {
-				return compileResult{}, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
-			}
-			goName, err := moduleGoIdent(ctx.namespace, localName)
-			if err != nil {
-				return compileResult{}, nil, err
-			}
-			if _, exists := ctx.globals[goName]; exists {
-				return compileResult{}, nil, fmt.Errorf("symbol %q already defined", localName)
-			}
-			if err := ctx.bindModuleName(localName, goName); err != nil {
-				return compileResult{}, nil, err
-			}
-			ctx.globals[goName] = exprKindValue
-			defined[localName] = goName
-			vars = append(vars, varDef{
-				flagName: localName,
-				goName:   goName,
-				expr:     fmt.Sprintf("%s.%s", runtimeAlias, rtIdent),
-			})
-		}
-	}
-
 	for _, form := range mod.Forms {
 		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
@@ -1576,6 +1548,9 @@ func applyMacroBuiltin(name string, args []Expr) (Expr, bool, error) {
 	case "macro-comp":
 		expanded, err := expandCompMacro(args)
 		return expanded, true, err
+	case "macro-case":
+		expanded, err := expandMacroCase(args)
+		return expanded, true, err
 	default:
 		return nil, false, nil
 	}
@@ -1614,6 +1589,198 @@ func copyExpr(expr Expr) Expr {
 	default:
 		return expr
 	}
+}
+
+func expandMacroCase(args []Expr) (Expr, error) {
+	if len(args) < 2 {
+		return nil, fmt.Errorf("macro-case expects a target form and at least one clause")
+	}
+
+	targetList, ok := args[0].(ListExpr)
+	if !ok {
+		return nil, fmt.Errorf("macro-case expects a list target form")
+	}
+	clauses := args[1:]
+	target := targetList.Elements[1:]
+
+	for _, clauseExpr := range clauses {
+		clause, ok := clauseExpr.(VectorExpr)
+		if !ok || len(clause.Elements) != 2 {
+			return nil, fmt.Errorf("macro-case clauses must be [pattern body] vectors")
+		}
+		bindings := map[string]Expr{}
+		restName := ""
+		var restArgs []Expr
+		matched, err := matchMacroPattern(clause.Elements[0], target, bindings, &restName, &restArgs)
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
+			continue
+		}
+		return substituteMacroExpr(clause.Elements[1], bindings, restName, restArgs)
+	}
+
+	return nil, fmt.Errorf("macro-case had no matching clause")
+}
+
+func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, restName *string, restArgs *[]Expr) (bool, error) {
+	switch pat := pattern.(type) {
+	case SymbolExpr:
+		switch pat.Name {
+		case "_":
+			return len(target) == 1, nil
+		case "&":
+			return false, fmt.Errorf("macro-case pattern cannot use bare &")
+		default:
+			if len(target) != 1 {
+				return false, nil
+			}
+			if existing, ok := bindings[pat.Name]; ok {
+				return exprStructEqual(existing, target[0]), nil
+			}
+			bindings[pat.Name] = copyExpr(target[0])
+			return true, nil
+		}
+	case KeywordExpr, StringExpr, CharExpr, IntExpr, BigIntExpr, FloatExpr, RatioExpr, QuotedSymbolExpr:
+		if len(target) != 1 {
+			return false, nil
+		}
+		return exprStructEqual(pat, target[0]), nil
+	case ListExpr:
+		return matchMacroSequence(pat.Elements, target, bindings, restName, restArgs)
+	case VectorExpr:
+		return matchMacroSequence(pat.Elements, target, bindings, restName, restArgs)
+	case MapExpr, SetExpr, HashFnExpr, MetaExpr:
+		if len(target) != 1 {
+			return false, nil
+		}
+		return exprStructEqual(pat, target[0]), nil
+	default:
+		if len(target) != 1 {
+			return false, nil
+		}
+		return exprStructEqual(pat, target[0]), nil
+	}
+}
+
+func exprStructEqual(a, b Expr) bool {
+	switch av := a.(type) {
+	case SymbolExpr:
+		bv, ok := b.(SymbolExpr)
+		return ok && av.Name == bv.Name
+	case KeywordExpr:
+		bv, ok := b.(KeywordExpr)
+		return ok && av.Name == bv.Name
+	case StringExpr:
+		bv, ok := b.(StringExpr)
+		return ok && av.Value == bv.Value
+	case CharExpr:
+		bv, ok := b.(CharExpr)
+		return ok && av.Value == bv.Value
+	case IntExpr:
+		bv, ok := b.(IntExpr)
+		return ok && av.Value == bv.Value
+	case BigIntExpr:
+		bv, ok := b.(BigIntExpr)
+		return ok && av.Value == bv.Value
+	case FloatExpr:
+		bv, ok := b.(FloatExpr)
+		return ok && av.Raw == bv.Raw && av.Value == bv.Value
+	case RatioExpr:
+		bv, ok := b.(RatioExpr)
+		return ok && av.Numerator == bv.Numerator && av.Denominator == bv.Denominator
+	case QuotedSymbolExpr:
+		bv, ok := b.(QuotedSymbolExpr)
+		return ok && av.Name == bv.Name
+	case ListExpr:
+		bv, ok := b.(ListExpr)
+		if !ok || len(av.Elements) != len(bv.Elements) {
+			return false
+		}
+		for i := range av.Elements {
+			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case VectorExpr:
+		bv, ok := b.(VectorExpr)
+		if !ok || len(av.Elements) != len(bv.Elements) {
+			return false
+		}
+		for i := range av.Elements {
+			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case MapExpr:
+		bv, ok := b.(MapExpr)
+		if !ok || len(av.Entries) != len(bv.Entries) {
+			return false
+		}
+		for i := range av.Entries {
+			if !exprStructEqual(av.Entries[i], bv.Entries[i]) {
+				return false
+			}
+		}
+		return true
+	case SetExpr:
+		bv, ok := b.(SetExpr)
+		if !ok || len(av.Elements) != len(bv.Elements) {
+			return false
+		}
+		for i := range av.Elements {
+			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case HashFnExpr:
+		bv, ok := b.(HashFnExpr)
+		return ok && exprStructEqual(av.Body, bv.Body)
+	case MetaExpr:
+		bv, ok := b.(MetaExpr)
+		return ok && exprStructEqual(av.Meta, bv.Meta) && exprStructEqual(av.Target, bv.Target)
+	default:
+		return false
+	}
+}
+
+func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr, restName *string, restArgs *[]Expr) (bool, error) {
+	j := 0
+	for i := 0; i < len(patterns); i++ {
+		sym, ok := patterns[i].(SymbolExpr)
+		if ok && sym.Name == "&" {
+			if i != len(patterns)-2 {
+				return false, fmt.Errorf("macro-case rest capture must be in the penultimate position")
+			}
+			name, ok := patterns[i+1].(SymbolExpr)
+			if !ok || name.Name == "" || name.Name == "&" {
+				return false, fmt.Errorf("macro-case rest capture expects a symbol name")
+			}
+			*restName = name.Name
+			*restArgs = make([]Expr, 0, len(target)-j)
+			for _, expr := range target[j:] {
+				*restArgs = append(*restArgs, copyExpr(expr))
+			}
+			return true, nil
+		}
+		if j >= len(target) {
+			return false, nil
+		}
+		pat := patterns[i]
+		matched, err := matchMacroPattern(pat, []Expr{target[j]}, bindings, restName, restArgs)
+		if err != nil {
+			return false, err
+		}
+		if !matched {
+			return false, nil
+		}
+		j++
+	}
+	return j == len(target), nil
 }
 
 func expandCondMacro(args []Expr) (Expr, error) {
