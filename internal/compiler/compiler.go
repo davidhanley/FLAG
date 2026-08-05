@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -620,7 +622,11 @@ func CompileExpression(source string) (string, error) {
 }
 
 type ReplCompiler struct {
-	ctx compileContext
+	ctx           compileContext
+	loadedModules map[string]bool
+	moduleDefs    map[string]map[string]string
+	moduleMacros  map[string]map[string]macroDef
+	modulesByPath map[string]*Module
 }
 
 type ReplCompiled struct {
@@ -634,7 +640,11 @@ func NewReplCompiler() *ReplCompiler {
 		panic(err)
 	}
 	return &ReplCompiler{
-		ctx: ctx,
+		ctx:           ctx,
+		loadedModules: map[string]bool{},
+		moduleDefs:    map[string]map[string]string{},
+		moduleMacros:  map[string]map[string]macroDef{},
+		modulesByPath: map[string]*Module{},
 	}
 }
 
@@ -647,7 +657,95 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 		return ReplCompiled{}, fmt.Errorf("expected exactly one expression")
 	}
 
-	if list, ok := ast.Forms[0].(ListExpr); ok && len(list.Elements) > 0 {
+	return r.compileReplForm(ast.Forms[0])
+}
+
+func (r *ReplCompiler) ImportSpec(source, importerPath string) ([]ReplCompiled, error) {
+	ast, err := ParseFile(source)
+	if err != nil {
+		return nil, err
+	}
+	if len(ast.Forms) != 1 {
+		return nil, fmt.Errorf("expected exactly one import spec")
+	}
+	spec, err := parseImportSpec(ast.Forms[0])
+	if err != nil {
+		return nil, err
+	}
+	return r.importResolvedSpec(spec, importerPath)
+}
+
+func (r *ReplCompiler) LoadFile(path string) ([]ReplCompiled, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve %s: %w", path, err)
+	}
+	source, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", absPath, err)
+	}
+	mod, err := parseModuleFile(absPath, string(source))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+
+	var compiled []ReplCompiled
+	if mod.HasModuleHeader {
+		for _, spec := range mod.Header.Imports {
+			imported, err := r.importResolvedSpec(spec, absPath)
+			if err != nil {
+				return nil, err
+			}
+			compiled = append(compiled, imported...)
+		}
+	}
+
+	prevNamespace := r.ctx.namespace
+	switch {
+	case mod.HasModuleHeader:
+		r.ctx.namespace = mod.Header.Namespace
+	case mod.LegacyNS != "":
+		r.ctx.namespace = mod.LegacyNS
+	}
+	defer func() {
+		r.ctx.namespace = prevNamespace
+	}()
+	if goExports, err := r.replGoExportSetups(mod); err != nil {
+		return nil, err
+	} else {
+		compiled = append(compiled, goExports...)
+	}
+
+	for _, form := range mod.Forms {
+		step, err := r.compileReplForm(form)
+		if err != nil {
+			return nil, err
+		}
+		compiled = append(compiled, step)
+	}
+	return compiled, nil
+}
+
+func (r *ReplCompiler) compileReplForm(form Expr) (ReplCompiled, error) {
+	if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
+		if head, ok := list.Elements[0].(SymbolExpr); ok {
+			if head.Name == "defmacro" {
+				name, def, err := compileDefmacro(list)
+				if err != nil {
+					return ReplCompiled{}, err
+				}
+				r.ctx.macros[name] = def
+				return ReplCompiled{ResultExpr: fmt.Sprintf("%q", name)}, nil
+			}
+		}
+	}
+
+	expanded, err := macroExpand(form, r.ctx, 0)
+	if err != nil {
+		return ReplCompiled{}, err
+	}
+
+	if list, ok := expanded.(ListExpr); ok && len(list.Elements) > 0 {
 		if head, ok := list.Elements[0].(SymbolExpr); ok {
 			switch head.Name {
 			case "def":
@@ -656,6 +754,9 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 					return ReplCompiled{}, err
 				}
 				r.ctx.globals[binding.goName] = exprKind
+				if err := r.ctx.bindModuleName(binding.flagName, binding.goName); err != nil {
+					return ReplCompiled{}, err
+				}
 				setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
 				if isNew {
 					setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
@@ -689,6 +790,9 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 				_, exists := r.ctx.functions[def.goName]
 				r.ctx.functions[def.goName] = def
 				r.ctx.globals[def.goName] = exprKindValue
+				if err := r.ctx.bindModuleName(def.flagName, def.goName); err != nil {
+					return ReplCompiled{}, err
+				}
 
 				setupParts := make([]string, 0, 6)
 				if !exists {
@@ -708,20 +812,8 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 					Setup:      strings.Join(setupParts, ";;"),
 					ResultExpr: fmt.Sprintf("%q", def.goName),
 				}, nil
-			case "defmacro":
-				name, def, err := compileDefmacro(list)
-				if err != nil {
-					return ReplCompiled{}, err
-				}
-				r.ctx.macros[name] = def
-				return ReplCompiled{ResultExpr: fmt.Sprintf("%q", name)}, nil
 			}
 		}
-	}
-
-	expanded, err := macroExpand(ast.Forms[0], r.ctx, 0)
-	if err != nil {
-		return ReplCompiled{}, err
 	}
 
 	expr, err := exprToGo(expanded, r.ctx, nil)
@@ -732,6 +824,151 @@ func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 		return ReplCompiled{ResultExpr: fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, expr.code)}, nil
 	}
 	return ReplCompiled{ResultExpr: expr.code}, nil
+}
+
+func (r *ReplCompiler) importResolvedSpec(spec ImportSpec, importerPath string) ([]ReplCompiled, error) {
+	resolved, err := resolveImportPath(importerPath, spec.Path)
+	if err != nil {
+		return nil, fmt.Errorf("import %q: %w", spec.Path, err)
+	}
+	loaded, err := r.ensureModuleLoaded(resolved, map[string]bool{})
+	if err != nil {
+		return nil, err
+	}
+	spec.Path = resolved
+	mod := &Module{
+		Path:            importerPath,
+		HasModuleHeader: true,
+		Header: ModuleHeader{
+			Imports: []ImportSpec{spec},
+		},
+	}
+	if err := seedImports(&r.ctx, mod, r.modulesByPath, r.moduleDefs, r.moduleMacros); err != nil {
+		return nil, err
+	}
+	return loaded, nil
+}
+
+func (r *ReplCompiler) ensureModuleLoaded(path string, loading map[string]bool) ([]ReplCompiled, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve %s: %w", path, err)
+	}
+	if r.loadedModules[absPath] {
+		return nil, nil
+	}
+	if loading[absPath] {
+		return nil, fmt.Errorf("circular import involving %s", absPath)
+	}
+	loading[absPath] = true
+	defer delete(loading, absPath)
+
+	source, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", absPath, err)
+	}
+	mod, err := parseModuleFile(absPath, string(source))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+	if !mod.HasModuleHeader {
+		return nil, fmt.Errorf("import %q: target %s has no module header", absPath, absPath)
+	}
+	r.modulesByPath[absPath] = mod
+
+	var compiled []ReplCompiled
+	for _, spec := range mod.Header.Imports {
+		resolved, err := resolveImportPath(absPath, spec.Path)
+		if err != nil {
+			return nil, fmt.Errorf("%s: import %q: %w", absPath, spec.Path, err)
+		}
+		loaded, err := r.ensureModuleLoaded(resolved, loading)
+		if err != nil {
+			return nil, err
+		}
+		compiled = append(compiled, loaded...)
+	}
+
+	moduleCtx := copyCompileContext(r.ctx)
+	moduleCtx.namespace = mod.Header.Namespace
+	moduleCtx.moduleSymbols = map[string]string{}
+	if err := seedImports(&moduleCtx, mod, r.modulesByPath, r.moduleDefs, r.moduleMacros); err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+	result, defined, definedMacros, err := compileModuleBody(mod, &moduleCtx, false)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+	if err := validateExports(mod, defined, definedMacros); err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+
+	compiled = append(compiled, r.replCompileResultSetups(result)...)
+	r.moduleDefs[absPath] = defined
+	r.moduleMacros[absPath] = definedMacros
+	for k, v := range moduleCtx.functions {
+		r.ctx.functions[k] = v
+	}
+	for k, v := range moduleCtx.globals {
+		r.ctx.globals[k] = v
+	}
+	r.loadedModules[absPath] = true
+	return compiled, nil
+}
+
+func (r *ReplCompiler) replCompileResultSetups(result compileResult) []ReplCompiled {
+	out := make([]ReplCompiled, 0, len(result.functions)+len(result.vars))
+	for _, def := range result.functions {
+		_, exists := r.ctx.functions[def.goName]
+		setupParts := make([]string, 0, 6)
+		if !exists {
+			setupParts = append(setupParts,
+				fmt.Sprintf("var %s %s", def.arityName, renderDirectFunctionType(def)),
+				fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+			)
+		}
+		setupParts = append(setupParts,
+			fmt.Sprintf("%s = %s", def.arityName, renderDirectFunctionLiteral(def)),
+			fmt.Sprintf("%s = %s", def.variadicName, renderVariadicFunctionLiteral(def)),
+		)
+		out = append(out, ReplCompiled{Setup: strings.Join(setupParts, ";;")})
+	}
+	for _, binding := range result.vars {
+		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
+		if _, exists := r.ctx.globals[binding.goName]; !exists {
+			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
+		}
+		out = append(out, ReplCompiled{Setup: setup})
+	}
+	return out
+}
+
+func (r *ReplCompiler) replGoExportSetups(mod *Module) ([]ReplCompiled, error) {
+	if mod == nil || !mod.HasModuleHeader || len(mod.Header.GoExports) == 0 {
+		return nil, nil
+	}
+	out := make([]ReplCompiled, 0, len(mod.Header.GoExports))
+	for localName, hostKey := range mod.Header.GoExports {
+		rtIdent, ok := libraryGoBinds[hostKey]
+		if !ok {
+			return nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
+		}
+		goName, err := moduleGoIdent(r.ctx.namespace, localName)
+		if err != nil {
+			return nil, err
+		}
+		if err := r.ctx.bindModuleName(localName, goName); err != nil {
+			return nil, err
+		}
+		_, exists := r.ctx.globals[goName]
+		r.ctx.globals[goName] = exprKindValue
+		setup := fmt.Sprintf("%s = %s.%s", goName, runtimeAlias, rtIdent)
+		if !exists {
+			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s.%s", goName, goName, runtimeAlias, rtIdent)
+		}
+		out = append(out, ReplCompiled{Setup: setup})
+	}
+	return out, nil
 }
 
 func compileSource(source, path string) (compileResult, error) {

@@ -38,6 +38,13 @@ The repository currently includes:
 go run ./cmd/flag-lang repl
 ```
 
+Inside the REPL:
+
+```clojure
+:import ["async.lib" :refer [future sleep]]
+:load "examples/concurrency/main.flag"
+```
+
 ```bash
 go run ./cmd/flag-lang compile examples/hello/src/main.flag -o hello.go
 go build -o /dev/null hello.go

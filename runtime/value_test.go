@@ -211,6 +211,17 @@ func TestNilValueTruthiness(t *testing.T) {
 	}
 }
 
+func TestValueToAnyForChannel(t *testing.T) {
+	ch := MakeChannel(NewLong(1))
+	converted, ok := ValueToAny(ch).(Value)
+	if !ok {
+		t.Fatalf("expected channel Value from ValueToAny, got %T", ValueToAny(ch))
+	}
+	if converted.tag != TagChannel {
+		t.Fatalf("expected TagChannel, got %#v", converted)
+	}
+}
+
 func TestStr(t *testing.T) {
 	if got := Str(); got != "" {
 		t.Fatalf("expected empty str() result, got %q", got)

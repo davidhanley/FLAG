@@ -14,6 +14,7 @@ binaries—not a JVM image with an always-on evaluator.
 |------|------------|
 | Install / run something | [Chapter 1 — Introduction](#1-introduction) |
 | Language reference | [Chapter 2 — Language manual](#2-language-manual) |
+| Interactive workflow | [REPL guide](#repl-guide) |
 | Multi-file programs & imports | [Chapter 3 — Modules](#3-modules) |
 | Wrapping Go packages | [Chapter 4 — Go libraries](#4-go-libraries) |
 | Goroutines, futures, channels | [Chapter 5 — Async](#5-async) |
@@ -46,6 +47,18 @@ literals, destructuring, builtins, numerics, sequences, testing, and pointers in
 modules / async / libraries.
 
 Read this for day-to-day “how do I write FLAG?”
+
+---
+
+## REPL guide
+
+**[repl.md](repl.md)**
+
+Interactive usage, including:
+
+- evaluating forms in a live session
+- `:import` for libraries and modules
+- `:load` for loading code from files
 
 ---
 

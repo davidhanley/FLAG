@@ -444,7 +444,7 @@ func ValueToAny(v Value) any {
 		return v.StringValue()
 	case TagDate:
 		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel:
 		return v
 	case TagNil:
 		return nil
