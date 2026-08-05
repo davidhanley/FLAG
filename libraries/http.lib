@@ -1,0 +1,10 @@
+;; FLAG surface for the pure Go HTTP package.
+;; Adapters: runtime/http_bind.go  Policy: docs/http.md
+{:namespace "http"
+ :exports   [request header body send get post]
+ :go-exports {request "http/request"
+              header  "http/header"
+              body    "http/body"
+              send    "http/send"
+              get     "http/get"
+              post    "http/post"}}

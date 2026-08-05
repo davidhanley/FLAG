@@ -1,1 +1,11 @@
-go build -o bin/flag-lang ./cmd/flag-lang 
+#!/bin/sh
+set -eu
+
+BIN_DIR="${BIN_DIR:-bin}"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+
+mkdir -p "$BIN_DIR"
+go build -o "$BIN_DIR/flag-lang" ./cmd/flag-lang
+
+install -d "$INSTALL_DIR"
+install -m 0755 "$BIN_DIR/flag-lang" "$INSTALL_DIR/flag"

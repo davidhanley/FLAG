@@ -14,10 +14,12 @@ binaries—not a JVM image with an always-on evaluator.
 |------|------------|
 | Install / run something | [Chapter 1 — Introduction](#1-introduction) |
 | Language reference | [Chapter 2 — Language manual](#2-language-manual) |
+| Write and run tests | [Testing guide](#testing-guide) |
 | Interactive workflow | [REPL guide](#repl-guide) |
 | Multi-file programs & imports | [Chapter 3 — Modules](#3-modules) |
 | Wrapping Go packages | [Chapter 4 — Go libraries](#4-go-libraries) |
-| Goroutines, futures, channels | [Chapter 5 — Async](#5-async) |
+| HTTP client/server basics | [Chapter 5 — HTTP](#5-http) |
+| Goroutines, futures, channels | [Chapter 6 — Async](#6-async) |
 | Worked examples | [Appendices](#appendices--examples) |
 
 ---
@@ -47,6 +49,19 @@ literals, destructuring, builtins, numerics, sequences, testing, and pointers in
 modules / async / libraries.
 
 Read this for day-to-day “how do I write FLAG?”
+
+---
+
+## Testing guide
+
+**[testing.md](testing.md)**
+
+How the **Smoke** testing system works:
+
+- run tests with `flag-lang test`
+- pair source files with `*_test.flag`
+- use `deftest`, `testing`, and `is`
+- understand how modular test files are loaded
 
 ---
 
@@ -89,7 +104,16 @@ How FLAG wraps native Go without open host interop:
 
 ---
 
-### 5. Async
+### 5. HTTP
+
+**[http.md](http.md)**
+
+Thin `net/http` wrapper with request maps, headers, body helpers, and simple
+GET/POST helpers.
+
+---
+
+### 6. Async
 
 **[async.md](async.md)**
 
