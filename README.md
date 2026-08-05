@@ -57,5 +57,13 @@ go run ./cmd/flag-lang build examples/hello -o hello
 ```
 
 ```bash
+./build
+flag --help
+```
+
+This builds `bin/flag-lang` and installs it as `flag` into `/usr/local/bin`
+(override with `INSTALL_DIR=/path/to/bin` if needed).
+
+```bash
 go run ./cmd/flag-lang test examples/FRS
 ```

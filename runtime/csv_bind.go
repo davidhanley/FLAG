@@ -215,4 +215,3 @@ func goArgRune(name string, idx int, v Value) rune {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, ValueToString(v)))
 	}
 }
-

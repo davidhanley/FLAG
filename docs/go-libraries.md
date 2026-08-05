@@ -132,6 +132,9 @@ Adapters for CSV live under `runtime/` today (with other static binds). Hand-wri
 adapters are preferred when signatures involve options maps or multi-arity
 dispatch; simple unary string/int APIs may stay generated.
 
+HTTP follows the same pattern: `http.lib` re-exports a thin wrapper over
+`net/http`, while `runtime/http_bind.go` handles the FLAG value conversions.
+
 ## Opaque handles and configs (later)
 
 Stateful objects (`*kafka.Reader`, open files) may appear as opaque FLAG values:
