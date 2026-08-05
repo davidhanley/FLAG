@@ -22,10 +22,13 @@ var libraryGoBinds = map[string]string{
 	"csv/read-csv-lines":     "GoBind_csv_ReadCSVLines",
 	"csv/read-csv-path":      "GoBind_csv_ReadCSVPath",
 	"csv/read-csv-reader":    "GoBind_csv_ReadCSVReader",
+	"http/address":           "GoBind_http_Address",
 	"http/body":              "GoBind_http_Body",
 	"http/get":               "GoBind_http_Get",
 	"http/header":            "GoBind_http_Header",
+	"http/listen":            "GoBind_http_Listen",
 	"http/post":              "GoBind_http_Post",
 	"http/request":           "GoBind_http_Request",
 	"http/send":              "GoBind_http_Send",
+	"http/stop":              "GoBind_http_Stop",
 }
