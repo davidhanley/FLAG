@@ -1,10 +1,42 @@
 ;; FLAG surface for the pure Go HTTP package.
 ;; Adapters: runtime/http_bind.go  Policy: docs/http.md
 {:namespace "http"
- :exports   [request header body send get post]
+ :exports   [request header body send get post
+             listen stop address
+             route router
+             get-route post-route put-route patch-route delete-route any-route]
  :go-exports {request "http/request"
               header  "http/header"
               body    "http/body"
               send    "http/send"
               get     "http/get"
-              post    "http/post"}}
+              post    "http/post"
+              listen  "http/listen"
+              stop    "http/stop"
+              address "http/address"}}
+
+(defn route [method path handler]
+  {:method method
+   :path path
+   :handler handler})
+
+(defn router [& routes]
+  {:routes routes})
+
+(defn get-route [path handler]
+  (http/route "GET" path handler))
+
+(defn post-route [path handler]
+  (http/route "POST" path handler))
+
+(defn put-route [path handler]
+  (http/route "PUT" path handler))
+
+(defn patch-route [path handler]
+  (http/route "PATCH" path handler))
+
+(defn delete-route [path handler]
+  (http/route "DELETE" path handler))
+
+(defn any-route [path handler]
+  (http/route "*" path handler))

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -47,4 +48,74 @@ func TestHTTPBridgeSend(t *testing.T) {
 	if got := Get(headers, NewKeyword("x-reply")); got.tag != TagString || got.StringValue() != "pong" {
 		t.Fatalf("expected response header pong, got %s", ValueToString(got))
 	}
+}
+
+func TestHTTPBridgeListenRoutes(t *testing.T) {
+	handler := NewFunction(func(args ...Value) Value {
+		if len(args) != 1 {
+			t.Fatalf("expected one request arg, got %d", len(args))
+		}
+		req := args[0]
+		if got := Get(req, NewKeyword("method")); got.tag != TagString || got.StringValue() != http.MethodGet {
+			t.Fatalf("expected GET method, got %s", ValueToString(got))
+		}
+		if got := Get(Get(req, NewKeyword("query")), NewKeyword("lang")); got.tag != TagString || got.StringValue() != "flag" {
+			t.Fatalf("expected query lang=flag, got %s", ValueToString(got))
+		}
+		params := Get(req, NewKeyword("params"))
+		name := Get(params, NewKeyword("name"))
+		if name.tag != TagString {
+			t.Fatalf("expected route param name, got %s", ValueToString(name))
+		}
+		return NewMap(
+			NewKeyword("status"), NewLong(http.StatusAccepted),
+			NewKeyword("headers"), NewMap(NewKeyword("x-name"), name),
+			NewKeyword("body"), NewString("hello "+name.StringValue()),
+		)
+	})
+
+	route := NewMap(
+		NewKeyword("method"), NewString("GET"),
+		NewKeyword("path"), NewString("/hello/:name"),
+		NewKeyword("handler"), handler,
+	)
+	server := Call(GoBind_http_Listen, NewMap(
+		NewKeyword("addr"), NewString("127.0.0.1:0"),
+		NewKeyword("routes"), NewArray(route),
+	))
+	addr := Call(GoBind_http_Address, server)
+	if addr.tag != TagString || addr.StringValue() == "" {
+		t.Fatalf("expected server address, got %s", ValueToString(addr))
+	}
+
+	resp, err := http.Get("http://" + addr.StringValue() + "/hello/world?lang=flag")
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("X-Name"); got != "world" {
+		t.Fatalf("expected X-Name=world, got %q", got)
+	}
+	if string(body) != "hello world" {
+		t.Fatalf("expected body hello world, got %q", body)
+	}
+
+	methodResp, err := http.Post("http://"+addr.StringValue()+"/hello/world", "text/plain", strings.NewReader("x"))
+	if err != nil {
+		t.Fatalf("Post returned error: %v", err)
+	}
+	defer methodResp.Body.Close()
+	if methodResp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", methodResp.StatusCode)
+	}
+
+	_ = Call(GoBind_http_Stop, server)
 }
