@@ -2,13 +2,16 @@
 ;;
 ;;   {:imports [["async.lib" :refer [go future sleep
 ;;                                    make-channel channel-send channel-receive
-;;                                    select]]]}
+;;                                    channel-close select
+;;                                    pipe-map pipe-filter pipe-reduce
+;;                                    pipe-every? pipe-some? lines-pipe]]]}
 ;;
 ;; go / future are macros that expand to go-run / future-run (also exported
 ;; under async/… for the expansion). sleep, channels, and select are functions.
 {:namespace "async"
  :exports   [go future go-run future-run future-piped-run
-             sleep make-channel channel-send channel-receive select]
+             sleep make-channel channel-send channel-receive channel-close select
+             pipe-map pipe-filter pipe-reduce pipe-every? pipe-some? lines-pipe]
  :go-exports {go-run          "async/go-run"
               future-run      "async/future-run"
               future-piped-run "async/future-piped-run"
@@ -16,7 +19,14 @@
               make-channel    "async/make-channel"
               channel-send    "async/channel-send"
               channel-receive "async/channel-receive"
-              select          "async/select"}}
+              channel-close   "async/channel-close"
+              select          "async/select"
+              pipe-map        "async/pipe-map"
+              pipe-filter     "async/pipe-filter"
+              pipe-reduce     "async/pipe-reduce"
+              pipe-every?     "async/pipe-every?"
+              pipe-some?      "async/pipe-some?"
+              lines-pipe      "async/lines-pipe"}}
 
 (defmacro go
   "Evaluate body on a new goroutine; return nil immediately."

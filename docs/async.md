@@ -18,7 +18,9 @@ Policy for Go-backed libs: [go-libraries.md](go-libraries.md). Modules/imports:
 {:namespace "app"
  :imports   [["async.lib" :refer [go future sleep
                                   make-channel channel-send channel-receive
-                                  select]]]}
+                                  channel-close select
+                                  pipe-map pipe-filter pipe-reduce
+                                  pipe-every? pipe-some? lines-pipe]]]}
 ```
 
 With a bare import (no `:refer`), names are qualified:
@@ -48,8 +50,15 @@ Demo and tests: [`examples/concurrency`](../examples/concurrency).
 | `sleep` | function | Pause the current goroutine for *n* milliseconds |
 | `make-channel` | function | Create a channel of FLAG values (optional buffer size) |
 | `channel-send` | function | Blocking send |
-| `channel-receive` | function | Blocking receive |
+| `channel-receive` | function | Blocking receive; returns `nil` on closed+drained channel |
+| `channel-close` | function | Close a channel (idempotent) |
 | `select` | function | Non-blocking multi-receive; call handlers for ready channels |
+| `pipe-map` | function | Non-blocking: apply fn to each value; return output channel |
+| `pipe-filter` | function | Non-blocking: filter by pred; return output channel |
+| `pipe-reduce` | function | Blocking: fold channel into a single value |
+| `pipe-every?` | function | Blocking: true if pred holds for all values |
+| `pipe-some?` | function | Blocking: first value matching pred, or nil |
+| `lines-pipe` | function | Non-blocking: read file lines into a channel |
 
 Usually you only `:refer` the macros plus the channel/sleep API. `go-run` and
 `future-run` are exported so macro expansions can call `async/go-run` /
@@ -180,7 +189,7 @@ Returns a new channel.
 ```
 
 - Blocking receive from `ch`
-- Returns the received value
+- Returns the received value, or **`nil`** if the channel is closed and drained
 
 ```clojure
 (let [ch (make-channel)]
@@ -188,7 +197,136 @@ Returns a new channel.
   (println (channel-receive ch)))   ;; 42
 ```
 
-There is no `close` / closed-channel receive yet.
+### `channel-close`
+
+```clojure
+(channel-close ch)
+```
+
+- Closes `ch`; safe to call multiple times (idempotent)
+- After the channel is closed, `channel-receive` returns `nil` once all buffered values are consumed
+- Returns `nil`
+
+Use `channel-close` to signal end-of-stream to consumers (e.g., after all pipeline work is done).
+
+---
+
+## Channel pipelines
+
+These operations treat a channel as a lazy stream.  All default to a buffer
+size of 32 on output channels.  Import from `async.lib`:
+
+```clojure
+{:imports [["async.lib" :refer [pipe-map pipe-filter pipe-reduce
+                                 pipe-every? pipe-some? lines-pipe
+                                 channel-close]]]}
+```
+
+| Name | Blocking? | Returns |
+|------|-----------|---------|
+| `pipe-map` | No | output channel |
+| `pipe-filter` | No | output channel |
+| `pipe-reduce` | Yes | final accumulated value |
+| `pipe-every?` | Yes | bool |
+| `pipe-some?` | Yes | first match or `nil` |
+| `lines-pipe` | No | output channel |
+
+### `pipe-map`
+
+```clojure
+(pipe-map f ch)
+```
+
+- Non-blocking: spawns a goroutine and returns a new buffered output channel
+- Sends `(f v)` for each value `v` received from `ch`
+- Output channel is closed when `ch` is exhausted
+
+```clojure
+(let [nums (make-channel 4)]
+  (channel-send nums 1)
+  (channel-send nums 2)
+  (channel-close nums)
+  (let [doubled (pipe-map (fn [n] (* n 2)) nums)]
+    (println (channel-receive doubled))  ;; 2
+    (println (channel-receive doubled)))) ;; 4
+```
+
+### `pipe-filter`
+
+```clojure
+(pipe-filter pred ch)
+```
+
+- Non-blocking: spawns a goroutine and returns a new buffered output channel
+- Forwards only values from `ch` for which `(pred v)` is truthy
+- Output channel is closed when `ch` is exhausted
+
+```clojure
+(let [evens (pipe-filter even? source-ch)]
+  ...)
+```
+
+### `pipe-reduce`
+
+```clojure
+(pipe-reduce f init ch)
+```
+
+- **Blocking**: drains `ch` completely, folding with `(f acc v)` starting from `init`
+- Returns the final accumulated value
+
+```clojure
+(pipe-reduce + 0 numbers-ch)   ;; sum of all values
+```
+
+### `pipe-every?`
+
+```clojure
+(pipe-every? pred ch)
+```
+
+- **Blocking**: returns `true` if `(pred v)` is truthy for every value in `ch`
+- Short-circuits on the first falsy result (remaining values drained in background)
+- Returns `false` as soon as any value fails
+
+```clojure
+(pipe-every? pos? numbers-ch)
+```
+
+### `pipe-some?`
+
+```clojure
+(pipe-some? pred ch)
+```
+
+- **Blocking**: returns the first value for which `(pred v)` is truthy, or `nil` if none
+- Short-circuits after the first match (remaining values drained in background)
+
+```clojure
+(pipe-some? even? numbers-ch)   ;; first even value or nil
+```
+
+### `lines-pipe`
+
+```clojure
+(lines-pipe path-or-file)
+```
+
+- Accepts a **string path** or an open **file** value
+- Non-blocking: returns a buffered channel of string values (one per line, no newline)
+- The channel is closed when all lines have been read
+- For string paths, the file is opened synchronously (errors panic at the call site)
+
+```clojure
+(let [lines (lines-pipe "/etc/hosts")]
+  (let [first-line (channel-receive lines)]
+    (println first-line)))
+
+;; chain with pipe-filter:
+(let [ch (pipe-filter (fn [l] (not (str/starts-with? l "#")))
+                      (lines-pipe "/etc/hosts"))]
+  ...)
+```
 
 ---
 
@@ -236,6 +374,11 @@ Handlers may be `#(...)`, `(fn [v] …)`, or any value `Call` accepts as a funct
 | Future = callable, not `@` | No extra deref syntax; just `(f)` |
 | Future done-channel | Simple, multi-waiter, multi-call; swap later if needed |
 | `select` non-blocking | Matches “process whatever is ready now”; returns a count |
+| `channel-close` idempotent | Safe to call from multiple goroutines; uses `sync.Once` internally |
+| Pipelines use buffer 32 | Avoids head-of-line blocking without unbounded memory |
+| `pipe-reduce`/`pipe-every?`/`pipe-some?` blocking | Aggregation always needs the full stream; callers expect a value |
+| Short-circuit drains in background | Prevents sender goroutines from blocking on abandoned channels |
+| `lines-pipe` opens file synchronously | Error surfaces at call site, not in a distant goroutine |
 | No eval / full image | Async does not force a compiler into app binaries |
 
 ---

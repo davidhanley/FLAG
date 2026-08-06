@@ -2,12 +2,19 @@ package runtime
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 )
 
 // ChannelObject is an opaque Go channel of FLAG Values.
 type ChannelObject struct {
-	ch chan Value
+	ch   chan Value
+	once sync.Once
+}
+
+// closeChan closes the underlying channel exactly once; safe to call many times.
+func (c *ChannelObject) closeChan() {
+	c.once.Do(func() { close(c.ch) })
 }
 
 // MakeChannel creates a channel.
@@ -61,12 +68,26 @@ func ChannelSend(ch Value, value Value) Value {
 	return NilValue()
 }
 
-// ChannelReceive receives one value from ch (blocks until a value is available).
+// ChannelClose closes ch; safe to call multiple times (idempotent).
+func ChannelClose(ch Value) Value {
+	if ch.tag != TagChannel {
+		panic(fmt.Sprintf("channel-close expects a channel, got %s", ValueToString(ch)))
+	}
+	ch.ChannelObject().closeChan()
+	return NilValue()
+}
+
+// ChannelReceive receives one value from ch.
+// Returns nil when the channel is closed and drained.
 func ChannelReceive(ch Value) Value {
 	if ch.tag != TagChannel {
 		panic(fmt.Sprintf("channel-receive expects a channel, got %s", ValueToString(ch)))
 	}
-	return <-ch.ChannelObject().ch
+	v, ok := <-ch.ChannelObject().ch
+	if !ok {
+		return NilValue()
+	}
+	return v
 }
 
 // ChannelSelect takes alternating channel and handler pairs:
