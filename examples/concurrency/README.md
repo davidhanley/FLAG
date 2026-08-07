@@ -7,12 +7,14 @@ Full API reference: **[docs/async.md](../../docs/async.md)**.
 ```clojure
 {:imports [["async.lib" :refer [go future sleep
                                 make-channel channel-send channel-receive
-                                select]]]}
+                                channel-close select
+                                channel-some? channel-every?]]]}
 ```
 
 - `(go body...)` / `(future body...)` — macros; future values also answer `(f :ready?)` and may be piped with `:piped? true`
-- `(make-channel)`, `(channel-send)`, `(channel-receive)`, `(sleep ms)` — functions
+- `(make-channel)`, `(channel-send)`, `(channel-receive)`, `(channel-close)`, `(sleep ms)` — functions
 - `(select ch f ch f…)` — non-blocking multi-receive; calls each ready handler; returns count
+- `(channel-some?)` / `(channel-every?)` — short-circuiting stream reducers that terminate their input
 
 ## Run the demo
 

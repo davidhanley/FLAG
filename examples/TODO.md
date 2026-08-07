@@ -1,2 +1,2 @@
 
-pipe-some? / pipe-every? drain the sender, huge efficiency loss. 
+channel-some? / channel-every? drain the sender, huge efficiency loss. 

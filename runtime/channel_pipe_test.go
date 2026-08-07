@@ -46,12 +46,21 @@ func TestChannelReceive_ClosedReturnsNil(t *testing.T) {
 	}
 }
 
+func TestChannelSend_ReturnsFalseAfterClose(t *testing.T) {
+	ch := MakeChannel(NewLong(1))
+	ChannelClose(ch)
+	sent := ChannelSend(ch, NewLong(99))
+	if sent.tag != TagBool || sent.Bool() {
+		t.Fatalf("expected false after close, got %v", sent)
+	}
+}
+
 func TestPipeMap(t *testing.T) {
 	inch := makeTestPipeChan(NewLong(1), NewLong(2), NewLong(3))
 	double := NewFunction(func(args ...Value) Value { return NewLong(args[0].Long() * 2) })
 	got := collectPipe(ChannelPipeMap(double, inch))
 	if len(got) != 3 || got[0].Long() != 2 || got[1].Long() != 4 || got[2].Long() != 6 {
-		t.Fatalf("pipe-map unexpected: %v", got)
+		t.Fatalf("channel-map unexpected: %v", got)
 	}
 }
 
@@ -60,7 +69,7 @@ func TestPipeFilter(t *testing.T) {
 	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
 	got := collectPipe(ChannelPipeFilter(even, inch))
 	if len(got) != 2 || got[0].Long() != 2 || got[1].Long() != 4 {
-		t.Fatalf("pipe-filter unexpected: %v", got)
+		t.Fatalf("channel-filter unexpected: %v", got)
 	}
 }
 
@@ -69,7 +78,7 @@ func TestPipeReduce(t *testing.T) {
 	add := NewFunction(func(args ...Value) Value { return NewLong(args[0].Long() + args[1].Long()) })
 	result := ChannelPipeReduce(add, NewLong(0), inch)
 	if result.Long() != 10 {
-		t.Fatalf("pipe-reduce expected 10, got %v", result.Long())
+		t.Fatalf("channel-reduce expected 10, got %v", result.Long())
 	}
 }
 
@@ -83,20 +92,32 @@ func TestPipeEvery_AllTrue(t *testing.T) {
 }
 
 func TestPipeEvery_ShortCircuit(t *testing.T) {
-	inch := makeTestPipeChan(NewLong(2), NewLong(3), NewLong(4))
+	inch := MakeChannel(NewLong(4))
+	ChannelSend(inch, NewLong(2))
+	ChannelSend(inch, NewLong(3))
+	ChannelSend(inch, NewLong(4))
 	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
 	r := ChannelPipeEvery(even, inch)
 	if r.tag != TagBool || r.Bool() {
 		t.Fatal("expected false")
 	}
+	if sent := ChannelSend(inch, NewLong(6)); sent.Bool() {
+		t.Fatal("expected upstream send to stop after channel-every? short-circuit")
+	}
 }
 
 func TestPipeSome_Found(t *testing.T) {
-	inch := makeTestPipeChan(NewLong(1), NewLong(3), NewLong(4), NewLong(5))
+	inch := MakeChannel(NewLong(4))
+	ChannelSend(inch, NewLong(1))
+	ChannelSend(inch, NewLong(3))
+	ChannelSend(inch, NewLong(4))
 	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
 	r := ChannelPipeSome(even, inch)
 	if r.tag != TagLong || r.Long() != 4 {
 		t.Fatalf("expected 4, got %v", r)
+	}
+	if sent := ChannelSend(inch, NewLong(5)); sent.Bool() {
+		t.Fatal("expected upstream send to stop after channel-some? match")
 	}
 }
 
@@ -115,7 +136,7 @@ func TestLinesPipe_FromPath(t *testing.T) {
 	ch := ChannelLinesPipe(NewString(path))
 	got := collectPipe(ch)
 	if len(got) == 0 {
-		t.Fatal("lines-pipe returned no lines for channel_pipe.go")
+		t.Fatal("channel-lines returned no lines for channel_pipe.go")
 	}
 	if got[0].tag != TagString || got[0].StringValue() != "package runtime" {
 		t.Fatalf("unexpected first line: %q", got[0].StringValue())

@@ -6,15 +6,17 @@ import (
 	"unsafe"
 )
 
-// ChannelObject is an opaque Go channel of FLAG Values.
+// ChannelObject is an opaque FLAG channel.
+// data carries stream values; done is the termination/cancellation signal.
 type ChannelObject struct {
-	ch   chan Value
+	data chan Value
+	done chan struct{}
 	once sync.Once
 }
 
-// closeChan closes the underlying channel exactly once; safe to call many times.
-func (c *ChannelObject) closeChan() {
-	c.once.Do(func() { close(c.ch) })
+// closeDone closes the termination signal exactly once; safe to call many times.
+func (c *ChannelObject) closeDone() {
+	c.once.Do(func() { close(c.done) })
 }
 
 // MakeChannel creates a channel.
@@ -44,7 +46,7 @@ func MakeChannel(args ...Value) Value {
 }
 
 func newChannelValue(ch chan Value) Value {
-	return Value{p: unsafe.Pointer(&ChannelObject{ch: ch}), tag: TagChannel}
+	return Value{p: unsafe.Pointer(&ChannelObject{data: ch, done: make(chan struct{})}), tag: TagChannel}
 }
 
 func (v Value) ChannelObject() *ChannelObject {
@@ -57,33 +59,59 @@ func (v Value) ChannelObject() *ChannelObject {
 	return (*ChannelObject)(v.p)
 }
 
-// ChannelSend sends value on ch (blocks until a receiver is ready for
-// unbuffered channels, or until space is available for buffered ones).
-// Returns nil.
+// ChannelSend sends value on ch.
+// Returns true if the value was sent, false if the channel was terminated.
 func ChannelSend(ch Value, value Value) Value {
 	if ch.tag != TagChannel {
 		panic(fmt.Sprintf("channel-send expects a channel, got %s", ValueToString(ch)))
 	}
-	ch.ChannelObject().ch <- value
-	return NilValue()
+	c := ch.ChannelObject()
+	select {
+	case <-c.done:
+		return NewBool(false)
+	default:
+	}
+	select {
+	case c.data <- value:
+		return NewBool(true)
+	case <-c.done:
+		return NewBool(false)
+	}
 }
 
-// ChannelClose closes ch; safe to call multiple times (idempotent).
+// ChannelClose terminates ch; safe to call multiple times (idempotent).
+// This is the single close signal for FLAG channels.
 func ChannelClose(ch Value) Value {
 	if ch.tag != TagChannel {
 		panic(fmt.Sprintf("channel-close expects a channel, got %s", ValueToString(ch)))
 	}
-	ch.ChannelObject().closeChan()
+	ch.ChannelObject().closeDone()
 	return NilValue()
 }
 
+// recvChannelValue receives one value, preferring queued data over termination.
+// Once the done signal is closed and no data remains, it returns nil.
+func recvChannelValue(c *ChannelObject) (Value, bool) {
+	select {
+	case v := <-c.data:
+		return v, true
+	case <-c.done:
+		select {
+		case v := <-c.data:
+			return v, true
+		default:
+			return NilValue(), false
+		}
+	}
+}
+
 // ChannelReceive receives one value from ch.
-// Returns nil when the channel is closed and drained.
+// Returns nil when the channel has been terminated and no buffered values remain.
 func ChannelReceive(ch Value) Value {
 	if ch.tag != TagChannel {
 		panic(fmt.Sprintf("channel-receive expects a channel, got %s", ValueToString(ch)))
 	}
-	v, ok := <-ch.ChannelObject().ch
+	v, ok := recvChannelValue(ch.ChannelObject())
 	if !ok {
 		return NilValue()
 	}
@@ -113,7 +141,7 @@ func ChannelSelect(args ...Value) Value {
 			panic(fmt.Sprintf("select expects a channel at position %d, got %s", i+1, ValueToString(ch)))
 		}
 		select {
-		case v := <-ch.ChannelObject().ch:
+		case v := <-ch.ChannelObject().data:
 			_ = Call(handler, v)
 			count++
 		default:

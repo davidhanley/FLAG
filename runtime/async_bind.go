@@ -66,31 +66,31 @@ func adaptAsyncChannelClose(args ...Value) Value {
 }
 
 func adaptAsyncPipeMap(args ...Value) Value {
-	goArgArityExact("async/pipe-map", args, 2)
+	goArgArityExact("async/channel-map", args, 2)
 	return ChannelPipeMap(args[0], args[1])
 }
 
 func adaptAsyncPipeFilter(args ...Value) Value {
-	goArgArityExact("async/pipe-filter", args, 2)
+	goArgArityExact("async/channel-filter", args, 2)
 	return ChannelPipeFilter(args[0], args[1])
 }
 
 func adaptAsyncPipeReduce(args ...Value) Value {
-	goArgArityExact("async/pipe-reduce", args, 3)
+	goArgArityExact("async/channel-reduce", args, 3)
 	return ChannelPipeReduce(args[0], args[1], args[2])
 }
 
 func adaptAsyncPipeEvery(args ...Value) Value {
-	goArgArityExact("async/pipe-every?", args, 2)
+	goArgArityExact("async/channel-every?", args, 2)
 	return ChannelPipeEvery(args[0], args[1])
 }
 
 func adaptAsyncPipeSome(args ...Value) Value {
-	goArgArityExact("async/pipe-some?", args, 2)
+	goArgArityExact("async/channel-some?", args, 2)
 	return ChannelPipeSome(args[0], args[1])
 }
 
 func adaptAsyncLinesPipe(args ...Value) Value {
-	goArgArityExact("async/lines-pipe", args, 1)
+	goArgArityExact("async/channel-lines", args, 1)
 	return ChannelLinesPipe(args[0])
 }
