@@ -1,7 +1,8 @@
 {:namespace "concurrency"
  :imports   [["async.lib" :refer [go future sleep
                                   make-channel channel-send channel-receive
-                                  select]]]}
+                                  channel-close select
+                                  channel-some? channel-every?]]]}
 
 ;; Demo of the async package (import with :refer).
 ;;   go / future  — macros

@@ -18,7 +18,9 @@ Policy for Go-backed libs: [go-libraries.md](go-libraries.md). Modules/imports:
 {:namespace "app"
  :imports   [["async.lib" :refer [go future sleep
                                   make-channel channel-send channel-receive
-                                  select]]]}
+                                  channel-close select
+                                  channel-map channel-filter channel-reduce
+                                  channel-every? channel-some? channel-lines]]]}
 ```
 
 With a bare import (no `:refer`), names are qualified:
@@ -47,9 +49,16 @@ Demo and tests: [`examples/concurrency`](../examples/concurrency).
 | `future-piped-run` | function | Engine for piped futures: runs a 0-arg function; returns a channel |
 | `sleep` | function | Pause the current goroutine for *n* milliseconds |
 | `make-channel` | function | Create a channel of FLAG values (optional buffer size) |
-| `channel-send` | function | Blocking send |
-| `channel-receive` | function | Blocking receive |
+| `channel-send` | function | Blocking send; returns `true` on success, `false` if terminated |
+| `channel-receive` | function | Blocking receive; returns `nil` after termination once buffered values are drained |
+| `channel-close` | function | Terminate a channel (idempotent) |
 | `select` | function | Non-blocking multi-receive; call handlers for ready channels |
+| `channel-map` | function | Non-blocking: apply fn to each value; return output channel |
+| `channel-filter` | function | Non-blocking: filter by pred; return output channel |
+| `channel-reduce` | function | Blocking: fold channel into a single value |
+| `channel-every?` | function | Blocking: true if pred holds for all values; terminates input on false |
+| `channel-some?` | function | Blocking: first value matching pred, or nil; terminates input on success |
+| `channel-lines` | function | Non-blocking: read file lines into a channel |
 
 Usually you only `:refer` the macros plus the channel/sleep API. `go-run` and
 `future-run` are exported so macro expansions can call `async/go-run` /
@@ -171,7 +180,7 @@ Returns a new channel.
 - Blocking send of `val` on `ch`
 - Unbuffered: waits until a receiver is ready
 - Buffered: waits only if the buffer is full
-- Returns `nil`
+- Returns `true` if sent, `false` if the channel has been terminated
 
 ### `channel-receive`
 
@@ -180,7 +189,7 @@ Returns a new channel.
 ```
 
 - Blocking receive from `ch`
-- Returns the received value
+- Returns the received value, or **`nil`** once the channel has been terminated and no buffered values remain
 
 ```clojure
 (let [ch (make-channel)]
@@ -188,7 +197,136 @@ Returns a new channel.
   (println (channel-receive ch)))   ;; 42
 ```
 
-There is no `close` / closed-channel receive yet.
+### `channel-close`
+
+```clojure
+(channel-close ch)
+```
+
+- Terminates `ch`; safe to call multiple times (idempotent)
+- Returns `nil`
+
+Use `channel-close` to signal end-of-stream or cancellation.
+`channel-send` returns `false` if it is blocked when termination arrives.
+
+---
+
+## Channel pipelines
+
+These operations treat a channel as a lazy stream.  All default to a buffer
+size of 32 on output channels.  Import from `async.lib`:
+
+```clojure
+{:imports [["async.lib" :refer [channel-map channel-filter channel-reduce
+                                 channel-every? channel-some? channel-lines
+                                 channel-close]]]}
+```
+
+| Name | Blocking? | Returns |
+|------|-----------|---------|
+| `channel-map` | No | output channel |
+| `channel-filter` | No | output channel |
+| `channel-reduce` | Yes | final accumulated value |
+| `channel-every?` | Yes | bool |
+| `channel-some?` | Yes | first match or `nil` |
+| `channel-lines` | No | output channel |
+
+### `channel-map`
+
+```clojure
+(channel-map f ch)
+```
+
+- Non-blocking: spawns a goroutine and returns a new buffered output channel
+- Sends `(f v)` for each value `v` received from `ch`
+- Output channel is terminated when `ch` is exhausted
+
+```clojure
+(let [nums (make-channel 4)]
+  (channel-send nums 1)
+  (channel-send nums 2)
+  (channel-close nums)
+  (let [doubled (channel-map (fn [n] (* n 2)) nums)]
+    (println (channel-receive doubled))  ;; 2
+    (println (channel-receive doubled)))) ;; 4
+```
+
+### `channel-filter`
+
+```clojure
+(channel-filter pred ch)
+```
+
+- Non-blocking: spawns a goroutine and returns a new buffered output channel
+- Forwards only values from `ch` for which `(pred v)` is truthy
+- Output channel is terminated when `ch` is exhausted
+
+```clojure
+(let [evens (channel-filter even? source-ch)]
+  ...)
+```
+
+### `channel-reduce`
+
+```clojure
+(channel-reduce f init ch)
+```
+
+- **Blocking**: drains `ch` completely, folding with `(f acc v)` starting from `init`
+- Returns the final accumulated value
+
+```clojure
+(channel-reduce + 0 numbers-ch)   ;; sum of all values
+```
+
+### `channel-every?`
+
+```clojure
+(channel-every? pred ch)
+```
+
+- **Blocking**: returns `true` if `(pred v)` is truthy for every value in `ch`
+- Short-circuits on the first falsy result and terminates `ch`
+- Returns `false` as soon as any value fails
+
+```clojure
+(channel-every? pos? numbers-ch)
+```
+
+### `channel-some?`
+
+```clojure
+(channel-some? pred ch)
+```
+
+- **Blocking**: returns the first value for which `(pred v)` is truthy, or `nil` if none
+- Short-circuits after the first match and terminates `ch`
+
+```clojure
+(channel-some? even? numbers-ch)   ;; first even value or nil
+```
+
+### `channel-lines`
+
+```clojure
+(channel-lines path-or-file)
+```
+
+- Accepts a **string path** or an open **file** value
+- Non-blocking: returns a buffered channel of string values (one per line, no newline)
+- The channel is terminated when all lines have been read
+- For string paths, the file is opened synchronously (errors panic at the call site)
+
+```clojure
+(let [lines (channel-lines "/etc/hosts")]
+  (let [first-line (channel-receive lines)]
+    (println first-line)))
+
+;; chain with channel-filter:
+(let [ch (channel-filter (fn [l] (not (str/starts-with? l "#")))
+                         (channel-lines "/etc/hosts"))]
+  ...)
+```
 
 ---
 
@@ -236,6 +374,11 @@ Handlers may be `#(...)`, `(fn [v] …)`, or any value `Call` accepts as a funct
 | Future = callable, not `@` | No extra deref syntax; just `(f)` |
 | Future done-channel | Simple, multi-waiter, multi-call; swap later if needed |
 | `select` non-blocking | Matches “process whatever is ready now”; returns a count |
+| `channel-close` idempotent | Safe to call from multiple goroutines; closes the termination signal |
+| Pipelines use buffer 32 | Avoids head-of-line blocking without unbounded memory |
+| `channel-reduce`/`channel-every?`/`channel-some?` blocking | Aggregation always needs the full stream; callers expect a value |
+| Short-circuit closes input | Lets upstream senders stop without panic or background draining |
+| `channel-lines` opens file synchronously | Error surfaces at call site, not in a distant goroutine |
 | No eval / full image | Async does not force a compiler into app binaries |
 
 ---

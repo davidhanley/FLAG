@@ -81,17 +81,19 @@ func FuturePipeRun(fn Value) Value {
 	if fn.tag != TagFunction {
 		panic("FuturePipeRun expects a function Value")
 	}
-	ch := make(chan Value, 1)
+	ch := newChannelValue(make(chan Value, 1))
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				ReportGoPanic(r)
-				ch <- NilValue()
+				_ = ChannelSend(ch, NilValue())
+				ChannelClose(ch)
 			}
 		}()
-		ch <- Call(fn)
+		_ = ChannelSend(ch, Call(fn))
+		ChannelClose(ch)
 	}()
-	return newChannelValue(ch)
+	return ch
 }
 
 func isKeyword(v Value, name string) bool {
