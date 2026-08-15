@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+BIN_DIR="${BIN_DIR:-bin}"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+
+mkdir -p "$BIN_DIR"
+go build -o "$BIN_DIR/muse" ./cmd/muse
+
+install -d "$INSTALL_DIR"
+install -m 0755 "$BIN_DIR/muse" "$INSTALL_DIR/muse"

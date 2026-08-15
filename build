@@ -1,11 +1,59 @@
 #!/bin/sh
 set -eu
 
-BIN_DIR="${BIN_DIR:-bin}"
+# Build flag-lang and install a runnable command on PATH when possible.
+#
+# Outputs:
+#   $BIN_DIR/flag-lang          (default: bin/flag-lang)
+#   ./flag-lang                 (project-root copy for ./flag-lang)
+#   $INSTALL_DIR/flag           (and flag-lang), if INSTALL_DIR is writable
+#
+# Override with:
+#   BIN_DIR=... INSTALL_DIR=... ./build
+
+ROOT="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+BIN_DIR="${BIN_DIR:-$ROOT/bin}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+FALLBACK_INSTALL_DIR="${FALLBACK_INSTALL_DIR:-$HOME/.local/bin}"
 
 mkdir -p "$BIN_DIR"
+cd "$ROOT"
 go build -o "$BIN_DIR/flag-lang" ./cmd/flag-lang
 
-install -d "$INSTALL_DIR"
-install -m 0755 "$BIN_DIR/flag-lang" "$INSTALL_DIR/flag"
+# Convenient project-root copy (so ./flag-lang works after build).
+cp "$BIN_DIR/flag-lang" "$ROOT/flag-lang"
+chmod 0755 "$ROOT/flag-lang"
+
+install_binary() {
+  dest_dir="$1"
+  mkdir -p "$dest_dir"
+  install -m 0755 "$BIN_DIR/flag-lang" "$dest_dir/flag"
+  install -m 0755 "$BIN_DIR/flag-lang" "$dest_dir/flag-lang"
+  echo "installed: $dest_dir/flag"
+  echo "installed: $dest_dir/flag-lang"
+}
+
+if [ -d "$INSTALL_DIR" ] && [ -w "$INSTALL_DIR" ]; then
+  install_binary "$INSTALL_DIR"
+elif mkdir -p "$INSTALL_DIR" 2>/dev/null && [ -w "$INSTALL_DIR" ]; then
+  install_binary "$INSTALL_DIR"
+elif [ -n "${FALLBACK_INSTALL_DIR}" ]; then
+  mkdir -p "$FALLBACK_INSTALL_DIR"
+  if [ -w "$FALLBACK_INSTALL_DIR" ]; then
+    install_binary "$FALLBACK_INSTALL_DIR"
+    case ":$PATH:" in
+      *":$FALLBACK_INSTALL_DIR:"*) ;;
+      *)
+        echo "note: $FALLBACK_INSTALL_DIR is not on PATH; add it or run:"
+        echo "  export PATH=\"$FALLBACK_INSTALL_DIR:\$PATH\""
+        ;;
+    esac
+  else
+    echo "warning: could not install to $INSTALL_DIR or $FALLBACK_INSTALL_DIR" >&2
+    echo "built: $BIN_DIR/flag-lang" >&2
+    echo "built: $ROOT/flag-lang" >&2
+  fi
+else
+  echo "built: $BIN_DIR/flag-lang"
+  echo "built: $ROOT/flag-lang"
+fi

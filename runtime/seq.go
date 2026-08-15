@@ -4,6 +4,7 @@ import (
 	goruntime "runtime"
 	"sort"
 	"sync"
+	"unicode/utf8"
 )
 
 const eagerRangeThreshold = 1000
@@ -480,7 +481,15 @@ func NotEmpty(coll Value) Value {
 }
 
 func Seq(coll Value) Value {
-	return NotEmpty(coll)
+	switch coll.tag {
+	case TagString:
+		if coll.StringValue() == "" {
+			return NilValue()
+		}
+		return Vec(coll)
+	default:
+		return NotEmpty(coll)
+	}
 }
 
 func IsEmpty(coll Value) bool {
@@ -761,8 +770,7 @@ func Count(coll Value) int {
 	case TagSet:
 		return coll.SetLen()
 	case TagString:
-		// Return the length of the string
-		return len(coll.StringValue())
+		return utf8.RuneCountInString(coll.StringValue())
 	case TagNil:
 		return 0
 	default:
@@ -914,8 +922,8 @@ func First(coll Value) Value {
 		if value == "" {
 			return NilValue()
 		}
-		runes := []rune(value)
-		return NewString(string(runes[0]))
+		_, size := utf8.DecodeRuneInString(value)
+		return NewString(value[:size])
 	default:
 		panic("first expects nil, list, array, lazy-list, or string Value")
 	}
@@ -942,8 +950,15 @@ func Rest(coll Value) Value {
 		return ArrayRest(coll)
 	case TagLazyList:
 		return lazyTail(coll)
+	case TagString:
+		value := coll.StringValue()
+		if value == "" {
+			return NewArray()
+		}
+		_, size := utf8.DecodeRuneInString(value)
+		return Vec(NewString(value[size:]))
 	default:
-		panic("rest expects list, array, or lazy-list Value")
+		panic("rest expects list, array, lazy-list, or string Value")
 	}
 }
 
@@ -1157,6 +1172,8 @@ type seqCursor struct {
 	listNode  *listNode
 	lazyList  Value
 	arrayVals []Value
+	strValue  string
+	strIndex  int
 	arrayIdx  int
 	length    int
 	hasLength bool
@@ -1211,8 +1228,15 @@ func newSeqCursor(coll Value) seqCursor {
 			length:    len(pairs),
 			hasLength: true,
 		}
+	case TagString:
+		return seqCursor{
+			kind:      TagString,
+			strValue:  coll.StringValue(),
+			strIndex:  0,
+			hasLength: false,
+		}
 	default:
-		panic("sequence expects list, array, lazy-list, map, or nil Value")
+		panic("sequence expects list, array, lazy-list, map, string, or nil Value")
 	}
 }
 
@@ -1262,6 +1286,14 @@ func (c *seqCursor) nextOrDone() (Value, bool) {
 			c.length--
 		}
 		return value, true
+	case TagString:
+		if c.strIndex >= len(c.strValue) {
+			return Value{}, false
+		}
+		_, size := utf8.DecodeRuneInString(c.strValue[c.strIndex:])
+		start := c.strIndex
+		c.strIndex += size
+		return NewString(c.strValue[start:c.strIndex]), true
 	default:
 		panic("unknown cursor kind")
 	}

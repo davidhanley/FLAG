@@ -683,6 +683,9 @@ func TestCountAcrossContainerTypes(t *testing.T) {
 	if got := Count(NewString("hello")); got != 5 {
 		t.Fatalf("expected count 5 for string 'hello', got %d", got)
 	}
+	if got := Count(NewString("a😀")); got != 2 {
+		t.Fatalf("expected rune count 2 for string 'a😀', got %d", got)
+	}
 
 	// Test nil
 	if got := Count(NilValue()); got != 0 {
@@ -776,8 +779,8 @@ func TestSeqReturnsNilForEmptyAndCollectionForNonEmpty(t *testing.T) {
 	if got := Seq(NewList(NewLong(1))); got.tag != TagList {
 		t.Fatalf("expected non-empty list from seq, got %#v", got)
 	}
-	if got := Seq(NewString("x")); got.tag != TagString || got.StringValue() != "x" {
-		t.Fatalf("expected string value from seq, got %#v", got)
+	if got := Seq(NewString("x")); got.tag != TagArray || got.ArrayLen() != 1 || ArrayGet(got, 0).StringValue() != "x" {
+		t.Fatalf("expected character array from seq(string), got %#v", got)
 	}
 }
 
@@ -787,6 +790,19 @@ func TestVecRealizesCollectionsToArray(t *testing.T) {
 	}
 	if got := Vec(NilValue()); got.tag != TagArray || got.ArrayLen() != 0 {
 		t.Fatalf("unexpected vec result for nil: %#v", got)
+	}
+	if got := Vec(NewString("a😀")); got.tag != TagArray || got.ArrayLen() != 2 || ArrayGet(got, 0).StringValue() != "a" || ArrayGet(got, 1).StringValue() != "😀" {
+		t.Fatalf("unexpected vec result for string: %#v", got)
+	}
+}
+
+func TestMapOverStringYieldsCharacterValues(t *testing.T) {
+	got := Map(BuiltinFunction("identity"), NewString("ab😀"))
+	if got.tag != TagArray || got.ArrayLen() != 3 {
+		t.Fatalf("unexpected map result for string: %#v", got)
+	}
+	if ArrayGet(got, 0).StringValue() != "a" || ArrayGet(got, 1).StringValue() != "b" || ArrayGet(got, 2).StringValue() != "😀" {
+		t.Fatalf("unexpected mapped characters: %s", ValueToString(got))
 	}
 }
 
