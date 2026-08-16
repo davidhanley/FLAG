@@ -1,0 +1,63 @@
+{:namespace "compiler"
+ :exports   [tokenize-file]
+ :imports   [["async.lib" :refer [go make-channel channel-send channel-close]]]}
+
+(def whitespace-chars #{" " "\t" "\n" "\r" ","})
+(def delimiter-chars #{"(" ")" "[" "]" "{" "}"})
+
+(defn whitespace-char? [ch]
+  (contains? whitespace-chars ch))
+
+(defn delimiter-char? [ch]
+  (contains? delimiter-chars ch))
+
+(defn emit-token!
+  [out token line offset]
+  (if (empty? token)
+    nil
+    (channel-send out {:token token :line line :offset offset})))
+
+(defn tokenize-line-step!
+  [out chars line column current start]
+  (if (empty? chars)
+    (emit-token! out current line start)
+    (let [ch (first chars)]
+      (cond
+        (whitespace-char? ch)
+        (do
+          (emit-token! out current line start)
+          (tokenize-line-step! out (rest chars) line (+ column 1) "" 0))
+
+        (delimiter-char? ch)
+        (do
+          (emit-token! out current line start)
+          (emit-token! out ch line column)
+          (tokenize-line-step! out (rest chars) line (+ column 1) "" 0))
+
+        true
+        (if (empty? current)
+          (tokenize-line-step! out (rest chars) line (+ column 1) ch column)
+          (tokenize-line-step! out (rest chars) line (+ column 1) (str current ch) start))))))
+
+(defn tokenize-line!
+  [out line line-number]
+  (tokenize-line-step! out (seq line) line-number 1 "" 0))
+
+(defn tokenize-lines!
+  [out lines line-number]
+  (if (empty? lines)
+    nil
+    (do
+      (tokenize-line! out (str (first lines)) line-number)
+      (tokenize-lines! out (rest lines) (+ line-number 1)))))
+
+(defn tokenize-file
+  "Read a source file and return a channel of token maps {:token :line :offset}."
+  [path]
+  (let [out (make-channel 64)]
+    (go
+      (with-open [rdr (io/reader path)]
+        (do
+          (tokenize-lines! out (line-seq rdr) 1)
+          (channel-close out))))
+    out))

@@ -171,6 +171,94 @@ func TestRunBuildGoFormRunsAsync(t *testing.T) {
 	}
 }
 
+func TestRunBuildCompilerTokenizerLibrary(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "main.flag")
+	sourcePath := filepath.Join(dir, "sample.flag")
+	outputPath := filepath.Join(dir, "tokenizer-bin")
+
+	source := "(+ x 10)\nfoo[bar]\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+
+	program := `
+{:namespace "main"
+ :imports [["compiler.lib" :as "c"]
+           ["async.lib" :refer [channel-receive]]]}
+(defn drain [ch]
+  (let [token (channel-receive ch)]
+    (if (nil? token)
+      nil
+      (do
+        (println (:token token) ":" (:line token) ":" (:offset token))
+        (drain ch)))))
+(defn main [& _args]
+  (drain (c/tokenize-file "` + strings.ReplaceAll(sourcePath, "\\", "\\\\") + `")))
+`
+
+	if err := os.WriteFile(inputPath, []byte(program), 0o644); err != nil {
+		t.Fatalf("WriteFile program: %v", err)
+	}
+
+	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("tokenizer binary failed: %v\n%s", err, result)
+	}
+	out := string(result)
+	for _, want := range []string{
+		"(:1:1",
+		"+:1:2",
+		"x:1:4",
+		"10:1:6",
+		"):1:8",
+		"foo:2:1",
+		"[:2:4",
+		"bar:2:5",
+		"]:2:8",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+// Acceptance: examples/compiler_tokenizer FLAG tests for tokenizer behavior.
+func TestAcceptanceCompilerTokenizerFlagTests(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "compiler_tokenizer"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Abs repoRoot: %v", err)
+	}
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir repoRoot: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(prevWD)
+	})
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "compiler_tokenizer.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", exampleDir}); err != nil {
+		t.Fatalf("flag-lang test examples/compiler_tokenizer: %v", err)
+	}
+}
+
 // Acceptance: examples/concurrency FLAG tests (sleep, go, fib) via `flag-lang test`.
 func TestAcceptanceConcurrencyFlagTests(t *testing.T) {
 	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "concurrency"))
