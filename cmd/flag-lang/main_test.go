@@ -184,7 +184,7 @@ func TestRunBuildCompilerTokenizerLibrary(t *testing.T) {
 
 	program := `
 {:namespace "main"
- :imports [["compiler.lib" :as "c"]
+ :imports [["compiler/tokenizer.lib" :as "c"]
            ["async.lib" :refer [channel-receive]]]}
 (defn drain [ch]
   (let [token (channel-receive ch)]
