@@ -12,7 +12,7 @@ func TestCompileProgramLibraryImportCompilerTokenizer(t *testing.T) {
 	main := filepath.Join(dir, "main.flag")
 	if err := os.WriteFile(main, []byte(`
 {:namespace "main"
- :imports [["compiler.lib" :as "shadow"]
+ :imports [["compiler/tokenizer.lib" :as "shadow"]
            ["async.lib" :refer [channel-receive]]]}
 (defn drain [ch]
   (let [v (channel-receive ch)]
