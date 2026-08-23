@@ -1,0 +1,30 @@
+{:namespace "compiler-tokenizer-test"}
+
+(deftest tokenize-file-emits-token-maps-with-positions
+  (let [tokens (tokenize-file-to-array "examples/compiler_tokenizer/sample.txt")]
+    (is (= 10 (count tokens)))
+
+    (let [t0 (nth-token tokens 0)
+          t1 (nth-token tokens 1)
+          t2 (nth-token tokens 2)
+          t3 (nth-token tokens 3)
+          t4 (nth-token tokens 4)
+          t5 (nth-token tokens 5)
+          t6 (nth-token tokens 6)
+          t7 (nth-token tokens 7)
+          t8 (nth-token tokens 8)
+          t9 (nth-token tokens 9)]
+      (is (= "(" (:token t0))) (is (= 1 (:line t0))) (is (= 1 (:offset t0)))
+      (is (= "+" (:token t1))) (is (= 1 (:line t1))) (is (= 2 (:offset t1)))
+      (is (= "x" (:token t2))) (is (= 1 (:line t2))) (is (= 4 (:offset t2)))
+      (is (= "10" (:token t3))) (is (= 1 (:line t3))) (is (= 6 (:offset t3)))
+      (is (= ")" (:token t4))) (is (= 1 (:line t4))) (is (= 8 (:offset t4)))
+      (is (= "foo" (:token t5))) (is (= 2 (:line t5))) (is (= 1 (:offset t5)))
+      (is (= "bar" (:token t6))) (is (= 2 (:line t6))) (is (= 5 (:offset t6)))
+      (is (= "[" (:token t7))) (is (= 3 (:line t7))) (is (= 1 (:offset t7)))
+      (is (= "ab" (:token t8))) (is (= 3 (:line t8))) (is (= 2 (:offset t8)))
+      (is (= "]" (:token t9))) (is (= 3 (:line t9))) (is (= 4 (:offset t9))))))
+
+(deftest tokenize-file-returns-empty-for-empty-input
+  (let [tokens (tokenize-file-to-array "examples/compiler_tokenizer/empty.txt")]
+    (is (= 0 (count tokens)))))
