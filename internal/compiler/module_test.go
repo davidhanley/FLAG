@@ -296,6 +296,39 @@ func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
 	}
 }
 
+func TestCompileProgramLibraryImportInteropDefrecord(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "main"
+ :imports [["interop.lib" :refer [defrecord]]]}
+(defrecord Person [name age])
+(println (:age (->Person "Ada" 36)))
+(println (:name (map->Person {:name "Bob" :age 40})))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := CompileProgram(main)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			t.Skipf("libraries/ not resolvable from test cwd: %v", err)
+		}
+		t.Fatalf("CompileProgram: %v", err)
+	}
+	got := string(out)
+	for _, want := range []string{
+		"func flag_main____gtPerson_arity_2",
+		"func flag_main__map__gtPerson_arity_1",
+		`flagrt.Call(flag_main____gtPerson, flagStr_Ada, flagrt.NewLong(36))`,
+		"flagrt.Call(flag_main__map__gtPerson",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileRejectsAmbientBurpWithoutImport(t *testing.T) {
 	_, err := Compile(`
 {:namespace "main"}

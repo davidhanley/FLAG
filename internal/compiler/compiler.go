@@ -1227,7 +1227,9 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
-	for _, form := range mod.Forms {
+	pendingForms := append([]Expr(nil), mod.Forms...)
+	for i := 0; i < len(pendingForms); i++ {
+		form := pendingForms[i]
 		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
 			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
 				name, def, err := compileDefmacro(list)
@@ -1344,6 +1346,12 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 				return compileResult{}, nil, nil, err
 			}
 			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Print(%s)", arg)})
+		case "do":
+			if len(list.Elements) > 1 {
+				inner := make([]Expr, 0, len(list.Elements)-1)
+				inner = append(inner, list.Elements[1:]...)
+				pendingForms = append(pendingForms[:i+1], append(inner, pendingForms[i+1:]...)...)
+			}
 		default:
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -1370,7 +1378,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
 	}
 
-	nameExpr, ok := form.Elements[1].(SymbolExpr)
+	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
 		return functionDef{}, exprError(form, "defn expects a function name")
 	}
@@ -1461,7 +1469,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 		return varDef{}, 0, false, exprError(form, "def expects name, optional docstring, and value")
 	}
 
-	nameExpr, ok := form.Elements[1].(SymbolExpr)
+	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
 		return varDef{}, 0, false, exprError(form, "def expects a symbol name")
 	}
@@ -1497,7 +1505,7 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 	if len(form.Elements) != 4 && len(form.Elements) != 5 {
 		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
 	}
-	nameExpr, ok := form.Elements[1].(SymbolExpr)
+	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
 		return "", macroDef{}, fmt.Errorf("defmacro expects a macro name")
 	}
@@ -1521,7 +1529,7 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 	params := make([]string, 0, len(paramsExpr.Elements))
 	restParam := ""
 	for i := 0; i < len(paramsExpr.Elements); i++ {
-		sym, ok := paramsExpr.Elements[i].(SymbolExpr)
+		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
 		if !ok || sym.Name == "" {
 			return "", macroDef{}, fmt.Errorf("defmacro parameters must be symbols")
 		}
@@ -1529,7 +1537,7 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 			if restParam != "" || i != len(paramsExpr.Elements)-2 {
 				return "", macroDef{}, fmt.Errorf("defmacro varargs must use [& name] at end")
 			}
-			next, ok := paramsExpr.Elements[i+1].(SymbolExpr)
+			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
 			if !ok || next.Name == "" || next.Name == "&" {
 				return "", macroDef{}, fmt.Errorf("defmacro varargs expects symbol after &")
 			}
@@ -1552,7 +1560,7 @@ func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, fmt.Errorf("deftest expects a name and body")
 	}
 
-	nameExpr, ok := form.Elements[1].(SymbolExpr)
+	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
 	if !ok || nameExpr.Name == "" {
 		return functionDef{}, fmt.Errorf("deftest expects a test name")
 	}
@@ -1788,9 +1796,88 @@ func applyMacroBuiltin(name string, args []Expr) (Expr, bool, error) {
 	case "macro-case":
 		expanded, err := expandMacroCase(args)
 		return expanded, true, err
+	case "macro-defrecord":
+		expanded, err := expandDefrecordMacro(args)
+		return expanded, true, err
 	default:
 		return nil, false, nil
 	}
+}
+
+func expandDefrecordMacro(args []Expr) (Expr, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("macro-defrecord expects a record name and field vector")
+	}
+
+	recordNameExpr := unwrapMetaExpr(args[0])
+	recordName, ok := recordNameExpr.(SymbolExpr)
+	if !ok {
+		return nil, fmt.Errorf("macro-defrecord record name must be a symbol")
+	}
+
+	fieldsExpr, ok := args[1].(VectorExpr)
+	if !ok {
+		return nil, fmt.Errorf("macro-defrecord fields must be a vector")
+	}
+
+	fields := make([]SymbolExpr, 0, len(fieldsExpr.Elements))
+	for _, fieldExpr := range fieldsExpr.Elements {
+		fieldExpr = unwrapMetaExpr(fieldExpr)
+		field, ok := fieldExpr.(SymbolExpr)
+		if !ok {
+			return nil, fmt.Errorf("macro-defrecord fields must be symbols")
+		}
+		fields = append(fields, field)
+	}
+
+	constructorName := SymbolExpr{Name: "->" + recordName.Name}
+	mapConstructorName := SymbolExpr{Name: "map->" + recordName.Name}
+
+	constructorParams := make([]Expr, 0, len(fields))
+	constructorEntries := make([]Expr, 0, len(fields)*2)
+	for _, field := range fields {
+		constructorParams = append(constructorParams, field)
+		constructorEntries = append(constructorEntries, KeywordExpr{Name: field.Name}, field)
+	}
+	constructorForm := ListExpr{
+		Elements: []Expr{
+			SymbolExpr{Name: "defn"},
+			constructorName,
+			VectorExpr{Elements: constructorParams},
+			MapExpr{Entries: constructorEntries},
+		},
+	}
+
+	mapParam := SymbolExpr{Name: "m"}
+	mapConstructorEntries := make([]Expr, 0, len(fields)*2)
+	for _, field := range fields {
+		mapConstructorEntries = append(
+			mapConstructorEntries,
+			KeywordExpr{Name: field.Name},
+			ListExpr{
+				Elements: []Expr{
+					KeywordExpr{Name: field.Name},
+					mapParam,
+				},
+			},
+		)
+	}
+	mapConstructorForm := ListExpr{
+		Elements: []Expr{
+			SymbolExpr{Name: "defn"},
+			mapConstructorName,
+			VectorExpr{Elements: []Expr{mapParam}},
+			MapExpr{Entries: mapConstructorEntries},
+		},
+	}
+
+	return ListExpr{
+		Elements: []Expr{
+			SymbolExpr{Name: "do"},
+			constructorForm,
+			mapConstructorForm,
+		},
+	}, nil
 }
 
 func copyExpr(expr Expr) Expr {
@@ -3534,7 +3621,8 @@ func parseVolatileBindingPattern(expr Expr) (bool, Expr, error) {
 	}
 	mapExpr, ok := meta.Meta.(MapExpr)
 	if !ok {
-		return false, meta.Target, exprError(meta.Meta, "binding metadata must be a map")
+		// Non-map metadata (e.g. ^int, ^long, ^float) is accepted as a no-op hint.
+		return false, meta.Target, nil
 	}
 	if len(mapExpr.Entries)%2 != 0 {
 		return false, meta.Target, exprError(meta.Meta, "metadata map expects key/value pairs")
@@ -5338,7 +5426,7 @@ func bindLambdaParams(
 	hasRest := false
 
 	for idx := 0; idx < len(paramsExpr.Elements); idx++ {
-		paramExpr := paramsExpr.Elements[idx]
+		paramExpr := unwrapMetaExpr(paramsExpr.Elements[idx])
 		if sym, ok := paramExpr.(SymbolExpr); ok && sym.Name == "&" {
 			if hasRest {
 				return nil, nil, nil, false, fmt.Errorf("%s parameters support only one & binding", label)
@@ -5713,6 +5801,14 @@ func toGoIdentifier(name string) (string, error) {
 		}
 		if ch == '!' {
 			out.WriteString("_bang")
+			continue
+		}
+		if ch == '>' {
+			out.WriteString("_gt")
+			continue
+		}
+		if ch == '<' {
+			out.WriteString("_lt")
 			continue
 		}
 		if ch != '_' && !unicode.IsLetter(ch) && !unicode.IsDigit(ch) {

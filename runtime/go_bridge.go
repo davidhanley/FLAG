@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 var (
@@ -251,8 +252,23 @@ func valueToGoArg(value Value, targetType reflect.Type) (reflect.Value, error) {
 			return convertSeqToSlice(value, targetType)
 		}
 	}
-	if value.tag == TagMap && targetType.Kind() == reflect.Map {
-		return convertMapToMap(value, targetType)
+	if value.tag == TagMap {
+		switch targetType.Kind() {
+		case reflect.Map:
+			return convertMapToMap(value, targetType)
+		case reflect.Struct:
+			return convertMapToStruct(value, targetType)
+		case reflect.Pointer:
+			if targetType.Elem().Kind() == reflect.Struct {
+				structValue, err := convertMapToStruct(value, targetType.Elem())
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				ptr := reflect.New(targetType.Elem())
+				ptr.Elem().Set(structValue)
+				return ptr, nil
+			}
+		}
 	}
 
 	return reflect.Value{}, fmt.Errorf("cannot convert %T to %s", raw, targetType)
@@ -378,6 +394,62 @@ func convertMapToMap(value Value, targetType reflect.Type) (reflect.Value, error
 		out.SetMapIndex(key, val)
 	}
 	return out, nil
+}
+
+func convertMapToStruct(value Value, targetType reflect.Type) (reflect.Value, error) {
+	out := reflect.New(targetType).Elem()
+	fieldByNormalizedName := make(map[string]int, targetType.NumField())
+	for i := 0; i < targetType.NumField(); i++ {
+		field := targetType.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		fieldByNormalizedName[normalizeInteropFieldName(field.Name)] = i
+	}
+
+	for _, entry := range value.MapEntries() {
+		keyName, ok := mapKeyName(entry.Key)
+		if !ok {
+			continue
+		}
+		fieldIndex, ok := fieldByNormalizedName[normalizeInteropFieldName(keyName)]
+		if !ok {
+			continue
+		}
+		fieldType := targetType.Field(fieldIndex)
+		fieldValue := out.Field(fieldIndex)
+		if !fieldValue.CanSet() {
+			continue
+		}
+		converted, err := valueToGoArg(entry.Value, fieldType.Type)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("field %s: %w", fieldType.Name, err)
+		}
+		fieldValue.Set(converted)
+	}
+
+	return out, nil
+}
+
+func mapKeyName(key Value) (string, bool) {
+	switch key.tag {
+	case TagSymbol:
+		return key.SymbolObject().Name, true
+	case TagString:
+		return key.StringValue(), true
+	default:
+		return "", false
+	}
+}
+
+func normalizeInteropFieldName(name string) string {
+	var out strings.Builder
+	for _, ch := range name {
+		if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
+			out.WriteRune(unicode.ToLower(ch))
+		}
+	}
+	return out.String()
 }
 
 func anyToValue(raw any) Value {
