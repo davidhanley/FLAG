@@ -13,6 +13,7 @@
   (contains? delimiter-chars ch))
 
 (defrecord SourceToken [token line offset])
+(defrecord TokenState [token start-line start-offset in-string triple escaped])
 
 (defn emit-token!
   [out token line offset]
@@ -20,39 +21,125 @@
     nil
     (channel-send out (->SourceToken token line offset))))
 
+(defn make-state [token start-line start-offset in-string triple escaped]
+  (->TokenState token start-line start-offset in-string triple escaped))
+
+(def empty-token-state
+  (make-state "" 0 0 false false false))
+
+(defn starts-triple-quote?
+  [chars]
+  (and (= "\"" (first chars))
+       (= "\"" (first (rest chars)))
+       (= "\"" (first (rest (rest chars))))))
+
 (defn tokenize-line-step!
-  [out chars line column current start]
-  (if (empty? chars)
-    (emit-token! out current line start)
-    (let [ch (first chars)]
-      (cond
-        (whitespace-char? ch)
+  [out chars line column state]
+  (loop [remaining chars col column current state]
+    (if (empty? remaining)
+      (if (:in-string current)
+        current
         (do
-          (emit-token! out current line start)
-          (tokenize-line-step! out (rest chars) line (+ column 1) "" 0))
+          (emit-token! out (:token current) (:start-line current) (:start-offset current))
+          empty-token-state))
+      (let [ch (first remaining)]
+        (if (:in-string current)
+          (if (:triple current)
+            (if (starts-triple-quote? remaining)
+              (let [token (str (:token current) "\"\"\"")]
+                (emit-token! out token (:start-line current) (:start-offset current))
+                (recur (rest (rest (rest remaining))) (+ col 3) empty-token-state))
+              (recur (rest remaining) (+ col 1)
+                     (make-state (str (:token current) ch)
+                                 (:start-line current)
+                                 (:start-offset current)
+                                 true
+                                 true
+                                 false)))
+            (let [token (str (:token current) ch)]
+              (cond
+                (:escaped current)
+                (recur (rest remaining) (+ col 1)
+                       (make-state token
+                                   (:start-line current)
+                                   (:start-offset current)
+                                   true
+                                   false
+                                   false))
 
-        (delimiter-char? ch)
-        (do
-          (emit-token! out current line start)
-          (emit-token! out ch line column)
-          (tokenize-line-step! out (rest chars) line (+ column 1) "" 0))
+                (= "\\" ch)
+                (recur (rest remaining) (+ col 1)
+                       (make-state token
+                                   (:start-line current)
+                                   (:start-offset current)
+                                   true
+                                   false
+                                   true))
 
-        true
-        (if (empty? current)
-          (tokenize-line-step! out (rest chars) line (+ column 1) ch column)
-          (tokenize-line-step! out (rest chars) line (+ column 1) (str current ch) start))))))
+                (= "\"" ch)
+                (do
+                  (emit-token! out token (:start-line current) (:start-offset current))
+                  (recur (rest remaining) (+ col 1) empty-token-state))
 
-(defn tokenize-line!
-  [out line line-number]
-  (tokenize-line-step! out (seq line) line-number 1 "" 0))
+                true
+                (recur (rest remaining) (+ col 1)
+                       (make-state token
+                                   (:start-line current)
+                                   (:start-offset current)
+                                   true
+                                   false
+                                   false)))))
+          (cond
+            (whitespace-char? ch)
+            (do
+              (emit-token! out (:token current) (:start-line current) (:start-offset current))
+              (recur (rest remaining) (+ col 1) empty-token-state))
+
+            (delimiter-char? ch)
+            (do
+              (emit-token! out (:token current) (:start-line current) (:start-offset current))
+              (emit-token! out ch line col)
+              (recur (rest remaining) (+ col 1) empty-token-state))
+
+            (= "\"" ch)
+            (if (starts-triple-quote? remaining)
+              (do
+                (emit-token! out (:token current) (:start-line current) (:start-offset current))
+                (recur (rest (rest (rest remaining))) (+ col 3)
+                       (make-state "\"\"\"" line col true true false)))
+              (do
+                (emit-token! out (:token current) (:start-line current) (:start-offset current))
+                (recur (rest remaining) (+ col 1)
+                       (make-state "\"" line col true false false))))
+
+            true
+            (if (empty? (:token current))
+              (recur (rest remaining) (+ col 1)
+                     (make-state ch line col false false false))
+              (recur (rest remaining) (+ col 1)
+                     (make-state (str (:token current) ch)
+                                 (:start-line current)
+                                 (:start-offset current)
+                                 false
+                                 false
+                                 false)))))))))
 
 (defn tokenize-lines!
   [out lines line-number]
-  (if (empty? lines)
-    nil
-    (do
-      (tokenize-line! out (str (first lines)) line-number)
-      (tokenize-lines! out (rest lines) (+ line-number 1)))))
+  (loop [remaining lines line line-number state empty-token-state]
+    (if (empty? remaining)
+      (emit-token! out (:token state) (:start-line state) (:start-offset state))
+      (let [next-state (tokenize-line-step! out (seq (str (first remaining))) line 1 state)
+            has-more (not (empty? (rest remaining)))
+            carry-state (if (and has-more (:in-string next-state))
+                          (make-state (str (:token next-state) "\n")
+                                      (:start-line next-state)
+                                      (:start-offset next-state)
+                                      true
+                                      (:triple next-state)
+                                      (:escaped next-state))
+                          next-state)]
+        (recur (rest remaining) (+ line 1) carry-state)))))
 
 (defn tokenize-file
   "Read a source file and return a channel of token maps {:token :line :offset}."

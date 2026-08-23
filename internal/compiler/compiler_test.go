@@ -217,9 +217,43 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 }
 
 func TestCompileRejectsUnsupportedForms(t *testing.T) {
-	_, err := Compile("(loop [x 42] x)")
+	_, err := Compile("(try 1)")
 	if err == nil {
 		t.Fatal("Compile succeeded for unsupported form")
+	}
+}
+
+func TestCompileLoopRecurGeneratesIterativeCode(t *testing.T) {
+	output, err := Compile(`
+(println
+  (loop [n 3 acc 0]
+    (if (= n 0)
+      acc
+      (recur (- n 1) (+ acc n)))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"for {",
+		"flagrt.UnwrapRecur(__loopResult)",
+		"flagrt.NewRecur(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileRejectsRecurOutsideLoop(t *testing.T) {
+	_, err := Compile(`(recur 1)`)
+	if err == nil {
+		t.Fatal("expected recur outside loop to fail")
+	}
+	if !strings.Contains(err.Error(), "recur can only be used within loop") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

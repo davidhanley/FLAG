@@ -177,6 +177,9 @@ type compileContext struct {
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
+	// loopBindingNames tracks active loop/recur bindings for the current
+	// expression context (nil when not inside a loop form).
+	loopBindingNames []string
 	// namespace is the current module :namespace for Go name mangling.
 	// Empty means legacy single-file mode (no module prefix on idents).
 	namespace string
@@ -233,6 +236,9 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionName:  ctx.selfFunctionName,
 		selfFunctionArity: ctx.selfFunctionArity,
 		selfArityName:     ctx.selfArityName,
+	}
+	if len(ctx.loopBindingNames) > 0 {
+		out.loopBindingNames = append([]string(nil), ctx.loopBindingNames...)
 	}
 	for k, v := range ctx.functions {
 		out.functions[k] = v
@@ -2697,6 +2703,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return doseqExprToGo(list.Elements[1:], ctx, locals)
 		case "let":
 			return letExprToGo(list.Elements[1:], ctx, locals)
+		case "loop":
+			return loopExprToGo(list.Elements[1:], ctx, locals)
+		case "recur":
+			return recurExprToGo(list.Elements[1:], ctx, locals)
 		case "with-open":
 			return withOpenExprToGo(list.Elements[1:], ctx, locals)
 		case "update!":
@@ -3605,6 +3615,119 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	out.WriteString("}()")
 
 	return goExpr{code: out.String(), kind: result.kind}, nil
+}
+
+func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 1 {
+		return goExpr{}, fmt.Errorf("loop expects a binding vector")
+	}
+
+	bindingsExpr, ok := args[0].(VectorExpr)
+	if !ok {
+		return goExpr{}, fmt.Errorf("loop expects a binding vector")
+	}
+	if len(bindingsExpr.Elements)%2 != 0 {
+		return goExpr{}, fmt.Errorf("loop binding vector expects name/value pairs")
+	}
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("loop expects at least one body form")
+	}
+
+	localKinds := make(map[string]exprKind, len(locals)+len(bindingsExpr.Elements)/2)
+	for name, kind := range locals {
+		localKinds[name] = kind
+	}
+
+	bindingNames := make([]string, 0, len(bindingsExpr.Elements)/2)
+	initialValues := make([]string, 0, len(bindingsExpr.Elements)/2)
+	declared := make(map[string]struct{}, len(bindingsExpr.Elements)/2)
+
+	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
+		bindingSymbol, ok := unwrapMetaExpr(bindingsExpr.Elements[i]).(SymbolExpr)
+		if !ok || bindingSymbol.Name == "" {
+			return goExpr{}, exprError(bindingsExpr.Elements[i], "loop bindings must be symbols")
+		}
+
+		goName, err := toGoIdentifier(bindingSymbol.Name)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if _, exists := declared[goName]; exists {
+			return goExpr{}, exprError(bindingsExpr.Elements[i], fmt.Sprintf("duplicate loop binding %q", bindingSymbol.Name))
+		}
+		declared[goName] = struct{}{}
+
+		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
+		if err != nil {
+			return goExpr{}, err
+		}
+		valueExpr, err = coerceExprToValue(valueExpr, bindingsExpr.Elements[i+1], "loop binding value", ctx)
+		if err != nil {
+			return goExpr{}, err
+		}
+
+		bindingNames = append(bindingNames, goName)
+		initialValues = append(initialValues, valueExpr.code)
+		localKinds[goName] = exprKindMutableValue
+	}
+
+	loopCtx := copyCompileContext(ctx)
+	loopCtx.loopBindingNames = append([]string(nil), bindingNames...)
+
+	bodyExpr, err := doExprToGo(args[1:], loopCtx, localKinds)
+	if err != nil {
+		return goExpr{}, err
+	}
+	bodyExpr, err = coerceExprToValue(bodyExpr, args[len(args)-1], "loop body", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	for i := range bindingNames {
+		fmt.Fprintf(&out, "\tvar %s = %s\n", bindingNames[i], initialValues[i])
+	}
+	out.WriteString("\tfor {\n")
+	fmt.Fprintf(&out, "\t\t__loopResult := %s\n", bodyExpr.code)
+	fmt.Fprintf(&out, "\t\tif __recurValues, __isRecur := %s.UnwrapRecur(__loopResult); __isRecur {\n", runtimeAlias)
+	fmt.Fprintf(&out, "\t\t\tif len(__recurValues) != %d {\n", len(bindingNames))
+	out.WriteString("\t\t\t\tpanic(\"internal error: recur arity mismatch\")\n")
+	out.WriteString("\t\t\t}\n")
+	for i, name := range bindingNames {
+		fmt.Fprintf(&out, "\t\t\t%s = __recurValues[%d]\n", name, i)
+	}
+	out.WriteString("\t\t\tcontinue\n")
+	out.WriteString("\t\t}\n")
+	out.WriteString("\t\treturn __loopResult\n")
+	out.WriteString("\t}\n")
+	out.WriteString("}()")
+
+	return goExpr{code: out.String(), kind: exprKindValue}, nil
+}
+
+func recurExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(ctx.loopBindingNames) == 0 {
+		return goExpr{}, fmt.Errorf("recur can only be used within loop")
+	}
+	if len(args) != len(ctx.loopBindingNames) {
+		return goExpr{}, fmt.Errorf("recur expects %d arguments", len(ctx.loopBindingNames))
+	}
+
+	values := make([]string, 0, len(args))
+	for i, arg := range args {
+		valueExpr, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		valueExpr, err = coerceExprToValue(valueExpr, arg, fmt.Sprintf("recur argument %d", i+1), ctx)
+		if err != nil {
+			return goExpr{}, err
+		}
+		values = append(values, valueExpr.code)
+	}
+
+	return goExpr{code: fmt.Sprintf("%s.NewRecur(%s)", runtimeAlias, strings.Join(values, ", ")), kind: exprKindValue}, nil
 }
 
 func unwrapMetaExpr(expr Expr) Expr {
@@ -5365,16 +5488,19 @@ func hashFnParamName(index int) string {
 }
 
 func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, locals map[string]exprKind, label string) (goExpr, error) {
-	params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, locals, label)
+	lambdaCtx := copyCompileContext(ctx)
+	lambdaCtx.loopBindingNames = nil
+
+	params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, lambdaCtx, locals, label)
 	if err != nil {
 		return goExpr{}, err
 	}
 
-	body, err := exprToGo(bodyExpr, ctx, localKinds)
+	body, err := exprToGo(bodyExpr, lambdaCtx, localKinds)
 	if err != nil {
 		return goExpr{}, err
 	}
-	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), ctx)
+	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), lambdaCtx)
 	if err != nil {
 		return goExpr{}, err
 	}

@@ -28,3 +28,15 @@
 (deftest tokenize-file-returns-empty-for-empty-input
   (let [tokens (tokenize-file-to-array "examples/compiler_tokenizer/empty.txt")]
     (is (= 0 (count tokens)))))
+
+(deftest tokenize-file-keeps-multiline-string-as-one-token
+  (let [tokens (tokenize-file-to-array "examples/compiler_tokenizer/multiline_string.txt")]
+    (is (= 4 (count tokens)))
+    (let [t0 (nth-token tokens 0)
+          t1 (nth-token tokens 1)
+          t2 (nth-token tokens 2)
+          t3 (nth-token tokens 3)]
+      (is (= "(" (:token t0))) (is (= 1 (:line t0))) (is (= 1 (:offset t0)))
+      (is (= "println" (:token t1))) (is (= 1 (:line t1))) (is (= 2 (:offset t1)))
+      (is (= "\"\"\"hello\nworld\"\"\"" (:token t2))) (is (= 1 (:line t2))) (is (= 10 (:offset t2)))
+      (is (= ")" (:token t3))) (is (= 2 (:line t3))) (is (= 9 (:offset t3))))))
