@@ -1,0 +1,65 @@
+{:namespace "http-example"
+ :imports   [["http.lib" :as "http"]]}
+
+(defn text-response
+  [status body]
+  {:status status
+   :headers {:content-type "text/plain; charset=utf-8"}
+   :body body})
+
+(defn home-handler
+  [_req]
+  (text-response 200 "home"))
+
+(defn hello-handler
+  [req]
+  (let [params (:params req)
+        query (:query req)
+        name (:name params)
+        lang (:lang query)]
+    (text-response 200 (str "hello " name " from " lang))))
+
+(defn echo-handler
+  [req]
+  {:status 201
+   :headers {:content-type "text/plain; charset=utf-8"
+             :x-method (:method req)}
+   :body (str "echo " (:body req))})
+
+(defn static-handler
+  [req]
+  (text-response 200 (str "static " (:path (:params req)))))
+
+(defn build-router
+  []
+  (http/router
+    (http/get-route "/" home-handler)
+    (http/get-route "/hello/:name" hello-handler)
+    (http/post-route "/echo" echo-handler)
+    (http/get-route "/static/*path" static-handler)))
+
+(defn start-demo-server
+  []
+  (http/listen {:port 0
+                :router (build-router)}))
+
+(defn demo-url
+  [addr path]
+  (str "http://" addr path))
+
+(defn main
+  [& _args]
+  (let [server (start-demo-server)
+        addr (http/address server)]
+    (println (str "server: " addr))
+    (let [home (http/get (demo-url addr "/"))
+          hello (http/get (demo-url addr "/hello/flag?lang=FLAG"))
+          echo (http/post (demo-url addr "/echo") "payload")
+          static (http/get (demo-url addr "/static/css/site.css"))
+          wrong-method (http/send (http/request "DELETE" (demo-url addr "/echo")))]
+      (println (str "GET / -> " (:status home) " " (:body home)))
+      (println (str "GET /hello/:name -> " (:status hello) " " (:body hello)))
+      (println (str "POST /echo -> " (:status echo) " " (:body echo) " method=" (:x-method (:headers echo))))
+      (println (str "GET /static/*path -> " (:status static) " " (:body static)))
+      (println (str "DELETE /echo -> " (:status wrong-method) " " (:body wrong-method))))
+    (http/stop server)))

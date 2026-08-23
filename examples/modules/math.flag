@@ -1,0 +1,17 @@
+{:namespace "math"
+ :exports   [add double]}
+
+(defn add
+  "Add two numbers."
+  [a b]
+  (+ a b))
+
+(defn double
+  "Double a number."
+  [x]
+  (add x x))
+
+(defn secret-square
+  "Not exported — importers must not see this."
+  [x]
+  (* x x))

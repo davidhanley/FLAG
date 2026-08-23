@@ -1,0 +1,22 @@
+{:namespace "compiler-tokenizer"
+ :imports [["compiler/tokenizer.lib" :as "shadow"]
+           ["async.lib" :refer [channel-receive]]]}
+
+(defn drain-tokens-into
+  [ch acc]
+  (let [token (channel-receive ch)]
+    (if (nil? token)
+      acc
+      (drain-tokens-into ch (conj acc token)))))
+
+(defn drain-tokens
+  [ch]
+  (drain-tokens-into ch []))
+
+(defn tokenize-file-to-array
+  [path]
+  (drain-tokens (shadow/tokenize-file path)))
+
+(defn nth-token
+  [tokens n]
+  (first (drop n tokens)))
