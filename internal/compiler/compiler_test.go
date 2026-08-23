@@ -217,9 +217,43 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 }
 
 func TestCompileRejectsUnsupportedForms(t *testing.T) {
-	_, err := Compile("(loop [x 42] x)")
+	_, err := Compile("(try 1)")
 	if err == nil {
 		t.Fatal("Compile succeeded for unsupported form")
+	}
+}
+
+func TestCompileLoopRecurGeneratesIterativeCode(t *testing.T) {
+	output, err := Compile(`
+(println
+  (loop [n 3 acc 0]
+    (if (= n 0)
+      acc
+      (recur (- n 1) (+ acc n)))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"for {",
+		"flagrt.UnwrapRecur(__loopResult)",
+		"flagrt.NewRecur(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileRejectsRecurOutsideLoop(t *testing.T) {
+	_, err := Compile(`(recur 1)`)
+	if err == nil {
+		t.Fatal("expected recur outside loop to fail")
+	}
+	if !strings.Contains(err.Error(), "recur can only be used within loop") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -1745,9 +1779,8 @@ func TestCompileWhenLetMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		"var __flag_when_let_tmp = flagrt.NewLong(42)",
-		"if flagrt.IsTruthy(__flag_when_let_tmp) {",
-		"var x = __flag_when_let_tmp",
+		"var x = flagrt.NewLong(42)",
+		"if flagrt.IsTruthy(x) {",
 		"return x",
 	} {
 		if !strings.Contains(got, want) {
@@ -1827,7 +1860,7 @@ func TestCompileCompMacro(t *testing.T) {
 		`flagrt.GoBind_packages_StringTrim`,
 		`flagrt.GoBind_packages_StringUpperCase`,
 		"flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {",
-		"flagrt.Call(__flag_comp_fn_0, flagrt.Call(__flag_comp_fn_1, __flag_comp_x))",
+		"flagrt.Call(flagrt.GoBind_packages_StringTrim, flagrt.Call(g, x))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1842,10 +1875,9 @@ func TestCompileSomeThreadFirstMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		"var __some_arrow_0 =",
-		"var __some_arrow_1 =",
-		"flagrt.Eq(__some_arrow_0, flagrt.NilValue())",
-		"flagrt.Mul(__some_arrow_1, flagrt.NewLong(2))",
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(tmp, flagrt.NilValue()))) {",
+		"var tmp = flagrt.Add(tmp, flagrt.NewLong(1))",
+		"flagrt.Mul(tmp, flagrt.NewLong(2))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1860,11 +1892,9 @@ func TestCompileSomeThreadLastMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		"var __some_arrow_0 =",
-		"var __some_arrow_1 =",
-		"flagrt.Eq(__some_arrow_0, flagrt.NilValue())",
-		"flagrt.Sub(flagrt.NewLong(10), __some_arrow_0)",
-		"flagrt.Div(flagrt.NewLong(3), __some_arrow_1)",
+		"if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(tmp, flagrt.NilValue()))) {",
+		"var tmp = flagrt.Sub(flagrt.NewLong(10), tmp)",
+		"flagrt.Div(flagrt.NewLong(3), tmp)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1879,14 +1909,12 @@ func TestCompileCondThreadFirstMacro(t *testing.T) {
 	}
 	got := string(output)
 	for _, want := range []string{
-		"var __cond_arrow_0 =",
-		"var __cond_arrow_1 =",
-		"var __cond_arrow_2 =",
+		"var tmp = flagrt.NewLong(5)",
 		"if flagrt.IsTruthy(flagrt.NewBool(true)) {",
 		"if flagrt.IsTruthy(flagrt.NewBool(false)) {",
-		"flagrt.Add(__cond_arrow_0, flagrt.NewLong(1))",
-		"flagrt.Mul(__cond_arrow_1, flagrt.NewLong(2))",
-		"flagrt.Sub(__cond_arrow_2, flagrt.NewLong(3))",
+		"flagrt.Add(tmp, flagrt.NewLong(1))",
+		"flagrt.Mul(tmp, flagrt.NewLong(2))",
+		"flagrt.Sub(tmp, flagrt.NewLong(3))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)

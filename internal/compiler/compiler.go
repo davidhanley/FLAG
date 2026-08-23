@@ -177,6 +177,9 @@ type compileContext struct {
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
+	// loopBindingNames tracks active loop/recur bindings for the current
+	// expression context (nil when not inside a loop form).
+	loopBindingNames []string
 	// namespace is the current module :namespace for Go name mangling.
 	// Empty means legacy single-file mode (no module prefix on idents).
 	namespace string
@@ -233,6 +236,9 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionName:  ctx.selfFunctionName,
 		selfFunctionArity: ctx.selfFunctionArity,
 		selfArityName:     ctx.selfArityName,
+	}
+	if len(ctx.loopBindingNames) > 0 {
+		out.loopBindingNames = append([]string(nil), ctx.loopBindingNames...)
 	}
 	for k, v := range ctx.functions {
 		out.functions[k] = v
@@ -1676,16 +1682,18 @@ func applyMacro(m macroDef, args []Expr) (Expr, error) {
 	for i, name := range m.params {
 		values[name] = copyExpr(args[i])
 	}
-	restArgs := make([]Expr, 0)
+	restBindings := map[string][]Expr{}
 	if m.restParam != "" {
+		restArgs := make([]Expr, 0, len(args)-len(m.params))
 		for _, arg := range args[len(m.params):] {
 			restArgs = append(restArgs, copyExpr(arg))
 		}
+		restBindings[m.restParam] = restArgs
 	}
-	return substituteMacroExpr(m.body, values, m.restParam, restArgs)
+	return substituteMacroExpr(m.body, values, restBindings)
 }
 
-func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, restArgs []Expr) (Expr, error) {
+func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[string][]Expr) (Expr, error) {
 	switch value := expr.(type) {
 	case SymbolExpr:
 		if replacement, ok := values[value.Name]; ok {
@@ -1696,13 +1704,15 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
 			sym, isSym := item.(SymbolExpr)
-			if isSym && restParam != "" && sym.Name == restParam {
-				for _, restArg := range restArgs {
-					out = append(out, copyExpr(restArg))
+			if isSym {
+				if restArgs, ok := restBindings[sym.Name]; ok {
+					for _, restArg := range restArgs {
+						out = append(out, copyExpr(restArg))
+					}
+					continue
 				}
-				continue
 			}
-			sub, err := substituteMacroExpr(item, values, restParam, restArgs)
+			sub, err := substituteMacroExpr(item, values, restBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -1719,7 +1729,16 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 	case VectorExpr:
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
-			sub, err := substituteMacroExpr(item, values, restParam, restArgs)
+			sym, isSym := item.(SymbolExpr)
+			if isSym {
+				if restArgs, ok := restBindings[sym.Name]; ok {
+					for _, restArg := range restArgs {
+						out = append(out, copyExpr(restArg))
+					}
+					continue
+				}
+			}
+			sub, err := substituteMacroExpr(item, values, restBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -1729,7 +1748,7 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
-			sub, err := substituteMacroExpr(item, values, restParam, restArgs)
+			sub, err := substituteMacroExpr(item, values, restBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -1739,7 +1758,7 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 	case SetExpr:
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
-			sub, err := substituteMacroExpr(item, values, restParam, restArgs)
+			sub, err := substituteMacroExpr(item, values, restBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -1747,17 +1766,17 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 		}
 		return SetExpr{Elements: out}, nil
 	case HashFnExpr:
-		body, err := substituteMacroExpr(value.Body, values, restParam, restArgs)
+		body, err := substituteMacroExpr(value.Body, values, restBindings)
 		if err != nil {
 			return nil, err
 		}
 		return HashFnExpr{Body: body}, nil
 	case MetaExpr:
-		meta, err := substituteMacroExpr(value.Meta, values, restParam, restArgs)
+		meta, err := substituteMacroExpr(value.Meta, values, restBindings)
 		if err != nil {
 			return nil, err
 		}
-		target, err := substituteMacroExpr(value.Target, values, restParam, restArgs)
+		target, err := substituteMacroExpr(value.Target, values, restBindings)
 		if err != nil {
 			return nil, err
 		}
@@ -1769,30 +1788,6 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restParam string, re
 
 func applyMacroBuiltin(name string, args []Expr) (Expr, bool, error) {
 	switch name {
-	case "macro-cond":
-		expanded, err := expandCondMacro(args)
-		return expanded, true, err
-	case "macro-thread-first":
-		expanded, err := expandThreadFirstMacro(args)
-		return expanded, true, err
-	case "macro-thread-last":
-		expanded, err := expandThreadLastMacro(args)
-		return expanded, true, err
-	case "macro-some-thread-first":
-		expanded, err := expandSomeThreadFirstMacro(args)
-		return expanded, true, err
-	case "macro-some-thread-last":
-		expanded, err := expandSomeThreadLastMacro(args)
-		return expanded, true, err
-	case "macro-cond-thread-first":
-		expanded, err := expandCondThreadFirstMacro(args)
-		return expanded, true, err
-	case "macro-when-let":
-		expanded, err := expandWhenLetMacro(args)
-		return expanded, true, err
-	case "macro-comp":
-		expanded, err := expandCompMacro(args)
-		return expanded, true, err
 	case "macro-case":
 		expanded, err := expandMacroCase(args)
 		return expanded, true, err
@@ -1933,22 +1928,21 @@ func expandMacroCase(args []Expr) (Expr, error) {
 			return nil, fmt.Errorf("macro-case clauses must be [pattern body] vectors")
 		}
 		bindings := map[string]Expr{}
-		restName := ""
-		var restArgs []Expr
-		matched, err := matchMacroPattern(clause.Elements[0], target, bindings, &restName, &restArgs)
+		restBindings := map[string][]Expr{}
+		matched, err := matchMacroPattern(clause.Elements[0], target, bindings, restBindings)
 		if err != nil {
 			return nil, err
 		}
 		if !matched {
 			continue
 		}
-		return substituteMacroExpr(clause.Elements[1], bindings, restName, restArgs)
+		return substituteMacroExpr(clause.Elements[1], bindings, restBindings)
 	}
 
 	return nil, fmt.Errorf("macro-case had no matching clause")
 }
 
-func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, restName *string, restArgs *[]Expr) (bool, error) {
+func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, restBindings map[string][]Expr) (bool, error) {
 	switch pat := pattern.(type) {
 	case SymbolExpr:
 		switch pat.Name {
@@ -1972,9 +1966,19 @@ func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, re
 		}
 		return exprStructEqual(pat, target[0]), nil
 	case ListExpr:
-		return matchMacroSequence(pat.Elements, target, bindings, restName, restArgs)
+		if len(target) == 1 {
+			if listTarget, ok := unwrapMetaExpr(target[0]).(ListExpr); ok {
+				return matchMacroSequence(pat.Elements, listTarget.Elements, bindings, restBindings)
+			}
+		}
+		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
 	case VectorExpr:
-		return matchMacroSequence(pat.Elements, target, bindings, restName, restArgs)
+		if len(target) == 1 {
+			if vectorTarget, ok := unwrapMetaExpr(target[0]).(VectorExpr); ok {
+				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
+			}
+		}
+		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
 	case MapExpr, SetExpr, HashFnExpr, MetaExpr:
 		if len(target) != 1 {
 			return false, nil
@@ -2072,7 +2076,7 @@ func exprStructEqual(a, b Expr) bool {
 	}
 }
 
-func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr, restName *string, restArgs *[]Expr) (bool, error) {
+func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr, restBindings map[string][]Expr) (bool, error) {
 	j := 0
 	for i := 0; i < len(patterns); i++ {
 		sym, ok := patterns[i].(SymbolExpr)
@@ -2084,18 +2088,18 @@ func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr
 			if !ok || name.Name == "" || name.Name == "&" {
 				return false, fmt.Errorf("macro-case rest capture expects a symbol name")
 			}
-			*restName = name.Name
-			*restArgs = make([]Expr, 0, len(target)-j)
+			captured := make([]Expr, 0, len(target)-j)
 			for _, expr := range target[j:] {
-				*restArgs = append(*restArgs, copyExpr(expr))
+				captured = append(captured, copyExpr(expr))
 			}
+			restBindings[name.Name] = captured
 			return true, nil
 		}
 		if j >= len(target) {
 			return false, nil
 		}
 		pat := patterns[i]
-		matched, err := matchMacroPattern(pat, []Expr{target[j]}, bindings, restName, restArgs)
+		matched, err := matchMacroPattern(pat, []Expr{target[j]}, bindings, restBindings)
 		if err != nil {
 			return false, err
 		}
@@ -2105,307 +2109,6 @@ func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr
 		j++
 	}
 	return j == len(target), nil
-}
-
-func expandCondMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return ListExpr{Elements: []Expr{SymbolExpr{Name: "if"}, SymbolExpr{Name: "false"}, IntExpr{Value: 0}}}, nil
-	}
-	if len(args)%2 != 0 {
-		return nil, fmt.Errorf("cond expects test/expression pairs")
-	}
-
-	var acc Expr
-	haveElse := false
-	for i := len(args) - 2; i >= 0; i -= 2 {
-		test := args[i]
-		expr := args[i+1]
-		if kw, ok := test.(KeywordExpr); ok && kw.Name == "else" {
-			if i != len(args)-2 {
-				return nil, fmt.Errorf("cond :else must be the final test")
-			}
-			acc = expr
-			haveElse = true
-			continue
-		}
-
-		if acc == nil {
-			acc = ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "if"},
-				test,
-				expr,
-			}}
-		} else {
-			acc = ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "if"},
-				test,
-				expr,
-				acc,
-			}}
-		}
-	}
-	if acc == nil && haveElse {
-		return nil, fmt.Errorf("cond requires at least one non-:else clause")
-	}
-	if acc == nil {
-		return ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "if"},
-			SymbolExpr{Name: "false"},
-			IntExpr{Value: 0},
-		}}, nil
-	}
-
-	return acc, nil
-}
-
-func expandThreadFirstMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("-> expects at least one argument")
-	}
-	acc := copyExpr(args[0])
-	for _, step := range args[1:] {
-		next, err := threadFirstStep(step, acc)
-		if err != nil {
-			return nil, err
-		}
-		acc = next
-	}
-	return acc, nil
-}
-
-func expandThreadLastMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("->> expects at least one argument")
-	}
-	acc := copyExpr(args[0])
-	for _, step := range args[1:] {
-		next, err := threadLastStep(step, acc)
-		if err != nil {
-			return nil, err
-		}
-		acc = next
-	}
-	return acc, nil
-}
-
-func expandSomeThreadFirstMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("some-> expects at least one argument")
-	}
-	acc := copyExpr(args[0])
-	for i, step := range args[1:] {
-		tempName := fmt.Sprintf("__some_arrow_%d", i)
-		tempSym := SymbolExpr{Name: tempName}
-		next, err := threadFirstStep(step, tempSym)
-		if err != nil {
-			return nil, err
-		}
-		acc = ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "let"},
-			VectorExpr{Elements: []Expr{
-				tempSym,
-				acc,
-			}},
-			ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "if"},
-				ListExpr{Elements: []Expr{
-					SymbolExpr{Name: "="},
-					tempSym,
-					SymbolExpr{Name: "nil"},
-				}},
-				SymbolExpr{Name: "nil"},
-				next,
-			}},
-		}}
-	}
-	return acc, nil
-}
-
-func expandSomeThreadLastMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("some->> expects at least one argument")
-	}
-	acc := copyExpr(args[0])
-	for i, step := range args[1:] {
-		tempName := fmt.Sprintf("__some_arrow_%d", i)
-		tempSym := SymbolExpr{Name: tempName}
-		next, err := threadLastStep(step, tempSym)
-		if err != nil {
-			return nil, err
-		}
-		acc = ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "let"},
-			VectorExpr{Elements: []Expr{
-				tempSym,
-				acc,
-			}},
-			ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "if"},
-				ListExpr{Elements: []Expr{
-					SymbolExpr{Name: "="},
-					tempSym,
-					SymbolExpr{Name: "nil"},
-				}},
-				SymbolExpr{Name: "nil"},
-				next,
-			}},
-		}}
-	}
-	return acc, nil
-}
-
-func expandCondThreadFirstMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("cond-> expects at least one argument")
-	}
-	if len(args)%2 == 0 {
-		return nil, fmt.Errorf("cond-> expects test/expression pairs")
-	}
-
-	acc := copyExpr(args[0])
-	for i := 1; i < len(args); i += 2 {
-		tempName := fmt.Sprintf("__cond_arrow_%d", (i-1)/2)
-		tempSym := SymbolExpr{Name: tempName}
-		testExpr := copyExpr(args[i])
-		stepExpr, err := threadFirstStep(args[i+1], tempSym)
-		if err != nil {
-			return nil, err
-		}
-
-		acc = ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "let"},
-			VectorExpr{Elements: []Expr{
-				tempSym,
-				acc,
-			}},
-			ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "if"},
-				testExpr,
-				stepExpr,
-				tempSym,
-			}},
-		}}
-	}
-	return acc, nil
-}
-
-func expandWhenLetMacro(args []Expr) (Expr, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("when-let expects a binding vector")
-	}
-	bindingVec, ok := args[0].(VectorExpr)
-	if !ok {
-		return nil, fmt.Errorf("when-let expects a binding vector")
-	}
-	if len(bindingVec.Elements) != 2 {
-		return nil, fmt.Errorf("when-let expects exactly one binding pair")
-	}
-	bindingSym, ok := bindingVec.Elements[0].(SymbolExpr)
-	if !ok || bindingSym.Name == "" {
-		return nil, fmt.Errorf("when-let binding name must be a symbol")
-	}
-	initExpr := copyExpr(bindingVec.Elements[1])
-	bodyForms := make([]Expr, 0, len(args)-1)
-	for _, form := range args[1:] {
-		bodyForms = append(bodyForms, copyExpr(form))
-	}
-
-	tempSym := SymbolExpr{Name: "__flag_when_let_tmp"}
-	bodyExpr := ListExpr{Elements: append([]Expr{SymbolExpr{Name: "do"}}, bodyForms...)}
-	return ListExpr{Elements: []Expr{
-		SymbolExpr{Name: "let"},
-		VectorExpr{Elements: []Expr{
-			tempSym,
-			initExpr,
-		}},
-		ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "if"},
-			tempSym,
-			ListExpr{Elements: []Expr{
-				SymbolExpr{Name: "let"},
-				VectorExpr{Elements: []Expr{
-					copyExpr(bindingSym),
-					tempSym,
-				}},
-				bodyExpr,
-			}},
-		}},
-	}}, nil
-}
-
-func expandCompMacro(args []Expr) (Expr, error) {
-	if len(args) == 0 {
-		tempSym := SymbolExpr{Name: "__flag_comp_x"}
-		return ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "fn"},
-			VectorExpr{Elements: []Expr{tempSym}},
-			tempSym,
-		}}, nil
-	}
-
-	tempSym := SymbolExpr{Name: "__flag_comp_x"}
-	body := copyExpr(tempSym)
-	bindings := make([]Expr, 0, len(args)*2)
-	for i := len(args) - 1; i >= 0; i-- {
-		fnName := fmt.Sprintf("__flag_comp_fn_%d", i)
-		fnSym := SymbolExpr{Name: fnName}
-		fnCall := ListExpr{Elements: []Expr{
-			fnSym,
-			body,
-		}}
-		body = fnCall
-		bindings = append([]Expr{fnSym, copyExpr(args[i])}, bindings...)
-	}
-
-	return ListExpr{Elements: []Expr{
-		SymbolExpr{Name: "let"},
-		VectorExpr{Elements: bindings},
-		ListExpr{Elements: []Expr{
-			SymbolExpr{Name: "fn"},
-			VectorExpr{Elements: []Expr{tempSym}},
-			body,
-		}},
-	}}, nil
-}
-
-func threadFirstStep(step Expr, acc Expr) (Expr, error) {
-	switch value := step.(type) {
-	case SymbolExpr:
-		return ListExpr{Elements: []Expr{value, copyExpr(acc)}}, nil
-	case ListExpr:
-		if len(value.Elements) == 0 {
-			return nil, fmt.Errorf("-> step must not be an empty list")
-		}
-		out := make([]Expr, 0, len(value.Elements)+1)
-		out = append(out, copyExpr(value.Elements[0]))
-		out = append(out, copyExpr(acc))
-		for _, item := range value.Elements[1:] {
-			out = append(out, copyExpr(item))
-		}
-		return ListExpr{Elements: out}, nil
-	default:
-		return ListExpr{Elements: []Expr{copyExpr(step), copyExpr(acc)}}, nil
-	}
-}
-
-func threadLastStep(step Expr, acc Expr) (Expr, error) {
-	switch value := step.(type) {
-	case SymbolExpr:
-		return ListExpr{Elements: []Expr{value, copyExpr(acc)}}, nil
-	case ListExpr:
-		if len(value.Elements) == 0 {
-			return nil, fmt.Errorf("->> step must not be an empty list")
-		}
-		out := make([]Expr, 0, len(value.Elements)+1)
-		out = append(out, copyExpr(value.Elements[0]))
-		for _, item := range value.Elements[1:] {
-			out = append(out, copyExpr(item))
-		}
-		out = append(out, copyExpr(acc))
-		return ListExpr{Elements: out}, nil
-	default:
-		return ListExpr{Elements: []Expr{copyExpr(step), copyExpr(acc)}}, nil
-	}
 }
 
 func argumentExprForGoCall(args []Expr, ctx compileContext, locals map[string]exprKind) (string, error) {
@@ -2697,6 +2400,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return doseqExprToGo(list.Elements[1:], ctx, locals)
 		case "let":
 			return letExprToGo(list.Elements[1:], ctx, locals)
+		case "loop":
+			return loopExprToGo(list.Elements[1:], ctx, locals)
+		case "recur":
+			return recurExprToGo(list.Elements[1:], ctx, locals)
 		case "with-open":
 			return withOpenExprToGo(list.Elements[1:], ctx, locals)
 		case "update!":
@@ -3605,6 +3312,119 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	out.WriteString("}()")
 
 	return goExpr{code: out.String(), kind: result.kind}, nil
+}
+
+func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 1 {
+		return goExpr{}, fmt.Errorf("loop expects a binding vector")
+	}
+
+	bindingsExpr, ok := args[0].(VectorExpr)
+	if !ok {
+		return goExpr{}, fmt.Errorf("loop expects a binding vector")
+	}
+	if len(bindingsExpr.Elements)%2 != 0 {
+		return goExpr{}, fmt.Errorf("loop binding vector expects name/value pairs")
+	}
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("loop expects at least one body form")
+	}
+
+	localKinds := make(map[string]exprKind, len(locals)+len(bindingsExpr.Elements)/2)
+	for name, kind := range locals {
+		localKinds[name] = kind
+	}
+
+	bindingNames := make([]string, 0, len(bindingsExpr.Elements)/2)
+	initialValues := make([]string, 0, len(bindingsExpr.Elements)/2)
+	declared := make(map[string]struct{}, len(bindingsExpr.Elements)/2)
+
+	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
+		bindingSymbol, ok := unwrapMetaExpr(bindingsExpr.Elements[i]).(SymbolExpr)
+		if !ok || bindingSymbol.Name == "" {
+			return goExpr{}, exprError(bindingsExpr.Elements[i], "loop bindings must be symbols")
+		}
+
+		goName, err := toGoIdentifier(bindingSymbol.Name)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if _, exists := declared[goName]; exists {
+			return goExpr{}, exprError(bindingsExpr.Elements[i], fmt.Sprintf("duplicate loop binding %q", bindingSymbol.Name))
+		}
+		declared[goName] = struct{}{}
+
+		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
+		if err != nil {
+			return goExpr{}, err
+		}
+		valueExpr, err = coerceExprToValue(valueExpr, bindingsExpr.Elements[i+1], "loop binding value", ctx)
+		if err != nil {
+			return goExpr{}, err
+		}
+
+		bindingNames = append(bindingNames, goName)
+		initialValues = append(initialValues, valueExpr.code)
+		localKinds[goName] = exprKindMutableValue
+	}
+
+	loopCtx := copyCompileContext(ctx)
+	loopCtx.loopBindingNames = append([]string(nil), bindingNames...)
+
+	bodyExpr, err := doExprToGo(args[1:], loopCtx, localKinds)
+	if err != nil {
+		return goExpr{}, err
+	}
+	bodyExpr, err = coerceExprToValue(bodyExpr, args[len(args)-1], "loop body", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	for i := range bindingNames {
+		fmt.Fprintf(&out, "\tvar %s = %s\n", bindingNames[i], initialValues[i])
+	}
+	out.WriteString("\tfor {\n")
+	fmt.Fprintf(&out, "\t\t__loopResult := %s\n", bodyExpr.code)
+	fmt.Fprintf(&out, "\t\tif __recurValues, __isRecur := %s.UnwrapRecur(__loopResult); __isRecur {\n", runtimeAlias)
+	fmt.Fprintf(&out, "\t\t\tif len(__recurValues) != %d {\n", len(bindingNames))
+	out.WriteString("\t\t\t\tpanic(\"internal error: recur arity mismatch\")\n")
+	out.WriteString("\t\t\t}\n")
+	for i, name := range bindingNames {
+		fmt.Fprintf(&out, "\t\t\t%s = __recurValues[%d]\n", name, i)
+	}
+	out.WriteString("\t\t\tcontinue\n")
+	out.WriteString("\t\t}\n")
+	out.WriteString("\t\treturn __loopResult\n")
+	out.WriteString("\t}\n")
+	out.WriteString("}()")
+
+	return goExpr{code: out.String(), kind: exprKindValue}, nil
+}
+
+func recurExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(ctx.loopBindingNames) == 0 {
+		return goExpr{}, fmt.Errorf("recur can only be used within loop")
+	}
+	if len(args) != len(ctx.loopBindingNames) {
+		return goExpr{}, fmt.Errorf("recur expects %d arguments", len(ctx.loopBindingNames))
+	}
+
+	values := make([]string, 0, len(args))
+	for i, arg := range args {
+		valueExpr, err := exprToGo(arg, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		valueExpr, err = coerceExprToValue(valueExpr, arg, fmt.Sprintf("recur argument %d", i+1), ctx)
+		if err != nil {
+			return goExpr{}, err
+		}
+		values = append(values, valueExpr.code)
+	}
+
+	return goExpr{code: fmt.Sprintf("%s.NewRecur(%s)", runtimeAlias, strings.Join(values, ", ")), kind: exprKindValue}, nil
 }
 
 func unwrapMetaExpr(expr Expr) Expr {
@@ -5365,16 +5185,19 @@ func hashFnParamName(index int) string {
 }
 
 func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, locals map[string]exprKind, label string) (goExpr, error) {
-	params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, locals, label)
+	lambdaCtx := copyCompileContext(ctx)
+	lambdaCtx.loopBindingNames = nil
+
+	params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, lambdaCtx, locals, label)
 	if err != nil {
 		return goExpr{}, err
 	}
 
-	body, err := exprToGo(bodyExpr, ctx, localKinds)
+	body, err := exprToGo(bodyExpr, lambdaCtx, localKinds)
 	if err != nil {
 		return goExpr{}, err
 	}
-	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), ctx)
+	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), lambdaCtx)
 	if err != nil {
 		return goExpr{}, err
 	}
