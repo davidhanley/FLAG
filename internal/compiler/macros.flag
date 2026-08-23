@@ -14,25 +14,86 @@
   (if (= a b) false true))
 
 (defmacro cond [& clauses]
-  (macro-cond clauses))
+  (macro-case (do clauses)
+    [[] nil]
+    [[:else expr] expr]
+    [[test expr & rest]
+     (if test
+       expr
+       (cond rest))]))
 
 (defmacro -> [x & forms]
-  (macro-thread-first x forms))
+  (macro-case (do forms)
+    [[] x]
+    [[(f & args) & rest]
+     (-> (f x args) rest)]
+    [[f & rest]
+     (-> (f x) rest)]))
 
 (defmacro ->> [x & forms]
-  (macro-thread-last x forms))
+  (macro-case (do forms)
+    [[] x]
+    [[(f & args) & rest]
+     (->> (f args x) rest)]
+    [[f & rest]
+     (->> (f x) rest)]))
 
 (defmacro some-> [x & forms]
-  (macro-some-thread-first x forms))
+  (macro-case (do forms)
+    [[] x]
+    [[(f & args) & rest]
+     (let [tmp x]
+       (if (= tmp nil)
+         nil
+         (some-> (f tmp args) rest)))]
+    [[f & rest]
+     (let [tmp x]
+       (if (= tmp nil)
+         nil
+         (some-> (f tmp) rest)))]))
 
 (defmacro some->> [x & forms]
-  (macro-some-thread-last x forms))
+  (macro-case (do forms)
+    [[] x]
+    [[(f & args) & rest]
+     (let [tmp x]
+       (if (= tmp nil)
+         nil
+         (some->> (f args tmp) rest)))]
+    [[f & rest]
+     (let [tmp x]
+       (if (= tmp nil)
+         nil
+         (some->> (f tmp) rest)))]))
 
 (defmacro cond-> [x & clauses]
-  (macro-cond-thread-first x clauses))
+  (macro-case (do clauses)
+    [[] x]
+    [[test (f & args) & rest]
+     (let [tmp x]
+       (cond-> (if test
+                 (f tmp args)
+                 tmp)
+               rest))]
+    [[test f & rest]
+     (let [tmp x]
+       (cond-> (if test
+                 (f tmp)
+                 tmp)
+               rest))]))
 
 (defmacro when-let [bindings & body]
-  (macro-when-let bindings body))
+  (macro-case (do bindings)
+    [[name value]
+     (let [name value]
+       (if name
+         (do body)))]))
 
 (defmacro comp [& fns]
-  (macro-comp fns))
+  (macro-case (do fns)
+    [[] (fn [x] x)]
+    [[f] f]
+    [[f & rest]
+     (let [g (comp rest)]
+       (fn [x]
+         (f (g x))))]))
