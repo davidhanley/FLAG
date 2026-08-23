@@ -1,0 +1,29 @@
+{:namespace "http-example-test"}
+
+(deftest get-route-handles-params-and-query
+  (let [server (start-demo-server)
+        addr (http/address server)]
+    (let [resp (http/get (demo-url addr "/hello/world?lang=flag"))]
+      (is (= 200 (:status resp)))
+      (is (= "hello world from flag" (:body resp))))
+    (http/stop server)))
+
+(deftest post-route-echos-body-and-method
+  (let [server (start-demo-server)
+        addr (http/address server)]
+    (let [resp (http/post (demo-url addr "/echo") "payload")]
+      (is (= 201 (:status resp)))
+      (is (= "echo payload" (:body resp)))
+      (is (= "POST" (:x-method (:headers resp)))))
+    (http/stop server)))
+
+(deftest wildcard-route-and-method-checks
+  (let [server (start-demo-server)
+        addr (http/address server)]
+    (let [static (http/get (demo-url addr "/static/js/app.js"))
+          wrong-method (http/send (http/request "DELETE" (demo-url addr "/echo")))]
+      (is (= 200 (:status static)))
+      (is (= "static js/app.js" (:body static)))
+      (is (= 405 (:status wrong-method)))
+      (is (= "method not allowed" (:body wrong-method))))
+    (http/stop server)))

@@ -298,3 +298,25 @@ func TestParseFileMetadataExpr(t *testing.T) {
 		t.Fatalf("expected metadata target symbol seen, got %#v", meta.Target)
 	}
 }
+
+func TestParseFileTypeHintMetadataExpr(t *testing.T) {
+	ast, err := ParseFile(`^long value`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+	if len(ast.Forms) != 1 {
+		t.Fatalf("expected one form, got %d", len(ast.Forms))
+	}
+	meta, ok := ast.Forms[0].(MetaExpr)
+	if !ok {
+		t.Fatalf("expected MetaExpr, got %T", ast.Forms[0])
+	}
+	hint, ok := meta.Meta.(SymbolExpr)
+	if !ok || hint.Name != "long" {
+		t.Fatalf("expected long metadata symbol, got %#v", meta.Meta)
+	}
+	target, ok := meta.Target.(SymbolExpr)
+	if !ok || target.Name != "value" {
+		t.Fatalf("expected metadata target symbol value, got %#v", meta.Target)
+	}
+}

@@ -947,6 +947,34 @@ func TestCompileLetVolatileBindingAndUpdateBang(t *testing.T) {
 	}
 }
 
+func TestCompileTypeHintsAsNoopMetadata(t *testing.T) {
+	output, err := Compile(`
+(def ^long seed 3)
+(defn ^float plus [^int x ^long y]
+  (+ x y))
+(println
+  (let [^int a 1
+        ^float b 2]
+    (plus a b)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"var seed = flagrt.NewLong(3)",
+		"func plus_arity_2(x flagrt.Value, y flagrt.Value)",
+		"var a = flagrt.NewLong(1)",
+		"var b = flagrt.NewLong(2)",
+		"return flagrt.Call(plus, a, b)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileUpdateBangRejectsNonMutableBinding(t *testing.T) {
 	_, err := Compile(`
 (let [seen {}]

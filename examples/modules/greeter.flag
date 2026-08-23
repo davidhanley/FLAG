@@ -1,0 +1,13 @@
+{:namespace "greeter"
+ :exports   [greet shout]
+ :imports   ["math.flag"]}
+
+(defn greet
+  "Greet someone and report a doubled count."
+  [name n]
+  (str "Hello, " name " x2 = " (math/double n)))
+
+(defn shout
+  "Uppercase greeting via string package."
+  [name]
+  (str/upper-case (str "hi " name)))

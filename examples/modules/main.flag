@@ -1,0 +1,9 @@
+{:namespace "main"
+ :imports   ["math.flag"
+             ["greeter.flag" :as "g"]
+             ["greeter.flag" :refer [greet]]]}
+
+;; Qualified import (math/add), alias (g/shout), and :refer (greet).
+(println (math/add 2 3))
+(println (greet "world" 5))
+(println (g/shout "flag"))

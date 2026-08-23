@@ -63,3 +63,34 @@ func TestGoFunctionVariadicCallFromStdlibSymbols(t *testing.T) {
 		t.Fatalf("expected formatted string value, got %#v", got)
 	}
 }
+
+type interopPerson struct {
+	Name      string
+	FirstName string
+	Age       int64
+}
+
+func TestGoFunctionMapRecordConvertsToStruct(t *testing.T) {
+	RegisterGoFunction("test.struct-age", func(person interopPerson) int64 { return person.Age })
+
+	fn := GoFunction("test.struct-age")
+	got := Call(fn, NewMap(
+		NewKeyword("name"), NewString("Ada"),
+		NewKeyword("age"), NewLong(36),
+	))
+	if got.tag != TagLong || got.Long() != 36 {
+		t.Fatalf("expected age 36, got %#v", got)
+	}
+}
+
+func TestGoFunctionMapRecordConvertsHyphenatedKeysToStructField(t *testing.T) {
+	RegisterGoFunction("test.struct-first-name", func(person interopPerson) string { return person.FirstName })
+
+	fn := GoFunction("test.struct-first-name")
+	got := Call(fn, NewMap(
+		NewKeyword("first-name"), NewString("Grace"),
+	))
+	if got.tag != TagString || got.StringValue() != "Grace" {
+		t.Fatalf("expected first name Grace, got %#v", got)
+	}
+}

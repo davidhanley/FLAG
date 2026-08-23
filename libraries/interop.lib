@@ -1,0 +1,5 @@
+{:namespace "interop"
+ :exports   [defrecord]}
+
+(defmacro defrecord [name fields]
+  (macro-defrecord name fields))
