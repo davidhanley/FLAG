@@ -1,0 +1,200 @@
+{:namespace "compiler"
+ :exports   [expand-macros expand-file]
+ :imports   [["compiler/parser.lib" :as "parser"]
+             ["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
+             ["stdlib.lib" :refer [second third]]]}
+
+(defn atom-node?
+  [expr]
+  (= :atom (:kind expr)))
+
+(defn list-node?
+  [expr]
+  (= :list (:kind expr)))
+
+(defn vector-node?
+  [expr]
+  (= :vector (:kind expr)))
+
+(defn branch-node?
+  [expr]
+  (or (= :list (:kind expr))
+      (= :vector (:kind expr))
+      (= :map (:kind expr))))
+
+(defn string-node?
+  [expr]
+  (and (atom-node? expr)
+       (= "\"" (first (seq (:value expr))))))
+
+(defn macro-definition?
+  [expr]
+  (and (list-node? expr)
+       (not (empty? (:children expr)))
+       (atom-node? (first (:children expr)))
+       (= "defmacro" (:value (first (:children expr))))))
+
+(defn append-all
+  [target items]
+  (loop [remaining items out target]
+    (if (empty? remaining)
+      out
+      (recur (rest remaining) (conj out (first remaining))))))
+
+(defn parse-macro-params
+  [params-node]
+  (if (not (vector-node? params-node))
+    (throw (ex-info "defmacro expects a parameter vector"
+                    {:form params-node}))
+    (loop [remaining (:children params-node) params []]
+      (if (empty? remaining)
+        {:params params :rest-param nil}
+        (let [param-node (first remaining)]
+          (if (not (atom-node? param-node))
+            (throw (ex-info "defmacro parameters must be symbols"
+                            {:form params-node}))
+            (if (= "&" (:value param-node))
+              (let [tail (rest remaining)]
+                (if (not (= 1 (count tail)))
+                  (throw (ex-info "defmacro varargs must use [& name] at end"
+                                  {:form params-node}))
+                  (let [rest-node (first tail)]
+                    (if (not (atom-node? rest-node))
+                      (throw (ex-info "defmacro varargs expects symbol after &"
+                                      {:form params-node}))
+                      {:params params :rest-param (:value rest-node)}))))
+              (recur (rest remaining) (conj params (:value param-node))))))))))
+
+(defn compile-defmacro
+  [expr]
+  (let [children (:children expr)]
+    (if (< (count children) 4)
+      (throw (ex-info "defmacro expects name, optional docstring, vector params, and body"
+                      {:form expr}))
+      (let [name-node (second children)
+            maybe-doc (third children)
+            has-docstring (string-node? maybe-doc)
+            params-node (if has-docstring
+                          (first (drop 3 children))
+                          maybe-doc)
+            body-items (if has-docstring
+                         (drop 4 children)
+                         (drop 3 children))]
+        (if (not (atom-node? name-node))
+          (throw (ex-info "defmacro expects a macro name"
+                          {:form expr}))
+          (if (not (= 1 (count body-items)))
+            (throw (ex-info "defmacro expects exactly one body form"
+                            {:form expr}))
+            (let [param-spec (parse-macro-params params-node)]
+              {:name (:value name-node)
+               :params (:params param-spec)
+               :rest-param (:rest-param param-spec)
+               :body (first body-items)})))))))
+
+(defn bind-macro-args
+  [macro args]
+  (let [params (:params macro)
+        rest-param (:rest-param macro)]
+    (if (and (nil? rest-param) (not (= (count args) (count params))))
+      (throw (ex-info "macro expects exactly N arguments"
+                      {:macro (:name macro)
+                       :expected (count params)
+                       :got (count args)}))
+      (if (and rest-param (< (count args) (count params)))
+        (throw (ex-info "macro expects at least N arguments"
+                        {:macro (:name macro)
+                         :expected (count params)
+                         :got (count args)}))
+        (loop [names params
+               remaining-args args
+               values {}]
+          (if (empty? names)
+            {:values values
+             :rest-bindings (if rest-param
+                              {rest-param remaining-args}
+                              {})}
+            (recur (rest names)
+                   (rest remaining-args)
+                   (assoc values (first names) (first remaining-args)))))))))
+
+(defn substitute-node
+  [expr values rest-bindings]
+  (if (atom-node? expr)
+    (let [replacement (get values (:value expr))]
+      (if (nil? replacement) expr replacement))
+    (if (branch-node? expr)
+      (assoc expr :children
+             (loop [remaining (:children expr) out []]
+               (if (empty? remaining)
+                 out
+                 (let [child (first remaining)
+                       rest-items (if (atom-node? child)
+                                    (get rest-bindings (:value child))
+                                    nil)]
+                   (if rest-items
+                     (recur (rest remaining) (append-all out rest-items))
+                     (recur (rest remaining)
+                            (conj out (substitute-node child values rest-bindings))))))))
+      expr)))
+
+(defn apply-macro
+  [macro args]
+  (let [bindings (bind-macro-args macro args)]
+    (substitute-node (:body macro) (:values bindings) (:rest-bindings bindings))))
+
+(defn expand-node
+  [expr macros depth]
+  (if (> depth 100)
+    (throw (ex-info "macro expansion depth exceeded"
+                    {:expr expr}))
+    (if (list-node? expr)
+      (let [children (:children expr)]
+        (if (empty? children)
+          expr
+          (let [head (first children)
+                macro (if (atom-node? head) (get macros (:value head)) nil)]
+            (if macro
+              (expand-node (apply-macro macro (rest children)) macros (inc depth))
+              (assoc expr :children
+                     (loop [remaining children out []]
+                       (if (empty? remaining)
+                         out
+                         (recur (rest remaining)
+                                (conj out (expand-node (first remaining) macros depth))))))))))
+      (if (branch-node? expr)
+        (assoc expr :children
+               (loop [remaining (:children expr) out []]
+                 (if (empty? remaining)
+                   out
+                   (recur (rest remaining)
+                          (conj out (expand-node (first remaining) macros depth))))))
+        expr))))
+
+(defn register-macro
+  [macros expr]
+  (let [macro (compile-defmacro expr)]
+    (assoc macros (:name macro) macro)))
+
+(defn expand-macros
+  [in]
+  (let [out (make-channel 64)]
+    (go
+      (loop [macros {}]
+        (let [expr (channel-receive in)]
+          (if (nil? expr)
+            (channel-close out)
+            (if (macro-definition? expr)
+              (recur (register-macro macros expr))
+              (let [expanded (expand-node expr macros 0)]
+                (if (macro-definition? expanded)
+                  (recur (register-macro macros expanded))
+                  (do
+                    (channel-send out expanded)
+                    (recur macros)))))))))
+    out))
+
+(defn expand-file
+  [path]
+  (->> (parser/parse-file path)
+       (expand-macros)))

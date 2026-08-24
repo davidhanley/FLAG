@@ -1,0 +1,93 @@
+{:namespace "compiler"
+ :exports   [build-ast-from-tokens]
+ :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]]}
+
+(defn opening-token->kind
+  [token]
+  (cond
+    (= token "(") :list
+    (= token "[") :vector
+    (= token "{") :map
+    :else nil))
+
+(defn closing-token?
+  [token]
+  (or (= token ")")
+      (= token "]")
+      (= token "}")))
+
+(defn matches-closing-token?
+  [kind token]
+  (or (and (= kind :list) (= token ")"))
+      (and (= kind :vector) (= token "]"))
+      (and (= kind :map) (= token "}"))))
+
+(defn make-branch-node
+  [kind line offset]
+  {:kind kind
+   :line line
+   :offset offset
+   :children []})
+
+(defn make-atom-node
+  [token line offset]
+  {:kind :atom
+   :line line
+   :offset offset
+   :value token})
+
+(defn append-child
+  [node child]
+  (assoc node :children (conj (:children node) child)))
+
+(defn stack-top
+  [stack]
+  (last stack))
+
+(defn stack-pop
+  [stack]
+  (reverse (rest (reverse stack))))
+
+(defn append-node-to-stack
+  [stack node out]
+  (if (empty? stack)
+    (do
+      (channel-send out node)
+      stack)
+    (conj (stack-pop stack) (append-child (stack-top stack) node))))
+
+(defn build-ast-from-tokens
+  "Read SourceToken maps from in, parse top-level expressions, and send AST nodes to a new output channel."
+  [in]
+  (let [out (make-channel 64)]
+    (go
+      (loop [stack []]
+        (let [source-token (channel-receive in)]
+          (if (nil? source-token)
+            (if (empty? stack)
+              (channel-close out)
+              (throw (ex-info "unterminated expression"
+                              {:kind (:kind (stack-top stack))
+                               :line (:line (stack-top stack))
+                               :offset (:offset (stack-top stack))})))
+            (let [token (:token source-token)
+                  line (:line source-token)
+                  offset (:offset source-token)
+                  kind (opening-token->kind token)]
+              (if kind
+                (recur (conj stack (make-branch-node kind line offset)))
+                (if (closing-token? token)
+                  (if (empty? stack)
+                    (throw (ex-info "unexpected closing token"
+                                    {:token token :line line :offset offset}))
+                    (let [node (stack-top stack)
+                          remaining (stack-pop stack)]
+                      (if (matches-closing-token? (:kind node) token)
+                        (recur (append-node-to-stack remaining node out))
+                        (throw (ex-info "mismatched closing token"
+                                        {:token token
+                                         :expected-kind (:kind node)
+                                         :line line
+                                         :offset offset})))))
+                  (recur (append-node-to-stack stack (make-atom-node token line offset) out)))))))))
+    out))

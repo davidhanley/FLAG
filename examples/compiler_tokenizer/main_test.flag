@@ -40,3 +40,57 @@
       (is (= "println" (:token t1))) (is (= 1 (:line t1))) (is (= 2 (:offset t1)))
       (is (= "\"\"\"hello\nworld\"\"\"" (:token t2))) (is (= 1 (:line t2))) (is (= 10 (:offset t2)))
       (is (= ")" (:token t3))) (is (= 2 (:line t3))) (is (= 9 (:offset t3))))))
+
+(deftest tokenize-file-handles-single-line-triple-quoted-string
+  (let [tokens (tokenize-file-to-array "examples/compiler_tokenizer/triple_quote_single_line.txt")]
+    (is (= 4 (count tokens)))
+    (let [t0 (nth-token tokens 0)
+          t1 (nth-token tokens 1)
+          t2 (nth-token tokens 2)
+          t3 (nth-token tokens 3)]
+      (is (= "(" (:token t0))) (is (= 1 (:line t0))) (is (= 1 (:offset t0)))
+      (is (= "println" (:token t1))) (is (= 1 (:line t1))) (is (= 2 (:offset t1)))
+      (is (= "\"\"\"hello\"\"\"" (:token t2))) (is (= 1 (:line t2))) (is (= 10 (:offset t2)))
+      (is (= ")" (:token t3))) (is (= 1 (:line t3))) (is (= 21 (:offset t3))))))
+
+(deftest parse-file-emits-one-ast-per-top-level-expression
+  (let [exprs (parse-file-to-array "examples/compiler_tokenizer/sample.txt")]
+    (is (= 4 (count exprs)))
+    (let [e0 (nth-token exprs 0)
+          e1 (nth-token exprs 1)
+          e2 (nth-token exprs 2)
+          e3 (nth-token exprs 3)
+          e0c0 (nth-token (:children e0) 0)
+          e0c1 (nth-token (:children e0) 1)
+          e0c2 (nth-token (:children e0) 2)
+          e3c0 (nth-token (:children e3) 0)]
+      (is (= :list (:kind e0))) (is (= 1 (:line e0))) (is (= 1 (:offset e0)))
+      (is (= 3 (count (:children e0))))
+      (is (= :atom (:kind e0c0))) (is (= "+" (:value e0c0))) (is (= 1 (:line e0c0))) (is (= 2 (:offset e0c0)))
+      (is (= :atom (:kind e0c1))) (is (= "x" (:value e0c1))) (is (= 1 (:line e0c1))) (is (= 4 (:offset e0c1)))
+      (is (= :atom (:kind e0c2))) (is (= "10" (:value e0c2))) (is (= 1 (:line e0c2))) (is (= 6 (:offset e0c2)))
+
+      (is (= :atom (:kind e1))) (is (= "foo" (:value e1))) (is (= 2 (:line e1))) (is (= 1 (:offset e1)))
+      (is (= :atom (:kind e2))) (is (= "bar" (:value e2))) (is (= 2 (:line e2))) (is (= 5 (:offset e2)))
+
+      (is (= :vector (:kind e3))) (is (= 1 (count (:children e3)))) (is (= 3 (:line e3))) (is (= 1 (:offset e3)))
+      (is (= :atom (:kind e3c0))) (is (= "ab" (:value e3c0))) (is (= 3 (:line e3c0))) (is (= 2 (:offset e3c0))))))
+
+(deftest expand-file-accumulates-defmacros-and-repeatedly-expands-calls
+  (let [exprs (expand-file-to-array "examples/compiler_tokenizer/macro_sample.txt")]
+    (is (= 2 (count exprs)))
+    (let [e0 (nth-token exprs 0)
+          e1 (nth-token exprs 1)
+          e1c0 (nth-token (:children e1) 0)
+          e1c1 (nth-token (:children e1) 1)
+          e1c2 (nth-token (:children e1) 2)
+          e1c3 (nth-token (:children e1) 3)]
+      (is (= :atom (:kind e0)))
+      (is (= "foo" (:value e0)))
+
+      (is (= :list (:kind e1)))
+      (is (= 4 (count (:children e1))))
+      (is (= :atom (:kind e1c0))) (is (= "list" (:value e1c0)))
+      (is (= :atom (:kind e1c1))) (is (= "a" (:value e1c1)))
+      (is (= :atom (:kind e1c2))) (is (= "b" (:value e1c2)))
+      (is (= :atom (:kind e1c3))) (is (= "c" (:value e1c3))))))

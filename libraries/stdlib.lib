@@ -1,0 +1,8 @@
+{:namespace "stdlib"
+ :exports   [second third]}
+
+(defn second [coll]
+  (first (rest coll)))
+
+(defn third [coll]
+  (first (rest (rest coll))))

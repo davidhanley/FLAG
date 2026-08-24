@@ -1,7 +1,8 @@
 {:namespace "compiler"
  :exports   [tokenize-file]
  :imports   [["async.lib" :refer [go make-channel channel-send channel-close]]
-             ["interop.lib" :refer [defrecord]]]}
+             ["interop.lib" :refer [defrecord]]
+             ["stdlib.lib" :refer [second third]]]}
 
 (def whitespace-chars #{" " "\t" "\n" "\r" ","})
 (def delimiter-chars #{"(" ")" "[" "]" "{" "}"})
@@ -30,8 +31,8 @@
 (defn starts-triple-quote?
   [chars]
   (and (= "\"" (first chars))
-       (= "\"" (first (rest chars)))
-       (= "\"" (first (rest (rest chars))))))
+       (= "\"" (second chars))
+       (= "\"" (third chars))))
 
 (defn tokenize-line-step!
   [out chars line column state]
@@ -48,8 +49,8 @@
             (if (starts-triple-quote? remaining)
               (let [token (str (:token current) "\"\"\"")]
                 (emit-token! out token (:start-line current) (:start-offset current))
-                (recur (rest (rest (rest remaining))) (+ col 3) empty-token-state))
-              (recur (rest remaining) (+ col 1)
+                (recur (drop 3 remaining) (+ col 3) empty-token-state))
+              (recur (rest remaining) (inc col)
                      (make-state (str (:token current) ch)
                                  (:start-line current)
                                  (:start-offset current)
@@ -59,7 +60,7 @@
             (let [token (str (:token current) ch)]
               (cond
                 (:escaped current)
-                (recur (rest remaining) (+ col 1)
+                (recur (rest remaining) (inc col)
                        (make-state token
                                    (:start-line current)
                                    (:start-offset current)
@@ -68,7 +69,7 @@
                                    false))
 
                 (= "\\" ch)
-                (recur (rest remaining) (+ col 1)
+                (recur (rest remaining) (inc col)
                        (make-state token
                                    (:start-line current)
                                    (:start-offset current)
@@ -79,10 +80,10 @@
                 (= "\"" ch)
                 (do
                   (emit-token! out token (:start-line current) (:start-offset current))
-                  (recur (rest remaining) (+ col 1) empty-token-state))
+                  (recur (rest remaining) (inc col) empty-token-state))
 
                 true
-                (recur (rest remaining) (+ col 1)
+                (recur (rest remaining) (inc col)
                        (make-state token
                                    (:start-line current)
                                    (:start-offset current)
@@ -93,30 +94,30 @@
             (whitespace-char? ch)
             (do
               (emit-token! out (:token current) (:start-line current) (:start-offset current))
-              (recur (rest remaining) (+ col 1) empty-token-state))
+              (recur (rest remaining) (inc col) empty-token-state))
 
             (delimiter-char? ch)
             (do
               (emit-token! out (:token current) (:start-line current) (:start-offset current))
               (emit-token! out ch line col)
-              (recur (rest remaining) (+ col 1) empty-token-state))
+              (recur (rest remaining) (inc col) empty-token-state))
 
             (= "\"" ch)
             (if (starts-triple-quote? remaining)
               (do
                 (emit-token! out (:token current) (:start-line current) (:start-offset current))
-                (recur (rest (rest (rest remaining))) (+ col 3)
+                (recur (drop 3 remaining) (+ col 3)
                        (make-state "\"\"\"" line col true true false)))
               (do
                 (emit-token! out (:token current) (:start-line current) (:start-offset current))
-                (recur (rest remaining) (+ col 1)
+                (recur (rest remaining) (inc col)
                        (make-state "\"" line col true false false))))
 
             true
             (if (empty? (:token current))
-              (recur (rest remaining) (+ col 1)
+              (recur (rest remaining) (inc col)
                      (make-state ch line col false false false))
-              (recur (rest remaining) (+ col 1)
+              (recur (rest remaining) (inc col)
                      (make-state (str (:token current) ch)
                                  (:start-line current)
                                  (:start-offset current)

@@ -1,0 +1,5 @@
+(defmacro id [x] x)
+(defmacro indirect [x] (id x))
+(defmacro pack [& xs] (list xs))
+(indirect foo)
+(pack a b c)

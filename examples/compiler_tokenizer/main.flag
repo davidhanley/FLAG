@@ -1,5 +1,7 @@
 {:namespace "compiler-tokenizer"
- :imports [["compiler/tokenizer.lib" :as "shadow"]
+ :imports [["compiler/tokenizer.lib" :as "tokenizer"]
+           ["compiler/parser.lib" :as "parser"]
+           ["compiler/expand-macros.lib" :as "macro-expand"]
            ["async.lib" :refer [channel-receive]]]}
 
 (defn drain-tokens-into
@@ -15,7 +17,15 @@
 
 (defn tokenize-file-to-array
   [path]
-  (drain-tokens (shadow/tokenize-file path)))
+  (drain-tokens (tokenizer/tokenize-file path)))
+
+(defn parse-file-to-array
+  [path]
+  (drain-tokens (parser/parse-file path)))
+
+(defn expand-file-to-array
+  [path]
+  (drain-tokens (macro-expand/expand-file path)))
 
 (defn nth-token
   [tokens n]
