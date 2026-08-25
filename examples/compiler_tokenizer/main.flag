@@ -1,7 +1,9 @@
 {:namespace "compiler-tokenizer"
  :imports [["compiler/tokenizer.lib" :as "tokenizer"]
+           ["compiler/build-ast.lib" :as "ast"]
            ["compiler/parser.lib" :as "parser"]
            ["compiler/expand-macros.lib" :as "macro-expand"]
+           ["compiler/ast-source.lib" :as "ast-source"]
            ["async.lib" :refer [channel-receive]]]}
 
 (defn drain-tokens-into
@@ -23,10 +25,27 @@
   [path]
   (drain-tokens (parser/parse-file path)))
 
+(defn build-ast-file-to-array
+  [path]
+  (drain-tokens (->> (tokenizer/tokenize-file path)
+                     (ast/build-ast-from-tokens))))
+
 (defn expand-file-to-array
   [path]
   (drain-tokens (macro-expand/expand-file path)))
 
+(defn ast-file-to-source
+  [path]
+  (ast-source/asts->source (build-ast-file-to-array path)))
+
+(defn ast-node-to-source
+  [node]
+  (ast-source/ast->source node))
+
 (defn nth-token
   [tokens n]
   (first (drop n tokens)))
+
+(defn nth-child
+  [node n]
+  (nth-token (:children node) n))
