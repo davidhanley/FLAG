@@ -1,0 +1,4 @@
+(defmacro define-id [name]
+  (defmacro name [x] x))
+(define-id passthrough)
+(passthrough value)

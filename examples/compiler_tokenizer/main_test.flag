@@ -217,3 +217,8 @@
     (is (= "()" (ast-node-to-source (nth-token exprs 0))))
     (is (= "[]" (ast-node-to-source (nth-token exprs 1))))
     (is (= "{}" (ast-node-to-source (nth-token exprs 2))))))
+
+(deftest codegen-compiles-square-expression-to-go
+  (let [exprs (compile-file-to-go-exprs "examples/compiler_tokenizer/square_expr.txt")]
+    (is (= 1 (count exprs)))
+    (is (= "(x * x)" (nth-token exprs 0)))))

@@ -1,0 +1,5 @@
+(outer
+  [inner {:key value}]
+  {:pair [left right]
+   :call (f g)}
+  "text")

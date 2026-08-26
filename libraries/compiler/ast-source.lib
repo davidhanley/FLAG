@@ -1,0 +1,48 @@
+{:namespace "compiler-ast-source"
+ :exports   [ast->source asts->source]}
+
+(defn ast->source
+  [expr]
+  (cond
+    (= :atom (:kind expr)) (:value expr)
+    (= :list (:kind expr))
+    (loop [remaining (:children expr)
+           out ""
+           first? true]
+      (if (empty? remaining)
+        (str "(" out ")")
+        (let [piece (ast->source (first remaining))]
+          (if first?
+            (recur (rest remaining) piece false)
+            (recur (rest remaining) (str out " " piece) false)))))
+    (= :vector (:kind expr))
+    (loop [remaining (:children expr)
+           out ""
+           first? true]
+      (if (empty? remaining)
+        (str "[" out "]")
+        (let [piece (ast->source (first remaining))]
+          (if first?
+            (recur (rest remaining) piece false)
+            (recur (rest remaining) (str out " " piece) false)))))
+    (= :map (:kind expr))
+    (loop [remaining (:children expr)
+           out ""
+           first? true]
+      (if (empty? remaining)
+        (str "{" out "}")
+        (let [piece (ast->source (first remaining))]
+          (if first?
+            (recur (rest remaining) piece false)
+            (recur (rest remaining) (str out " " piece) false)))))
+    true (throw (ex-info "unsupported AST node" {:expr expr}))))
+
+(defn asts->source
+  [exprs]
+  (loop [remaining exprs out "" first? true]
+    (if (empty? remaining)
+      out
+      (let [piece (ast->source (first remaining))]
+        (if first?
+          (recur (rest remaining) piece false)
+          (recur (rest remaining) (str out "\n" piece) false))))))
