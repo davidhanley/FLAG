@@ -1,9 +1,11 @@
 {:namespace "compiler"
  :exports   [parse-file]
  :imports   [["compiler/tokenizer.lib" :as "tokenizer"]
-             ["compiler/build-ast.lib" :as "ast"]]}
+              ["compiler/build-ast.lib" :as "ast"]
+              ["compiler/expand-macros.lib" :as "expand-macros"]]}
 
 (defn parse-file
   [path]
-  (->>(tokenizer/tokenize-file path)
-      (ast/build-ast-from-tokens)))
+  (->> (tokenizer/tokenize-file path)
+        (ast/build-ast-from-tokens)
+        (expand-macros/expand-macros)))

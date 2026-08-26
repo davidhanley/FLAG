@@ -388,8 +388,8 @@ type macroDef struct {
 	body      Expr
 }
 
-//go:embed macros.flag
-var standardMacrosSource string
+//go:embed prologue.flag
+var standardPrologueSource string
 
 func newCompileContext() (compileContext, error) {
 	ctx := compileContext{
@@ -398,25 +398,25 @@ func newCompileContext() (compileContext, error) {
 		macros:        make(map[string]macroDef),
 		moduleSymbols: make(map[string]string),
 	}
-	if err := loadStandardMacros(&ctx); err != nil {
+	if err := loadStandardPrologue(&ctx); err != nil {
 		return compileContext{}, err
 	}
 	return ctx, nil
 }
 
-func loadStandardMacros(ctx *compileContext) error {
-	macroAST, err := ParseFile(standardMacrosSource)
+func loadStandardPrologue(ctx *compileContext) error {
+	prologueAST, err := ParseFile(standardPrologueSource)
 	if err != nil {
-		return fmt.Errorf("parse standard macros: %w", err)
+		return fmt.Errorf("parse compiler prologue: %w", err)
 	}
-	for _, form := range macroAST.Forms {
+	for _, form := range prologueAST.Forms {
 		list, ok := form.(ListExpr)
 		if !ok {
-			return fmt.Errorf("invalid standard macro form")
+			return fmt.Errorf("invalid compiler prologue form")
 		}
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok || head.Name != "defmacro" {
-			return fmt.Errorf("invalid standard macro declaration")
+			return fmt.Errorf("invalid compiler prologue macro declaration")
 		}
 		name, def, err := compileDefmacro(list)
 		if err != nil {

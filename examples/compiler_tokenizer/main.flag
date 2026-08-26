@@ -32,7 +32,7 @@
 
 (defn expand-file-to-array
   [path]
-  (drain-tokens (macro-expand/expand-file path)))
+  (drain-tokens (parser/parse-file path)))
 
 (defn ast-file-to-source
   [path]
