@@ -1,0 +1,59 @@
+{:namespace "compiler-codegen"
+ :exports   [emit-go-expr emit-go-channel compile-file]
+ :imports   [["compiler/lift.lib" :as "lift"]
+             ["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
+             ["stdlib.lib" :refer [second third]]]}
+
+(def binary-ops #{"+" "-" "*" "/"})
+
+(defn atom-node?
+  [expr]
+  (= :atom (:kind expr)))
+
+(defn list-node?
+  [expr]
+  (= :list (:kind expr)))
+
+(defn emit-go-expr
+  [expr]
+  (cond
+    (atom-node? expr)
+    (:value expr)
+
+    (list-node? expr)
+    (let [children (:children expr)]
+      (if (not (= 3 (count children)))
+        (throw (ex-info "unsupported list shape for codegen"
+                        {:expr expr}))
+        (let [op (first children)
+              lhs (second children)
+              rhs (third children)]
+          (if (and (atom-node? op)
+                   (contains? binary-ops (:value op)))
+            (str "(" (emit-go-expr lhs) " " (:value op) " " (emit-go-expr rhs) ")")
+            (throw (ex-info "unsupported list operator for codegen"
+                            {:expr expr}))))))
+
+    true
+    (throw (ex-info "unsupported AST node for codegen"
+                    {:expr expr}))))
+
+(defn emit-go-loop!
+  [in out]
+  (let [expr (channel-receive in)]
+    (if (nil? expr)
+      (channel-close out)
+      (do
+        (channel-send out (emit-go-expr expr))
+        (emit-go-loop! in out)))))
+
+(defn emit-go-channel
+  [in]
+  (let [out (make-channel 64)]
+    (go (emit-go-loop! in out))
+    out))
+
+(defn compile-file
+  [path]
+  (->> (lift/lift-file path)
+       (emit-go-channel)))

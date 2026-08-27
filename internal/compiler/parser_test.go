@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+func TestParseTokenChannelMatchesParseFile(t *testing.T) {
+	source := `(do
+  (println "hi")
+  {:x [1 2 3] :ok true}
+  '(1 2 3)
+  ^long value)`
+
+	fromSource, err := ParseFile(source)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+	fromTokens, err := ParseTokenChannel(TokenizeSourceToChannel(source))
+	if err != nil {
+		t.Fatalf("ParseTokenChannel returned error: %v", err)
+	}
+
+	if len(fromTokens.Forms) != len(fromSource.Forms) {
+		t.Fatalf("expected %d forms from token channel, got %d", len(fromSource.Forms), len(fromTokens.Forms))
+	}
+}
+
 func TestParseFileMultipleFormsWhitespaceInsensitive(t *testing.T) {
 	source := `
 		; file comment

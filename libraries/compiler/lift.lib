@@ -1,0 +1,29 @@
+{:namespace "compiler-lift"
+ :exports   [lift-ast-channel lift-file]
+ :imports   [["compiler/parser.lib" :as "parser"]
+             ["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]]}
+
+(defn lift-node
+  [expr]
+  expr)
+
+(defn pump-lift!
+  [in out]
+  (let [expr (channel-receive in)]
+    (if (nil? expr)
+      (channel-close out)
+      (do
+        (channel-send out (lift-node expr))
+        (pump-lift! in out)))))
+
+(defn lift-ast-channel
+  [in]
+  (let [out (make-channel 64)]
+    (go
+      (pump-lift! in out))
+    out))
+
+(defn lift-file
+  [path]
+  (->> (parser/parse-file path)
+       (lift-ast-channel)))

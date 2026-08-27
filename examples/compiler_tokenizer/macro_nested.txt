@@ -1,0 +1,4 @@
+(defmacro id "identity macro" [x] x)
+(defmacro wrap [x] (id x))
+[(wrap foo) {:value (id bar)}]
+{:left (id baz) :right (wrap qux) :items [(id a) (wrap b)]}

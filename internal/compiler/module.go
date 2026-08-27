@@ -286,6 +286,18 @@ func parseModuleFile(path, source string) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseModuleAST(path, ast)
+}
+
+func parseModuleTokenStream(path string, tokens <-chan ParseToken) (*Module, error) {
+	ast, err := ParseTokenChannel(tokens)
+	if err != nil {
+		return nil, err
+	}
+	return parseModuleAST(path, ast)
+}
+
+func parseModuleAST(path string, ast FileAST) (*Module, error) {
 	mod := &Module{Path: path, Forms: ast.Forms}
 	if len(ast.Forms) == 0 {
 		return mod, nil

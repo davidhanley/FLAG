@@ -1,7 +1,6 @@
 {:namespace "compiler"
- :exports   [expand-macros expand-file]
- :imports   [["compiler/parser.lib" :as "parser"]
-             ["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
+ :exports   [expand-macros]
+ :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
              ["stdlib.lib" :refer [second third]]]}
 
 (defn atom-node?
@@ -193,8 +192,3 @@
                     (channel-send out expanded)
                     (recur macros)))))))))
     out))
-
-(defn expand-file
-  [path]
-  (->> (parser/parse-file path)
-       (expand-macros)))
