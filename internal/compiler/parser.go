@@ -13,26 +13,7 @@ type parser struct {
 }
 
 func ParseFile(source string) (FileAST, error) {
-	p := parser{src: []rune(source)}
-	forms := make([]Expr, 0, 8)
-
-	for {
-		p.skipIgnorable()
-		if p.done() {
-			break
-		}
-
-		form, err := p.readExpr()
-		if err != nil {
-			return FileAST{}, err
-		}
-		if _, ok := form.(CommentExpr); ok {
-			continue
-		}
-		forms = append(forms, form)
-	}
-
-	return FileAST{Forms: forms}, nil
+	return ParseTokenChannel(TokenizeSourceToChannel(source))
 }
 
 func (p *parser) readExpr() (Expr, error) {

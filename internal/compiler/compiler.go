@@ -437,6 +437,15 @@ func Compile(source string) ([]byte, error) {
 	return emitGoProgram(result)
 }
 
+// CompileTokens translates a FLAG token stream into a Go program.
+func CompileTokens(tokens <-chan ParseToken) ([]byte, error) {
+	result, err := compileTokenStream(tokens, "")
+	if err != nil {
+		return nil, err
+	}
+	return emitGoProgram(result)
+}
+
 // CompileProgram loads entryPath and its import graph, then emits one Go program.
 func CompileProgram(entryPath string) ([]byte, error) {
 	result, err := compileProgram(entryPath, nil)
@@ -982,6 +991,18 @@ func compileSource(source, path string) (compileResult, error) {
 	if err != nil {
 		return compileResult{}, err
 	}
+	return compileParsedModule(mod, path)
+}
+
+func compileTokenStream(tokens <-chan ParseToken, path string) (compileResult, error) {
+	mod, err := parseModuleTokenStream(path, tokens)
+	if err != nil {
+		return compileResult{}, err
+	}
+	return compileParsedModule(mod, path)
+}
+
+func compileParsedModule(mod *Module, path string) (compileResult, error) {
 	if mod.HasModuleHeader && len(mod.Header.Imports) > 0 {
 		if path == "" {
 			return compileResult{}, fmt.Errorf("module imports require compiling from a file path (use flag-lang build <file.flag>)")

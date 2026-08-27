@@ -29,6 +29,29 @@ func TestCompilePrintProgram(t *testing.T) {
 	}
 }
 
+func TestCompileTokensPrintProgram(t *testing.T) {
+	output, err := CompileTokens(TokenizeSourceToChannel(`
+(ns hello.core)
+(println "Hello")
+(print 42)
+`))
+	if err != nil {
+		t.Fatalf("CompileTokens returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"package main",
+		`fmt.Println(flagrt.Str("Hello"))`,
+		"fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))",
+		"// Source namespace: hello.core",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDocstringsArePreservedAsComments(t *testing.T) {
 	output, err := Compile(`
 (defn greet "Say hi" [name] name)
