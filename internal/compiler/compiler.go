@@ -31,37 +31,37 @@ type goExpr struct {
 func exprPos(expr Expr) (int, int, bool) {
 	switch value := expr.(type) {
 	case ListExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case VectorExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case MapExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case SetExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case HashFnExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case SymbolExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case KeywordExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case QuotedSymbolExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case QuotedListExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case StringExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case CharExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case IntExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case BigIntExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case FloatExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case RatioExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case MetaExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	default:
 		return 0, 0, false
 	}
@@ -72,6 +72,17 @@ func exprError(expr Expr, msg string) error {
 		return fmt.Errorf("%s at %d:%d", msg, line, col)
 	}
 	return fmt.Errorf("%s", msg)
+}
+
+func annotateExprError(expr Expr, err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, " at ") {
+		return err
+	}
+	return exprError(expr, msg)
 }
 
 func exprToSourceString(expr Expr) string {
@@ -174,6 +185,8 @@ type compileContext struct {
 	functions         map[string]functionDef
 	globals           map[string]exprKind
 	macros            map[string]macroDef
+	prologueFns       []functionDef
+	prologueVars      []varDef
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
@@ -233,6 +246,8 @@ func copyCompileContext(ctx compileContext) compileContext {
 		functions:         make(map[string]functionDef, len(ctx.functions)),
 		globals:           make(map[string]exprKind, len(ctx.globals)),
 		macros:            make(map[string]macroDef, len(ctx.macros)),
+		prologueFns:       ctx.prologueFns,
+		prologueVars:      ctx.prologueVars,
 		constants:         ctx.constants,
 		namespace:         ctx.namespace,
 		selfFunctionName:  ctx.selfFunctionName,
@@ -417,20 +432,47 @@ func loadStandardPrologue(ctx *compileContext) error {
 	}
 	for _, form := range prologueAST.Forms {
 		list, ok := form.(ListExpr)
-		if !ok {
+		if !ok || len(list.Elements) == 0 {
 			return fmt.Errorf("invalid compiler prologue form")
 		}
 		head, ok := list.Elements[0].(SymbolExpr)
-		if !ok || head.Name != "defmacro" {
-			return fmt.Errorf("invalid compiler prologue macro declaration")
+		if !ok {
+			return fmt.Errorf("invalid compiler prologue form")
 		}
-		name, def, err := compileDefmacro(list)
-		if err != nil {
-			return err
+		switch head.Name {
+		case "defmacro":
+			name, def, err := compileDefmacro(list)
+			if err != nil {
+				return err
+			}
+			ctx.macros[name] = def
+		case "defn":
+			def, err := compileDefn(list, *ctx)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
+			ctx.functions[def.goName] = def
+			ctx.globals[def.goName] = exprKindValue
+			ctx.prologueFns = append(ctx.prologueFns, def)
+			ctx.prologueVars = append(ctx.prologueVars, varDef{
+				flagName: def.flagName,
+				goName:   def.goName,
+				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+			})
+		default:
+			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
 		}
-		ctx.macros[name] = def
 	}
 	return nil
+}
+
+func withPrologue(result compileResult, ctx compileContext) compileResult {
+	if len(ctx.prologueFns) == 0 && len(ctx.prologueVars) == 0 {
+		return result
+	}
+	result.functions = append(append([]functionDef{}, ctx.prologueFns...), result.functions...)
+	result.vars = append(append([]varDef{}, ctx.prologueVars...), result.vars...)
+	return result
 }
 
 // Compile translates a FLAG source string into a Go program.
@@ -676,6 +718,19 @@ func NewReplCompiler() *ReplCompiler {
 		moduleMacros:  map[string]map[string]macroDef{},
 		modulesByPath: map[string]*Module{},
 	}
+}
+
+func (r *ReplCompiler) PrologueSetup() ReplCompiled {
+	parts := make([]string, 0, len(r.ctx.prologueFns)*4)
+	for _, def := range r.ctx.prologueFns {
+		parts = append(parts,
+			fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+			fmt.Sprintf("var %s flagrt.Value", def.goName),
+			fmt.Sprintf("%s = %s", def.variadicName, renderFunctionLiteral(def)),
+			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
+		)
+	}
+	return ReplCompiled{Setup: strings.Join(parts, ";;")}
 }
 
 func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
@@ -1040,7 +1095,7 @@ func compileParsedModule(mod *Module, path string) (compileResult, error) {
 		result.namespace = mod.LegacyNS
 	}
 	result.vars = append(result.vars, ctx.constants.decls()...)
-	return result, nil
+	return withPrologue(result, ctx), nil
 }
 
 func compileProgram(entryPath string, testPaths []string) (compileResult, error) {
@@ -1125,7 +1180,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	}
 
 	allVars = append(allVars, shared.constants.decls()...)
-	return compileResult{
+	return withPrologue(compileResult{
 		namespace: entryNS,
 		typeDecls: allTypeDecls,
 		functions: allFunctions,
@@ -1133,7 +1188,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 		stmts:     allStmts,
 		tests:     allTests,
 		needsFmt:  needsFmt,
-	}, nil
+	}, shared), nil
 }
 
 func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]macroDef) error {
@@ -2317,7 +2372,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "second", "rest", "next", "last", "reverse", "cons", "take", "drop",
-		"map", "mapcat", "concat", "group-by", "sort-by", "juxt", "partial", "apply", "max-key", "val", "zipmap", "pmap", "filter", "reduce", "range", "get", "get-in", "keys", "hash-map", "select-keys",
+		"map", "concat", "group-by", "sort-by", "juxt", "partial", "apply", "max-key", "val", "zipmap", "pmap", "filter", "reduce", "range", "get", "get-in", "keys", "hash-map", "select-keys",
 		"identity", "not-empty", "not-empty?", "empty?", "nil?", "not", "count", "double", "format", "keyword", "into",
 		"remove", "doall", "dorun", "line-seq", "some", "some?", "seq", "seq?", "not-any?", "every?", "keep", "set", "vec", "conj", "contains?",
 		"assoc", "merge", "update", "dissoc", "open-file", "file-to-strings", "rand-int", "constantly", "repeat",
@@ -2328,7 +2383,12 @@ func isBuiltinFunctionSymbol(name string) bool {
 	}
 }
 
-func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind) (result goExpr, err error) {
+	defer func() {
+		if err != nil {
+			err = annotateExprError(list, err)
+		}
+	}()
 	if len(list.Elements) == 0 {
 		return goExpr{}, fmt.Errorf("unsupported form")
 	}
@@ -2449,8 +2509,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return selectKeysExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
-		case "mapcat":
-			return mapcatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "concat":
 			return concatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "group-by":
@@ -4194,28 +4252,6 @@ func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Map(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func mapcatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("mapcat expects function and one collection")
-	}
-	fnExpr, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	if fnExpr.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("mapcat function must evaluate to Value")
-	}
-	seqExpr, err := exprToGo(args[1], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	seqCode, err := collectionArgToValueCode(seqExpr)
-	if err != nil {
-		return goExpr{}, fmt.Errorf("mapcat collection must evaluate to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.MapCat(%s, %s)", runtimeAlias, fnExpr.code, seqCode), kind: exprKindValue}, nil
 }
 
 func concatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

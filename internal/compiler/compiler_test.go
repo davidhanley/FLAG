@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -1384,8 +1385,28 @@ func TestCompileMapcatFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	if !strings.Contains(got, `flagrt.MapCat(`) {
-		t.Fatalf("generated Go did not contain mapcat lowering:\n%s", got)
+	if strings.Contains(got, `flagrt.MapCat(`) {
+		t.Fatalf("mapcat should not use a special MapCat lowering:\n%s", got)
+	}
+	if !strings.Contains(got, `func mapcat_variadic(args ...flagrt.Value) flagrt.Value`) {
+		t.Fatalf("generated Go did not contain FLAG mapcat function:\n%s", got)
+	}
+	if !strings.Contains(got, `flagrt.Call(mapcat,`) {
+		t.Fatalf("generated Go did not call FLAG mapcat:\n%s", got)
+	}
+	if !strings.Contains(got, `flagrt.Apply(flagrt.BuiltinFunction("concat")`) || !strings.Contains(got, `flagrt.Apply(flagrt.BuiltinFunction("map")`) {
+		t.Fatalf("mapcat should map then concat:\n%s", got)
+	}
+}
+
+func TestAnnotateExprErrorAddsPosition(t *testing.T) {
+	err := annotateExprError(ListExpr{Line: 335, Col: 10}, fmt.Errorf("mapcat expects function and one collection"))
+	if err == nil {
+		t.Fatal("expected annotated error")
+	}
+	got := err.Error()
+	if got != "mapcat expects function and one collection at 335:10" {
+		t.Fatalf("unexpected annotated error: %q", got)
 	}
 }
 
