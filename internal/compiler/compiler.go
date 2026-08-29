@@ -152,6 +152,7 @@ func exprToSourceString(expr Expr) string {
 
 type mainStmt struct {
 	code string
+	kind exprKind // 0 means a statement (println/print); otherwise an expression
 }
 
 type testCase struct {
@@ -210,6 +211,8 @@ type compileContext struct {
 	constants *constantInterner
 	// recordTypes maps generated Go struct names to FLAG record names.
 	recordTypes map[string]string
+	// allowRedefine lets the REPL overwrite functions already in ctx.
+	allowRedefine bool
 }
 
 // bindModuleName records a FLAG name -> Go ident mapping for this module.
@@ -253,6 +256,7 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionName:  ctx.selfFunctionName,
 		selfFunctionArity: ctx.selfFunctionArity,
 		selfArityName:     ctx.selfArityName,
+		allowRedefine:     ctx.allowRedefine,
 	}
 	if len(ctx.loopBindingNames) > 0 {
 		out.loopBindingNames = append([]string(nil), ctx.loopBindingNames...)
@@ -634,7 +638,11 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 		out.WriteString("\t}\n")
 	} else {
 		for _, stmt := range stmts {
-			fmt.Fprintf(&out, "\t%s\n", stmt.code)
+			if stmt.kind == 0 {
+				fmt.Fprintf(&out, "\t%s\n", stmt.code)
+			} else {
+				fmt.Fprintf(&out, "\t_ = %s\n", stmt.code)
+			}
 		}
 		if entryFunction != nil {
 			if entryFunction.hasRest || len(entryFunction.params) > 0 {
@@ -791,120 +799,52 @@ func (r *ReplCompiler) LoadFile(path string) ([]ReplCompiled, error) {
 	defer func() {
 		r.ctx.namespace = prevNamespace
 	}()
-	if goExports, err := r.replGoExportSetups(mod); err != nil {
+	knownFns, knownVars := r.knownBindings()
+	r.ctx.allowRedefine = true
+	result, _, definedMacros, err := compileModuleBody(mod, &r.ctx, true)
+	if err != nil {
 		return nil, err
-	} else {
-		compiled = append(compiled, goExports...)
 	}
-
-	for _, form := range mod.Forms {
-		step, err := r.compileReplForm(form)
-		if err != nil {
-			return nil, err
-		}
-		compiled = append(compiled, step)
+	compiled = append(compiled, r.replCompileResultSetups(result, knownFns, knownVars)...)
+	if len(result.stmts) > 0 || len(result.tests) > 0 {
+		compiled = append(compiled, replCompiledFromBody(result, definedMacros))
 	}
 	return compiled, nil
 }
 
 func (r *ReplCompiler) compileReplForm(form Expr) (ReplCompiled, error) {
-	if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
-		if head, ok := list.Elements[0].(SymbolExpr); ok {
-			if head.Name == "defmacro" {
-				name, def, err := compileDefmacro(list)
-				if err != nil {
-					return ReplCompiled{}, err
-				}
-				r.ctx.macros[name] = def
-				return ReplCompiled{ResultExpr: fmt.Sprintf("%q", name)}, nil
-			}
-		}
-	}
-
-	expanded, err := macroExpand(form, r.ctx, 0)
+	knownFns, knownVars := r.knownBindings()
+	r.ctx.allowRedefine = true
+	result, _, definedMacros, err := compileModuleBody(&Module{Forms: []Expr{form}}, &r.ctx, true)
 	if err != nil {
 		return ReplCompiled{}, err
 	}
-
-	if list, ok := expanded.(ListExpr); ok && len(list.Elements) > 0 {
-		if head, ok := list.Elements[0].(SymbolExpr); ok {
-			switch head.Name {
-			case "def":
-				binding, exprKind, isNew, err := compileDefForRepl(list, r.ctx)
-				if err != nil {
-					return ReplCompiled{}, err
-				}
-				r.ctx.globals[binding.goName] = exprKind
-				if err := r.ctx.bindModuleName(binding.flagName, binding.goName); err != nil {
-					return ReplCompiled{}, err
-				}
-				setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
-				if isNew {
-					setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
-				}
-				return ReplCompiled{
-					Setup:      setup,
-					ResultExpr: fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, binding.goName),
-				}, nil
-			case "deftest":
-				def, err := compileDeftest(list, r.ctx)
-				if err != nil {
-					return ReplCompiled{}, err
-				}
-				_, exists := r.ctx.functions[def.goName]
-				r.ctx.functions[def.goName] = def
-				setupParts := make([]string, 0, 2)
-				if !exists {
-					setupParts = append(setupParts, fmt.Sprintf("func %s() flagrt.Value { return %s }", def.arityName, def.body))
-				} else {
-					setupParts = append(setupParts, fmt.Sprintf("%s = func() flagrt.Value { return %s }", def.arityName, def.body))
-				}
-				setupParts = append(setupParts, fmt.Sprintf("%s()", def.arityName))
-				return ReplCompiled{Setup: strings.Join(setupParts, ";;")}, nil
-			case "defn-":
-				return ReplCompiled{}, fmt.Errorf("defn- is not supported; list public names in the module :exports instead")
-			case "defn":
-				def, err := compileDefn(list, r.ctx)
-				if err != nil {
-					return ReplCompiled{}, err
-				}
-				_, exists := r.ctx.functions[def.goName]
-				r.ctx.functions[def.goName] = def
-				r.ctx.globals[def.goName] = exprKindValue
-				if err := r.ctx.bindModuleName(def.flagName, def.goName); err != nil {
-					return ReplCompiled{}, err
-				}
-
-				setupParts := make([]string, 0, 6)
-				if !exists {
-					setupParts = append(setupParts,
-						fmt.Sprintf("var %s %s", def.arityName, renderDirectFunctionType(def)),
-						fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
-						fmt.Sprintf("var %s flagrt.Value", def.goName),
-					)
-				}
-				setupParts = append(setupParts,
-					fmt.Sprintf("%s = %s", def.arityName, renderDirectFunctionLiteral(def)),
-					fmt.Sprintf("%s = %s", def.variadicName, renderVariadicFunctionLiteral(def)),
-					fmt.Sprintf("%s = %s.NewFunction(%s)", def.goName, runtimeAlias, def.variadicName),
-				)
-
-				return ReplCompiled{
-					Setup:      strings.Join(setupParts, ";;"),
-					ResultExpr: fmt.Sprintf("%q", def.goName),
-				}, nil
-			}
+	steps := r.replCompileResultSetups(result, knownFns, knownVars)
+	out := replCompiledFromBody(result, definedMacros)
+	setupParts := make([]string, 0, len(steps)+1)
+	for _, step := range steps {
+		if step.Setup != "" {
+			setupParts = append(setupParts, step.Setup)
 		}
 	}
+	if out.Setup != "" {
+		setupParts = append(setupParts, out.Setup)
+		out.Setup = ""
+	}
+	out.Setup = strings.Join(setupParts, ";;")
+	return out, nil
+}
 
-	expr, err := exprToGo(expanded, r.ctx, nil)
-	if err != nil {
-		return ReplCompiled{}, err
+func (r *ReplCompiler) knownBindings() (map[string]functionDef, map[string]exprKind) {
+	fns := make(map[string]functionDef, len(r.ctx.functions))
+	for name, def := range r.ctx.functions {
+		fns[name] = def
 	}
-	if expr.kind == exprKindValue {
-		return ReplCompiled{ResultExpr: fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, expr.code)}, nil
+	vars := make(map[string]exprKind, len(r.ctx.globals))
+	for name, kind := range r.ctx.globals {
+		vars[name] = kind
 	}
-	return ReplCompiled{ResultExpr: expr.code}, nil
+	return fns, vars
 }
 
 func (r *ReplCompiler) importResolvedSpec(spec ImportSpec, importerPath string) ([]ReplCompiled, error) {
@@ -980,7 +920,7 @@ func (r *ReplCompiler) ensureModuleLoaded(path string, loading map[string]bool) 
 		return nil, fmt.Errorf("%s: %w", absPath, err)
 	}
 
-	compiled = append(compiled, r.replCompileResultSetups(result)...)
+	compiled = append(compiled, r.replCompileResultSetups(result, r.ctx.functions, r.ctx.globals)...)
 	r.moduleDefs[absPath] = defined
 	r.moduleMacros[absPath] = definedMacros
 	for k, v := range moduleCtx.functions {
@@ -993,10 +933,20 @@ func (r *ReplCompiler) ensureModuleLoaded(path string, loading map[string]bool) 
 	return compiled, nil
 }
 
-func (r *ReplCompiler) replCompileResultSetups(result compileResult) []ReplCompiled {
-	out := make([]ReplCompiled, 0, len(result.functions)+len(result.vars))
+func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns map[string]functionDef, knownVars map[string]exprKind) []ReplCompiled {
+	out := make([]ReplCompiled, 0, len(result.typeDecls)+len(result.functions)+len(result.vars))
+	for _, decl := range result.typeDecls {
+		decl = strings.TrimSpace(decl)
+		if decl != "" {
+			out = append(out, ReplCompiled{Setup: decl})
+		}
+	}
 	for _, def := range result.functions {
-		_, exists := r.ctx.functions[def.goName]
+		_, exists := knownFns[def.goName]
+		if def.goSignature != "" {
+			out = append(out, ReplCompiled{Setup: strings.TrimSpace(renderFunctionDef(def))})
+			continue
+		}
 		setupParts := make([]string, 0, 6)
 		if !exists {
 			setupParts = append(setupParts,
@@ -1012,12 +962,44 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult) []ReplCompi
 	}
 	for _, binding := range result.vars {
 		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
-		if _, exists := r.ctx.globals[binding.goName]; !exists {
+		if _, exists := knownVars[binding.goName]; !exists {
 			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
 		}
 		out = append(out, ReplCompiled{Setup: setup})
 	}
 	return out
+}
+
+func replCompiledFromBody(result compileResult, definedMacros map[string]macroDef) ReplCompiled {
+	stmtParts := make([]string, 0, len(result.stmts)+len(result.tests))
+	var resultExpr string
+	for _, stmt := range result.stmts {
+		if stmt.kind == 0 {
+			stmtParts = append(stmtParts, stmt.code)
+			continue
+		}
+		if stmt.kind == exprKindValue {
+			resultExpr = fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, stmt.code)
+		} else {
+			resultExpr = stmt.code
+		}
+	}
+	for _, tc := range result.tests {
+		stmtParts = append(stmtParts, tc.goName+"()")
+	}
+	if resultExpr == "" && len(result.stmts) == 0 && len(result.tests) == 0 {
+		if len(result.functions) > 0 {
+			resultExpr = fmt.Sprintf("%q", result.functions[len(result.functions)-1].flagName)
+		} else if len(result.vars) > 0 {
+			resultExpr = fmt.Sprintf("%s.ValueToAny(%s)", runtimeAlias, result.vars[len(result.vars)-1].goName)
+		} else {
+			for name := range definedMacros {
+				resultExpr = fmt.Sprintf("%q", name)
+				break
+			}
+		}
+	}
+	return ReplCompiled{Setup: strings.Join(stmtParts, ";;"), ResultExpr: resultExpr}
 }
 
 func (r *ReplCompiler) replGoExportSetups(mod *Module) ([]ReplCompiled, error) {
@@ -1343,12 +1325,18 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		form = expanded
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
-			return compileResult{}, nil, nil, fmt.Errorf("unsupported form")
+			if err := appendTopLevelExpr(form, *ctx, allowTopLevel, &stmts); err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			continue
 		}
 
 		head, ok := list.Elements[0].(SymbolExpr)
 		if !ok {
-			return compileResult{}, nil, nil, fmt.Errorf("unsupported form")
+			if err := appendTopLevelExpr(form, *ctx, allowTopLevel, &stmts); err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			continue
 		}
 
 		switch head.Name {
@@ -1361,7 +1349,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			if err != nil {
 				return compileResult{}, nil, nil, err
 			}
-			if _, exists := ctx.functions[def.goName]; exists {
+			if _, exists := ctx.functions[def.goName]; exists && !ctx.allowRedefine {
 				return compileResult{}, nil, nil, fmt.Errorf("function %q already defined", def.goName)
 			}
 			if err := ctx.bindModuleName(def.flagName, def.goName); err != nil {
@@ -1381,7 +1369,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			if err != nil {
 				return compileResult{}, nil, nil, err
 			}
-			if _, exists := ctx.functions[def.goName]; exists {
+			if _, exists := ctx.functions[def.goName]; exists && !ctx.allowRedefine {
 				return compileResult{}, nil, nil, fmt.Errorf("test %q already defined", def.goName)
 			}
 			ctx.functions[def.goName] = def
@@ -1466,11 +1454,9 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
 			}
-			expr, err := exprToGo(form, *ctx, nil)
-			if err != nil {
+			if err := appendTopLevelExpr(form, *ctx, allowTopLevel, &stmts); err != nil {
 				return compileResult{}, nil, nil, err
 			}
-			stmts = append(stmts, mainStmt{code: fmt.Sprintf("_ = %s", expr.code)})
 		}
 	}
 
@@ -1482,6 +1468,18 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		tests:     tests,
 		needsFmt:  needsFmt,
 	}, defined, definedMacros, nil
+}
+
+func appendTopLevelExpr(form Expr, ctx compileContext, allowTopLevel bool, stmts *[]mainStmt) error {
+	if !allowTopLevel {
+		return exprError(form, "top-level expressions are only allowed in the entry module")
+	}
+	expr, err := exprToGo(form, ctx, nil)
+	if err != nil {
+		return err
+	}
+	*stmts = append(*stmts, mainStmt{code: expr.code, kind: expr.kind})
+	return nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {

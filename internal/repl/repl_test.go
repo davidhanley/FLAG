@@ -110,6 +110,23 @@ func TestRunMultiLineForm(t *testing.T) {
 	}
 }
 
+func TestRunDefrecord(t *testing.T) {
+	input := strings.NewReader("(defrecord Food [weight calories])\n(:weight (->Food 10 200))\n:quit\n")
+	var output bytes.Buffer
+
+	if err := Run(input, &output); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	got := output.String()
+	if strings.Contains(got, "error:") {
+		t.Fatalf("expected no REPL errors, got:\n%s", got)
+	}
+	if !strings.Contains(got, "10") {
+		t.Fatalf("expected record field lookup in output, got:\n%s", got)
+	}
+}
+
 func TestRunDefnDashRejected(t *testing.T) {
 	input := strings.NewReader("(defn- hidden-helper [x] (+ x 1))\n:quit\n")
 	var output bytes.Buffer

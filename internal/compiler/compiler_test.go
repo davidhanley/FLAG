@@ -2398,3 +2398,32 @@ func TestReplCompilerDefLambdaBinding(t *testing.T) {
 		t.Fatalf("unexpected lambda call expression: %s", call.ResultExpr)
 	}
 }
+
+func TestReplCompilerDefrecordBinding(t *testing.T) {
+	c := NewReplCompiler()
+
+	rec, err := c.CompileLine(`(defrecord Food [weight calories])`)
+	if err != nil {
+		t.Fatalf("CompileLine defrecord returned error: %v", err)
+	}
+	for _, want := range []string{
+		"type Food struct {",
+		"`flag:\"weight\"`",
+		"`flag:\"calories\"`",
+		"flagrt.NewRecord(Food{",
+		"var __gtFood_arity_2 func(flagrt.Value, flagrt.Value) flagrt.Value",
+		"__gtFood = flagrt.NewFunction(__gtFood_variadic)",
+	} {
+		if !strings.Contains(rec.Setup, want) {
+			t.Fatalf("defrecord setup did not contain %q:\n%s", want, rec.Setup)
+		}
+	}
+
+	lookup, err := c.CompileLine(`(:weight (->Food 10 200))`)
+	if err != nil {
+		t.Fatalf("CompileLine record lookup returned error: %v", err)
+	}
+	if !strings.Contains(lookup.ResultExpr, "flagrt.Call(__gtFood, flagrt.NewLong(10), flagrt.NewLong(200))") {
+		t.Fatalf("unexpected record lookup expression: %s", lookup.ResultExpr)
+	}
+}
