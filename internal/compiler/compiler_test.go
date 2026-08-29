@@ -2229,6 +2229,29 @@ func TestCompileExpression(t *testing.T) {
 	}
 }
 
+func TestCompileDefrecordGoStruct(t *testing.T) {
+	output, err := Compile(`
+(defrecord SourceToken [^string token ^long line ^long offset])
+(println (:token (->SourceToken "x" 1 2)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"type SourceToken struct {",
+		"`flag:\"token\"`",
+		"`flag:\"line\"`",
+		"`flag:\"offset\"`",
+		"Line   int64",
+		"flagrt.NewRecord(SourceToken{",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileGoInterface(t *testing.T) {
 	output, err := Compile(`
 (defn square [x] (* x x))

@@ -397,6 +397,8 @@ func ValueToString(v Value) string {
 		return "#<lazy-list>"
 	case TagRecur:
 		return "#<recur>"
+	case TagRecord:
+		return fmt.Sprintf("%#v", v.recordBox().value)
 	default:
 		panic("unknown Value tag")
 	}
@@ -446,7 +448,7 @@ func ValueToAny(v Value) any {
 		return v.StringValue()
 	case TagDate:
 		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur, TagRecord:
 		return v
 	case TagNil:
 		return nil

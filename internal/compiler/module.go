@@ -282,11 +282,10 @@ func moduleGoIdent(namespace, localName string) (string, error) {
 // parseModuleFile parses source into a Module. path is stored for diagnostics
 // and import resolution; it may be empty for string-only compiles.
 func parseModuleFile(path, source string) (*Module, error) {
-	ast, err := ParseFile(source)
-	if err != nil {
-		return nil, err
+	if path != "" {
+		return parseModuleTokenStream(path, TokenizeFileToChannel(path))
 	}
-	return parseModuleAST(path, ast)
+	return parseModuleTokenStream(path, TokenizeSourceToChannel(source))
 }
 
 func parseModuleTokenStream(path string, tokens <-chan SourceToken) (*Module, error) {

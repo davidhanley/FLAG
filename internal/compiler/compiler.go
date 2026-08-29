@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -196,6 +195,8 @@ type compileContext struct {
 	// across all merged flag files collapse to the same var. Left nil for the
 	// REPL / single-expression paths, which emit constants inline.
 	constants *constantInterner
+	// recordTypes maps generated Go struct names to FLAG record names.
+	recordTypes map[string]string
 }
 
 // bindModuleName records a FLAG name -> Go ident mapping for this module.
@@ -255,6 +256,9 @@ func copyCompileContext(ctx compileContext) compileContext {
 		for k, v := range ctx.moduleSymbols {
 			out.moduleSymbols[k] = v
 		}
+	}
+	if ctx.recordTypes != nil {
+		out.recordTypes = ctx.recordTypes
 	}
 	return out
 }
@@ -398,6 +402,7 @@ func newCompileContext() (compileContext, error) {
 		globals:       make(map[string]exprKind),
 		macros:        make(map[string]macroDef),
 		moduleSymbols: make(map[string]string),
+		recordTypes:   make(map[string]string),
 	}
 	if err := loadStandardPrologue(&ctx); err != nil {
 		return compileContext{}, err
@@ -469,6 +474,7 @@ func CompileProgramWithTests(entryPath string, testPaths []string) ([]byte, erro
 
 type compileResult struct {
 	namespace string
+	typeDecls []string
 	functions []functionDef
 	vars      []varDef
 	stmts     []mainStmt
@@ -514,6 +520,14 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 
 	if namespace != "" {
 		fmt.Fprintf(&out, "// Source namespace: %s\n", namespace)
+	}
+
+	for _, decl := range result.typeDecls {
+		out.WriteString(decl)
+		if !strings.HasSuffix(decl, "\n") {
+			out.WriteByte('\n')
+		}
+		out.WriteByte('\n')
 	}
 
 	for _, fn := range functions {
@@ -696,11 +710,7 @@ func (r *ReplCompiler) LoadFile(path string) ([]ReplCompiled, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", path, err)
 	}
-	source, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", absPath, err)
-	}
-	mod, err := parseModuleFile(absPath, string(source))
+	mod, err := parseModuleTokenStream(absPath, TokenizeFileToChannel(absPath))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", absPath, err)
 	}
@@ -879,11 +889,7 @@ func (r *ReplCompiler) ensureModuleLoaded(path string, loading map[string]bool) 
 	loading[absPath] = true
 	defer delete(loading, absPath)
 
-	source, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", absPath, err)
-	}
-	mod, err := parseModuleFile(absPath, string(source))
+	mod, err := parseModuleTokenStream(absPath, TokenizeFileToChannel(absPath))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", absPath, err)
 	}
@@ -1062,6 +1068,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	moduleMacros := map[string]map[string]macroDef{}
 	byPath := prog.byPath
 
+	var allTypeDecls []string
 	var allFunctions []functionDef
 	var allVars []varDef
 	var allStmts []mainStmt
@@ -1109,6 +1116,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 			shared.globals[k] = v
 		}
 
+		allTypeDecls = append(allTypeDecls, partial.typeDecls...)
 		allFunctions = append(allFunctions, partial.functions...)
 		allVars = append(allVars, partial.vars...)
 		allStmts = append(allStmts, partial.stmts...)
@@ -1119,6 +1127,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	allVars = append(allVars, shared.constants.decls()...)
 	return compileResult{
 		namespace: entryNS,
+		typeDecls: allTypeDecls,
 		functions: allFunctions,
 		vars:      allVars,
 		stmts:     allStmts,
@@ -1219,6 +1228,7 @@ func validateExports(mod *Module, defined map[string]string, definedMacros map[s
 // defined maps bare FLAG local names defined in this module to Go idents.
 // definedMacros maps macro names defined in this module.
 func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, map[string]macroDef, error) {
+	typeDecls := make([]string, 0)
 	functions := make([]functionDef, 0, len(mod.Forms))
 	vars := make([]varDef, 0, len(mod.Forms))
 	stmts := make([]mainStmt, 0, len(mod.Forms))
@@ -1386,6 +1396,17 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 				return compileResult{}, nil, nil, err
 			}
 			functions = append(functions, wrapper)
+		case "defrecord", "defrecord*":
+			typeDecl, ctors, recordVars, err := compileDefrecord(list, ctx)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			typeDecls = append(typeDecls, typeDecl)
+			functions = append(functions, ctors...)
+			vars = append(vars, recordVars...)
+			for _, ctor := range ctors {
+				defined[ctor.flagName] = ctor.goName
+			}
 		default:
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -1399,6 +1420,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 	}
 
 	return compileResult{
+		typeDecls: typeDecls,
 		functions: functions,
 		vars:      vars,
 		stmts:     stmts,
@@ -1831,74 +1853,11 @@ func expandDefrecordMacro(args []Expr) (Expr, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("macro-defrecord expects a record name and field vector")
 	}
-
-	recordNameExpr := unwrapMetaExpr(args[0])
-	recordName, ok := recordNameExpr.(SymbolExpr)
-	if !ok {
-		return nil, fmt.Errorf("macro-defrecord record name must be a symbol")
-	}
-
-	fieldsExpr, ok := args[1].(VectorExpr)
-	if !ok {
-		return nil, fmt.Errorf("macro-defrecord fields must be a vector")
-	}
-
-	fields := make([]SymbolExpr, 0, len(fieldsExpr.Elements))
-	for _, fieldExpr := range fieldsExpr.Elements {
-		fieldExpr = unwrapMetaExpr(fieldExpr)
-		field, ok := fieldExpr.(SymbolExpr)
-		if !ok {
-			return nil, fmt.Errorf("macro-defrecord fields must be symbols")
-		}
-		fields = append(fields, field)
-	}
-
-	constructorName := SymbolExpr{Name: "->" + recordName.Name}
-	mapConstructorName := SymbolExpr{Name: "map->" + recordName.Name}
-
-	constructorParams := make([]Expr, 0, len(fields))
-	constructorEntries := make([]Expr, 0, len(fields)*2)
-	for _, field := range fields {
-		constructorParams = append(constructorParams, field)
-		constructorEntries = append(constructorEntries, KeywordExpr{Name: field.Name}, field)
-	}
-	constructorForm := ListExpr{
-		Elements: []Expr{
-			SymbolExpr{Name: "defn"},
-			constructorName,
-			VectorExpr{Elements: constructorParams},
-			MapExpr{Entries: constructorEntries},
-		},
-	}
-
-	mapParam := SymbolExpr{Name: "m"}
-	mapConstructorEntries := make([]Expr, 0, len(fields)*2)
-	for _, field := range fields {
-		mapConstructorEntries = append(
-			mapConstructorEntries,
-			KeywordExpr{Name: field.Name},
-			ListExpr{
-				Elements: []Expr{
-					KeywordExpr{Name: field.Name},
-					mapParam,
-				},
-			},
-		)
-	}
-	mapConstructorForm := ListExpr{
-		Elements: []Expr{
-			SymbolExpr{Name: "defn"},
-			mapConstructorName,
-			VectorExpr{Elements: []Expr{mapParam}},
-			MapExpr{Entries: mapConstructorEntries},
-		},
-	}
-
 	return ListExpr{
 		Elements: []Expr{
-			SymbolExpr{Name: "do"},
-			constructorForm,
-			mapConstructorForm,
+			SymbolExpr{Name: "defrecord*"},
+			args[0],
+			args[1],
 		},
 	}, nil
 }

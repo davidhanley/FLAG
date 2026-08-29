@@ -1,5 +1,5 @@
 {:namespace "compiler"
- :exports   [tokenize-file tokenize-file-parse-tokens]
+ :exports   [tokenize-file tokenize-source tokenize-file-parse-tokens]
  :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
              ["interop.lib" :refer [defrecord]]
              ["stdlib.lib" :refer [second third]]]}
@@ -29,9 +29,9 @@
 (defn delimiter-char? [ch]
   (contains? delimiter-chars ch))
 
-(defrecord SourceToken [token line offset])
-(defrecord TokenState [token start-line start-offset in-string triple escaped])
-(defrecord ParseToken [kind lexeme string message line col])
+(defrecord SourceToken [^string token ^long line ^long offset])
+(defrecord TokenState [^string token ^long start-line ^long start-offset ^bool in-string ^bool triple ^bool escaped])
+(defrecord ParseToken [^long kind ^string lexeme ^string string ^string message ^long line ^long col])
 
 (defn emit-token!
   [out token line offset]
@@ -242,6 +242,28 @@
                                       (:escaped next-state))
                           next-state)]
         (recur (rest remaining) (+ line 1) carry-state)))))
+
+(defn split-lines
+  [source]
+  (loop [chars (seq source) line "" lines []]
+    (if (empty? chars)
+      (if (empty? line)
+        lines
+        (conj lines line))
+      (let [ch (first chars)]
+        (if (= "\n" ch)
+          (recur (rest chars) "" (conj lines line))
+          (recur (rest chars) (str line ch) lines))))))
+
+(defn tokenize-source
+  "Tokenize an in-memory source string and return a channel of SourceToken maps {:token :line :offset}."
+  [source]
+  (let [out (make-channel 64)]
+    (go
+      (do
+        (tokenize-lines! out (split-lines source) 1)
+        (channel-close out)))
+    out))
 
 (defn tokenize-file
   "Read a source file and return a channel of token maps {:token :line :offset}."

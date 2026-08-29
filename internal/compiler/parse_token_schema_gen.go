@@ -22,18 +22,3 @@ const (
 	TokenString          ParseTokenKind = 12
 	TokenAtom            ParseTokenKind = 13
 )
-
-type SourceToken struct {
-	Token  string
-	Line   int
-	Offset int
-}
-
-type ParseToken struct {
-	Kind    ParseTokenKind
-	Lexeme  string
-	String  string
-	Message string
-	Line    int
-	Col     int
-}

@@ -339,8 +339,8 @@ func parseFlagTokenizerLine(line string) (compiler.SourceToken, error) {
 	}
 	return compiler.SourceToken{
 		Token:  tokenText,
-		Line:   lineNum,
-		Offset: offset,
+		Line:   int64(lineNum),
+		Offset: int64(offset),
 	}, nil
 }
 

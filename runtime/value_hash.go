@@ -98,6 +98,8 @@ func valueIdentity(v Value) string {
 		return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)
 	case TagRecur:
 		return "U:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+	case TagRecord:
+		return "R:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
 	default:
 		panic("unknown Value tag")
 	}

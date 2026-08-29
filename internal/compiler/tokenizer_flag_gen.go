@@ -5,6 +5,30 @@ import (
 )
 
 // Source namespace: compiler
+type SourceToken struct {
+	Token  string `flag:"token"`
+	Line   int64  `flag:"line"`
+	Offset int64  `flag:"offset"`
+}
+
+type TokenState struct {
+	Token       string `flag:"token"`
+	StartLine   int64  `flag:"start-line"`
+	StartOffset int64  `flag:"start-offset"`
+	InString    bool   `flag:"in-string"`
+	Triple      bool   `flag:"triple"`
+	Escaped     bool   `flag:"escaped"`
+}
+
+type ParseToken struct {
+	Kind    int64  `flag:"kind"`
+	Lexeme  string `flag:"lexeme"`
+	String  string `flag:"string"`
+	Message string `flag:"message"`
+	Line    int64  `flag:"line"`
+	Col     int64  `flag:"col"`
+}
+
 func stdlib__second_arity_1(coll flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		return flagrt.First(flagrt.Rest(coll))
@@ -58,9 +82,7 @@ func compiler__delimiter_char_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler____gtSourceToken_arity_3(token flagrt.Value, line flagrt.Value, offset flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_token, token, flagKw_line, line, flagKw_offset, offset)
-	}()
+	return flagrt.NewRecord(SourceToken{Token: token.StringValue(), Line: line.Long(), Offset: offset.Long()})
 }
 
 func compiler____gtSourceToken_variadic(args ...flagrt.Value) flagrt.Value {
@@ -71,9 +93,7 @@ func compiler____gtSourceToken_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__map__gtSourceToken_arity_1(m flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_token, flagrt.Call(flagKw_token, m), flagKw_line, flagrt.Call(flagKw_line, m), flagKw_offset, flagrt.Call(flagKw_offset, m))
-	}()
+	return flagrt.NewRecord(SourceToken{Token: flagrt.Get(m, flagKw_token).StringValue(), Line: flagrt.Get(m, flagKw_line).Long(), Offset: flagrt.Get(m, flagKw_offset).Long()})
 }
 
 func compiler__map__gtSourceToken_variadic(args ...flagrt.Value) flagrt.Value {
@@ -84,9 +104,7 @@ func compiler__map__gtSourceToken_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler____gtTokenState_arity_6(token flagrt.Value, start_line flagrt.Value, start_offset flagrt.Value, in_string flagrt.Value, triple flagrt.Value, escaped flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_token, token, flagKw_start_line, start_line, flagKw_start_offset, start_offset, flagKw_in_string, in_string, flagKw_triple, triple, flagKw_escaped, escaped)
-	}()
+	return flagrt.NewRecord(TokenState{Token: token.StringValue(), StartLine: start_line.Long(), StartOffset: start_offset.Long(), InString: in_string.Bool(), Triple: triple.Bool(), Escaped: escaped.Bool()})
 }
 
 func compiler____gtTokenState_variadic(args ...flagrt.Value) flagrt.Value {
@@ -97,9 +115,7 @@ func compiler____gtTokenState_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__map__gtTokenState_arity_1(m flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_token, flagrt.Call(flagKw_token, m), flagKw_start_line, flagrt.Call(flagKw_start_line, m), flagKw_start_offset, flagrt.Call(flagKw_start_offset, m), flagKw_in_string, flagrt.Call(flagKw_in_string, m), flagKw_triple, flagrt.Call(flagKw_triple, m), flagKw_escaped, flagrt.Call(flagKw_escaped, m))
-	}()
+	return flagrt.NewRecord(TokenState{Token: flagrt.Get(m, flagKw_token).StringValue(), StartLine: flagrt.Get(m, flagKw_start_line).Long(), StartOffset: flagrt.Get(m, flagKw_start_offset).Long(), InString: flagrt.Get(m, flagKw_in_string).Bool(), Triple: flagrt.Get(m, flagKw_triple).Bool(), Escaped: flagrt.Get(m, flagKw_escaped).Bool()})
 }
 
 func compiler__map__gtTokenState_variadic(args ...flagrt.Value) flagrt.Value {
@@ -110,9 +126,7 @@ func compiler__map__gtTokenState_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler____gtParseToken_arity_6(kind flagrt.Value, lexeme flagrt.Value, string flagrt.Value, message flagrt.Value, line flagrt.Value, col flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_kind, kind, flagKw_lexeme, lexeme, flagKw_string, string, flagKw_message, message, flagKw_line, line, flagKw_col, col)
-	}()
+	return flagrt.NewRecord(ParseToken{Kind: kind.Long(), Lexeme: lexeme.StringValue(), String: string.StringValue(), Message: message.StringValue(), Line: line.Long(), Col: col.Long()})
 }
 
 func compiler____gtParseToken_variadic(args ...flagrt.Value) flagrt.Value {
@@ -123,9 +137,7 @@ func compiler____gtParseToken_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__map__gtParseToken_arity_1(m flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(flagKw_kind, flagrt.Call(flagKw_kind, m), flagKw_lexeme, flagrt.Call(flagKw_lexeme, m), flagKw_string, flagrt.Call(flagKw_string, m), flagKw_message, flagrt.Call(flagKw_message, m), flagKw_line, flagrt.Call(flagKw_line, m), flagKw_col, flagrt.Call(flagKw_col, m))
-	}()
+	return flagrt.NewRecord(ParseToken{Kind: flagrt.Get(m, flagKw_kind).Long(), Lexeme: flagrt.Get(m, flagKw_lexeme).StringValue(), String: flagrt.Get(m, flagKw_string).StringValue(), Message: flagrt.Get(m, flagKw_message).StringValue(), Line: flagrt.Get(m, flagKw_line).Long(), Col: flagrt.Get(m, flagKw_col).Long()})
 }
 
 func compiler__map__gtParseToken_variadic(args ...flagrt.Value) flagrt.Value {
@@ -640,6 +652,84 @@ func compiler__tokenize_lines_bang_variadic(args ...flagrt.Value) flagrt.Value {
 	return compiler__tokenize_lines_bang_arity_3(args[0], args[1], args[2])
 }
 
+func compiler__split_lines_arity_1(source flagrt.Value) flagrt.Value {
+	return func() flagrt.Value {
+		return func() flagrt.Value {
+			var chars = flagrt.Seq(source)
+			var line = flagStr_
+			var lines = flagVec
+			for {
+				__loopResult := func() flagrt.Value {
+					return func() flagrt.Value {
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(chars))) {
+							return func() flagrt.Value {
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(line))) {
+									return lines
+								}
+								return flagrt.Conj(lines, line)
+							}()
+						}
+						return func() flagrt.Value {
+							var ch = flagrt.First(chars)
+							return func() flagrt.Value {
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\n"), ch))) {
+									return flagrt.NewRecur(flagrt.Rest(chars), flagStr_, flagrt.Conj(lines, line))
+								}
+								return flagrt.NewRecur(flagrt.Rest(chars), flagrt.NewString(flagrt.Str(line, ch)), lines)
+							}()
+						}()
+					}()
+				}()
+				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+					if len(__recurValues) != 3 {
+						panic("internal error: recur arity mismatch")
+					}
+					chars = __recurValues[0]
+					line = __recurValues[1]
+					lines = __recurValues[2]
+					continue
+				}
+				return __loopResult
+			}
+		}()
+	}()
+}
+
+func compiler__split_lines_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__split_lines expects exactly 1 arguments")
+	}
+	return compiler__split_lines_arity_1(args[0])
+}
+
+// Tokenize an in-memory source string and return a channel of SourceToken maps {:token :line :offset}.
+func compiler__tokenize_source_arity_1(source flagrt.Value) flagrt.Value {
+	return func() flagrt.Value {
+		return func() flagrt.Value {
+			var out = flagrt.Call(async__make_channel, flagrt.NewLong(64))
+			_ = flagrt.Call(async__go_run, flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+				if len(args) != 0 {
+					panic("fn expects exactly 0 arguments")
+				}
+				return func() flagrt.Value {
+					return func() flagrt.Value {
+						_ = flagrt.Call(compiler__tokenize_lines_bang, out, flagrt.Call(compiler__split_lines, source), flagrt.NewLong(1))
+						return flagrt.Call(async__channel_close, out)
+					}()
+				}()
+			}))
+			return out
+		}()
+	}()
+}
+
+func compiler__tokenize_source_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__tokenize_source expects exactly 1 arguments")
+	}
+	return compiler__tokenize_source_arity_1(args[0])
+}
+
 // Read a source file and return a channel of token maps {:token :line :offset}.
 func compiler__tokenize_file_arity_1(path flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
@@ -740,21 +830,21 @@ func compiler__tokenize_file_parse_tokens_variadic(args ...flagrt.Value) flagrt.
 	return compiler__tokenize_file_parse_tokens_arity_1(args[0])
 }
 
-var async__channel_receive = flagrt.GoBind_async_ChannelReceive
+var async__channel_lines = flagrt.GoBind_async_LinesPipe
+var async__go_run = flagrt.GoBind_async_GoRun
+var async__sleep = flagrt.GoBind_async_Sleep
+var async__select_ = flagrt.GoBind_async_Select
+var async__channel_map = flagrt.GoBind_async_PipeMap
+var async__make_channel = flagrt.GoBind_async_MakeChannel
 var async__channel_close = flagrt.GoBind_async_ChannelClose
+var async__channel_some_q = flagrt.GoBind_async_PipeSome
+var async__channel_send = flagrt.GoBind_async_ChannelSend
+var async__future_run = flagrt.GoBind_async_FutureRun
+var async__future_piped_run = flagrt.GoBind_async_FuturePipeRun
+var async__channel_receive = flagrt.GoBind_async_ChannelReceive
+var async__channel_filter = flagrt.GoBind_async_PipeFilter
 var async__channel_reduce = flagrt.GoBind_async_PipeReduce
 var async__channel_every_q = flagrt.GoBind_async_PipeEvery
-var async__channel_some_q = flagrt.GoBind_async_PipeSome
-var async__future_run = flagrt.GoBind_async_FutureRun
-var async__sleep = flagrt.GoBind_async_Sleep
-var async__channel_send = flagrt.GoBind_async_ChannelSend
-var async__make_channel = flagrt.GoBind_async_MakeChannel
-var async__channel_map = flagrt.GoBind_async_PipeMap
-var async__channel_filter = flagrt.GoBind_async_PipeFilter
-var async__channel_lines = flagrt.GoBind_async_LinesPipe
-var async__future_piped_run = flagrt.GoBind_async_FuturePipeRun
-var async__select_ = flagrt.GoBind_async_Select
-var async__go_run = flagrt.GoBind_async_GoRun
 var stdlib__second = flagrt.NewFunction(stdlib__second_variadic)
 var stdlib__third = flagrt.NewFunction(stdlib__third_variadic)
 var compiler__whitespace_chars = flagSet
@@ -793,6 +883,8 @@ var compiler__source_token__gtparse_token = flagrt.NewFunction(compiler__source_
 var compiler__token_end_col = flagrt.NewFunction(compiler__token_end_col_variadic)
 var compiler__tokenize_line_step_bang = flagrt.NewFunction(compiler__tokenize_line_step_bang_variadic)
 var compiler__tokenize_lines_bang = flagrt.NewFunction(compiler__tokenize_lines_bang_variadic)
+var compiler__split_lines = flagrt.NewFunction(compiler__split_lines_variadic)
+var compiler__tokenize_source = flagrt.NewFunction(compiler__tokenize_source_variadic)
 var compiler__tokenize_file = flagrt.NewFunction(compiler__tokenize_file_variadic)
 var compiler__tokenize_file_parse_tokens = flagrt.NewFunction(compiler__tokenize_file_parse_tokens_variadic)
 var flagSet = flagrt.NewSet(flagrt.NewString(" "), flagrt.NewString("\t"), flagrt.NewString("\n"), flagrt.NewString("\r"), flagrt.NewString(","))
@@ -816,3 +908,4 @@ var flagStr____ = flagrt.NewString("\"\"\"")
 var flagStr__ = flagrt.NewString("\"")
 var flagStr___ = flagrt.NewString("#{")
 var flagStr____1 = flagrt.NewString("#(")
+var flagVec = flagrt.NewArray()

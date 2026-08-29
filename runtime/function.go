@@ -27,7 +27,7 @@ func Call(fn Value, args ...Value) Value {
 	switch fn.tag {
 	case TagFunction:
 		return fn.FunctionObject().Fn(args...)
-	case TagMap, TagDate:
+	case TagMap, TagDate, TagRecord:
 		if len(args) != 1 && len(args) != 2 {
 			panic("map invocation expects key and optional default")
 		}
