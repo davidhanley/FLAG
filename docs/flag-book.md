@@ -20,6 +20,7 @@ binaries—not a JVM image with an always-on evaluator.
 | Wrapping Go packages | [Chapter 4 — Go libraries](#4-go-libraries) |
 | HTTP client/server basics | [Chapter 5 — HTTP](#5-http) |
 | Goroutines, futures, channels | [Chapter 6 — Async](#6-async) |
+| Exposing FLAG to native Go | [Chapter 7 — Go FFI](#7-go-ffi) |
 | Worked examples | [Appendices](#appendices--examples) |
 
 ---
@@ -123,6 +124,19 @@ Concurrency as a **library**, not core:
 - `go`, `future` (macros)
 - `sleep`, channels, `select`
 - Design notes (callable futures, non-blocking select, small core)
+
+---
+
+### 7. Go FFI
+
+**[ffi.md](ffi.md)**
+
+Exposing FLAG functions to native Go code:
+
+- The `go-interface` form
+- Wrapping compute functions with native type signatures
+- Performance considerations and use cases
+- Comparing FFI to boxed calls and `:go-exports`
 
 ---
 

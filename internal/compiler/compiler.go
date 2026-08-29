@@ -161,6 +161,7 @@ type functionDef struct {
 	params       []string
 	localInits   []string
 	body         string
+	goSignature  string // custom Go signature for interop wrappers (empty = use standard)
 }
 
 type varDef struct {
@@ -1379,6 +1380,12 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 				inner = append(inner, list.Elements[1:]...)
 				pendingForms = append(pendingForms[:i+1], append(inner, pendingForms[i+1:]...)...)
 			}
+		case "go-interface":
+			wrapper, err := compileGoInterface(list, *ctx, defined)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			functions = append(functions, wrapper)
 		default:
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -5671,6 +5678,10 @@ func toGoIdentifier(name string) (string, error) {
 }
 
 func renderFunctionDef(fn functionDef) string {
+	// Handle go-interface wrappers with custom Go signatures
+	if fn.goSignature != "" {
+		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
+	}
 	if fn.hasRest {
 		return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
 			fn.variadicName,
@@ -5790,4 +5801,140 @@ func renderDirectParamTypes(fn functionDef) string {
 		parts = append(parts, "flagrt.Value")
 	}
 	return strings.Join(parts, ", ")
+}
+
+func compileGoInterface(form ListExpr, ctx compileContext, defined map[string]string) (functionDef, error) {
+	if len(form.Elements) != 4 {
+		return functionDef{}, exprError(form, "go-interface expects: function-name return-type [param-type ...]")
+	}
+
+	// Extract target function name
+	targetFuncExpr, ok := form.Elements[1].(SymbolExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[1], "go-interface expects a function name")
+	}
+	targetFuncName := targetFuncExpr.Name
+
+	// Extract return type
+	returnTypeExpr, ok := form.Elements[2].(SymbolExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[2], "go-interface expects a return type symbol")
+	}
+	returnGoType := typeHintToGoType(returnTypeExpr.Name)
+	if returnGoType == "" {
+		return functionDef{}, exprError(returnTypeExpr, fmt.Sprintf("unsupported return type: %s", returnTypeExpr.Name))
+	}
+
+	// Look up the target function
+	targetGoName, ok := defined[targetFuncName]
+	if !ok {
+		return functionDef{}, exprError(form, fmt.Sprintf("function %q not defined", targetFuncName))
+	}
+
+	// Extract parameter types from vector
+	paramsVec, ok := form.Elements[3].(VectorExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[3], "go-interface expects a parameter type vector")
+	}
+
+	paramTypes := make([]string, 0, len(paramsVec.Elements))
+	paramGoTypes := make([]string, 0, len(paramsVec.Elements))
+	for i, paramExpr := range paramsVec.Elements {
+		typeExpr, ok := paramExpr.(SymbolExpr)
+		if !ok {
+			return functionDef{}, exprError(paramExpr, "parameter type must be a symbol")
+		}
+		goType := typeHintToGoType(typeExpr.Name)
+		if goType == "" {
+			return functionDef{}, exprError(paramExpr, fmt.Sprintf("unsupported parameter type: %s", typeExpr.Name))
+		}
+		paramGoTypes = append(paramGoTypes, goType)
+		paramTypes = append(paramTypes, fmt.Sprintf("p%d %s", i+1, goType))
+	}
+
+	// Generate wrapper function body
+	// Box parameters
+	var bodyBuf bytes.Buffer
+	bodyBuf.WriteString("args := make([]flagrt.Value, 0, ")
+	fmt.Fprintf(&bodyBuf, "%d)\n", len(paramGoTypes))
+	for i, goType := range paramGoTypes {
+		boxCode := boxGoValue(fmt.Sprintf("p%d", i+1), goType)
+		fmt.Fprintf(&bodyBuf, "\targs = append(args, %s)\n", boxCode)
+	}
+
+	// Call the target FLAG function
+	fmt.Fprintf(&bodyBuf, "\tresult := flagrt.Call(%s, args...)\n", targetGoName)
+
+	// Unbox result
+	unboxCode := unboxGoValue("result", returnGoType)
+	fmt.Fprintf(&bodyBuf, "\treturn %s\n", unboxCode)
+
+	// Create wrapper function name (unmangled)
+	wrapperName := fmt.Sprintf("%s_go", targetFuncName)
+	wrapperGoName := wrapperName // Keep it unmangled for Go interop
+
+	// Return type for the function signature
+	returnTypeDecl := returnGoType
+	if returnGoType == "error" {
+		returnTypeDecl = "error"
+	}
+
+	return functionDef{
+		flagName:     wrapperName,
+		goName:       wrapperGoName,
+		variadicName: "",
+		arityName:    "",
+		hasRest:      false,
+		doc:          fmt.Sprintf("Go interop wrapper for %s", targetFuncName),
+		params:       nil,
+		localInits:   nil,
+		body:         bodyBuf.String(),
+		// Store the Go signature for special rendering
+		goSignature: fmt.Sprintf("(%s) %s", strings.Join(paramTypes, ", "), returnTypeDecl),
+	}, nil
+}
+
+func typeHintToGoType(hint string) string {
+	switch hint {
+	case "double", "float":
+		return "float64"
+	case "long", "int":
+		return "int64"
+	case "string":
+		return "string"
+	case "boolean", "bool":
+		return "bool"
+	default:
+		return ""
+	}
+}
+
+func boxGoValue(varName string, goType string) string {
+	switch goType {
+	case "float64":
+		return fmt.Sprintf("flagrt.NewDouble(%s)", varName)
+	case "int64":
+		return fmt.Sprintf("flagrt.NewLong(%s)", varName)
+	case "string":
+		return fmt.Sprintf("flagrt.NewString(%s)", varName)
+	case "bool":
+		return fmt.Sprintf("flagrt.NewBoolean(%s)", varName)
+	default:
+		return varName
+	}
+}
+
+func unboxGoValue(varName string, goType string) string {
+	switch goType {
+	case "float64":
+		return fmt.Sprintf("%s.Double()", varName)
+	case "int64":
+		return fmt.Sprintf("%s.Long()", varName)
+	case "string":
+		return fmt.Sprintf("%s.String()", varName)
+	case "bool":
+		return fmt.Sprintf("%s.Bool()", varName)
+	default:
+		return varName
+	}
 }

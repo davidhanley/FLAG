@@ -2229,6 +2229,29 @@ func TestCompileExpression(t *testing.T) {
 	}
 }
 
+func TestCompileGoInterface(t *testing.T) {
+	output, err := Compile(`
+(defn square [x] (* x x))
+(go-interface square double [double])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func square_go(p1 float64) float64 {",
+		"args := make([]flagrt.Value, 0, 1)",
+		"args = append(args, flagrt.NewDouble(p1))",
+		"result := flagrt.Call(",
+		"return result.Double()",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileExpressionStr(t *testing.T) {
 	got, err := CompileExpression(`(str 1 2 (/ 3 2))`)
 	if err != nil {
