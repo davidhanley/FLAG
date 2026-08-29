@@ -1,11 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
+
+	"flag-lang/internal/compiler"
 )
 
 func TestRunCompileAcceptsOutputFlagAfterInput(t *testing.T) {
@@ -225,6 +230,133 @@ func TestRunBuildCompilerTokenizerLibrary(t *testing.T) {
 			t.Fatalf("missing %q in output:\n%s", want, out)
 		}
 	}
+}
+
+func TestRunBuildCompilerTokenizerMatchesGoTokenizer(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "compiler_tokenizer"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+
+	fixtures, err := filepath.Glob(filepath.Join(exampleDir, "*.txt"))
+	if err != nil {
+		t.Fatalf("Glob fixtures: %v", err)
+	}
+	sort.Strings(fixtures)
+	if len(fixtures) == 0 {
+		t.Fatal("no compiler_tokenizer fixtures found")
+	}
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "tokenizer_parity.flag")
+	outputPath := filepath.Join(dir, "tokenizer-parity-bin")
+	program := `
+{:namespace "main"
+ :imports [["compiler/tokenizer.lib" :as "c"]
+           ["async.lib" :refer [channel-receive]]]}
+(defn drain [ch]
+  (let [token (channel-receive ch)]
+    (if (nil? token)
+      nil
+      (do
+        (println (format "%d|%q|%q|%q|%d|%d"
+                         (:kind token)
+                         (:lexeme token)
+                         (:string token)
+                         (:message token)
+                         (:line token)
+                         (:col token)))
+        (drain ch)))))
+(defn main [& argv]
+  (drain (c/tokenize-file-parse-tokens (first argv))))
+`
+	if err := os.WriteFile(inputPath, []byte(program), 0o644); err != nil {
+		t.Fatalf("WriteFile parity program: %v", err)
+	}
+
+	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
+		t.Fatalf("build parity tokenizer binary: %v", err)
+	}
+
+	for _, fixture := range fixtures {
+		fixture := fixture
+		t.Run(filepath.Base(fixture), func(t *testing.T) {
+			source, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatalf("ReadFile fixture: %v", err)
+			}
+
+			want := goTokenizerOutput(string(source))
+			got := runFlagTokenizerOutput(t, outputPath, fixture)
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("tokenizer mismatch for %s\nwant: %#v\ngot:  %#v", fixture, want, got)
+			}
+		})
+	}
+}
+
+func goTokenizerOutput(source string) []compiler.ParseToken {
+	tokens := make([]compiler.ParseToken, 0, 32)
+	for tok := range compiler.TokenizeSourceToChannel(source) {
+		if tok.Kind == compiler.TokenEOF {
+			break
+		}
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+func runFlagTokenizerOutput(t *testing.T, binaryPath, sourcePath string) []compiler.ParseToken {
+	t.Helper()
+
+	result, err := exec.Command(binaryPath, sourcePath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("flag tokenizer binary failed for %s: %v\n%s", sourcePath, err, result)
+	}
+	out := strings.TrimSuffix(string(result), "\n")
+	if out == "" {
+		return nil
+	}
+
+	lines := strings.Split(out, "\n")
+	tokens := make([]compiler.ParseToken, 0, len(lines))
+	for _, line := range lines {
+		token, err := parseFlagTokenizerLine(line)
+		if err != nil {
+			t.Fatalf("parse tokenizer line %q: %v", line, err)
+		}
+		if token.Kind == compiler.TokenEOF {
+			continue
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
+
+func parseFlagTokenizerLine(line string) (compiler.ParseToken, error) {
+	var (
+		kind    int
+		lexeme  string
+		strVal  string
+		message string
+		lineNum int
+		colNum  int
+	)
+	n, err := fmt.Sscanf(line, "%d|%q|%q|%q|%d|%d", &kind, &lexeme, &strVal, &message, &lineNum, &colNum)
+	if err != nil {
+		return compiler.ParseToken{}, fmt.Errorf("scan token line: %w", err)
+	}
+	if n != 6 {
+		return compiler.ParseToken{}, fmt.Errorf("expected 6 parsed fields, got %d", n)
+	}
+	return compiler.ParseToken{
+		Kind:    compiler.ParseTokenKind(kind),
+		Lexeme:  lexeme,
+		String:  strVal,
+		Message: message,
+		Line:    lineNum,
+		Col:     colNum,
+	}, nil
 }
 
 // Acceptance: examples/compiler_tokenizer FLAG tests for tokenizer behavior.
