@@ -197,13 +197,6 @@ func BuiltinFunction(name string) Value {
 			}
 			return Map(args[0], args[1:]...)
 		})
-	case "mapcat":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("mapcat expects function and one collection")
-			}
-			return MapCat(args[0], args[1])
-		})
 	case "concat":
 		return NewFunction(func(args ...Value) Value {
 			return Concat(args...)

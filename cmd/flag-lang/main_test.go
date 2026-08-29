@@ -1,11 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
+
+	"flag-lang/internal/compiler"
 )
 
 func TestRunCompileAcceptsOutputFlagAfterInput(t *testing.T) {
@@ -57,6 +62,33 @@ func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 
 	if !strings.Contains(string(generated), `fmt.Println(flagrt.Str("Hello from FLAG"))`) {
 		t.Fatalf("unexpected output:\n%s", generated)
+	}
+}
+
+func TestRunBuildMapcatConcatenatesMappedCollections(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "mapcat.flag")
+	outputPath := filepath.Join(dir, "mapcatbin")
+
+	source := `(println (vec (mapcat (fn [x] [x (* x 10)]) [1 2 3])))
+(println (vec (mapcat (fn [a b] [a b]) [1 2] [10 20])))
+`
+	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile input: %v", err)
+	}
+
+	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+
+	result, err := exec.Command(outputPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("built binary failed: %v\n%s", err, string(result))
+	}
+	got := strings.TrimSpace(string(result))
+	want := "[1 10 2 20 3 30]\n[1 10 2 20]"
+	if got != want {
+		t.Fatalf("unexpected mapcat output: %q", got)
 	}
 }
 
@@ -225,6 +257,118 @@ func TestRunBuildCompilerTokenizerLibrary(t *testing.T) {
 			t.Fatalf("missing %q in output:\n%s", want, out)
 		}
 	}
+}
+
+func TestRunBuildCompilerTokenizerMatchesGoTokenizer(t *testing.T) {
+	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "compiler_tokenizer"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+
+	fixtures, err := filepath.Glob(filepath.Join(exampleDir, "*.txt"))
+	if err != nil {
+		t.Fatalf("Glob fixtures: %v", err)
+	}
+	sort.Strings(fixtures)
+	if len(fixtures) == 0 {
+		t.Fatal("no compiler_tokenizer fixtures found")
+	}
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "tokenizer_parity.flag")
+	outputPath := filepath.Join(dir, "tokenizer-parity-bin")
+	program := `
+{:namespace "main"
+ :imports [["compiler/tokenizer.lib" :as "c"]
+           ["async.lib" :refer [channel-receive]]]}
+(defn drain [ch]
+  (let [token (channel-receive ch)]
+    (if (nil? token)
+      nil
+      (do
+        (println (format "%q|%d|%d"
+                         (:token token)
+                         (:line token)
+                         (:offset token)))
+        (drain ch)))))
+(defn main [& argv]
+  (drain (c/tokenize-file (first argv))))
+`
+	if err := os.WriteFile(inputPath, []byte(program), 0o644); err != nil {
+		t.Fatalf("WriteFile parity program: %v", err)
+	}
+
+	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
+		t.Fatalf("build parity tokenizer binary: %v", err)
+	}
+
+	for _, fixture := range fixtures {
+		fixture := fixture
+		t.Run(filepath.Base(fixture), func(t *testing.T) {
+			source, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatalf("ReadFile fixture: %v", err)
+			}
+
+			want := goTokenizerOutput(string(source))
+			got := runFlagTokenizerOutput(t, outputPath, fixture)
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("tokenizer mismatch for %s\nwant: %#v\ngot:  %#v", fixture, want, got)
+			}
+		})
+	}
+}
+
+func goTokenizerOutput(source string) []compiler.SourceToken {
+	tokens := make([]compiler.SourceToken, 0, 32)
+	for tok := range compiler.TokenizeSourceToChannel(source) {
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+func runFlagTokenizerOutput(t *testing.T, binaryPath, sourcePath string) []compiler.SourceToken {
+	t.Helper()
+
+	result, err := exec.Command(binaryPath, sourcePath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("flag tokenizer binary failed for %s: %v\n%s", sourcePath, err, result)
+	}
+	out := strings.TrimSuffix(string(result), "\n")
+	if out == "" {
+		return []compiler.SourceToken{}
+	}
+
+	lines := strings.Split(out, "\n")
+	tokens := make([]compiler.SourceToken, 0, len(lines))
+	for _, line := range lines {
+		token, err := parseFlagTokenizerLine(line)
+		if err != nil {
+			t.Fatalf("parse tokenizer line %q: %v", line, err)
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
+
+func parseFlagTokenizerLine(line string) (compiler.SourceToken, error) {
+	var (
+		tokenText string
+		lineNum   int
+		offset    int
+	)
+	n, err := fmt.Sscanf(line, "%q|%d|%d", &tokenText, &lineNum, &offset)
+	if err != nil {
+		return compiler.SourceToken{}, fmt.Errorf("scan token line: %w", err)
+	}
+	if n != 3 {
+		return compiler.SourceToken{}, fmt.Errorf("expected 3 parsed fields, got %d", n)
+	}
+	return compiler.SourceToken{
+		Token:  tokenText,
+		Line:   int64(lineNum),
+		Offset: int64(offset),
+	}, nil
 }
 
 // Acceptance: examples/compiler_tokenizer FLAG tests for tokenizer behavior.

@@ -30,6 +30,9 @@ func Run(input io.Reader, output io.Writer) error {
 	lineCompiler := compiler.NewReplCompiler()
 	scanner := bufio.NewScanner(input)
 	counter := 0
+	if !executeCompiled(i, output, lineCompiler.PrologueSetup(), &counter) {
+		return fmt.Errorf("load compiler prologue")
+	}
 	var bufferedSource strings.Builder
 	for {
 		fmt.Fprint(output, "flag> ")
@@ -252,6 +255,8 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"Take":                        reflect.ValueOf(flagrt.Take),
 			"Drop":                        reflect.ValueOf(flagrt.Drop),
 			"Map":                         reflect.ValueOf(flagrt.Map),
+			"Apply":                       reflect.ValueOf(flagrt.Apply),
+			"Concat":                      reflect.ValueOf(flagrt.Concat),
 			"PMap":                        reflect.ValueOf(flagrt.PMap),
 			"Filter":                      reflect.ValueOf(flagrt.Filter),
 			"Reduce":                      reflect.ValueOf(flagrt.Reduce),

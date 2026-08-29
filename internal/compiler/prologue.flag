@@ -97,3 +97,6 @@
      (let [g (comp rest)]
        (fn [x]
          (f (g x))))]))
+
+(defn mapcat [f & colls]
+  (apply concat (apply map f colls)))

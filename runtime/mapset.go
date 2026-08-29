@@ -256,6 +256,12 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 		}
 		return missing
 	}
+	if coll.tag == TagRecord {
+		if value, ok := recordFieldValue(coll, key); ok {
+			return value
+		}
+		return missing
+	}
 	if coll.tag != TagMap {
 		panic("get expects map Value")
 	}
@@ -273,6 +279,9 @@ func Contains(coll Value, key Value) bool {
 		return ok
 	case TagDate:
 		_, ok := dateFieldValue(coll, key)
+		return ok
+	case TagRecord:
+		_, ok := recordFieldValue(coll, key)
 		return ok
 	case TagSet:
 		return coll.setPointer().items.Has(key)

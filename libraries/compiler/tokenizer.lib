@@ -1,11 +1,27 @@
 {:namespace "compiler"
- :exports   [tokenize-file]
- :imports   [["async.lib" :refer [go make-channel channel-send channel-close]]
+ :exports   [tokenize-file tokenize-source tokenize-file-parse-tokens]
+ :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]
              ["interop.lib" :refer [defrecord]]
              ["stdlib.lib" :refer [second third]]]}
 
 (def whitespace-chars #{" " "\t" "\n" "\r" ","})
-(def delimiter-chars #{"(" ")" "[" "]" "{" "}"})
+(def delimiter-chars #{"(" ")" "[" "]" "{" "}" "^" "'"})
+
+;; Mirrors internal/compiler.ParseTokenKind values.
+(def token-eof 0)
+(def token-error 1)
+(def token-list-open 2)
+(def token-list-close 3)
+(def token-vector-open 4)
+(def token-vector-close 5)
+(def token-map-open 6)
+(def token-map-close 7)
+(def token-metadata 8)
+(def token-quote 9)
+(def token-dispatch-set-open 10)
+(def token-dispatch-fn-open 11)
+(def token-string 12)
+(def token-atom 13)
 
 (defn whitespace-char? [ch]
   (contains? whitespace-chars ch))
@@ -13,8 +29,9 @@
 (defn delimiter-char? [ch]
   (contains? delimiter-chars ch))
 
-(defrecord SourceToken [token line offset])
-(defrecord TokenState [token start-line start-offset in-string triple escaped])
+(defrecord SourceToken [^string token ^long line ^long offset])
+(defrecord TokenState [^string token ^long start-line ^long start-offset ^bool in-string ^bool triple ^bool escaped])
+(defrecord ParseToken [^long kind ^string lexeme ^string string ^string message ^long line ^long col])
 
 (defn emit-token!
   [out token line offset]
@@ -33,6 +50,73 @@
   (and (= "\"" (first chars))
        (= "\"" (second chars))
        (= "\"" (third chars))))
+
+(defn starts-dispatch-set?
+  [chars]
+  (and (= "#" (first chars))
+       (= "{" (second chars))))
+
+(defn starts-dispatch-fn?
+  [chars]
+  (and (= "#" (first chars))
+       (= "(" (second chars))))
+
+(defn strip-quoted-token
+  [token prefix suffix]
+  (let [chars (seq token)
+        total (count chars)]
+    (if (<= total (+ prefix suffix))
+      ""
+      (loop [remaining (take (- total prefix suffix) (drop prefix chars))
+             out ""]
+        (if (empty? remaining)
+          out
+          (recur (rest remaining) (str out (first remaining))))))))
+
+(defn token->string-value
+  [token]
+  (let [chars (seq token)
+        n (count chars)]
+    (cond
+      (and (>= n 6)
+           (starts-triple-quote? chars)
+           (= "\"" (first (drop (- n 3) chars)))
+           (= "\"" (first (drop (- n 2) chars)))
+           (= "\"" (first (drop (- n 1) chars))))
+      (strip-quoted-token token 3 3)
+
+      (and (>= n 2)
+           (= "\"" (first chars))
+           (= "\"" (first (drop (- n 1) chars))))
+      (strip-quoted-token token 1 1)
+
+      true
+      token)))
+
+(defn source-token->parse-token
+  [{:keys [token line offset]}]
+  (cond
+    (= token "(") (->ParseToken token-list-open "" "" "" line offset)
+    (= token ")") (->ParseToken token-list-close "" "" "" line offset)
+    (= token "[") (->ParseToken token-vector-open "" "" "" line offset)
+    (= token "]") (->ParseToken token-vector-close "" "" "" line offset)
+    (= token "{") (->ParseToken token-map-open "" "" "" line offset)
+    (= token "}") (->ParseToken token-map-close "" "" "" line offset)
+    (= token "^") (->ParseToken token-metadata "" "" "" line offset)
+    (= token "'") (->ParseToken token-quote "" "" "" line offset)
+    (= token "#{") (->ParseToken token-dispatch-set-open "" "" "" line offset)
+    (= token "#(") (->ParseToken token-dispatch-fn-open "" "" "" line offset)
+    (= token "#") (->ParseToken token-error "" "" "unexpected end after #" line offset)
+    (and (>= (count token) 2)
+         (= "\"" (first (seq token)))
+         (= "\"" (last (seq token))))
+    (->ParseToken token-string "" (token->string-value token) "" line offset)
+    true
+    (->ParseToken token-atom token "" "" line offset)))
+
+(defn token-end-col
+  [source-token]
+  (+ (:offset source-token) (count (:token source-token))))
 
 (defn tokenize-line-step!
   [out chars line column state]
@@ -91,6 +175,11 @@
                                    false
                                    false)))))
           (cond
+            (= ";" ch)
+            (do
+              (emit-token! out (:token current) (:start-line current) (:start-offset current))
+              empty-token-state)
+
             (whitespace-char? ch)
             (do
               (emit-token! out (:token current) (:start-line current) (:start-offset current))
@@ -112,6 +201,18 @@
                 (emit-token! out (:token current) (:start-line current) (:start-offset current))
                 (recur (rest remaining) (inc col)
                        (make-state "\"" line col true false false))))
+
+            (starts-dispatch-set? remaining)
+            (do
+              (emit-token! out (:token current) (:start-line current) (:start-offset current))
+              (emit-token! out "#{" line col)
+              (recur (drop 2 remaining) (+ col 2) empty-token-state))
+
+            (starts-dispatch-fn? remaining)
+            (do
+              (emit-token! out (:token current) (:start-line current) (:start-offset current))
+              (emit-token! out "#(" line col)
+              (recur (drop 2 remaining) (+ col 2) empty-token-state))
 
             true
             (if (empty? (:token current))
@@ -142,6 +243,28 @@
                           next-state)]
         (recur (rest remaining) (+ line 1) carry-state)))))
 
+(defn split-lines
+  [source]
+  (loop [chars (seq source) line "" lines []]
+    (if (empty? chars)
+      (if (empty? line)
+        lines
+        (conj lines line))
+      (let [ch (first chars)]
+        (if (= "\n" ch)
+          (recur (rest chars) "" (conj lines line))
+          (recur (rest chars) (str line ch) lines))))))
+
+(defn tokenize-source
+  "Tokenize an in-memory source string and return a channel of SourceToken maps {:token :line :offset}."
+  [source]
+  (let [out (make-channel 64)]
+    (go
+      (do
+        (tokenize-lines! out (split-lines source) 1)
+        (channel-close out)))
+    out))
+
 (defn tokenize-file
   "Read a source file and return a channel of token maps {:token :line :offset}."
   [path]
@@ -151,4 +274,22 @@
         (do
           (tokenize-lines! out (line-seq rdr) 1)
           (channel-close out))))
+    out))
+
+(defn tokenize-file-parse-tokens
+  "Read a source file and return a channel of ParseToken-shaped maps matching Go ParseToken fields."
+  [path]
+  (let [out (make-channel 64)
+        in (tokenize-file path)]
+    (go
+      (loop [last-token nil]
+        (let [source-token (channel-receive in)]
+          (if (nil? source-token)
+            (let [eof-line (if (nil? last-token) 1 (:line last-token))
+                  eof-col (if (nil? last-token) 1 (token-end-col last-token))]
+              (channel-send out (->ParseToken token-eof "" "" "" eof-line eof-col))
+              (channel-close out))
+            (do
+              (channel-send out (source-token->parse-token source-token))
+              (recur source-token))))))
     out))

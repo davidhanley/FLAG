@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,37 +31,37 @@ type goExpr struct {
 func exprPos(expr Expr) (int, int, bool) {
 	switch value := expr.(type) {
 	case ListExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case VectorExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case MapExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case SetExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case HashFnExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case SymbolExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case KeywordExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case QuotedSymbolExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case QuotedListExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case StringExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case CharExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case IntExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case BigIntExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case FloatExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case RatioExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	case MetaExpr:
-		return value.Line, value.Col, value.Line > 0 && value.Col > 0
+		return value.Line, value.Col, value.Line > 0
 	default:
 		return 0, 0, false
 	}
@@ -73,6 +72,17 @@ func exprError(expr Expr, msg string) error {
 		return fmt.Errorf("%s at %d:%d", msg, line, col)
 	}
 	return fmt.Errorf("%s", msg)
+}
+
+func annotateExprError(expr Expr, err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, " at ") {
+		return err
+	}
+	return exprError(expr, msg)
 }
 
 func exprToSourceString(expr Expr) string {
@@ -161,6 +171,7 @@ type functionDef struct {
 	params       []string
 	localInits   []string
 	body         string
+	goSignature  string // custom Go signature for interop wrappers (empty = use standard)
 }
 
 type varDef struct {
@@ -174,6 +185,8 @@ type compileContext struct {
 	functions         map[string]functionDef
 	globals           map[string]exprKind
 	macros            map[string]macroDef
+	prologueFns       []functionDef
+	prologueVars      []varDef
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
@@ -195,6 +208,8 @@ type compileContext struct {
 	// across all merged flag files collapse to the same var. Left nil for the
 	// REPL / single-expression paths, which emit constants inline.
 	constants *constantInterner
+	// recordTypes maps generated Go struct names to FLAG record names.
+	recordTypes map[string]string
 }
 
 // bindModuleName records a FLAG name -> Go ident mapping for this module.
@@ -231,6 +246,8 @@ func copyCompileContext(ctx compileContext) compileContext {
 		functions:         make(map[string]functionDef, len(ctx.functions)),
 		globals:           make(map[string]exprKind, len(ctx.globals)),
 		macros:            make(map[string]macroDef, len(ctx.macros)),
+		prologueFns:       ctx.prologueFns,
+		prologueVars:      ctx.prologueVars,
 		constants:         ctx.constants,
 		namespace:         ctx.namespace,
 		selfFunctionName:  ctx.selfFunctionName,
@@ -254,6 +271,9 @@ func copyCompileContext(ctx compileContext) compileContext {
 		for k, v := range ctx.moduleSymbols {
 			out.moduleSymbols[k] = v
 		}
+	}
+	if ctx.recordTypes != nil {
+		out.recordTypes = ctx.recordTypes
 	}
 	return out
 }
@@ -397,6 +417,7 @@ func newCompileContext() (compileContext, error) {
 		globals:       make(map[string]exprKind),
 		macros:        make(map[string]macroDef),
 		moduleSymbols: make(map[string]string),
+		recordTypes:   make(map[string]string),
 	}
 	if err := loadStandardPrologue(&ctx); err != nil {
 		return compileContext{}, err
@@ -411,20 +432,47 @@ func loadStandardPrologue(ctx *compileContext) error {
 	}
 	for _, form := range prologueAST.Forms {
 		list, ok := form.(ListExpr)
-		if !ok {
+		if !ok || len(list.Elements) == 0 {
 			return fmt.Errorf("invalid compiler prologue form")
 		}
 		head, ok := list.Elements[0].(SymbolExpr)
-		if !ok || head.Name != "defmacro" {
-			return fmt.Errorf("invalid compiler prologue macro declaration")
+		if !ok {
+			return fmt.Errorf("invalid compiler prologue form")
 		}
-		name, def, err := compileDefmacro(list)
-		if err != nil {
-			return err
+		switch head.Name {
+		case "defmacro":
+			name, def, err := compileDefmacro(list)
+			if err != nil {
+				return err
+			}
+			ctx.macros[name] = def
+		case "defn":
+			def, err := compileDefn(list, *ctx)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
+			ctx.functions[def.goName] = def
+			ctx.globals[def.goName] = exprKindValue
+			ctx.prologueFns = append(ctx.prologueFns, def)
+			ctx.prologueVars = append(ctx.prologueVars, varDef{
+				flagName: def.flagName,
+				goName:   def.goName,
+				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+			})
+		default:
+			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
 		}
-		ctx.macros[name] = def
 	}
 	return nil
+}
+
+func withPrologue(result compileResult, ctx compileContext) compileResult {
+	if len(ctx.prologueFns) == 0 && len(ctx.prologueVars) == 0 {
+		return result
+	}
+	result.functions = append(append([]functionDef{}, ctx.prologueFns...), result.functions...)
+	result.vars = append(append([]varDef{}, ctx.prologueVars...), result.vars...)
+	return result
 }
 
 // Compile translates a FLAG source string into a Go program.
@@ -437,8 +485,8 @@ func Compile(source string) ([]byte, error) {
 	return emitGoProgram(result)
 }
 
-// CompileTokens translates a FLAG token stream into a Go program.
-func CompileTokens(tokens <-chan ParseToken) ([]byte, error) {
+// CompileTokens translates a FLAG source-token stream into a Go program.
+func CompileTokens(tokens <-chan SourceToken) ([]byte, error) {
 	result, err := compileTokenStream(tokens, "")
 	if err != nil {
 		return nil, err
@@ -468,6 +516,7 @@ func CompileProgramWithTests(entryPath string, testPaths []string) ([]byte, erro
 
 type compileResult struct {
 	namespace string
+	typeDecls []string
 	functions []functionDef
 	vars      []varDef
 	stmts     []mainStmt
@@ -513,6 +562,14 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 
 	if namespace != "" {
 		fmt.Fprintf(&out, "// Source namespace: %s\n", namespace)
+	}
+
+	for _, decl := range result.typeDecls {
+		out.WriteString(decl)
+		if !strings.HasSuffix(decl, "\n") {
+			out.WriteByte('\n')
+		}
+		out.WriteByte('\n')
 	}
 
 	for _, fn := range functions {
@@ -663,6 +720,19 @@ func NewReplCompiler() *ReplCompiler {
 	}
 }
 
+func (r *ReplCompiler) PrologueSetup() ReplCompiled {
+	parts := make([]string, 0, len(r.ctx.prologueFns)*4)
+	for _, def := range r.ctx.prologueFns {
+		parts = append(parts,
+			fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+			fmt.Sprintf("var %s flagrt.Value", def.goName),
+			fmt.Sprintf("%s = %s", def.variadicName, renderFunctionLiteral(def)),
+			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
+		)
+	}
+	return ReplCompiled{Setup: strings.Join(parts, ";;")}
+}
+
 func (r *ReplCompiler) CompileLine(source string) (ReplCompiled, error) {
 	ast, err := ParseFile(source)
 	if err != nil {
@@ -695,11 +765,7 @@ func (r *ReplCompiler) LoadFile(path string) ([]ReplCompiled, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", path, err)
 	}
-	source, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", absPath, err)
-	}
-	mod, err := parseModuleFile(absPath, string(source))
+	mod, err := parseModuleTokenStream(absPath, TokenizeFileToChannel(absPath))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", absPath, err)
 	}
@@ -878,11 +944,7 @@ func (r *ReplCompiler) ensureModuleLoaded(path string, loading map[string]bool) 
 	loading[absPath] = true
 	defer delete(loading, absPath)
 
-	source, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", absPath, err)
-	}
-	mod, err := parseModuleFile(absPath, string(source))
+	mod, err := parseModuleTokenStream(absPath, TokenizeFileToChannel(absPath))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", absPath, err)
 	}
@@ -994,7 +1056,7 @@ func compileSource(source, path string) (compileResult, error) {
 	return compileParsedModule(mod, path)
 }
 
-func compileTokenStream(tokens <-chan ParseToken, path string) (compileResult, error) {
+func compileTokenStream(tokens <-chan SourceToken, path string) (compileResult, error) {
 	mod, err := parseModuleTokenStream(path, tokens)
 	if err != nil {
 		return compileResult{}, err
@@ -1033,7 +1095,7 @@ func compileParsedModule(mod *Module, path string) (compileResult, error) {
 		result.namespace = mod.LegacyNS
 	}
 	result.vars = append(result.vars, ctx.constants.decls()...)
-	return result, nil
+	return withPrologue(result, ctx), nil
 }
 
 func compileProgram(entryPath string, testPaths []string) (compileResult, error) {
@@ -1061,6 +1123,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	moduleMacros := map[string]map[string]macroDef{}
 	byPath := prog.byPath
 
+	var allTypeDecls []string
 	var allFunctions []functionDef
 	var allVars []varDef
 	var allStmts []mainStmt
@@ -1108,6 +1171,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 			shared.globals[k] = v
 		}
 
+		allTypeDecls = append(allTypeDecls, partial.typeDecls...)
 		allFunctions = append(allFunctions, partial.functions...)
 		allVars = append(allVars, partial.vars...)
 		allStmts = append(allStmts, partial.stmts...)
@@ -1116,14 +1180,15 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	}
 
 	allVars = append(allVars, shared.constants.decls()...)
-	return compileResult{
+	return withPrologue(compileResult{
 		namespace: entryNS,
+		typeDecls: allTypeDecls,
 		functions: allFunctions,
 		vars:      allVars,
 		stmts:     allStmts,
 		tests:     allTests,
 		needsFmt:  needsFmt,
-	}, nil
+	}, shared), nil
 }
 
 func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]macroDef) error {
@@ -1218,6 +1283,7 @@ func validateExports(mod *Module, defined map[string]string, definedMacros map[s
 // defined maps bare FLAG local names defined in this module to Go idents.
 // definedMacros maps macro names defined in this module.
 func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, map[string]macroDef, error) {
+	typeDecls := make([]string, 0)
 	functions := make([]functionDef, 0, len(mod.Forms))
 	vars := make([]varDef, 0, len(mod.Forms))
 	stmts := make([]mainStmt, 0, len(mod.Forms))
@@ -1379,6 +1445,23 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 				inner = append(inner, list.Elements[1:]...)
 				pendingForms = append(pendingForms[:i+1], append(inner, pendingForms[i+1:]...)...)
 			}
+		case "go-interface":
+			wrapper, err := compileGoInterface(list, *ctx, defined)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			functions = append(functions, wrapper)
+		case "defrecord", "defrecord*":
+			typeDecl, ctors, recordVars, err := compileDefrecord(list, ctx)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			typeDecls = append(typeDecls, typeDecl)
+			functions = append(functions, ctors...)
+			vars = append(vars, recordVars...)
+			for _, ctor := range ctors {
+				defined[ctor.flagName] = ctor.goName
+			}
 		default:
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -1392,6 +1475,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 	}
 
 	return compileResult{
+		typeDecls: typeDecls,
 		functions: functions,
 		vars:      vars,
 		stmts:     stmts,
@@ -1824,74 +1908,11 @@ func expandDefrecordMacro(args []Expr) (Expr, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("macro-defrecord expects a record name and field vector")
 	}
-
-	recordNameExpr := unwrapMetaExpr(args[0])
-	recordName, ok := recordNameExpr.(SymbolExpr)
-	if !ok {
-		return nil, fmt.Errorf("macro-defrecord record name must be a symbol")
-	}
-
-	fieldsExpr, ok := args[1].(VectorExpr)
-	if !ok {
-		return nil, fmt.Errorf("macro-defrecord fields must be a vector")
-	}
-
-	fields := make([]SymbolExpr, 0, len(fieldsExpr.Elements))
-	for _, fieldExpr := range fieldsExpr.Elements {
-		fieldExpr = unwrapMetaExpr(fieldExpr)
-		field, ok := fieldExpr.(SymbolExpr)
-		if !ok {
-			return nil, fmt.Errorf("macro-defrecord fields must be symbols")
-		}
-		fields = append(fields, field)
-	}
-
-	constructorName := SymbolExpr{Name: "->" + recordName.Name}
-	mapConstructorName := SymbolExpr{Name: "map->" + recordName.Name}
-
-	constructorParams := make([]Expr, 0, len(fields))
-	constructorEntries := make([]Expr, 0, len(fields)*2)
-	for _, field := range fields {
-		constructorParams = append(constructorParams, field)
-		constructorEntries = append(constructorEntries, KeywordExpr{Name: field.Name}, field)
-	}
-	constructorForm := ListExpr{
-		Elements: []Expr{
-			SymbolExpr{Name: "defn"},
-			constructorName,
-			VectorExpr{Elements: constructorParams},
-			MapExpr{Entries: constructorEntries},
-		},
-	}
-
-	mapParam := SymbolExpr{Name: "m"}
-	mapConstructorEntries := make([]Expr, 0, len(fields)*2)
-	for _, field := range fields {
-		mapConstructorEntries = append(
-			mapConstructorEntries,
-			KeywordExpr{Name: field.Name},
-			ListExpr{
-				Elements: []Expr{
-					KeywordExpr{Name: field.Name},
-					mapParam,
-				},
-			},
-		)
-	}
-	mapConstructorForm := ListExpr{
-		Elements: []Expr{
-			SymbolExpr{Name: "defn"},
-			mapConstructorName,
-			VectorExpr{Elements: []Expr{mapParam}},
-			MapExpr{Entries: mapConstructorEntries},
-		},
-	}
-
 	return ListExpr{
 		Elements: []Expr{
-			SymbolExpr{Name: "do"},
-			constructorForm,
-			mapConstructorForm,
+			SymbolExpr{Name: "defrecord*"},
+			args[0],
+			args[1],
 		},
 	}, nil
 }
@@ -2351,7 +2372,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "second", "rest", "next", "last", "reverse", "cons", "take", "drop",
-		"map", "mapcat", "concat", "group-by", "sort-by", "juxt", "partial", "apply", "max-key", "val", "zipmap", "pmap", "filter", "reduce", "range", "get", "get-in", "keys", "hash-map", "select-keys",
+		"map", "concat", "group-by", "sort-by", "juxt", "partial", "apply", "max-key", "val", "zipmap", "pmap", "filter", "reduce", "range", "get", "get-in", "keys", "hash-map", "select-keys",
 		"identity", "not-empty", "not-empty?", "empty?", "nil?", "not", "count", "double", "format", "keyword", "into",
 		"remove", "doall", "dorun", "line-seq", "some", "some?", "seq", "seq?", "not-any?", "every?", "keep", "set", "vec", "conj", "contains?",
 		"assoc", "merge", "update", "dissoc", "open-file", "file-to-strings", "rand-int", "constantly", "repeat",
@@ -2362,7 +2383,12 @@ func isBuiltinFunctionSymbol(name string) bool {
 	}
 }
 
-func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind) (result goExpr, err error) {
+	defer func() {
+		if err != nil {
+			err = annotateExprError(list, err)
+		}
+	}()
 	if len(list.Elements) == 0 {
 		return goExpr{}, fmt.Errorf("unsupported form")
 	}
@@ -2483,8 +2509,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return selectKeysExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
-		case "mapcat":
-			return mapcatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "concat":
 			return concatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "group-by":
@@ -4230,28 +4254,6 @@ func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 	return goExpr{code: fmt.Sprintf("%s.Map(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
-func mapcatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("mapcat expects function and one collection")
-	}
-	fnExpr, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	if fnExpr.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("mapcat function must evaluate to Value")
-	}
-	seqExpr, err := exprToGo(args[1], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	seqCode, err := collectionArgToValueCode(seqExpr)
-	if err != nil {
-		return goExpr{}, fmt.Errorf("mapcat collection must evaluate to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.MapCat(%s, %s)", runtimeAlias, fnExpr.code, seqCode), kind: exprKindValue}, nil
-}
-
 func concatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
@@ -5671,6 +5673,10 @@ func toGoIdentifier(name string) (string, error) {
 }
 
 func renderFunctionDef(fn functionDef) string {
+	// Handle go-interface wrappers with custom Go signatures
+	if fn.goSignature != "" {
+		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
+	}
 	if fn.hasRest {
 		return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
 			fn.variadicName,
@@ -5790,4 +5796,140 @@ func renderDirectParamTypes(fn functionDef) string {
 		parts = append(parts, "flagrt.Value")
 	}
 	return strings.Join(parts, ", ")
+}
+
+func compileGoInterface(form ListExpr, ctx compileContext, defined map[string]string) (functionDef, error) {
+	if len(form.Elements) != 4 {
+		return functionDef{}, exprError(form, "go-interface expects: function-name return-type [param-type ...]")
+	}
+
+	// Extract target function name
+	targetFuncExpr, ok := form.Elements[1].(SymbolExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[1], "go-interface expects a function name")
+	}
+	targetFuncName := targetFuncExpr.Name
+
+	// Extract return type
+	returnTypeExpr, ok := form.Elements[2].(SymbolExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[2], "go-interface expects a return type symbol")
+	}
+	returnGoType := typeHintToGoType(returnTypeExpr.Name)
+	if returnGoType == "" {
+		return functionDef{}, exprError(returnTypeExpr, fmt.Sprintf("unsupported return type: %s", returnTypeExpr.Name))
+	}
+
+	// Look up the target function
+	targetGoName, ok := defined[targetFuncName]
+	if !ok {
+		return functionDef{}, exprError(form, fmt.Sprintf("function %q not defined", targetFuncName))
+	}
+
+	// Extract parameter types from vector
+	paramsVec, ok := form.Elements[3].(VectorExpr)
+	if !ok {
+		return functionDef{}, exprError(form.Elements[3], "go-interface expects a parameter type vector")
+	}
+
+	paramTypes := make([]string, 0, len(paramsVec.Elements))
+	paramGoTypes := make([]string, 0, len(paramsVec.Elements))
+	for i, paramExpr := range paramsVec.Elements {
+		typeExpr, ok := paramExpr.(SymbolExpr)
+		if !ok {
+			return functionDef{}, exprError(paramExpr, "parameter type must be a symbol")
+		}
+		goType := typeHintToGoType(typeExpr.Name)
+		if goType == "" {
+			return functionDef{}, exprError(paramExpr, fmt.Sprintf("unsupported parameter type: %s", typeExpr.Name))
+		}
+		paramGoTypes = append(paramGoTypes, goType)
+		paramTypes = append(paramTypes, fmt.Sprintf("p%d %s", i+1, goType))
+	}
+
+	// Generate wrapper function body
+	// Box parameters
+	var bodyBuf bytes.Buffer
+	bodyBuf.WriteString("args := make([]flagrt.Value, 0, ")
+	fmt.Fprintf(&bodyBuf, "%d)\n", len(paramGoTypes))
+	for i, goType := range paramGoTypes {
+		boxCode := boxGoValue(fmt.Sprintf("p%d", i+1), goType)
+		fmt.Fprintf(&bodyBuf, "\targs = append(args, %s)\n", boxCode)
+	}
+
+	// Call the target FLAG function
+	fmt.Fprintf(&bodyBuf, "\tresult := flagrt.Call(%s, args...)\n", targetGoName)
+
+	// Unbox result
+	unboxCode := unboxGoValue("result", returnGoType)
+	fmt.Fprintf(&bodyBuf, "\treturn %s\n", unboxCode)
+
+	// Create wrapper function name (unmangled)
+	wrapperName := fmt.Sprintf("%s_go", targetFuncName)
+	wrapperGoName := wrapperName // Keep it unmangled for Go interop
+
+	// Return type for the function signature
+	returnTypeDecl := returnGoType
+	if returnGoType == "error" {
+		returnTypeDecl = "error"
+	}
+
+	return functionDef{
+		flagName:     wrapperName,
+		goName:       wrapperGoName,
+		variadicName: "",
+		arityName:    "",
+		hasRest:      false,
+		doc:          fmt.Sprintf("Go interop wrapper for %s", targetFuncName),
+		params:       nil,
+		localInits:   nil,
+		body:         bodyBuf.String(),
+		// Store the Go signature for special rendering
+		goSignature: fmt.Sprintf("(%s) %s", strings.Join(paramTypes, ", "), returnTypeDecl),
+	}, nil
+}
+
+func typeHintToGoType(hint string) string {
+	switch hint {
+	case "double", "float":
+		return "float64"
+	case "long", "int":
+		return "int64"
+	case "string":
+		return "string"
+	case "boolean", "bool":
+		return "bool"
+	default:
+		return ""
+	}
+}
+
+func boxGoValue(varName string, goType string) string {
+	switch goType {
+	case "float64":
+		return fmt.Sprintf("flagrt.NewDouble(%s)", varName)
+	case "int64":
+		return fmt.Sprintf("flagrt.NewLong(%s)", varName)
+	case "string":
+		return fmt.Sprintf("flagrt.NewString(%s)", varName)
+	case "bool":
+		return fmt.Sprintf("flagrt.NewBoolean(%s)", varName)
+	default:
+		return varName
+	}
+}
+
+func unboxGoValue(varName string, goType string) string {
+	switch goType {
+	case "float64":
+		return fmt.Sprintf("%s.Double()", varName)
+	case "int64":
+		return fmt.Sprintf("%s.Long()", varName)
+	case "string":
+		return fmt.Sprintf("%s.String()", varName)
+	case "bool":
+		return fmt.Sprintf("%s.Bool()", varName)
+	default:
+		return varName
+	}
 }

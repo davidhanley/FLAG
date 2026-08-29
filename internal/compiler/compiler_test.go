@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -1384,8 +1385,28 @@ func TestCompileMapcatFunction(t *testing.T) {
 		t.Fatalf("Compile returned error: %v", err)
 	}
 	got := string(output)
-	if !strings.Contains(got, `flagrt.MapCat(`) {
-		t.Fatalf("generated Go did not contain mapcat lowering:\n%s", got)
+	if strings.Contains(got, `flagrt.MapCat(`) {
+		t.Fatalf("mapcat should not use a special MapCat lowering:\n%s", got)
+	}
+	if !strings.Contains(got, `func mapcat_variadic(args ...flagrt.Value) flagrt.Value`) {
+		t.Fatalf("generated Go did not contain FLAG mapcat function:\n%s", got)
+	}
+	if !strings.Contains(got, `flagrt.Call(mapcat,`) {
+		t.Fatalf("generated Go did not call FLAG mapcat:\n%s", got)
+	}
+	if !strings.Contains(got, `flagrt.Apply(flagrt.BuiltinFunction("concat")`) || !strings.Contains(got, `flagrt.Apply(flagrt.BuiltinFunction("map")`) {
+		t.Fatalf("mapcat should map then concat:\n%s", got)
+	}
+}
+
+func TestAnnotateExprErrorAddsPosition(t *testing.T) {
+	err := annotateExprError(ListExpr{Line: 335, Col: 10}, fmt.Errorf("mapcat expects function and one collection"))
+	if err == nil {
+		t.Fatal("expected annotated error")
+	}
+	got := err.Error()
+	if got != "mapcat expects function and one collection at 335:10" {
+		t.Fatalf("unexpected annotated error: %q", got)
 	}
 }
 
@@ -2226,6 +2247,52 @@ func TestCompileExpression(t *testing.T) {
 	want := "flagrt.ValueToAny(flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewDouble(2.0)))"
 	if got != want {
 		t.Fatalf("unexpected expression:\nwant: %s\ngot:  %s", want, got)
+	}
+}
+
+func TestCompileDefrecordGoStruct(t *testing.T) {
+	output, err := Compile(`
+(defrecord SourceToken [^string token ^long line ^long offset])
+(println (:token (->SourceToken "x" 1 2)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"type SourceToken struct {",
+		"`flag:\"token\"`",
+		"`flag:\"line\"`",
+		"`flag:\"offset\"`",
+		"Line   int64",
+		"flagrt.NewRecord(SourceToken{",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileGoInterface(t *testing.T) {
+	output, err := Compile(`
+(defn square [x] (* x x))
+(go-interface square double [double])
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func square_go(p1 float64) float64 {",
+		"args := make([]flagrt.Value, 0, 1)",
+		"args = append(args, flagrt.NewDouble(p1))",
+		"result := flagrt.Call(",
+		"return result.Double()",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
 	}
 }
 

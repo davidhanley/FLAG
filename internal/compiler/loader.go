@@ -49,11 +49,7 @@ func LoadProgram(entryPath string) (*Program, error) {
 		stack[absPath] = true
 		defer delete(stack, absPath)
 
-		source, err := os.ReadFile(absPath)
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", absPath, err)
-		}
-		mod, err := parseModuleFile(absPath, string(source))
+		mod, err := parseModuleTokenStream(absPath, TokenizeFileToChannel(absPath))
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", absPath, err)
 		}
