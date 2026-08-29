@@ -438,8 +438,8 @@ func Compile(source string) ([]byte, error) {
 	return emitGoProgram(result)
 }
 
-// CompileTokens translates a FLAG token stream into a Go program.
-func CompileTokens(tokens <-chan ParseToken) ([]byte, error) {
+// CompileTokens translates a FLAG source-token stream into a Go program.
+func CompileTokens(tokens <-chan SourceToken) ([]byte, error) {
 	result, err := compileTokenStream(tokens, "")
 	if err != nil {
 		return nil, err
@@ -995,7 +995,7 @@ func compileSource(source, path string) (compileResult, error) {
 	return compileParsedModule(mod, path)
 }
 
-func compileTokenStream(tokens <-chan ParseToken, path string) (compileResult, error) {
+func compileTokenStream(tokens <-chan SourceToken, path string) (compileResult, error) {
 	mod, err := parseModuleTokenStream(path, tokens)
 	if err != nil {
 		return compileResult{}, err

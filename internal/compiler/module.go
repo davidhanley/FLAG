@@ -289,7 +289,7 @@ func parseModuleFile(path, source string) (*Module, error) {
 	return parseModuleAST(path, ast)
 }
 
-func parseModuleTokenStream(path string, tokens <-chan ParseToken) (*Module, error) {
+func parseModuleTokenStream(path string, tokens <-chan SourceToken) (*Module, error) {
 	ast, err := ParseTokenChannel(tokens)
 	if err != nil {
 		return nil, err

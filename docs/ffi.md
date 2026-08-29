@@ -1,0 +1,250 @@
+# Chapter 7 — Go FFI (Foreign Function Interface)
+
+**FLAG functions live in a boxed value world** to enable dynamic dispatch, varargs, and reflection. But sometimes you need to expose a FLAG function as a native Go function—for embedding FLAG code in Go projects, or for performance-critical paths that don't want the boxing overhead.
+
+The `go-interface` form creates unboxed, native Go wrappers around FLAG functions. This chapter shows how.
+
+---
+
+## Motivation
+
+Suppose you compile a FLAG program that implements a hot computation loop:
+
+```clojure
+(defn square [x] (* x x))
+```
+
+The compiled Go code looks like:
+
+```go
+func square_variadic(args ...flagrt.Value) flagrt.Value {
+    // unbox, call, box result
+}
+var square = flagrt.NewFunction(square_variadic)
+```
+
+This works perfectly for calls from FLAG or from Go using `flagrt.Call()`. But if you want to call it from native Go code millions of times per second, the boxing/unboxing cost matters.
+
+**`go-interface` solves this**: it generates a second, native wrapper alongside the boxed version:
+
+```go
+func square_go(p1 float64) float64 {
+    // box p1, call square, unbox result
+}
+```
+
+Now Go code can call `square_go(2.0)` directly, with native types.
+
+---
+
+## Syntax
+
+```clojure
+(defn function-name [params...] body...)
+(go-interface function-name return-type [param-types...])
+```
+
+### Example: single parameter, numeric return
+
+```clojure
+(defn square [x] (* x x))
+(go-interface square double [double])
+```
+
+Generates:
+
+```go
+func square_go(p1 float64) float64 {
+    args := make([]flagrt.Value, 0, 1)
+    args = append(args, flagrt.NewDouble(p1))
+    result := flagrt.Call(square, args...)
+    return result.Double()
+}
+```
+
+### Example: multiple parameters
+
+```clojure
+(defn add [x y] (+ x y))
+(go-interface add long [long long])
+```
+
+Generates:
+
+```go
+func add_go(p1 int64, p2 int64) int64 {
+    args := make([]flagrt.Value, 0, 2)
+    args = append(args, flagrt.NewLong(p1))
+    args = append(args, flagrt.NewLong(p2))
+    result := flagrt.Call(add, args...)
+    return result.Long()
+}
+```
+
+### Example: string parameters
+
+```clojure
+(defn greet [name] (str "Hello, " name "!"))
+(go-interface greet string [string])
+```
+
+Generates:
+
+```go
+func greet_go(p1 string) string {
+    args := make([]flagrt.Value, 0, 1)
+    args = append(args, flagrt.NewString(p1))
+    result := flagrt.Call(greet, args...)
+    return result.String()
+}
+```
+
+---
+
+## Supported type hints
+
+| FLAG type | Go type | Box function | Unbox method |
+|-----------|---------|--------------|----------------|
+| `double` or `float` | `float64` | `NewDouble()` | `.Double()` |
+| `long` or `int` | `int64` | `NewLong()` | `.Long()` |
+| `string` | `string` | `NewString()` | `.String()` |
+| `boolean` or `bool` | `bool` | `NewBoolean()` | `.Bool()` |
+
+---
+
+## Calling from Go
+
+After compilation, the wrapper function has **no namespace prefix**:
+
+```clojure
+(defn square [x] (* x x))
+(go-interface square double [double])
+```
+
+Compiles to a function named `square_go` in the main package (for entry modules).
+
+From Go, you can call it directly:
+
+```go
+package main
+
+import (
+    "fmt"
+)
+
+// Assumes the FLAG program compiled with go-interface
+func square_go(p1 float64) float64 // declared in the compiled FLAG code
+
+func main() {
+    result := square_go(3.14)
+    fmt.Println(result) // 9.8596
+}
+```
+
+---
+
+## Performance considerations
+
+**Boxing overhead**
+
+The wrapper still boxes parameters and unboxes the result. For compute-heavy loops, the win is that **Go can call the wrapper with native types and avoid repeated boxing at the call site**.
+
+Example without wrapper: million calls, each boxing a `float64`:
+
+```go
+for i := 0; i < 1_000_000; i++ {
+    result := flagrt.Call(square, flagrt.NewDouble(float64(i)))
+}
+```
+
+Example with wrapper: million calls, native types:
+
+```go
+for i := 0; i < 1_000_000; i++ {
+    result := square_go(float64(i))
+}
+```
+
+Both still box/unbox internally, but the second avoids Go-side allocation.
+
+---
+
+## Limitations and design
+
+- **Scalar types only** (for now): `go-interface` generates wrappers for basic types (`double`, `long`, `string`, `bool`). Complex types (lists, maps, custom records) would require a more complex mapping.
+- **No varargs**: `go-interface` wraps fixed-arity functions. If your FLAG function uses `[& rest]`, `go-interface` won't apply.
+- **Both forms coexist**: `(go-interface f double [double])` creates `f_go(float64) float64` *and* the boxed `f` remains available for FLAG/REPL calls.
+
+---
+
+## Example: CSV streaming with native Go loop
+
+A common pattern: compute scores for rows in a CSV, then return results.
+
+```clojure
+{:namespace "scoring"}
+
+(defn score-row [year revenue costs]
+  (let [margin (- revenue costs)
+        roi (/ margin costs)]
+    (* roi 100.0)))
+
+(go-interface score-row double [long long long])
+```
+
+Compile and embed in a Go program:
+
+```go
+package main
+
+import (
+    "encoding/csv"
+    "fmt"
+    "os"
+    "strconv"
+)
+
+// Generated by FLAG compiler
+func score_row_go(p1 int64, p2 int64, p3 int64) float64 { /* ... */ }
+
+func main() {
+    file, _ := os.Open("data.csv")
+    defer file.Close()
+    r := csv.NewReader(file)
+
+    for {
+        record, err := r.Read()
+        if err != nil {
+            break
+        }
+        year, _ := strconv.ParseInt(record[0], 10, 64)
+        revenue, _ := strconv.ParseInt(record[1], 10, 64)
+        costs, _ := strconv.ParseInt(record[2], 10, 64)
+
+        // Native go call, no FLAG overhead
+        score := score_row_go(year, revenue, costs)
+        fmt.Printf("Year %d: %f%%\n", year, score)
+    }
+}
+```
+
+---
+
+## Comparison with other approaches
+
+| Approach | Overhead | Call site | Use case |
+|----------|----------|-----------|----------|
+| Pure FLAG | None | FLAG code | Whole program in FLAG |
+| Boxed `flagrt.Call()` | Box/unbox per call | Go code calling FLAG | Occasional calls, flexible args |
+| `go-interface` wrapper | Box/unbox once per wrapper | Go code with native types | Hot loops, fixed signatures |
+| `:go-exports` binding (re-exporting Go libs) | None | Go package re-export | Wrapping native Go libraries |
+
+`go-interface` sits between **boxed calls** (flexible, higher overhead) and **`:go-exports`** (zero overhead, Go-only).
+
+---
+
+## Next steps
+
+- Try `go-interface` on a compute function from your project.
+- Profile the compiled Go code to see the boxing cost.
+- If performance is still limiting, consider moving the inner loop to pure Go and calling FLAG from Go for setup/coordination.

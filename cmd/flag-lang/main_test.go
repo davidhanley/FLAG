@@ -259,16 +259,13 @@ func TestRunBuildCompilerTokenizerMatchesGoTokenizer(t *testing.T) {
     (if (nil? token)
       nil
       (do
-        (println (format "%d|%q|%q|%q|%d|%d"
-                         (:kind token)
-                         (:lexeme token)
-                         (:string token)
-                         (:message token)
+        (println (format "%q|%d|%d"
+                         (:token token)
                          (:line token)
-                         (:col token)))
+                         (:offset token)))
         (drain ch)))))
 (defn main [& argv]
-  (drain (c/tokenize-file-parse-tokens (first argv))))
+  (drain (c/tokenize-file (first argv))))
 `
 	if err := os.WriteFile(inputPath, []byte(program), 0o644); err != nil {
 		t.Fatalf("WriteFile parity program: %v", err)
@@ -295,18 +292,15 @@ func TestRunBuildCompilerTokenizerMatchesGoTokenizer(t *testing.T) {
 	}
 }
 
-func goTokenizerOutput(source string) []compiler.ParseToken {
-	tokens := make([]compiler.ParseToken, 0, 32)
+func goTokenizerOutput(source string) []compiler.SourceToken {
+	tokens := make([]compiler.SourceToken, 0, 32)
 	for tok := range compiler.TokenizeSourceToChannel(source) {
-		if tok.Kind == compiler.TokenEOF {
-			break
-		}
 		tokens = append(tokens, tok)
 	}
 	return tokens
 }
 
-func runFlagTokenizerOutput(t *testing.T, binaryPath, sourcePath string) []compiler.ParseToken {
+func runFlagTokenizerOutput(t *testing.T, binaryPath, sourcePath string) []compiler.SourceToken {
 	t.Helper()
 
 	result, err := exec.Command(binaryPath, sourcePath).CombinedOutput()
@@ -315,47 +309,38 @@ func runFlagTokenizerOutput(t *testing.T, binaryPath, sourcePath string) []compi
 	}
 	out := strings.TrimSuffix(string(result), "\n")
 	if out == "" {
-		return nil
+		return []compiler.SourceToken{}
 	}
 
 	lines := strings.Split(out, "\n")
-	tokens := make([]compiler.ParseToken, 0, len(lines))
+	tokens := make([]compiler.SourceToken, 0, len(lines))
 	for _, line := range lines {
 		token, err := parseFlagTokenizerLine(line)
 		if err != nil {
 			t.Fatalf("parse tokenizer line %q: %v", line, err)
-		}
-		if token.Kind == compiler.TokenEOF {
-			continue
 		}
 		tokens = append(tokens, token)
 	}
 	return tokens
 }
 
-func parseFlagTokenizerLine(line string) (compiler.ParseToken, error) {
+func parseFlagTokenizerLine(line string) (compiler.SourceToken, error) {
 	var (
-		kind    int
-		lexeme  string
-		strVal  string
-		message string
-		lineNum int
-		colNum  int
+		tokenText string
+		lineNum   int
+		offset    int
 	)
-	n, err := fmt.Sscanf(line, "%d|%q|%q|%q|%d|%d", &kind, &lexeme, &strVal, &message, &lineNum, &colNum)
+	n, err := fmt.Sscanf(line, "%q|%d|%d", &tokenText, &lineNum, &offset)
 	if err != nil {
-		return compiler.ParseToken{}, fmt.Errorf("scan token line: %w", err)
+		return compiler.SourceToken{}, fmt.Errorf("scan token line: %w", err)
 	}
-	if n != 6 {
-		return compiler.ParseToken{}, fmt.Errorf("expected 6 parsed fields, got %d", n)
+	if n != 3 {
+		return compiler.SourceToken{}, fmt.Errorf("expected 3 parsed fields, got %d", n)
 	}
-	return compiler.ParseToken{
-		Kind:    compiler.ParseTokenKind(kind),
-		Lexeme:  lexeme,
-		String:  strVal,
-		Message: message,
-		Line:    lineNum,
-		Col:     colNum,
+	return compiler.SourceToken{
+		Token:  tokenText,
+		Line:   lineNum,
+		Offset: offset,
 	}, nil
 }
 
