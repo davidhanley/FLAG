@@ -1,0 +1,50 @@
+(ns language.core)
+
+(defn add1 [x] (+ x 1))
+
+(defn greet [name]
+  name)
+
+(defn get-scores-list-base [base] base)
+
+(defn foreign-name? [x] x)
+
+(defn mutate! [x] x)
+
+(defn fib [x]
+  (if (< x 3)
+    1
+    (+ (fib (- x 1)) (fib (- x 2)))))
+
+(defn even? [n]
+  (if (= n 0)
+    true
+    (if (= n 1)
+      false
+      (even? (- n 2)))))
+
+(defn sum-to [n]
+  (loop [i n acc 0]
+    (if (= i 0)
+      acc
+      (recur (- i 1) (+ acc i)))))
+
+(defn add-pair [[a b] {:keys [x]}]
+  (+ a b x))
+
+(defmacro quote-seven [x] 7)
+
+(defrecord food [weight calories])
+
+(defn drop-heads [groups]
+  (->> groups
+       (mapcat rest)
+       (map identity)
+       (vec)))
+
+(defn thread-mapcat-rest-then-map [groups]
+  (->> groups
+       (mapcat rest)
+       (mapcat (fn [x] [x x]))
+       (map (fn [x] (+ x 1)))
+       (vec)))

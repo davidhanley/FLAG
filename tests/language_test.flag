@@ -1,0 +1,185 @@
+(ns language.core-test)
+
+(deftest arithmetic
+  (testing "add sub div mod"
+    (is (= 5 (+ 1 2 2)))
+    (is (= 5 (- 10 3 2)))
+    (is (= 3/2 (/ 3 2)))
+    (is (= 1 (% -5 3)))))
+
+(deftest literals
+  (testing "ratio bigint char"
+    (is (= 5/6 5/6))
+    (is (= 10N 10N))
+    (is (= \M \M))))
+
+(deftest comparisons
+  (testing "eq and ordering"
+    (is (= 1 1.0 1))
+    (is (= "a" "a"))
+    (is (< 1 2 3.0))
+    (is (<= 1 2 2))
+    (is (> 3 2 1))
+    (is (>= 3 2 2))
+    (is (< "a" "b"))
+    (is (>= "b" "a"))))
+
+(deftest if-let-and-names
+  (testing "if let hyphen predicate bang"
+    (is (= 42 (if (= 1 1.0) 42 0)))
+    (is (= nil (if (= 1 2) 42)))
+    (is (= 2 (let [a 1 b (+ 1 a)] b)))
+    (is (= "#d8dbff" (let [c1 "#d8dbff" ok (> 3 2)] (if ok c1 "no"))))
+    (is (= 7 (get-scores-list-base 7)))
+    (is (= 1 (foreign-name? 1)))
+    (is (= 2 (mutate! 2)))
+    (is (= "Ada" (greet "Ada")))
+    (is (= 3 (add1 2)))))
+
+(deftest type-hints-and-volatile
+  (testing "hints are no-ops; update! mutates"
+    (let [^int a 1 ^float b 2]
+      (is (= 3 (+ a b))))
+    (let [^{:volatile true} seen {:a 1}]
+      (update! seen (assoc seen :b 2))
+      (is (= {:a 1 :b 2} seen)))))
+
+(deftest destructuring
+  (testing "vector and map bindings"
+    (is (= 10 (let [[a b & r :as all] [1 2 3 4]]
+               (+ a b (first r) (count all)))))
+    (is (= 11 (let [{:keys [a b] :or {b 9} :as m} {:a 1}]
+                (+ a b (count m)))))
+    (is (= 6 (add-pair [1 2] {:x 3})))))
+
+(deftest collections
+  (testing "maps sets seq helpers"
+    (is (= :male (get {\M :male \F :female} \M)))
+    (is (= 3 (last [1 2 3])))
+    (is (= [3 2 1] (vec (reverse [1 2 3]))))
+    (is (= [1] (vec (cons 1 nil))))
+    (is (= 3 (some (fn [x] (when (> x 2) x)) [1 2 3 4])))
+    (is (some? 1))
+    (is (= false (some? nil)))
+    (is (seq? (seq [1 2 3])))
+    (is (re-matches (re-pattern "^he.*o$") "hello"))
+    (is (= [1 2 3] (vec (seq [1 2 3]))))
+    (is (= true (not false)))
+    (is (= false (not true)))
+    (is (= #{1 2} (set [1 1 2])))
+    (is (= [1 2 3] (conj [1 2] 3)))
+    (is (contains? #{1 2} 2))
+    (is (= [1 2] (not-empty [1 2])))
+    (is (not-empty? [1 2]))
+    (is (empty? []))
+    (is (nil? nil))
+    (is (= false (nil? "x")))
+    (is (= 3 (count [1 2 3])))))
+
+(deftest seq-functions
+  (testing "map filter reduce range and friends"
+    (is (= [2 3 4] (vec (map add1 [1 2 3]))))
+    (is (= [1 10 2 20 3 30] (vec (mapcat (fn [x] [x (* x 10)]) [1 2 3]))))
+    (is (= [1 2 3] (vec (concat [1 2] [3] nil))))
+    (is (= [1 3] (vec (filter (fn [x] (= 1 (% x 2))) [1 2 3 4]))))
+    (is (= 10 (reduce + 0 [1 2 3 4])))
+    (is (= 10 (reduce + [1 2 3 4])))
+    (is (= [0 1 2] (vec (range 0 3))))
+    (is (= [:a :a] (vec (take 2 (repeat :a)))))
+    (is (= 4 (first (rest [1 4 9]))))
+    (is (not-any? (fn [x] (> x 10)) [1 2 3 4]))
+    (is (every? (fn [x] (> x 0)) [1 2 3 4]))
+    (is (= [3 4] (vec (keep (fn [x] (when (> x 2) x)) [1 2 3 4]))))
+    (is (= [[:li 1] [:li 2]] (vec (for [x [1 2]] [:li x]))))
+    (is (= [[1 10] [1 20] [2 10] [2 20]] (vec (for [x [1 2] y [10 20]] [x y]))))
+    (is (= {1 1 2 2} (into {} (map (fn [x] [x x]) [1 2]))))))
+
+(deftest maps-and-keys
+  (testing "assoc dissoc update lookup"
+    (is (= {:a 1 :b 2} (assoc {:a 1} :b 2)))
+    (is (= {:a 1} (dissoc {:a 1 :b 2} :b)))
+    (is (= {:a 3} (update {:a 1} :a + 2)))
+    (is (= 1 (get {:a 1} :a)))
+    (is (= 1 (:a {:a 1})))
+    (is (= 1 ({:a 1} :a)))
+    (is (= {:a 1 :c 3} (merge {:a 1} {:c 3})))
+    (is (= {:a 1} (select-keys {:a 1 :b 2} [:a])))
+    (is (= {:a 1 :b 2} (hash-map :a 1 :b 2)))
+    (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))))
+
+(deftest apply-partial-juxt
+  (testing "higher-order helpers"
+    (is (= 6 (apply + [1 2 3])))
+    (is (= [2 3] (vec ((partial map add1) [1 2]))))
+    (is (= [1 2] (vec ((juxt first second) [1 2]))))
+    (is (= "HI" ((comp str/trim str/upper-case) "  hi  ")))))
+
+(deftest group-sort-max
+  (testing "group-by sort-by max-key val"
+    (is (= {1 [1] 2 [2 2]} (group-by identity [1 2 2])))
+    (is (= [1 2 3] (vec (sort-by identity [3 1 2]))))
+    (is (= 3 (max 1 3 2)))
+    (is (= 1 (min 1 3 2)))
+    (is (= {:n 9} (max-key :n {:n 1} {:n 9})))
+    (is (= 2 (val [:k 2])))))
+
+(deftest macros
+  (testing "when cond threading inc"
+    (is (= 2 (when true 2)))
+    (is (= nil (when false 2)))
+    (is (= 2 (when-not false 2)))
+    (is (= 2 (inc 1)))
+    (is (= 1 (dec 2)))
+    (is (not= 1 2))
+    (is (= :b (cond false :a :else :b)))
+    (is (= 15 (->> 5 (- 10) (* 3))))
+    (is (= -5 (-> 5 (- 10))))
+    (is (= 7 (quote-seven 99)))
+    (is (= 3 (when-let [x 3] x)))
+    (is (= nil (when-let [x nil] x)))
+    (is (= 9 (some-> 3 (+ 6))))
+    (is (= nil (some-> nil (+ 6))))
+    (is (= 4/5 (some->> 5 (- 10) (/ 4))))
+    (is (= 11 (cond-> 10 true inc false dec)))))
+
+(deftest fn-literals
+  (testing "fn hash-fn def lambda"
+    (is (= 3 ((fn [x] (+ x 1)) 2)))
+    (is (= 3 ((fn [_ x] x) 1 3)))
+    (is (= 9 (#(* % %) 3)))
+    (let [triple #(* % 3)]
+      (is (= 12 (triple 4))))))
+
+(deftest recursion-and-loop
+  (testing "fib even? loop/recur"
+    (is (= 13 (fib 7)))
+    (is (even? 8))
+    (is (= false (even? 7)))
+    (is (= 6 (sum-to 3)))))
+
+(deftest symbols-and-names
+  (testing "name keyword symbol"
+    (is (= "xyz" (name :xyz)))
+    (is (= "abc" (name (symbol "abc"))))
+    (is (= 'xyz (symbol :xyz)))
+    (is (= :abc (keyword "abc")))))
+
+(deftest strings-and-numbers
+  (testing "str format double go-fn json"
+    (is (= "12" (str 1 2)))
+    (is (= "1.23" (format "%.2f" 1.23)))
+    (is (= 3.0 (double 3)))
+    (is (= "HI" (str/upper-case "hi")))
+    (is (= {:a 1} (from-json "{\"a\":1}")))))
+
+(deftest records
+  (testing "defrecord constructor and keyword lookup"
+    (let [f (->food 10 200)]
+      (is (= 10 (:weight f)))
+      (is (= 200 (:calories f))))))
+
+(deftest threading-hygiene
+  (testing "rest stays the function when ->> threads mapcat then map"
+    (is (= [2 4 6] (drop-heads [[1 2] [3 4] [5 6]]))))
+  (testing "FRS-style ->> with mapcat rest, another mapcat, then map"
+    (is (= [3 3 5 5] (thread-mapcat-rest-then-map [[1 2] [3 4]])))))

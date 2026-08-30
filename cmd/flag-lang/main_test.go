@@ -65,33 +65,6 @@ func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 	}
 }
 
-func TestRunBuildMapcatConcatenatesMappedCollections(t *testing.T) {
-	dir := t.TempDir()
-	inputPath := filepath.Join(dir, "mapcat.flag")
-	outputPath := filepath.Join(dir, "mapcatbin")
-
-	source := `(println (vec (mapcat (fn [x] [x (* x 10)]) [1 2 3])))
-(println (vec (mapcat (fn [a b] [a b]) [1 2] [10 20])))
-`
-	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
-		t.Fatalf("WriteFile input: %v", err)
-	}
-
-	if err := run([]string{"build", inputPath, "-o", outputPath}); err != nil {
-		t.Fatalf("run returned error: %v", err)
-	}
-
-	result, err := exec.Command(outputPath).CombinedOutput()
-	if err != nil {
-		t.Fatalf("built binary failed: %v\n%s", err, string(result))
-	}
-	got := strings.TrimSpace(string(result))
-	want := "[1 10 2 20 3 30]\n[1 10 2 20]"
-	if got != want {
-		t.Fatalf("unexpected mapcat output: %q", got)
-	}
-}
-
 func TestRunBuildCreatesRunnableBinary(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "fib.flag")
@@ -369,6 +342,23 @@ func parseFlagTokenizerLine(line string) (compiler.SourceToken, error) {
 		Line:   int64(lineNum),
 		Offset: int64(offset),
 	}, nil
+}
+
+// Acceptance: FLAG tests for ->> hygiene with (mapcat rest) then map.
+func TestAcceptanceThreadingFlagTests(t *testing.T) {
+	testsDir, err := filepath.Abs(filepath.Join("..", "..", "tests"))
+	if err != nil {
+		t.Fatalf("Abs testsDir: %v", err)
+	}
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(testsDir, "tests.go"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", testsDir}); err != nil {
+		t.Fatalf("flag-lang test tests: %v", err)
+	}
 }
 
 // Acceptance: examples/compiler_tokenizer FLAG tests for tokenizer behavior.

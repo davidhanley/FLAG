@@ -1773,6 +1773,64 @@ func macroExpand(expr Expr, ctx compileContext, depth int) (Expr, error) {
 	}
 }
 
+type macroLiteralExpr struct {
+	inner Expr
+}
+
+func (macroLiteralExpr) expr() {}
+
+func quoteMacro(expr Expr) Expr {
+	if _, ok := expr.(macroLiteralExpr); ok {
+		return expr
+	}
+	return macroLiteralExpr{inner: expr}
+}
+
+func unquoteMacro(expr Expr) Expr {
+	for {
+		quoted, ok := expr.(macroLiteralExpr)
+		if !ok {
+			return expr
+		}
+		expr = quoted.inner
+	}
+}
+
+func unquoteMacroTree(expr Expr) Expr {
+	switch value := unquoteMacro(expr).(type) {
+	case ListExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return ListExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case VectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case MapExpr:
+		out := make([]Expr, 0, len(value.Entries))
+		for _, item := range value.Entries {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return MapExpr{Entries: out, Line: value.Line, Col: value.Col}
+	case SetExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return SetExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case HashFnExpr:
+		return HashFnExpr{Body: unquoteMacroTree(value.Body), Line: value.Line, Col: value.Col}
+	case MetaExpr:
+		return MetaExpr{Meta: unquoteMacroTree(value.Meta), Target: unquoteMacroTree(value.Target), Line: value.Line, Col: value.Col}
+	default:
+		return value
+	}
+}
+
 func applyMacro(m macroDef, args []Expr) (Expr, error) {
 	if m.restParam == "" && len(args) != len(m.params) {
 		return nil, fmt.Errorf("macro expects exactly %d arguments", len(m.params))
@@ -1793,24 +1851,31 @@ func applyMacro(m macroDef, args []Expr) (Expr, error) {
 		}
 		restBindings[m.restParam] = restArgs
 	}
-	return substituteMacroExpr(m.body, values, restBindings)
+	expanded, err := substituteMacroExpr(m.body, values, restBindings)
+	if err != nil {
+		return nil, err
+	}
+	return unquoteMacroTree(expanded), nil
 }
 
 func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[string][]Expr) (Expr, error) {
+	if _, ok := expr.(macroLiteralExpr); ok {
+		return expr, nil
+	}
 	switch value := expr.(type) {
 	case SymbolExpr:
 		if replacement, ok := values[value.Name]; ok {
-			return copyExpr(replacement), nil
+			return quoteMacro(copyExpr(replacement)), nil
 		}
 		return value, nil
 	case ListExpr:
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
-			sym, isSym := item.(SymbolExpr)
+			sym, isSym := unquoteMacro(item).(SymbolExpr)
 			if isSym {
 				if restArgs, ok := restBindings[sym.Name]; ok {
 					for _, restArg := range restArgs {
-						out = append(out, copyExpr(restArg))
+						out = append(out, quoteMacro(copyExpr(restArg)))
 					}
 					continue
 				}
@@ -1832,11 +1897,11 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[str
 	case VectorExpr:
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
-			sym, isSym := item.(SymbolExpr)
+			sym, isSym := unquoteMacro(item).(SymbolExpr)
 			if isSym {
 				if restArgs, ok := restBindings[sym.Name]; ok {
 					for _, restArg := range restArgs {
-						out = append(out, copyExpr(restArg))
+						out = append(out, quoteMacro(copyExpr(restArg)))
 					}
 					continue
 				}
@@ -1917,6 +1982,8 @@ func expandDefrecordMacro(args []Expr) (Expr, error) {
 
 func copyExpr(expr Expr) Expr {
 	switch value := expr.(type) {
+	case macroLiteralExpr:
+		return macroLiteralExpr{inner: copyExpr(value.inner)}
 	case ListExpr:
 		out := make([]Expr, 0, len(value.Elements))
 		for _, item := range value.Elements {
@@ -1955,12 +2022,15 @@ func expandMacroCase(args []Expr) (Expr, error) {
 		return nil, fmt.Errorf("macro-case expects a target form and at least one clause")
 	}
 
-	targetList, ok := args[0].(ListExpr)
+	targetList, ok := unquoteMacro(args[0]).(ListExpr)
 	if !ok {
 		return nil, fmt.Errorf("macro-case expects a list target form")
 	}
 	clauses := args[1:]
-	target := targetList.Elements[1:]
+	target := make([]Expr, 0, len(targetList.Elements))
+	if len(targetList.Elements) > 0 {
+		target = targetList.Elements[1:]
+	}
 
 	for _, clauseExpr := range clauses {
 		clause, ok := clauseExpr.(VectorExpr)
@@ -1983,6 +2053,14 @@ func expandMacroCase(args []Expr) (Expr, error) {
 }
 
 func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, restBindings map[string][]Expr) (bool, error) {
+	if len(target) > 0 {
+		unquoted := make([]Expr, len(target))
+		for i, item := range target {
+			unquoted[i] = unquoteMacro(item)
+		}
+		target = unquoted
+	}
+	pattern = unquoteMacro(pattern)
 	switch pat := pattern.(type) {
 	case SymbolExpr:
 		switch pat.Name {
@@ -4235,7 +4313,11 @@ func goFnArgsExprToGo(args []Expr, ctx compileContext, locals map[string]exprKin
 
 func mapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) < 2 {
-		return goExpr{}, fmt.Errorf("map expects function and at least one sequence")
+		parts := make([]string, 0, len(args))
+		for _, arg := range args {
+			parts = append(parts, exprToSourceString(arg))
+		}
+		return goExpr{}, fmt.Errorf("map expects function and at least one sequence, got (%s)", strings.Join(parts, " "))
 	}
 
 	parts := make([]string, 0, len(args))

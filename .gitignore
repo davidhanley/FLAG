@@ -4,3 +4,4 @@ dist/
 *.test
 *.out
 hello.go
+tests/*.go
