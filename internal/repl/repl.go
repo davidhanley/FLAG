@@ -219,6 +219,7 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"NewSymbol":                   reflect.ValueOf(flagrt.NewSymbol),
 			"NewKeyword":                  reflect.ValueOf(flagrt.NewKeyword),
 			"NewFunction":                 reflect.ValueOf(flagrt.NewFunction),
+			"NewRecord":                   reflect.ValueOf(flagrt.NewRecord),
 			"NewMap":                      reflect.ValueOf(flagrt.NewMap),
 			"NewSet":                      reflect.ValueOf(flagrt.NewSet),
 			"Add":                         reflect.ValueOf(flagrt.Add),
