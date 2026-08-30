@@ -91,6 +91,34 @@ func recordFieldFlagName(field reflect.StructField) string {
 	return field.Name
 }
 
+func RequireString(v Value) string {
+	if v.tag != TagString {
+		panic(fmt.Sprintf("expected string, got %s", v.String()))
+	}
+	return v.StringValue()
+}
+
+func RequireLong(v Value) int64 {
+	if v.tag != TagLong {
+		panic(fmt.Sprintf("expected integer, got %s", v.String()))
+	}
+	return v.Long()
+}
+
+func RequireDouble(v Value) float64 {
+	if v.tag != TagDouble {
+		panic(fmt.Sprintf("expected double, got %s", v.String()))
+	}
+	return v.Double()
+}
+
+func RequireBool(v Value) bool {
+	if v.tag != TagBool {
+		panic(fmt.Sprintf("expected boolean, got %s", v.String()))
+	}
+	return v.Bool()
+}
+
 func goValueToRecordField(field reflect.Value) Value {
 	if !field.IsValid() {
 		return NilValue()

@@ -172,11 +172,24 @@
     (is (= "HI" (str/upper-case "hi")))
     (is (= {:a 1} (from-json "{\"a\":1}")))))
 
+(deftest expect-exception-form
+  (testing "throw is caught and message is matched"
+    (expect-exception (throw "nope") "nope")
+    (expect-exception (throw "nope"))))
+
 (deftest records
   (testing "defrecord constructor and keyword lookup"
     (let [f (->food 10 200)]
       (is (= 10 (:weight f)))
-      (is (= 200 (:calories f))))))
+      (is (= 200 (:calories f)))))
+  (testing "typed fields round-trip"
+    (let [m (->nutrients 1 2 3)]
+      (is (= 1 (:c m)))
+      (is (= 2 (:p m)))
+      (is (= 3 (:f m)))))
+  (testing "typed constructor rejects a string for ^int"
+    (expect-exception (->nutrients 1 2 "") "expected integer")
+    (expect-exception (map->nutrients {:c 1 :p 2 :f ""}) "expected integer")))
 
 (deftest threading-hygiene
   (testing "rest stays the function when ->> threads mapcat then map"

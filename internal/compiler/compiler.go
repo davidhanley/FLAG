@@ -2511,6 +2511,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return throwExprToGo(list.Elements[1:], ctx, locals)
 		case "is":
 			return isExprToGo(list, ctx, locals)
+		case "expect-exception":
+			return expectExceptionExprToGo(list, ctx, locals)
 		case "if":
 			return ifExprToGo(list.Elements[1:], ctx, locals)
 		case "do":
@@ -5616,6 +5618,53 @@ func testingBodyExprToGo(args []Expr, ctx compileContext, locals map[string]expr
 
 	var out strings.Builder
 	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	fmt.Fprintf(&out, "\t_ = %s\n", body.code)
+	fmt.Fprintf(&out, "\treturn %s.NilValue()\n", runtimeAlias)
+	out.WriteString("}()")
+	return goExpr{code: out.String(), kind: exprKindValue}, nil
+}
+
+func expectExceptionExprToGo(form ListExpr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	args := form.Elements[1:]
+	if len(args) != 1 && len(args) != 2 {
+		return goExpr{}, fmt.Errorf("expect-exception expects an expression and optional message")
+	}
+
+	body, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	expected := ""
+	if len(args) == 2 {
+		msg, ok := args[1].(StringExpr)
+		if !ok {
+			return goExpr{}, fmt.Errorf("expect-exception message must be a string")
+		}
+		expected = msg.Value
+	}
+
+	source := exprToSourceString(args[0])
+	prefix := ""
+	if line, col, ok := exprPos(form); ok {
+		prefix = fmt.Sprintf("at %d:%d: ", line, col)
+	}
+	noPanic := prefix + "expected exception from " + source
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	out.WriteString("\tdefer func() {\n")
+	out.WriteString("\t\tr := recover()\n")
+	out.WriteString("\t\tif r == nil {\n")
+	fmt.Fprintf(&out, "\t\t\tpanic(%q)\n", noPanic)
+	out.WriteString("\t\t}\n")
+	if expected != "" {
+		out.WriteString("\t\tmsg := fmt.Sprint(r)\n")
+		fmt.Fprintf(&out, "\t\tif !strings.Contains(msg, %q) {\n", expected)
+		fmt.Fprintf(&out, "\t\t\tpanic(%q + msg)\n", prefix+"expected exception matching "+strconv.Quote(expected)+", got ")
+		out.WriteString("\t\t}\n")
+	}
+	out.WriteString("\t}()\n")
 	fmt.Fprintf(&out, "\t_ = %s\n", body.code)
 	fmt.Fprintf(&out, "\treturn %s.NilValue()\n", runtimeAlias)
 	out.WriteString("}()")

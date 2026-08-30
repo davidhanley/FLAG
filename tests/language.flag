@@ -36,6 +36,8 @@
 
 (defrecord food [weight calories])
 
+(defrecord nutrients [^int c ^int p ^int f])
+
 (defn drop-heads [groups]
   (->> groups
        (mapcat rest)

@@ -519,6 +519,9 @@ func TestCompileDefrecordGoStruct(t *testing.T) {
 		"`flag:\"offset\"`",
 		"Line   int64",
 		"flagrt.NewRecord(SourceToken{",
+		"flagrt.RequireString(token)",
+		"flagrt.RequireLong(line)",
+		"flagrt.RequireLong(offset)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
