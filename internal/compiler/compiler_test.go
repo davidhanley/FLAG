@@ -293,7 +293,6 @@ func TestCompileDoallAndStringPredicates(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`flagrt.DoAll(`,
-		`flagrt.Remove(`,
 		`flagrt.GoBind_packages_StringBlank`,
 		`flagrt.GoBind_packages_StringUpperCase`,
 	} {

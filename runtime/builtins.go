@@ -116,30 +116,12 @@ func BuiltinFunction(name string) Value {
 			}
 			return RandInt(args[0])
 		})
-	case "constantly":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("constantly expects exactly one argument")
-			}
-			value := args[0]
-			return NewFunction(func(callArgs ...Value) Value {
-				_ = callArgs
-				return value
-			})
-		})
 	case "first", "fist":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {
 				panic("first expects exactly one argument")
 			}
 			return First(args[0])
-		})
-	case "second":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("second expects exactly one argument")
-			}
-			return Second(args[0])
 		})
 	case "rest":
 		return NewFunction(func(args ...Value) Value {
@@ -208,13 +190,6 @@ func BuiltinFunction(name string) Value {
 			}
 			return Into(args[0], args[1])
 		})
-	case "group-by":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("group-by expects function and one collection")
-			}
-			return GroupBy(args[0], args[1])
-		})
 	case "sort-by":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 2 && len(args) != 3 {
@@ -222,47 +197,12 @@ func BuiltinFunction(name string) Value {
 			}
 			return SortBy(args[0], args[1:]...)
 		})
-	case "juxt":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("juxt expects at least one function")
-			}
-			return Juxt(args...)
-		})
-	case "partial":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("partial expects function and optional bound arguments")
-			}
-			return Partial(args[0], args[1:]...)
-		})
 	case "apply":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) < 2 {
 				panic("apply expects function and at least one argument sequence")
 			}
 			return Apply(args[0], args[1:]...)
-		})
-	case "max-key":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("max-key expects key function and at least one value")
-			}
-			return MaxKey(args[0], args[1:]...)
-		})
-	case "val":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("val expects exactly one argument")
-			}
-			return Val(args[0])
-		})
-	case "zipmap":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("zipmap expects exactly two sequence arguments")
-			}
-			return ZipMap(args[0], args[1])
 		})
 	case "pmap":
 		return NewFunction(func(args ...Value) Value {
@@ -278,26 +218,12 @@ func BuiltinFunction(name string) Value {
 			}
 			return Filter(args[0], args[1])
 		})
-	case "remove":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("remove expects function and one sequence")
-			}
-			return Remove(args[0], args[1])
-		})
 	case "reduce":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 2 && len(args) != 3 {
 				panic("reduce expects function and collection, or function, initial value, and collection")
 			}
 			return Reduce(args[0], args[1:]...)
-		})
-	case "identity":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("identity expects exactly one argument")
-			}
-			return args[0]
 		})
 	case "not-empty":
 		return NewFunction(func(args ...Value) Value {
@@ -313,13 +239,6 @@ func BuiltinFunction(name string) Value {
 			}
 			return Seq(args[0])
 		})
-	case "not-empty?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("not-empty? expects exactly one argument")
-			}
-			return NewBool(IsNotEmpty(args[0]))
-		})
 	case "empty?":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {
@@ -333,13 +252,6 @@ func BuiltinFunction(name string) Value {
 				panic("nil? expects exactly one argument")
 			}
 			return NewBool(IsNil(args[0]))
-		})
-	case "not":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("not expects exactly one argument")
-			}
-			return Not(args[0])
 		})
 	case "set":
 		return NewFunction(func(args ...Value) Value {
@@ -376,40 +288,12 @@ func BuiltinFunction(name string) Value {
 			}
 			return Some(args[0], args[1])
 		})
-	case "some?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("some? expects exactly one argument")
-			}
-			return SomePredicate(args[0])
-		})
 	case "seq?":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {
 				panic("seq? expects exactly one argument")
 			}
 			return SeqPredicate(args[0])
-		})
-	case "not-any?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("not-any? expects predicate and collection")
-			}
-			return NotAny(args[0], args[1])
-		})
-	case "every?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("every? expects predicate and collection")
-			}
-			return Every(args[0], args[1])
-		})
-	case "keep":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("keep expects function and collection")
-			}
-			return Keep(args[0], args[1])
 		})
 	case "doall":
 		return NewFunction(func(args ...Value) Value {
@@ -471,23 +355,9 @@ func BuiltinFunction(name string) Value {
 			}
 			return Keys(args[0])
 		})
-	case "get-in":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("get-in expects collection and path")
-			}
-			return GetIn(args[0], args[1])
-		})
 	case "hash-map":
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)
-		})
-	case "select-keys":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("select-keys expects map and key sequence")
-			}
-			return SelectKeys(args[0], args[1])
 		})
 	case "range":
 		return NewFunction(func(args ...Value) Value {
@@ -503,17 +373,6 @@ func BuiltinFunction(name string) Value {
 				panic("assoc expects collection and key/value pairs")
 			}
 			return Assoc(args[0], args[1:]...)
-		})
-	case "merge":
-		return NewFunction(func(args ...Value) Value {
-			return Merge(args...)
-		})
-	case "update":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 3 {
-				panic("update expects collection, key, function, and optional args")
-			}
-			return Update(args[0], args[1], args[2], args[3:]...)
 		})
 	case "dissoc":
 		return NewFunction(func(args ...Value) Value {

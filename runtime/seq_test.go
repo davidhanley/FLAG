@@ -58,28 +58,6 @@ func TestMapNoSequencesPanics(t *testing.T) {
 	})
 }
 
-func TestZipMapUsesShortestSequence(t *testing.T) {
-	mapped := ZipMap(
-		NewArray(NewKeyword("a"), NewKeyword("b"), NewKeyword("c")),
-		NewList(NewLong(10), NewLong(20)),
-	)
-	if mapped.tag != TagMap {
-		t.Fatalf("expected zipmap result map, got %v", mapped.tag)
-	}
-	if mapped.MapLen() != 2 {
-		t.Fatalf("expected map length 2, got %d", mapped.MapLen())
-	}
-	if got := Get(mapped, NewKeyword("a")); got.Long() != 10 {
-		t.Fatalf("expected :a -> 10, got %#v", got)
-	}
-	if got := Get(mapped, NewKeyword("b")); got.Long() != 20 {
-		t.Fatalf("expected :b -> 20, got %#v", got)
-	}
-	if got := Get(mapped, NewKeyword("c")); got.tag != TagNil {
-		t.Fatalf("expected missing :c, got %#v", got)
-	}
-}
-
 func TestLastAcrossSequenceTypes(t *testing.T) {
 	if got := Last(NewList()); got.tag != TagNil {
 		t.Fatalf("expected nil for empty list, got %#v", got)
@@ -108,18 +86,6 @@ func TestLastAcrossSequenceTypes(t *testing.T) {
 	}
 	if got := First(lazy); got.Long() != 1 {
 		t.Fatalf("expected lazy list to remain readable after last, got %#v", got)
-	}
-}
-
-func TestSecondAcrossSequenceTypes(t *testing.T) {
-	if got := Second(NewList(NewLong(1), NewLong(2), NewLong(3))); got.tag != TagLong || got.Long() != 2 {
-		t.Fatalf("expected second list element 2, got %#v", got)
-	}
-	if got := Second(NewArray(NewLong(4), NewLong(5), NewLong(6))); got.tag != TagLong || got.Long() != 5 {
-		t.Fatalf("expected second array element 5, got %#v", got)
-	}
-	if got := Second(NewList(NewLong(1))); got.tag != TagNil {
-		t.Fatalf("expected nil second on short list, got %#v", got)
 	}
 }
 
@@ -439,16 +405,6 @@ func TestDoAllRealizesLazyList(t *testing.T) {
 	}
 }
 
-func TestRemoveFiltersOutMatches(t *testing.T) {
-	keepEven := NewFunction(func(args ...Value) Value {
-		return NewBool(args[0].Long()%2 == 0)
-	})
-	removed := Remove(keepEven, NewArray(NewLong(1), NewLong(2), NewLong(3), NewLong(4)))
-	if removed.ArrayLen() != 2 || ArrayGet(removed, 0).Long() != 1 || ArrayGet(removed, 1).Long() != 3 {
-		t.Fatalf("unexpected remove result: %#v", removed.ArrayValues())
-	}
-}
-
 func TestSomeReturnsFirstTruthyResult(t *testing.T) {
 	fn := NewFunction(func(args ...Value) Value {
 		if args[0].Long() > 2 {
@@ -462,57 +418,6 @@ func TestSomeReturnsFirstTruthyResult(t *testing.T) {
 	}
 	if got := Some(fn, NilValue()); got.tag != TagNil {
 		t.Fatalf("expected nil for nil collection, got %#v", got)
-	}
-}
-
-func TestNotAnyReturnsBooleanNegationOfSome(t *testing.T) {
-	fn := NewFunction(func(args ...Value) Value {
-		if args[0].Long()%2 == 0 {
-			return NewBool(true)
-		}
-		return NilValue()
-	})
-
-	if got := NotAny(fn, NewArray(NewLong(1), NewLong(3), NewLong(5))); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected true when no item matches, got %#v", got)
-	}
-	if got := NotAny(fn, NewArray(NewLong(1), NewLong(2), NewLong(3))); got.tag != TagBool || got.Bool() {
-		t.Fatalf("expected false when some item matches, got %#v", got)
-	}
-	if got := NotAny(fn, NilValue()); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected true for nil collection, got %#v", got)
-	}
-}
-
-func TestEveryReturnsTrueOnlyWhenAllMatch(t *testing.T) {
-	fn := NewFunction(func(args ...Value) Value {
-		return NewBool(args[0].Long()%2 == 0)
-	})
-
-	if got := Every(fn, NewArray(NewLong(2), NewLong(4), NewLong(6))); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected true when all items match, got %#v", got)
-	}
-	if got := Every(fn, NewArray(NewLong(2), NewLong(3), NewLong(6))); got.tag != TagBool || got.Bool() {
-		t.Fatalf("expected false when an item fails, got %#v", got)
-	}
-	if got := Every(fn, NilValue()); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected true for nil collection, got %#v", got)
-	}
-}
-
-func TestKeepMapsAndDropsNilResults(t *testing.T) {
-	fn := NewFunction(func(args ...Value) Value {
-		if args[0].Long()%2 == 0 {
-			return args[0]
-		}
-		return NilValue()
-	})
-	kept := Keep(fn, NewArray(NewLong(1), NewLong(2), NewLong(3), NewLong(4)))
-	if kept.tag != TagArray {
-		t.Fatalf("expected array result from keep, got %v", kept.tag)
-	}
-	if got := ValueToString(kept); got != "[2 4]" {
-		t.Fatalf("unexpected keep result: %q", got)
 	}
 }
 
@@ -611,9 +516,6 @@ func TestEmptyPredicatesAcrossContainerTypes(t *testing.T) {
 	if !IsEmpty(NilValue()) {
 		t.Fatal("expected nil to be empty")
 	}
-	if IsNotEmpty(NilValue()) {
-		t.Fatal("expected nil to be not non-empty")
-	}
 	if !IsEmpty(NewArray()) || IsEmpty(NewArray(NewLong(1))) {
 		t.Fatal("unexpected empty? results for arrays")
 	}
@@ -628,9 +530,6 @@ func TestEmptyPredicatesAcrossContainerTypes(t *testing.T) {
 	}
 	if !IsEmpty(NewString("")) || IsEmpty(NewString("x")) {
 		t.Fatal("unexpected empty? results for strings")
-	}
-	if IsNotEmpty(NewString("")) || !IsNotEmpty(NewString("x")) {
-		t.Fatal("unexpected not-empty? results for strings")
 	}
 }
 
@@ -726,15 +625,6 @@ func TestMapConsumesLazyList(t *testing.T) {
 	}
 }
 
-func TestSomePredicateReturnsBool(t *testing.T) {
-	if got := SomePredicate(NewString("hit")); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected some? to return true, got %#v", got)
-	}
-	if got := SomePredicate(NilValue()); got.tag != TagBool || got.Bool() {
-		t.Fatalf("expected some? to return false, got %#v", got)
-	}
-}
-
 func TestConcatReturnsLazySequenceAcrossInputs(t *testing.T) {
 	joined := Concat(
 		NewArray(NewLong(1), NewLong(2)),
@@ -797,7 +687,8 @@ func TestVecRealizesCollectionsToArray(t *testing.T) {
 }
 
 func TestMapOverStringYieldsCharacterValues(t *testing.T) {
-	got := Map(BuiltinFunction("identity"), NewString("ab😀"))
+	identity := NewFunction(func(args ...Value) Value { return args[0] })
+	got := Map(identity, NewString("ab😀"))
 	if got.tag != TagArray || got.ArrayLen() != 3 {
 		t.Fatalf("unexpected map result for string: %#v", got)
 	}
@@ -806,48 +697,9 @@ func TestMapOverStringYieldsCharacterValues(t *testing.T) {
 	}
 }
 
-func TestNotNegatesTruthiness(t *testing.T) {
-	if got := Not(NewBool(true)); got.tag != TagBool || got.Bool() {
-		t.Fatalf("expected not true => false, got %#v", got)
-	}
-	if got := Not(NilValue()); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected not nil => true, got %#v", got)
-	}
-}
-
 func TestFormatFormatsValues(t *testing.T) {
 	if got := Format("%.2f", NewDouble(12.345)); got != "12.35" {
 		t.Fatalf("unexpected format result: %q", got)
-	}
-}
-
-func TestJuxtReturnsFunctionApplyingSameArgs(t *testing.T) {
-	addOne := NewFunction(func(args ...Value) Value {
-		return Add(args[0], NewLong(1))
-	})
-	double := NewFunction(func(args ...Value) Value {
-		return Mul(args[0], NewLong(2))
-	})
-	j := Juxt(addOne, double)
-	got := Call(j, NewLong(3))
-	if got.tag != TagArray {
-		t.Fatalf("expected array result from juxt, got %v", got.tag)
-	}
-	if got.ArrayLen() != 2 {
-		t.Fatalf("expected two juxt results, got %d", got.ArrayLen())
-	}
-	if ArrayGet(got, 0).Long() != 4 || ArrayGet(got, 1).Long() != 6 {
-		t.Fatalf("unexpected juxt values: %#v", got.ArrayValues())
-	}
-}
-
-func TestPartialReturnsFunctionWithBoundArgs(t *testing.T) {
-	add := NewFunction(func(args ...Value) Value {
-		return Add(args[0], args[1])
-	})
-	add10 := Partial(add, NewLong(10))
-	if got := Call(add10, NewLong(7)); got.tag != TagLong || got.Long() != 17 {
-		t.Fatalf("unexpected partial result: %#v", got)
 	}
 }
 
@@ -860,46 +712,14 @@ func TestApplySpreadsFinalSequence(t *testing.T) {
 	}
 }
 
-func TestMaxKeyAndValHelpers(t *testing.T) {
-	best := MaxKey(
-		NewKeyword("points"),
-		NewMap(NewKeyword("name"), NewString("A"), NewKeyword("points"), NewLong(7)),
-		NewMap(NewKeyword("name"), NewString("B"), NewKeyword("points"), NewLong(9)),
-		NewMap(NewKeyword("name"), NewString("C"), NewKeyword("points"), NewLong(8)),
-	)
-	if got := Get(best, NewKeyword("name")); got.tag != TagString || got.StringValue() != "B" {
-		t.Fatalf("unexpected max-key result: %#v", best)
-	}
-	if got := Val(NewArray(NewString("k"), NewLong(42))); got.tag != TagLong || got.Long() != 42 {
-		t.Fatalf("unexpected val result: %#v", got)
-	}
-}
-
-func TestGroupByBuildsMapOfBuckets(t *testing.T) {
-	isEven := NewFunction(func(args ...Value) Value {
-		return NewBool(Mod(args[0], NewLong(2)).Long() == 0)
-	})
-	grouped := GroupBy(isEven, NewArray(NewLong(1), NewLong(2), NewLong(3), NewLong(4)))
-	if grouped.tag != TagMap {
-		t.Fatalf("expected map result from group-by, got %v", grouped.tag)
-	}
-	evens := Get(grouped, NewBool(true))
-	odds := Get(grouped, NewBool(false))
-	if evens.tag != TagArray || odds.tag != TagArray {
-		t.Fatalf("expected array buckets, got evens=%v odds=%v", evens.tag, odds.tag)
-	}
-	if ValueToString(evens) != "[2 4]" || ValueToString(odds) != "[1 3]" {
-		t.Fatalf("unexpected buckets: evens=%s odds=%s", ValueToString(evens), ValueToString(odds))
-	}
-}
-
 func TestSortBySortsSequences(t *testing.T) {
-	asc := SortBy(BuiltinFunction("identity"), NewList(NewLong(3), NewLong(1), NewLong(2)))
+	identity := NewFunction(func(args ...Value) Value { return args[0] })
+	asc := SortBy(identity, NewList(NewLong(3), NewLong(1), NewLong(2)))
 	if got := ValueToString(asc); got != "[1 2 3]" {
 		t.Fatalf("unexpected ascending sort-by result: %q", got)
 	}
 
-	desc := SortBy(BuiltinFunction("identity"), BuiltinFunction(">"), NewArray(NewLong(3), NewLong(1), NewLong(2)))
+	desc := SortBy(identity, BuiltinFunction(">"), NewArray(NewLong(3), NewLong(1), NewLong(2)))
 	if got := ValueToString(desc); got != "[3 2 1]" {
 		t.Fatalf("unexpected descending sort-by result: %q", got)
 	}

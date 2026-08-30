@@ -184,8 +184,8 @@ func compiler__starts_triple_quote_q_arity_1(chars flagrt.Value) flagrt.Value {
 			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(chars))))) {
 				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(chars)))
 			}
-			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Second(chars))))) {
-				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Second(chars)))
+			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(flagrt.Rest(chars)))))) {
+				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(flagrt.Rest(chars))))
 			}
 			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(stdlib__third, chars)))
 		}()
@@ -205,7 +205,7 @@ func compiler__starts_dispatch_set_q_arity_1(chars flagrt.Value) flagrt.Value {
 			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.First(chars))))) {
 				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.First(chars)))
 			}
-			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("{"), flagrt.Second(chars)))
+			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("{"), flagrt.First(flagrt.Rest(chars))))
 		}()
 	}()
 }
@@ -223,7 +223,7 @@ func compiler__starts_dispatch_fn_q_arity_1(chars flagrt.Value) flagrt.Value {
 			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.First(chars))))) {
 				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.First(chars)))
 			}
-			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("("), flagrt.Second(chars)))
+			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("("), flagrt.First(flagrt.Rest(chars))))
 		}()
 	}()
 }

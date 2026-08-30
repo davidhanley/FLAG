@@ -98,5 +98,96 @@
        (fn [x]
          (f (g x))))]))
 
+(defmacro not [x]
+  (if x false true))
+
+(defn identity [x] x)
+
+(defn constantly [x]
+  (fn [& rest] (do rest x)))
+
+(defn second [coll]
+  (first (rest coll)))
+
+(defn val [entry]
+  (second entry))
+
+(defn some? [x]
+  (not (nil? x)))
+
+(defn not-empty? [coll]
+  (not (empty? coll)))
+
+(defn not-any? [pred coll]
+  (not (some pred coll)))
+
+(defn remove [pred coll]
+  (filter (fn [x] (not (pred x))) coll))
+
+(defn update [m k f & extra]
+  (assoc m k (apply f (get m k) extra)))
+
+(defn get-in [m ks]
+  (reduce get m ks))
+
+(defn juxt [& fns]
+  (fn [& xs]
+    (vec (map (fn [f] (apply f xs)) fns))))
+
+(defn partial [f & bound]
+  (fn [& more]
+    (apply f (concat bound more))))
+
+(defn keep [f coll]
+  (filter some? (map f coll)))
+
+(defn every? [pred coll]
+  (loop [xs coll]
+    (if (seq xs)
+      (if (pred (first xs))
+        (recur (rest xs))
+        false)
+      true)))
+
+(defn max-key [kfn x & more]
+  (reduce (fn [best cand]
+            (if (> (kfn cand) (kfn best))
+              cand
+              best))
+          x
+          more))
+
+(defn zipmap [ks vs]
+  (loop [ks ks vs vs out {}]
+    (if (and (seq ks) (seq vs))
+      (recur (rest ks) (rest vs) (assoc out (first ks) (first vs)))
+      out)))
+
+(defn group-by [f coll]
+  (reduce (fn [acc x]
+            (let [k (f x)]
+              (assoc acc k (conj (or (get acc k) []) x))))
+          {}
+          coll))
+
+(defn select-keys [m ks]
+  (reduce (fn [acc k]
+            (if (contains? m k)
+              (assoc acc k (get m k))
+              acc))
+          {}
+          ks))
+
+(defn merge [& maps]
+  (reduce (fn [out m]
+            (if (nil? m)
+              out
+              (reduce (fn [acc pair]
+                        (assoc acc (first pair) (val pair)))
+                      (if (nil? out) {} out)
+                      m)))
+          nil
+          maps))
+
 (defn mapcat [f & colls]
   (apply concat (apply map f colls)))

@@ -451,7 +451,15 @@ func loadStandardPrologue(ctx *compileContext) error {
 			}
 			ctx.macros[name] = def
 		case "defn":
-			def, err := compileDefn(list, *ctx)
+			expanded, err := macroExpand(form, *ctx, 0)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
+			defnForm, ok := expanded.(ListExpr)
+			if !ok {
+				return fmt.Errorf("compile compiler prologue: defn did not expand to a list")
+			}
+			def, err := compileDefn(defnForm, *ctx)
 			if err != nil {
 				return fmt.Errorf("compile compiler prologue: %w", err)
 			}
@@ -2447,11 +2455,11 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
-		"first", "fist", "second", "rest", "next", "last", "reverse", "cons", "take", "drop",
-		"map", "concat", "group-by", "sort-by", "juxt", "partial", "apply", "max-key", "val", "zipmap", "pmap", "filter", "reduce", "range", "get", "get-in", "keys", "hash-map", "select-keys",
-		"identity", "not-empty", "not-empty?", "empty?", "nil?", "not", "count", "double", "format", "keyword", "into",
-		"remove", "doall", "dorun", "line-seq", "some", "some?", "seq", "seq?", "not-any?", "every?", "keep", "set", "vec", "conj", "contains?",
-		"assoc", "merge", "update", "dissoc", "open-file", "file-to-strings", "rand-int", "constantly", "repeat",
+		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop",
+		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "hash-map",
+		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
+		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
+		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
 		"go-fn", "go-fn-args", "re-pattern", "re-matches":
 		return true
 	default:
@@ -2545,8 +2553,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return keywordExprToGo(list.Elements[1:], ctx, locals)
 		case "first", "fist":
 			return firstExprToGo(list.Elements[1:], ctx, locals)
-		case "second":
-			return secondExprToGo(list.Elements[1:], ctx, locals)
 		case "rest":
 			return restExprToGo(list.Elements[1:], ctx, locals)
 		case "next":
@@ -2565,14 +2571,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return notEmptyExprToGo(list.Elements[1:], ctx, locals)
 		case "seq":
 			return seqExprToGo(list.Elements[1:], ctx, locals)
-		case "not-empty?":
-			return notEmptyPredicateExprToGo(list.Elements[1:], ctx, locals)
 		case "empty?":
 			return emptyPredicateExprToGo(list.Elements[1:], ctx, locals)
 		case "nil?":
 			return nilPredicateExprToGo(list.Elements[1:], ctx, locals)
-		case "not":
-			return notExprToGo(list.Elements[1:], ctx, locals)
 		case "count":
 			return countExprToGo(list.Elements[1:], ctx, locals)
 		case "double":
@@ -2583,50 +2585,26 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return formatExprToGo(list.Elements[1:], ctx, locals)
 		case "hash-map":
 			return hashMapExprToGo(list.Elements[1:], ctx, locals)
-		case "select-keys":
-			return selectKeysExprToGo(list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "concat":
 			return concatCallExprToGo(list.Elements[1:], ctx, locals)
-		case "group-by":
-			return groupByCallExprToGo(list.Elements[1:], ctx, locals)
 		case "sort-by":
 			return sortByCallExprToGo(list.Elements[1:], ctx, locals)
-		case "juxt":
-			return juxtCallExprToGo(list.Elements[1:], ctx, locals)
-		case "partial":
-			return partialCallExprToGo(list.Elements[1:], ctx, locals)
 		case "apply":
 			return applyCallExprToGo(list.Elements[1:], ctx, locals)
-		case "max-key":
-			return maxKeyCallExprToGo(list.Elements[1:], ctx, locals)
-		case "val":
-			return valExprToGo(list.Elements[1:], ctx, locals)
-		case "zipmap":
-			return zipmapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "pmap":
 			return pmapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "filter":
 			return filterCallExprToGo(list.Elements[1:], ctx, locals)
 		case "reduce":
 			return reduceCallExprToGo(list.Elements[1:], ctx, locals)
-		case "remove":
-			return removeCallExprToGo(list.Elements[1:], ctx, locals)
 		case "doall":
 			return doallExprToGo(list.Elements[1:], ctx, locals)
 		case "some":
 			return someCallExprToGo(list.Elements[1:], ctx, locals)
-		case "some?":
-			return somePredicateCallExprToGo(list.Elements[1:], ctx, locals)
 		case "seq?":
 			return seqPredicateExprToGo(list.Elements[1:], ctx, locals)
-		case "not-any?":
-			return notAnyCallExprToGo(list.Elements[1:], ctx, locals)
-		case "every?":
-			return everyCallExprToGo(list.Elements[1:], ctx, locals)
-		case "keep":
-			return keepCallExprToGo(list.Elements[1:], ctx, locals)
 		case "set":
 			return setCallExprToGo(list.Elements[1:], ctx, locals)
 		case "vec":
@@ -2645,10 +2623,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return randIntExprToGo(list.Elements[1:], ctx, locals)
 		case "assoc":
 			return assocExprToGo(list.Elements[1:], ctx, locals)
-		case "merge":
-			return mergeExprToGo(list.Elements[1:], ctx, locals)
-		case "update":
-			return updateExprToGo(list.Elements[1:], ctx, locals)
 		case "dissoc":
 			return dissocExprToGo(list.Elements[1:], ctx, locals)
 		case "to-json":
@@ -4075,20 +4049,6 @@ func firstExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	return goExpr{code: fmt.Sprintf("%s.First(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
 }
 
-func secondExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 {
-		return goExpr{}, fmt.Errorf("second expects exactly one argument")
-	}
-	arg, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	if arg.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("second expects an argument that evaluates to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.Second(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
-}
-
 func restExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 1 {
 		return goExpr{}, fmt.Errorf("rest expects exactly one argument")
@@ -4354,24 +4314,6 @@ func concatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	return goExpr{code: fmt.Sprintf("%s.Concat(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
-func groupByCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("group-by expects function and one collection")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("group-by arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.GroupBy(%s, %s)", runtimeAlias, parts[0], parts[1]), kind: exprKindValue}, nil
-}
-
 func sortByCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 2 && len(args) != 3 {
 		return goExpr{}, fmt.Errorf("sort-by expects key function, optional comparator, and collection")
@@ -4393,42 +4335,6 @@ func sortByCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	return goExpr{code: fmt.Sprintf("%s.SortBy(%s, %s, %s)", runtimeAlias, parts[0], parts[1], parts[2]), kind: exprKindValue}, nil
 }
 
-func juxtCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 1 {
-		return goExpr{}, fmt.Errorf("juxt expects at least one function")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("juxt arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Juxt(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func partialCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 1 {
-		return goExpr{}, fmt.Errorf("partial expects function and optional bound arguments")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("partial arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Partial(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
 func applyCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) < 2 {
 		return goExpr{}, fmt.Errorf("apply expects function and at least one argument sequence")
@@ -4445,56 +4351,6 @@ func applyCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKi
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Apply(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func maxKeyCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 2 {
-		return goExpr{}, fmt.Errorf("max-key expects key function and at least one value")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("max-key arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.MaxKey(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func valExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 {
-		return goExpr{}, fmt.Errorf("val expects exactly one argument")
-	}
-	arg, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	if arg.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("val argument must evaluate to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.Val(%s)", runtimeAlias, arg.code), kind: exprKindValue}, nil
-}
-
-func zipmapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("zipmap expects exactly two sequence arguments")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("zipmap arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.ZipMap(%s, %s)", runtimeAlias, parts[0], parts[1]), kind: exprKindValue}, nil
 }
 
 func pmapCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4535,25 +4391,6 @@ func filterCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	return goExpr{code: fmt.Sprintf("%s.Filter(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
-func removeCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("remove expects function and one sequence")
-	}
-
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("remove arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Remove(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
 func doallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 1 {
 		return goExpr{}, fmt.Errorf("doall expects exactly one argument")
@@ -4584,74 +4421,6 @@ func someCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKin
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.Some(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func somePredicateCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 {
-		return goExpr{}, fmt.Errorf("some? expects exactly one argument")
-	}
-	part, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	if part.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("some? argument must evaluate to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.SomePredicate(%s)", runtimeAlias, part.code), kind: exprKindValue}, nil
-}
-
-func notAnyCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("not-any? expects predicate and collection")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("not-any? arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.NotAny(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func everyCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("every? expects predicate and collection")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("every? arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Every(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func keepCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("keep expects function and collection")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("keep arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Keep(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func setCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4744,21 +4513,6 @@ func collectionArgToValueCode(arg goExpr) (string, error) {
 	}
 }
 
-func notEmptyPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 {
-		return goExpr{}, fmt.Errorf("not-empty? expects exactly one argument")
-	}
-	arg, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	argCode, err := collectionArgToValueCode(arg)
-	if err != nil {
-		return goExpr{}, fmt.Errorf("not-empty? expects an argument that evaluates to Value")
-	}
-	return goExpr{code: fmt.Sprintf("%s.NewBool(%s.IsNotEmpty(%s))", runtimeAlias, runtimeAlias, argCode), kind: exprKindValue}, nil
-}
-
 func emptyPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 1 {
 		return goExpr{}, fmt.Errorf("empty? expects exactly one argument")
@@ -4787,21 +4541,6 @@ func nilPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]exp
 		return goExpr{}, fmt.Errorf("nil? expects an argument that evaluates to Value")
 	}
 	return goExpr{code: fmt.Sprintf("%s.NewBool(%s.IsNil(%s))", runtimeAlias, runtimeAlias, argCode), kind: exprKindValue}, nil
-}
-
-func notExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 1 {
-		return goExpr{}, fmt.Errorf("not expects exactly one argument")
-	}
-	arg, err := exprToGo(args[0], ctx, locals)
-	if err != nil {
-		return goExpr{}, err
-	}
-	argCode, err := coerceExprToValue(arg, args[0], "not", ctx)
-	if err != nil {
-		return goExpr{}, err
-	}
-	return goExpr{code: fmt.Sprintf("%s.NewBool(!%s.IsTruthy(%s))", runtimeAlias, runtimeAlias, argCode.code), kind: exprKindValue}, nil
 }
 
 func countExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5492,57 +5231,6 @@ func assocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s.MapAssoc(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func mergeExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("merge arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Merge(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
-}
-
-func selectKeysExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("select-keys expects map and key sequence")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("select-keys arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.SelectKeys(%s, %s)", runtimeAlias, parts[0], parts[1]), kind: exprKindValue}, nil
-}
-
-func updateExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 3 {
-		return goExpr{}, fmt.Errorf("update expects collection, key, function, and optional args")
-	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		part, err := exprToGo(arg, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("update arguments must evaluate to Value")
-		}
-		parts = append(parts, part.code)
-	}
-	return goExpr{code: fmt.Sprintf("%s.Update(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func dissocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

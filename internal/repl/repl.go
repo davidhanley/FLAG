@@ -30,8 +30,8 @@ func Run(input io.Reader, output io.Writer) error {
 	lineCompiler := compiler.NewReplCompiler()
 	scanner := bufio.NewScanner(input)
 	counter := 0
-	if !executeCompiled(i, output, lineCompiler.PrologueSetup(), &counter) {
-		return fmt.Errorf("load compiler prologue")
+	if err := evalCompiled(i, output, lineCompiler.PrologueSetup(), &counter); err != nil {
+		return fmt.Errorf("load compiler prologue: %w", err)
 	}
 	var bufferedSource strings.Builder
 	for {
@@ -86,7 +86,8 @@ func Run(input io.Reader, output io.Writer) error {
 		if compiled.Setup == "" && compiled.ResultExpr == "" {
 			continue
 		}
-		if !executeCompiled(i, output, compiled, &counter) {
+		if err := evalCompiled(i, output, compiled, &counter); err != nil {
+			fmt.Fprintf(output, "error: %v\n", err)
 			continue
 		}
 	}
@@ -131,14 +132,15 @@ func runCommand(lineCompiler *compiler.ReplCompiler, i *interp.Interpreter, outp
 
 func executeCompiledBatch(i *interp.Interpreter, output io.Writer, compiled []compiler.ReplCompiled, counter *int) bool {
 	for _, step := range compiled {
-		if !executeCompiled(i, output, step, counter) {
+		if err := evalCompiled(i, output, step, counter); err != nil {
+			fmt.Fprintf(output, "error: %v\n", err)
 			return false
 		}
 	}
 	return true
 }
 
-func executeCompiled(i *interp.Interpreter, output io.Writer, compiled compiler.ReplCompiled, counter *int) bool {
+func evalCompiled(i *interp.Interpreter, output io.Writer, compiled compiler.ReplCompiled, counter *int) error {
 	if compiled.Setup != "" {
 		setupParts := strings.Split(compiled.Setup, ";;")
 		for _, setupPart := range setupParts {
@@ -147,29 +149,26 @@ func executeCompiled(i *interp.Interpreter, output io.Writer, compiled compiler.
 				continue
 			}
 			if _, err := i.Eval(setupPart); err != nil {
-				fmt.Fprintf(output, "error: %v\n", err)
-				return false
+				return err
 			}
 		}
 	}
 	if compiled.ResultExpr == "" {
-		return true
+		return nil
 	}
 
 	fnName := fmt.Sprintf("__flagEval%d", *counter)
 	*counter = *counter + 1
 	if _, err := i.Eval(fmt.Sprintf("func %s() any { return %s }", fnName, compiled.ResultExpr)); err != nil {
-		fmt.Fprintf(output, "error: %v\n", err)
-		return false
+		return err
 	}
 
 	result, err := i.Eval(fnName + "()")
 	if err != nil {
-		fmt.Fprintf(output, "error: %v\n", err)
-		return false
+		return err
 	}
 	fmt.Fprintln(output, flagrt.Str(result.Interface()))
-	return true
+	return nil
 }
 
 func parseLoadPath(raw string) (string, error) {
@@ -278,6 +277,34 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"ArrayAssoc":                  reflect.ValueOf(flagrt.ArrayAssoc),
 			"ArrayAppend":                 reflect.ValueOf(flagrt.ArrayAppend),
 			"ArrayRest":                   reflect.ValueOf(flagrt.ArrayRest),
+			"Vec":                         reflect.ValueOf(flagrt.Vec),
+			"Seq":                         reflect.ValueOf(flagrt.Seq),
+			"SeqPredicate":                reflect.ValueOf(flagrt.SeqPredicate),
+			"IsEmpty":                     reflect.ValueOf(flagrt.IsEmpty),
+			"IsNil":                       reflect.ValueOf(flagrt.IsNil),
+			"Some":                        reflect.ValueOf(flagrt.Some),
+			"Conj":                        reflect.ValueOf(flagrt.Conj),
+			"Contains":                    reflect.ValueOf(flagrt.Contains),
+			"Count":                       reflect.ValueOf(flagrt.Count),
+			"NotEmpty":                    reflect.ValueOf(flagrt.NotEmpty),
+			"Into":                        reflect.ValueOf(flagrt.Into),
+			"Keys":                        reflect.ValueOf(flagrt.Keys),
+			"Keyword":                     reflect.ValueOf(flagrt.Keyword),
+			"Set":                         reflect.ValueOf(flagrt.Set),
+			"SortBy":                      reflect.ValueOf(flagrt.SortBy),
+			"Next":                        reflect.ValueOf(flagrt.Next),
+			"Last":                        reflect.ValueOf(flagrt.Last),
+			"Reverse":                     reflect.ValueOf(flagrt.Reverse),
+			"Cons":                        reflect.ValueOf(flagrt.Cons),
+			"DoAll":                       reflect.ValueOf(flagrt.DoAll),
+			"DoRun":                       reflect.ValueOf(flagrt.DoRun),
+			"Repeat":                      reflect.ValueOf(flagrt.Repeat),
+			"Max":                         reflect.ValueOf(flagrt.Max),
+			"Min":                         reflect.ValueOf(flagrt.Min),
+			"Double":                      reflect.ValueOf(flagrt.Double),
+			"Format":                      reflect.ValueOf(flagrt.Format),
+			"NewRecur":                    reflect.ValueOf(flagrt.NewRecur),
+			"UnwrapRecur":                 reflect.ValueOf(flagrt.UnwrapRecur),
 			"GoBind_async_GoRun":          reflect.ValueOf(flagrt.GoBind_async_GoRun),
 			"GoBind_async_FutureRun":      reflect.ValueOf(flagrt.GoBind_async_FutureRun),
 			"GoBind_async_FuturePipeRun":  reflect.ValueOf(flagrt.GoBind_async_FuturePipeRun),

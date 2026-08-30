@@ -57,30 +57,6 @@ func Map(fn Value, seqs ...Value) Value {
 	}
 }
 
-func Juxt(fns ...Value) Value {
-	if len(fns) == 0 {
-		panic("juxt expects at least one function")
-	}
-	return NewFunction(func(args ...Value) Value {
-		out := make([]Value, len(fns))
-		for i, fn := range fns {
-			out[i] = Call(fn, args...)
-		}
-		return NewArray(out...)
-	})
-}
-
-func Partial(fn Value, boundArgs ...Value) Value {
-	prefix := make([]Value, len(boundArgs))
-	copy(prefix, boundArgs)
-	return NewFunction(func(args ...Value) Value {
-		callArgs := make([]Value, 0, len(prefix)+len(args))
-		callArgs = append(callArgs, prefix...)
-		callArgs = append(callArgs, args...)
-		return Call(fn, callArgs...)
-	})
-}
-
 func Apply(fn Value, args ...Value) Value {
 	if len(args) == 0 {
 		panic("apply expects function and sequence arguments")
@@ -168,53 +144,6 @@ func MapCat(fn Value, seq Value) Value {
 		},
 	}
 	return newLazyListValue(state, -1, 0)
-}
-
-func MaxKey(keyFn Value, values ...Value) Value {
-	if len(values) == 0 {
-		panic("max-key expects key function and at least one value")
-	}
-	best := values[0]
-	bestKey := Call(keyFn, best)
-	for _, candidate := range values[1:] {
-		candidateKey := Call(keyFn, candidate)
-		if maxKeyTakeCandidate(bestKey, candidateKey) {
-			best = candidate
-			bestKey = candidateKey
-		}
-	}
-	return best
-}
-
-func maxKeyTakeCandidate(currentKey, candidateKey Value) bool {
-	if currentKey.tag == TagNil {
-		return true
-	}
-	if candidateKey.tag == TagNil {
-		return false
-	}
-	if Gt(currentKey, candidateKey) {
-		return false
-	}
-	return true
-}
-
-func Val(entry Value) Value {
-	switch entry.tag {
-	case TagList, TagArray, TagLazyList:
-		// valid map-entry-like sequence input
-	default:
-		panic("val expects map-entry sequence Value")
-	}
-	cursor := newSeqCursor(entry)
-	if _, ok := cursor.nextOrDone(); !ok {
-		return NilValue()
-	}
-	value, ok := cursor.nextOrDone()
-	if !ok {
-		return NilValue()
-	}
-	return value
 }
 
 func lazyMap(fn Value, seqs ...Value) Value {
@@ -371,35 +300,6 @@ func Filter(fn Value, seq Value) Value {
 	return NewArray(filtered...)
 }
 
-func Remove(fn Value, seq Value) Value {
-	negate := NewFunction(func(args ...Value) Value {
-		if IsTruthy(Call(fn, args...)) {
-			return NilValue()
-		}
-		return NewBool(true)
-	})
-	return Filter(negate, seq)
-}
-
-func Keep(fn Value, seq Value) Value {
-	cursor := newSeqCursor(seq)
-	results := make([]Value, 0)
-	if remaining, ok := cursor.remainingKnown(); ok && remaining > 0 {
-		results = make([]Value, 0, remaining)
-	}
-	for {
-		item, ok := cursor.nextOrDone()
-		if !ok {
-			break
-		}
-		mapped := Call(fn, item)
-		if mapped.tag != TagNil {
-			results = append(results, mapped)
-		}
-	}
-	return NewArray(results...)
-}
-
 func Some(fn Value, seq Value) Value {
 	if seq.tag == TagNil {
 		return NilValue()
@@ -413,27 +313,6 @@ func Some(fn Value, seq Value) Value {
 		result := Call(fn, item)
 		if IsTruthy(result) {
 			return result
-		}
-	}
-}
-
-func SomePredicate(v Value) Value {
-	return NewBool(!IsNil(v))
-}
-
-func NotAny(fn Value, seq Value) Value {
-	return NewBool(!IsTruthy(Some(fn, seq)))
-}
-
-func Every(fn Value, seq Value) Value {
-	cursor := newSeqCursor(seq)
-	for {
-		item, ok := cursor.nextOrDone()
-		if !ok {
-			return NewBool(true)
-		}
-		if !IsTruthy(Call(fn, item)) {
-			return NewBool(false)
 		}
 	}
 }
@@ -514,16 +393,8 @@ func IsEmpty(coll Value) bool {
 	}
 }
 
-func IsNotEmpty(coll Value) bool {
-	return !IsEmpty(coll)
-}
-
 func IsNil(v Value) bool {
 	return v.tag == TagNil
-}
-
-func Not(v Value) Value {
-	return NewBool(!IsTruthy(v))
 }
 
 func Set(coll Value) Value {
@@ -556,28 +427,6 @@ func Vec(coll Value) Value {
 		items = append(items, next)
 	}
 	return NewArray(items...)
-}
-
-func GroupBy(fn Value, coll Value) Value {
-	cursor := newSeqCursor(coll)
-	grouped := NewMap()
-	for {
-		item, ok := cursor.nextOrDone()
-		if !ok {
-			break
-		}
-		key := Call(fn, item)
-		existing := Get(grouped, key)
-		if existing.tag == TagNil {
-			grouped = MapAssoc(grouped, key, NewArray(item))
-			continue
-		}
-		if existing.tag != TagArray {
-			panic("group-by internal error: expected array bucket")
-		}
-		grouped = MapAssoc(grouped, key, ArrayAppend(existing, item))
-	}
-	return grouped
 }
 
 func SortBy(keyFn Value, args ...Value) Value {
@@ -713,36 +562,6 @@ func conjMapEntry(entry Value) (Value, Value) {
 		panic("conj map entry sequence must contain exactly two items")
 	}
 	return key, value
-}
-
-func ZipMap(keys Value, vals Value) Value {
-	keyCursor := newSeqCursor(keys)
-	valCursor := newSeqCursor(vals)
-	entries := make([]Value, 0)
-	if keyRemaining, keyKnown := keyCursor.remainingKnown(); keyKnown {
-		if valRemaining, valKnown := valCursor.remainingKnown(); valKnown {
-			capacity := keyRemaining
-			if valRemaining < capacity {
-				capacity = valRemaining
-			}
-			if capacity > 0 {
-				entries = make([]Value, 0, capacity*2)
-			}
-		}
-	}
-
-	for {
-		key, ok := keyCursor.nextOrDone()
-		if !ok {
-			break
-		}
-		val, ok := valCursor.nextOrDone()
-		if !ok {
-			break
-		}
-		entries = append(entries, key, val)
-	}
-	return NewMap(entries...)
 }
 
 func Count(coll Value) int {
@@ -927,10 +746,6 @@ func First(coll Value) Value {
 	default:
 		panic("first expects nil, list, array, lazy-list, or string Value")
 	}
-}
-
-func Second(coll Value) Value {
-	return First(Rest(coll))
 }
 
 func SeqPredicate(coll Value) Value {
