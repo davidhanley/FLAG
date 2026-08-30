@@ -153,13 +153,13 @@ func parseRecordField(expr Expr) (recordField, error) {
 func unboxRecordField(expr, goType string) string {
 	switch goType {
 	case "string":
-		return expr + ".StringValue()"
+		return runtimeAlias + ".RequireString(" + expr + ")"
 	case "int64":
-		return expr + ".Long()"
+		return runtimeAlias + ".RequireLong(" + expr + ")"
 	case "float64":
-		return expr + ".Double()"
+		return runtimeAlias + ".RequireDouble(" + expr + ")"
 	case "bool":
-		return expr + ".Bool()"
+		return runtimeAlias + ".RequireBool(" + expr + ")"
 	default:
 		return expr
 	}

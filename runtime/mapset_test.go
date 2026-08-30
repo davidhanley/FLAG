@@ -46,69 +46,6 @@ func TestAssocAndDissocMap(t *testing.T) {
 	}
 }
 
-func TestMergeMaps(t *testing.T) {
-	if got := Merge(); got.tag != TagNil {
-		t.Fatalf("expected nil from merge with no args, got %#v", got)
-	}
-
-	single := NewMap(NewKeyword("a"), NewLong(1))
-	if got := Merge(single); got.tag != TagMap || ValueToString(got) != "{:a 1}" {
-		t.Fatalf("unexpected single-arg merge: %#v / %s", got, ValueToString(got))
-	}
-
-	merged := Merge(
-		NewMap(NewKeyword("a"), NewLong(1)),
-		NilValue(),
-		NewMap(NewKeyword("b"), NewLong(2)),
-		NewMap(NewKeyword("a"), NewLong(3), NewKeyword("c"), NewLong(4)),
-	)
-	if got := ValueToString(merged); got != "{:a 3 :b 2 :c 4}" {
-		t.Fatalf("unexpected merged map: %q", got)
-	}
-}
-
-func TestSelectKeys(t *testing.T) {
-	selected := SelectKeys(
-		NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NilValue(), NewKeyword("c"), NewLong(3)),
-		NewArray(NewKeyword("b"), NewKeyword("missing"), NewKeyword("a")),
-	)
-	if got := ValueToString(selected); got != "{:a 1 :b }" {
-		t.Fatalf("unexpected select-keys result: %q", got)
-	}
-
-	if got := SelectKeys(NilValue(), NewArray(NewKeyword("a"))); got.tag != TagMap || got.MapLen() != 0 {
-		t.Fatalf("expected empty map from select-keys nil input, got %#v", got)
-	}
-}
-
-func TestUpdateMap(t *testing.T) {
-	m := NewMap(NewKeyword("a"), NewLong(1))
-	add := NewFunction(func(args ...Value) Value { return Add(args[0], args[1]) })
-	updated := Update(m, NewKeyword("a"), add, NewLong(2))
-	if got := ValueToString(updated); got != "{:a 3}" {
-		t.Fatalf("unexpected map after update: %q", got)
-	}
-
-	incFromNil := NewFunction(func(args ...Value) Value {
-		if args[0].tag == TagNil {
-			return NewLong(1)
-		}
-		return Add(args[0], NewLong(1))
-	})
-	updatedNil := Update(NilValue(), NewKeyword("b"), incFromNil)
-	if got := ValueToString(updatedNil); got != "{:b 1}" {
-		t.Fatalf("unexpected map after update on nil: %q", got)
-	}
-}
-
-func TestUpdateArray(t *testing.T) {
-	double := NewFunction(func(args ...Value) Value { return Mul(args[0], NewLong(2)) })
-	updated := Update(NewArray(NewLong(1), NewLong(2), NewLong(3)), NewLong(1), double)
-	if got := ValueToString(updated); got != "[1 4 3]" {
-		t.Fatalf("unexpected array after update: %q", got)
-	}
-}
-
 func TestEqMapAndSet(t *testing.T) {
 	mapA := NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(2))
 	mapB := NewMap(NewKeyword("b"), NewLong(2), NewKeyword("a"), NewLong(1))

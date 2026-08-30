@@ -172,11 +172,73 @@
     (is (= "HI" (str/upper-case "hi")))
     (is (= {:a 1} (from-json "{\"a\":1}")))))
 
+(deftest prelude-combinators
+  (testing "identity and constantly"
+    (is (= 7 (identity 7)))
+    (is (= nil (identity nil)))
+    (is (= 7 ((constantly 7))))
+    (is (= 7 ((constantly 7) 1 2 3)))
+    (is (= [1 2 3] (vec (map identity [1 2 3])))))
+  (testing "second val some? not-empty? not"
+    (is (= 2 (second [1 2 3])))
+    (is (= nil (second [1])))
+    (is (= 2 (val [:k 2])))
+    (is (some? 0))
+    (is (some? false))
+    (is (= false (some? nil)))
+    (is (not-empty? [1]))
+    (is (= false (not-empty? [])))
+    (is (= true (not false)))
+    (is (= true (not nil)))
+    (is (= false (not 1))))
+  (testing "remove not-any? every? keep"
+    (is (= [1 3] (vec (remove (fn [x] (= 0 (% x 2))) [1 2 3 4]))))
+    (is (not-any? (fn [x] (> x 10)) [1 2 3]))
+    (is (= false (not-any? (fn [x] (> x 2)) [1 2 3])))
+    (is (every? (fn [x] (> x 0)) [1 2 3]))
+    (is (every? (fn [x] (> x 0)) []))
+    (is (= false (every? (fn [x] (> x 0)) [1 0 3])))
+    (is (= [3 4] (vec (keep (fn [x] (when (> x 2) x)) [1 2 3 4]))))
+    (is (= [false 2] (vec (keep (fn [x] (if (= x 1) false x)) [1 2])))))
+  (testing "update get-in select-keys merge zipmap group-by max-key"
+    (is (= {:a 3} (update {:a 1} :a + 2)))
+    (is (= {:b 1} (update {} :b (fn [x] (if (nil? x) 1 x)))))
+    (is (= 1 (get-in {:a {:b 1}} [:a :b])))
+    (is (= {:a 1} (get-in {:a 1} [])))
+    (is (= nil (get-in {:a 1} [:missing :x])))
+    (is (= {:a 1} (select-keys {:a 1 :b 2} [:a])))
+    (is (= {} (select-keys {:a 1} [:z])))
+    (is (= {:a 1 :c 3} (merge {:a 1} nil {:c 3})))
+    (is (= nil (merge)))
+    (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))
+    (is (= {:a 1} (zipmap [:a :b] [1])))
+    (is (= {1 [1] 2 [2 2]} (group-by identity [1 2 2])))
+    (is (= {:n 9} (max-key :n {:n 1} {:n 9})))
+    (is (= {:n 1} (max-key :n {:n 1}))))
+  (testing "juxt partial"
+    (is (= [1 2] (vec ((juxt first second) [1 2 3]))))
+    (is (= [6] (vec ((juxt +) 1 2 3))))
+    (is (= [2 3] (vec ((partial map add1) [1 2]))))
+    (is (= 6 ((partial + 1 2) 3)))))
+
+(deftest expect-exception-form
+  (testing "throw is caught and message is matched"
+    (expect-exception (throw "nope") "nope")
+    (expect-exception (throw "nope"))))
+
 (deftest records
   (testing "defrecord constructor and keyword lookup"
     (let [f (->food 10 200)]
       (is (= 10 (:weight f)))
-      (is (= 200 (:calories f))))))
+      (is (= 200 (:calories f)))))
+  (testing "typed fields round-trip"
+    (let [m (->nutrients 1 2 3)]
+      (is (= 1 (:c m)))
+      (is (= 2 (:p m)))
+      (is (= 3 (:f m)))))
+  (testing "typed constructor rejects a string for ^int"
+    (expect-exception (->nutrients 1 2 "") "expected integer")
+    (expect-exception (map->nutrients {:c 1 :p 2 :f ""}) "expected integer")))
 
 (deftest threading-hygiene
   (testing "rest stays the function when ->> threads mapcat then map"
