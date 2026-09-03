@@ -739,10 +739,11 @@ func NewReplCompiler() *ReplCompiler {
 func (r *ReplCompiler) PrologueSetup() ReplCompiled {
 	parts := make([]string, 0, len(r.ctx.prologueFns)*4)
 	for _, def := range r.ctx.prologueFns {
+		// Emit full function declarations (arity + variadic wrappers) so
+		// self-recursive prologue fns can resolve their direct arity symbol.
 		parts = append(parts,
-			fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+			strings.TrimSpace(renderFunctionDef(def)),
 			fmt.Sprintf("var %s flagrt.Value", def.goName),
-			fmt.Sprintf("%s = %s", def.variadicName, renderFunctionLiteral(def)),
 			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
 		)
 	}

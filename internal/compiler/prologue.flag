@@ -130,6 +130,30 @@
 (defn get-in [m ks]
   (reduce get m ks))
 
+(defn assoc-in [m ks v]
+  (if (seq ks)
+    (let [k (first ks)
+          rest-ks (rest ks)
+          base (if (nil? m) {} m)]
+      (if (seq rest-ks)
+        (assoc base k (assoc-in (get base k) rest-ks v))
+        (assoc base k v)))
+    m))
+
+(defn dissoc-in [m ks]
+  (if (nil? m)
+    nil
+    (if (seq ks)
+      (let [k (first ks)
+            rest-ks (rest ks)]
+        (if (seq rest-ks)
+          (let [next (dissoc-in (get m k) rest-ks)]
+            (if (or (nil? next) (empty? next))
+              (dissoc m k)
+              (assoc m k next)))
+          (dissoc m k)))
+      m)))
+
 (defn juxt [& fns]
   (fn [& xs]
     (vec (map (fn [f] (apply f xs)) fns))))
