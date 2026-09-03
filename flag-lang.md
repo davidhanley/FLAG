@@ -190,6 +190,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `rest`
 - `take`
 - `drop` (usage: `(drop n coll)`)
+- `nth` (fast random-access; arrays/strings)
+- `slow-nth` (sequential traversal; use for lists/lazy seqs)
 - `map`
 - `pmap` (parallel map; worker count = `NumCPU()*2`, capped by item count)
 - `filter`

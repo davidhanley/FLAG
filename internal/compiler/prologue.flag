@@ -109,6 +109,30 @@
 (defn second [coll]
   (first (rest coll)))
 
+(defn third [coll]
+  (slow-nth coll 2))
+
+(defn fourth [coll]
+  (slow-nth coll 3))
+
+(defn fifth [coll]
+  (slow-nth coll 4))
+
+(defn sixth [coll]
+  (slow-nth coll 5))
+
+(defn seventh [coll]
+  (slow-nth coll 6))
+
+(defn eighth [coll]
+  (slow-nth coll 7))
+
+(defn ninth [coll]
+  (slow-nth coll 8))
+
+(defn tenth [coll]
+  (slow-nth coll 9))
+
 (defn val [entry]
   (second entry))
 

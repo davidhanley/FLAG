@@ -172,6 +172,26 @@ func BuiltinFunction(name string) Value {
 			}
 			return Drop(args[0], args[1])
 		})
+	case "nth":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 && len(args) != 3 {
+				panic("nth expects collection, index, and optional default")
+			}
+			if len(args) == 2 {
+				return Nth(args[0], args[1])
+			}
+			return Nth(args[0], args[1], args[2])
+		})
+	case "slow-nth":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 && len(args) != 3 {
+				panic("slow-nth expects collection, index, and optional default")
+			}
+			if len(args) == 2 {
+				return SlowNth(args[0], args[1])
+			}
+			return SlowNth(args[0], args[1], args[2])
+		})
 	case "map":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) < 2 {

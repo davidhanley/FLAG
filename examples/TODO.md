@@ -13,7 +13,7 @@
 
 ## Sequence + collection APIs
 
-- [ ] Add **`nth`** (`not-found` arity included).
+- [x] Add **`nth`** (`not-found` arity included).
 - [ ] Add **`peek` / `pop`** semantics by collection type.
 - [ ] Add **`interpose`**.
 - [ ] Add **`interleave`**.

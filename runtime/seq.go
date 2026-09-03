@@ -716,6 +716,86 @@ func Drop(n Value, coll Value) Value {
 	}
 }
 
+func Nth(coll Value, index Value, notFound ...Value) Value {
+	if len(notFound) > 1 {
+		panic("nth expects collection, index, and optional default")
+	}
+	i := nonNegativeCount("nth", index)
+	missing, hasMissing := nthMissing(notFound)
+
+	switch coll.tag {
+	case TagArray:
+		if i >= coll.ArrayLen() {
+			if hasMissing {
+				return missing
+			}
+			panic("nth index out of range")
+		}
+		return ArrayGet(coll, i)
+	case TagString:
+		cursor := newSeqCursor(coll)
+		for pos := 0; pos <= i; pos++ {
+			next, ok := cursor.nextOrDone()
+			if !ok {
+				if hasMissing {
+					return missing
+				}
+				panic("nth index out of range")
+			}
+			if pos == i {
+				return next
+			}
+		}
+		panic("unreachable")
+	case TagNil:
+		if hasMissing {
+			return missing
+		}
+		panic("nth index out of range")
+	case TagList, TagLazyList:
+		panic("nth does not support list or lazy-list; use slow-nth")
+	default:
+		panic("nth expects array, string, or nil Value")
+	}
+}
+
+func SlowNth(coll Value, index Value, notFound ...Value) Value {
+	if len(notFound) > 1 {
+		panic("slow-nth expects collection, index, and optional default")
+	}
+	i := nonNegativeCount("slow-nth", index)
+	missing, hasMissing := nthMissing(notFound)
+
+	switch coll.tag {
+	case TagNil, TagList, TagArray, TagLazyList, TagString:
+		// supported sequential values
+	default:
+		panic("slow-nth expects list, array, lazy-list, string, or nil Value")
+	}
+
+	cursor := newSeqCursor(coll)
+	for pos := 0; pos <= i; pos++ {
+		next, ok := cursor.nextOrDone()
+		if !ok {
+			if hasMissing {
+				return missing
+			}
+			panic("slow-nth index out of range")
+		}
+		if pos == i {
+			return next
+		}
+	}
+	panic("unreachable")
+}
+
+func nthMissing(notFound []Value) (Value, bool) {
+	if len(notFound) == 0 {
+		return Value{}, false
+	}
+	return notFound[0], true
+}
+
 func First(coll Value) Value {
 	switch coll.tag {
 	case TagNil:

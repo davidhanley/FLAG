@@ -74,7 +74,13 @@
     (is (empty? []))
     (is (nil? nil))
     (is (= false (nil? "x")))
-    (is (= 3 (count [1 2 3])))))
+    (is (= 3 (count [1 2 3])))
+    (is (= 20 (nth [10 20 30] 1)))
+    (is (= "😀" (nth "a😀" 1)))
+    (is (= :missing (nth [1] 8 :missing)))
+    (expect-exception (nth '(1 2 3) 1) "use slow-nth")
+    (is (= 2 (slow-nth '(1 2 3) 1)))
+    (is (= :missing (slow-nth '(1) 8 :missing)))))
 
 (deftest seq-functions
   (testing "map filter reduce range and friends"
@@ -198,9 +204,13 @@
     (is (= 7 ((constantly 7))))
     (is (= 7 ((constantly 7) 1 2 3)))
     (is (= [1 2 3] (vec (map identity [1 2 3])))))
-  (testing "second val some? not-empty? not"
+  (testing "second..tenth val some? not-empty? not"
     (is (= 2 (second [1 2 3])))
     (is (= nil (second [1])))
+    (is (= 3 (third [1 2 3])))
+    (is (= 4 (fourth [1 2 3 4])))
+    (is (= 10 (tenth [1 2 3 4 5 6 7 8 9 10])))
+    (is (= 10 (tenth '(1 2 3 4 5 6 7 8 9 10))))
     (is (= 2 (val [:k 2])))
     (is (some? 0))
     (is (some? false))
