@@ -362,6 +362,13 @@ func BuiltinFunction(name string) Value {
 			}
 			return Vals(args[0])
 		})
+	case "find":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("find expects map and key")
+			}
+			return Find(args[0], args[1])
+		})
 	case "hash-map":
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)

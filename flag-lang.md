@@ -203,6 +203,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `dissoc`
 - `keys`
 - `vals`
+- `find`
 
 ### Symbols/strings/printing
 

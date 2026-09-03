@@ -73,6 +73,33 @@ func Vals(coll Value) Value {
 	}
 }
 
+func Find(coll Value, key Value) Value {
+	switch coll.tag {
+	case TagNil:
+		return NilValue()
+	case TagMap:
+		value, ok := coll.mapPointer().items.Get(key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	case TagDate:
+		value, ok := dateFieldValue(coll, key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	case TagRecord:
+		value, ok := recordFieldValue(coll, key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	default:
+		panic("find expects map Value")
+	}
+}
+
 func MapAssoc(coll Value, entries ...Value) Value {
 	if len(entries) < 2 || len(entries)%2 != 0 {
 		panic("assoc expects collection and key/value pairs")

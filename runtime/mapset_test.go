@@ -122,3 +122,16 @@ func TestKeysAndVals(t *testing.T) {
 		t.Fatalf("expected nil vals for nil map, got %v", ValueToAny(got))
 	}
 }
+
+func TestFind(t *testing.T) {
+	m := NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(2))
+	if got := ValueToString(Find(m, NewKeyword("a"))); got != "[:a 1]" {
+		t.Fatalf("unexpected find entry: %q", got)
+	}
+	if got := Find(m, NewKeyword("z")); got.tag != TagNil {
+		t.Fatalf("expected nil for missing find key, got %v", ValueToAny(got))
+	}
+	if got := Find(NilValue(), NewKeyword("a")); got.tag != TagNil {
+		t.Fatalf("expected nil find on nil map, got %v", ValueToAny(got))
+	}
+}
