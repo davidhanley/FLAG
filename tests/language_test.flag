@@ -103,6 +103,8 @@
     (is (= 1 (:a {:a 1})))
     (is (= 1 ({:a 1} :a)))
     (is (= {:a 1 :c 3} (merge {:a 1} {:c 3})))
+    (is (= {:a 2} (merge-with + {:a 1} {:a 1})))
+    (is (= {:a 3 :b 2} (merge-with + {:a 1 :b 2} {:a 2})))
     (is (= {:a 1} (select-keys {:a 1 :b 2} [:a])))
     (is (= {:a 1 :b 2} (hash-map :a 1 :b 2)))
     (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))))
@@ -200,7 +202,7 @@
     (is (= false (every? (fn [x] (> x 0)) [1 0 3])))
     (is (= [3 4] (vec (keep (fn [x] (when (> x 2) x)) [1 2 3 4]))))
     (is (= [false 2] (vec (keep (fn [x] (if (= x 1) false x)) [1 2])))))
-  (testing "update get-in select-keys merge zipmap group-by max-key"
+  (testing "update get-in select-keys merge merge-with zipmap group-by max-key"
     (is (= {:a 3} (update {:a 1} :a + 2)))
     (is (= {:b 1} (update {} :b (fn [x] (if (nil? x) 1 x)))))
     (is (= 1 (get-in {:a {:b 1}} [:a :b])))
@@ -210,6 +212,8 @@
     (is (= {} (select-keys {:a 1} [:z])))
     (is (= {:a 1 :c 3} (merge {:a 1} nil {:c 3})))
     (is (= nil (merge)))
+    (is (= {:a 3} (merge-with + {:a 1} nil {:a 2})))
+    (is (= nil (merge-with +)))
     (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))
     (is (= {:a 1} (zipmap [:a :b] [1])))
     (is (= {1 [1] 2 [2 2]} (group-by identity [1 2 2])))

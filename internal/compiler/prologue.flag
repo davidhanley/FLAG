@@ -189,5 +189,20 @@
           nil
           maps))
 
+(defn merge-with [f & maps]
+  (reduce (fn [out m]
+            (if (nil? m)
+              out
+              (reduce (fn [acc pair]
+                        (let [k (first pair)
+                              v (val pair)]
+                          (if (contains? acc k)
+                            (assoc acc k (f (get acc k) v))
+                            (assoc acc k v))))
+                      (if (nil? out) {} out)
+                      m)))
+          nil
+          maps))
+
 (defn mapcat [f & colls]
   (apply concat (apply map f colls)))
