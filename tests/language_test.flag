@@ -95,7 +95,7 @@
     (is (= {1 1 2 2} (into {} (map (fn [x] [x x]) [1 2]))))))
 
 (deftest maps-and-keys
-  (testing "assoc dissoc assoc-in dissoc-in update lookup"
+  (testing "assoc dissoc assoc-in dissoc-in update update-in lookup"
     (is (= {:a 1 :b 2} (assoc {:a 1} :b 2)))
     (is (= {:a 1} (dissoc {:a 1 :b 2} :b)))
     (is (= {:a {:b 2}} (assoc-in {:a {:b 1}} [:a :b] 2)))
@@ -107,6 +107,9 @@
     (is (= {:a {:b 1}} (dissoc-in {:a {:b 1}} [:a :z])))
     (is (= nil (dissoc-in nil [:a :b])))
     (is (= {:a 3} (update {:a 1} :a + 2)))
+    (is (= {:a {:b 3}} (update-in {:a {:b 1}} [:a :b] + 2)))
+    (is (= {:a {:b 4 :c 2}} (update-in {:a {:b 1 :c 2}} [:a :b] + 3)))
+    (is (= {:a {:b 5}} (update-in nil [:a :b] (fn [x] (if (nil? x) 5 x)))))
     (is (= 1 (get {:a 1} :a)))
     (is (= 1 (:a {:a 1})))
     (is (= 1 ({:a 1} :a)))
@@ -210,9 +213,12 @@
     (is (= false (every? (fn [x] (> x 0)) [1 0 3])))
     (is (= [3 4] (vec (keep (fn [x] (when (> x 2) x)) [1 2 3 4]))))
     (is (= [false 2] (vec (keep (fn [x] (if (= x 1) false x)) [1 2])))))
-  (testing "update get-in assoc-in dissoc-in select-keys merge merge-with zipmap group-by max-key"
+  (testing "update update-in get-in assoc-in dissoc-in select-keys merge merge-with zipmap group-by max-key"
     (is (= {:a 3} (update {:a 1} :a + 2)))
     (is (= {:b 1} (update {} :b (fn [x] (if (nil? x) 1 x)))))
+    (is (= {:a {:b {:c 3}}} (update-in {:a {:b {:c 1}}} [:a :b :c] + 2)))
+    (is (= {:a {:b 7}} (update-in {} [:a :b] (fn [x n] (if (nil? x) n (+ x n))) 7)))
+    (is (= {:a 1 :b 2} (update-in {:a 1} [] (fn [m] (assoc m :b 2)))))
     (is (= 1 (get-in {:a {:b 1}} [:a :b])))
     (is (= {:a 1} (get-in {:a 1} [])))
     (is (= nil (get-in {:a 1} [:missing :x])))

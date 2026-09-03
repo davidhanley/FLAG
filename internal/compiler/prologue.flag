@@ -130,6 +130,16 @@
 (defn get-in [m ks]
   (reduce get m ks))
 
+(defn update-in [m ks f & extra]
+  (if (seq ks)
+    (let [k (first ks)
+          rest-ks (rest ks)
+          base (if (nil? m) {} m)]
+      (if (seq rest-ks)
+        (assoc base k (apply update-in (get base k) rest-ks f extra))
+        (assoc base k (apply f (get base k) extra))))
+    (apply f m extra)))
+
 (defn assoc-in [m ks v]
   (if (seq ks)
     (let [k (first ks)

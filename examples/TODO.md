@@ -3,8 +3,8 @@
 ## High priority
 
 - [x] **Builtinize `merge`** (it exists in `internal/compiler/prologue.flag` today). Make it a runtime builtin so it is always available, faster, and easier to optimize/document consistently.
-- [ ] Add **`assoc-in`** for nested map updates.
-- [ ] Add **`update-in`** for nested key-path transforms.
+- [x] Add **`assoc-in, dissoc-in`** for nested map updates.
+- [x] Add **`update-in`** for nested key-path transforms.
 - [x] Add **`merge-with`** for key conflict resolution.
 - [ ] Expand `assoc` to match Clojure behavior on **vectors** (`(assoc [a b] 1 x)`), not only maps.
 - [ ] Add **`vals`** (map value collection).

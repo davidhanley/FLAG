@@ -191,6 +191,8 @@ type compileContext struct {
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
+	selfVariadicName  string
+	selfFunctionRest  bool
 	// loopBindingNames tracks active loop/recur bindings for the current
 	// expression context (nil when not inside a loop form).
 	loopBindingNames []string
@@ -256,6 +258,8 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionName:  ctx.selfFunctionName,
 		selfFunctionArity: ctx.selfFunctionArity,
 		selfArityName:     ctx.selfArityName,
+		selfVariadicName:  ctx.selfVariadicName,
+		selfFunctionRest:  ctx.selfFunctionRest,
 		allowRedefine:     ctx.allowRedefine,
 	}
 	if len(ctx.loopBindingNames) > 0 {
@@ -1530,9 +1534,11 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	fnCtx := copyCompileContext(ctx)
 	fnCtx.selfFunctionName = nameExpr.Name
 	fnCtx.selfFunctionArity = len(params)
+	fnCtx.selfVariadicName = goName + "_variadic"
+	fnCtx.selfFunctionRest = hasRest
 	fnCtx.selfArityName = fmt.Sprintf("%s_arity_%d", goName, len(params))
 	if hasRest {
-		fnCtx.selfArityName = goName + "_variadic"
+		fnCtx.selfArityName = fnCtx.selfVariadicName
 	}
 	fnCtx.globals[goName] = exprKindValue
 	fnCtx.functions[goName] = functionDef{
@@ -2320,6 +2326,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 				}
 			}
 		}
+		if arg.Name == ctx.selfFunctionName && ctx.selfVariadicName != "" {
+			return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, ctx.selfVariadicName), kind: exprKindValue}, nil
+		}
 		// Module table: bare locals, :refer names, and qualified imports.
 		if goIdent, ok := ctx.resolveModuleSymbol(arg.Name); ok {
 			if kind, ok := ctx.globals[goIdent]; ok {
@@ -2647,23 +2656,27 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 }
 
 func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok &&
-		calleeSymbol.Name == ctx.selfFunctionName &&
-		len(argsExpr) == ctx.selfFunctionArity {
-		args := make([]string, 0, len(argsExpr))
-		for _, item := range argsExpr {
-			part, err := exprToGo(item, ctx, locals)
-			if err != nil {
-				return goExpr{}, err
+	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok && calleeSymbol.Name == ctx.selfFunctionName {
+		if ctx.selfFunctionRest || len(argsExpr) == ctx.selfFunctionArity {
+			target := ctx.selfArityName
+			if ctx.selfFunctionRest {
+				target = ctx.selfVariadicName
 			}
+			args := make([]string, 0, len(argsExpr))
+			for _, item := range argsExpr {
+				part, err := exprToGo(item, ctx, locals)
+				if err != nil {
+					return goExpr{}, err
+				}
 
-			valueCode, err := functionArgToValueCode(part, item, ctx)
-			if err != nil {
-				return goExpr{}, err
+				valueCode, err := functionArgToValueCode(part, item, ctx)
+				if err != nil {
+					return goExpr{}, err
+				}
+				args = append(args, valueCode)
 			}
-			args = append(args, valueCode)
+			return goExpr{code: fmt.Sprintf("%s(%s)", target, strings.Join(args, ", ")), kind: exprKindValue}, nil
 		}
-		return goExpr{code: fmt.Sprintf("%s(%s)", ctx.selfArityName, strings.Join(args, ", ")), kind: exprKindValue}, nil
 	}
 
 	callee, err := exprToGo(calleeExpr, ctx, locals)

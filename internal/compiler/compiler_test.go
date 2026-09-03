@@ -240,6 +240,46 @@ func TestCompileRejectsRecurOutsideLoop(t *testing.T) {
 	}
 }
 
+func TestCompileVariadicSelfReferenceUsesFunctionSymbol(t *testing.T) {
+	output, err := Compile(`
+(defn walk [x & more]
+  (if x
+    (apply walk more)
+    0))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "flagrt.Apply(flagrt.NewFunction(walk_variadic),") {
+		t.Fatalf("expected self function value reference to use walk_variadic:\n%s", got)
+	}
+	if strings.Contains(got, "flagrt.Apply(walk,") {
+		t.Fatalf("expected no self value var reference in variadic recursion path:\n%s", got)
+	}
+}
+
+func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
+	output, err := Compile(`
+(defn countdown [n & more]
+  (if (= n 0)
+    0
+    (countdown (- n 1))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "return countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
+		t.Fatalf("expected direct variadic self-call lowering:\n%s", got)
+	}
+	if strings.Contains(got, "flagrt.Call(countdown,") {
+		t.Fatalf("expected no runtime self-call through value var:\n%s", got)
+	}
+}
+
 func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
 	_, err := Compile(`(print "hello" "world")`)
 	if err == nil {
