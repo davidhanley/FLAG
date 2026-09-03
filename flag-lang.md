@@ -201,6 +201,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `get`
 - `assoc`
 - `dissoc`
+- `keys`
+- `vals`
 
 ### Symbols/strings/printing
 

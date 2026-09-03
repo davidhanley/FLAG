@@ -95,7 +95,7 @@
     (is (= {1 1 2 2} (into {} (map (fn [x] [x x]) [1 2]))))))
 
 (deftest maps-and-keys
-  (testing "assoc dissoc assoc-in dissoc-in update update-in lookup"
+  (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals lookup"
     (is (= {:a 1 :b 2} (assoc {:a 1} :b 2)))
     (is (= {:a 1} (dissoc {:a 1 :b 2} :b)))
     (is (= {:a {:b 2}} (assoc-in {:a {:b 1}} [:a :b] 2)))
@@ -116,6 +116,9 @@
     (is (= {:a 1 :c 3} (merge {:a 1} {:c 3})))
     (is (= {:a 2} (merge-with + {:a 1} {:a 1})))
     (is (= {:a 3 :b 2} (merge-with + {:a 1 :b 2} {:a 2})))
+    (is (= [:a :b] (keys {:b 2 :a 1})))
+    (is (= #{1 2} (set (vals {:a 1 :b 2}))))
+    (is (= nil (vals nil)))
     (is (= {:a 1} (select-keys {:a 1 :b 2} [:a])))
     (is (= {:a 1 :b 2} (hash-map :a 1 :b 2)))
     (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))))

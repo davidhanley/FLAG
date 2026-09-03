@@ -106,3 +106,19 @@ func TestMapAndKeywordInvocation(t *testing.T) {
 		t.Fatalf("expected keyword invocation default 11, got %v", ValueToAny(got))
 	}
 }
+
+func TestKeysAndVals(t *testing.T) {
+	m := NewMap(
+		NewKeyword("b"), NewLong(2),
+		NewKeyword("a"), NewLong(1),
+	)
+	if got := ValueToString(Keys(m)); got != "[:a :b]" {
+		t.Fatalf("unexpected keys: %q", got)
+	}
+	if got := ValueToString(Vals(m)); got != "[1 2]" {
+		t.Fatalf("unexpected vals: %q", got)
+	}
+	if got := Vals(NilValue()); got.tag != TagNil {
+		t.Fatalf("expected nil vals for nil map, got %v", ValueToAny(got))
+	}
+}

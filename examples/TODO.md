@@ -7,7 +7,7 @@
 - [x] Add **`update-in`** for nested key-path transforms.
 - [x] Add **`merge-with`** for key conflict resolution.
 - [ ] Expand `assoc` to match Clojure behavior on **vectors** (`(assoc [a b] 1 x)`), not only maps.
-- [ ] Add **`vals`** (map value collection).
+- [x] Add **`vals`** (map value collection).
 - [ ] Add **`find`** (map entry lookup as pair / nil).
 - [ ] Add **`dissoc` parity behaviors** around nil/no-op edge cases to match Clojure exactly.
 

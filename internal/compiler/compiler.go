@@ -2466,7 +2466,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop",
-		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "hash-map",
+		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "hash-map",
 		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
 		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",

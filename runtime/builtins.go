@@ -355,6 +355,13 @@ func BuiltinFunction(name string) Value {
 			}
 			return Keys(args[0])
 		})
+	case "vals":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("vals expects exactly one argument")
+			}
+			return Vals(args[0])
+		})
 	case "hash-map":
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)

@@ -57,6 +57,22 @@ func Keys(coll Value) Value {
 	}
 }
 
+func Vals(coll Value) Value {
+	switch coll.tag {
+	case TagNil:
+		return NilValue()
+	case TagMap, TagDate:
+		entries := coll.MapEntries()
+		vals := make([]Value, 0, len(entries))
+		for _, entry := range entries {
+			vals = append(vals, entry.Value)
+		}
+		return NewArray(vals...)
+	default:
+		panic("vals expects map Value")
+	}
+}
+
 func MapAssoc(coll Value, entries ...Value) Value {
 	if len(entries) < 2 || len(entries)%2 != 0 {
 		panic("assoc expects collection and key/value pairs")
