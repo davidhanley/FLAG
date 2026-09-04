@@ -135,3 +135,64 @@ func TestFind(t *testing.T) {
 		t.Fatalf("expected nil find on nil map, got %v", ValueToAny(got))
 	}
 }
+
+func TestSetAndSetMapHelpers(t *testing.T) {
+	if got := ValueToString(Union(NewSet(NewLong(1), NewLong(2)), NewSet(NewLong(2), NewLong(3)))); got != "#{1 2 3}" {
+		t.Fatalf("unexpected union: %q", got)
+	}
+	if got := ValueToString(Intersection(NewSet(NewLong(1), NewLong(2), NewLong(3)), NewSet(NewLong(2), NewLong(3), NewLong(4)))); got != "#{2 3}" {
+		t.Fatalf("unexpected intersection: %q", got)
+	}
+	if got := ValueToString(Difference(NewSet(NewLong(1), NewLong(2), NewLong(3)), NewSet(NewLong(2)))); got != "#{1 3}" {
+		t.Fatalf("unexpected difference: %q", got)
+	}
+	if !Subset(NewSet(NewLong(1), NewLong(2)), NewSet(NewLong(1), NewLong(2), NewLong(3))) {
+		t.Fatal("expected subset? true")
+	}
+	if !Superset(NewSet(NewLong(1), NewLong(2), NewLong(3)), NewSet(NewLong(1), NewLong(2))) {
+		t.Fatal("expected superset? true")
+	}
+	if !Disjoint(NewSet(NewLong(1), NewLong(2)), NewSet(NewLong(3), NewLong(4))) {
+		t.Fatal("expected disjoint? true")
+	}
+	if Disjoint(NewSet(NewLong(1), NewLong(2)), NewSet(NewLong(2), NewLong(3))) {
+		t.Fatal("expected disjoint? false")
+	}
+
+	m := NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(2))
+	if got := ValueToString(RenameKeys(m, NewMap(NewKeyword("a"), NewKeyword("x")))); got != "{:b 2 :x 1}" {
+		t.Fatalf("unexpected rename-keys: %q", got)
+	}
+	if got := ValueToString(MapInvert(NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(2)))); got != "{1 :a 2 :b}" {
+		t.Fatalf("unexpected map-invert: %q", got)
+	}
+	evenFn := NewFunction(func(args ...Value) Value {
+		if len(args) != 1 || args[0].tag != TagLong {
+			panic("evenFn expects one long")
+		}
+		return NewBool(args[0].Long()%2 == 0)
+	})
+	if got := ValueToString(SetSelect(evenFn, NewSet(NewLong(1), NewLong(2), NewLong(3), NewLong(4)))); got != "#{2 4}" {
+		t.Fatalf("unexpected select: %q", got)
+	}
+
+	rel := NewSet(
+		NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(9)),
+		NewMap(NewKeyword("a"), NewLong(2), NewKeyword("b"), NewLong(8)),
+	)
+	projected := SetProject(rel, NewArray(NewKeyword("a")))
+	if projected.SetLen() != 2 {
+		t.Fatalf("unexpected project set size: %d", projected.SetLen())
+	}
+	if !Contains(projected, NewMap(NewKeyword("a"), NewLong(1))) || !Contains(projected, NewMap(NewKeyword("a"), NewLong(2))) {
+		t.Fatalf("project missing expected rows: %s", ValueToString(projected))
+	}
+	renamed := SetRename(rel, NewMap(NewKeyword("a"), NewKeyword("x")))
+	if renamed.SetLen() != 2 {
+		t.Fatalf("unexpected rename set size: %d", renamed.SetLen())
+	}
+	if !Contains(renamed, NewMap(NewKeyword("x"), NewLong(1), NewKeyword("b"), NewLong(9))) ||
+		!Contains(renamed, NewMap(NewKeyword("x"), NewLong(2), NewKeyword("b"), NewLong(8))) {
+		t.Fatalf("rename missing expected rows: %s", ValueToString(renamed))
+	}
+}

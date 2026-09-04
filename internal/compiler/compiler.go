@@ -2470,6 +2470,8 @@ func isBuiltinFunctionSymbol(name string) bool {
 		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
 		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
+		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
+		"rename-keys", "map-invert", "select", "project", "rename",
 		"go-fn", "go-fn-args", "re-pattern", "re-matches":
 		return true
 	default:

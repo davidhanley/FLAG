@@ -389,6 +389,74 @@ func BuiltinFunction(name string) Value {
 			}
 			return Find(args[0], args[1])
 		})
+	case "union":
+		return NewFunction(func(args ...Value) Value {
+			return Union(args...)
+		})
+	case "intersection":
+		return NewFunction(func(args ...Value) Value {
+			return Intersection(args...)
+		})
+	case "difference":
+		return NewFunction(func(args ...Value) Value {
+			return Difference(args...)
+		})
+	case "subset?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("subset? expects exactly two sets")
+			}
+			return NewBool(Subset(args[0], args[1]))
+		})
+	case "superset?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("superset? expects exactly two sets")
+			}
+			return NewBool(Superset(args[0], args[1]))
+		})
+	case "disjoint?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("disjoint? expects exactly two sets")
+			}
+			return NewBool(Disjoint(args[0], args[1]))
+		})
+	case "rename-keys":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("rename-keys expects map and key map")
+			}
+			return RenameKeys(args[0], args[1])
+		})
+	case "map-invert":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("map-invert expects exactly one map")
+			}
+			return MapInvert(args[0])
+		})
+	case "select":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("select expects predicate and set")
+			}
+			return SetSelect(args[0], args[1])
+		})
+	case "project":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("project expects relation set and key sequence")
+			}
+			return SetProject(args[0], args[1])
+		})
+	case "rename":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("rename expects relation set and key map")
+			}
+			return SetRename(args[0], args[1])
+		})
 	case "hash-map":
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)

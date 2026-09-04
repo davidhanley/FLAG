@@ -148,6 +148,29 @@
     (is (= {:n 9} (max-key :n {:n 1} {:n 9})))
     (is (= 2 (val [:k 2])))))
 
+(deftest set-operations
+  (testing "set algebra"
+    (is (= #{1 2 3} (union #{1 2} #{2 3})))
+    (is (= #{1 2} (union #{1 2} nil)))
+    (is (= #{} (union)))
+    (is (= #{2 3} (intersection #{1 2 3} #{2 3 4})))
+    (is (= #{} (intersection #{1} nil)))
+    (is (= #{} (intersection)))
+    (is (= #{1 4} (difference #{1 2 3 4} #{2 3})))
+    (is (= #{1 2} (difference #{1 2} nil)))
+    (is (subset? #{1 2} #{1 2 3}))
+    (is (= false (subset? #{1 4} #{1 2 3})))
+    (is (superset? #{1 2 3} #{1 2}))
+    (is (disjoint? #{1 2} #{3 4}))
+    (is (= false (disjoint? #{1 2} #{2 3}))))
+  (testing "set/map helpers from clojure.set"
+    (is (= {:x 1 :b 2} (rename-keys {:a 1 :b 2} {:a :x})))
+    (is (= {:a 1} (rename-keys {:a 1} {:z :x})))
+    (is (= {1 :a 2 :b} (map-invert {:a 1 :b 2})))
+    (is (= #{2 4} (select even? #{1 2 3 4})))
+    (is (= #{{:a 1} {:a 2}} (project #{{:a 1 :b 9} {:a 2 :b 8}} [:a])))
+    (is (= #{{:x 1} {:x 2}} (rename #{{:a 1} {:a 2}} {:a :x})))))
+
 (deftest macros
   (testing "when cond threading inc"
     (is (= 2 (when true 2)))
