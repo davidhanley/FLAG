@@ -273,6 +273,7 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"ToJSON":                      reflect.ValueOf(flagrt.ToJSON),
 			"FromJSON":                    reflect.ValueOf(flagrt.FromJSON),
 			"NewArray":                    reflect.ValueOf(flagrt.NewArray),
+			"NewVector":                   reflect.ValueOf(flagrt.NewVector),
 			"ArrayGet":                    reflect.ValueOf(flagrt.ArrayGet),
 			"ArrayAssoc":                  reflect.ValueOf(flagrt.ArrayAssoc),
 			"ArrayAppend":                 reflect.ValueOf(flagrt.ArrayAppend),

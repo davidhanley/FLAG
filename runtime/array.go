@@ -90,10 +90,6 @@ func arrayValueToAny(v Value) []any {
 	return valuesToAny(v.ArrayValues())
 }
 
-func vectorValueToAny(v Value) []any {
-	return valuesToAny(v.VectorValues())
-}
-
 func valuesToAny(values []Value) []any {
 	out := make([]any, 0, len(values))
 	for _, value := range values {

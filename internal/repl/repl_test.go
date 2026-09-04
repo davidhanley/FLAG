@@ -9,6 +9,26 @@ import (
 	"testing"
 )
 
+func TestRunVectorPrintsPipeSyntax(t *testing.T) {
+	input := strings.NewReader("(def v (vector/vector 1 2 3))\n| 1 2 3 |\n(nth v 1)\n:quit\n")
+	var output bytes.Buffer
+
+	if err := Run(input, &output); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	got := output.String()
+	if strings.Contains(got, "error:") {
+		t.Fatalf("expected no REPL errors, got:\n%s", got)
+	}
+	if strings.Count(got, "| 1 2 3 |") < 2 {
+		t.Fatalf("expected pipe-vector print for constructor and literal, got:\n%s", got)
+	}
+	if strings.Contains(got, "[1 2 3]") {
+		t.Fatalf("vector should not print as array, got:\n%s", got)
+	}
+}
+
 func TestRunDefAssocMap(t *testing.T) {
 	input := strings.NewReader("(def a {:a 1 :b 2})\n(def b (assoc a :c 3))\nb\n:quit\n")
 	var output bytes.Buffer
