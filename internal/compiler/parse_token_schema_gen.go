@@ -21,4 +21,5 @@ const (
 	TokenDispatchFnOpen  ParseTokenKind = 11
 	TokenString          ParseTokenKind = 12
 	TokenAtom            ParseTokenKind = 13
+	TokenPipe            ParseTokenKind = 14
 )

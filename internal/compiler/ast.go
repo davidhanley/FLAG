@@ -24,6 +24,14 @@ type VectorExpr struct {
 
 func (VectorExpr) expr() {}
 
+type PipeVectorExpr struct {
+	Elements []Expr
+	Line     int
+	Col      int
+}
+
+func (PipeVectorExpr) expr() {}
+
 type MapExpr struct {
 	Entries []Expr
 	Line    int

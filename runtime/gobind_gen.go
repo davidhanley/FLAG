@@ -204,6 +204,86 @@ func adaptGoBind_packages_ToUppercase(args ...Value) Value {
 // GoBind_packages_ToUppercase dispatches Character/toUpperCase, character/toUpperCase, character/toUppercase.
 var GoBind_packages_ToUppercase = NewFunction(adaptGoBind_packages_ToUppercase)
 
+func adaptGoBind_runtime_VectorNSAppend(args ...Value) Value {
+	goArgArityAtLeast("vector/append", args, 1)
+	a0 := args[0]
+	rest := args[1:]
+	return goRetValue(VectorNSAppend(a0, rest...))
+}
+
+// GoBind_runtime_VectorNSAppend dispatches vector/append.
+var GoBind_runtime_VectorNSAppend = NewFunction(adaptGoBind_runtime_VectorNSAppend)
+
+func adaptGoBind_runtime_VectorNSGet(args ...Value) Value {
+	goArgArityAtLeast("vector/get", args, 2)
+	a0 := args[0]
+	a1 := args[1]
+	rest := args[2:]
+	return goRetValue(VectorNSGet(a0, a1, rest...))
+}
+
+// GoBind_runtime_VectorNSGet dispatches vector/get.
+var GoBind_runtime_VectorNSGet = NewFunction(adaptGoBind_runtime_VectorNSGet)
+
+func adaptGoBind_runtime_VectorNSInsert(args ...Value) Value {
+	goArgArityAtLeast("vector/insert", args, 2)
+	a0 := args[0]
+	a1 := args[1]
+	rest := args[2:]
+	return goRetValue(VectorNSInsert(a0, a1, rest...))
+}
+
+// GoBind_runtime_VectorNSInsert dispatches vector/insert.
+var GoBind_runtime_VectorNSInsert = NewFunction(adaptGoBind_runtime_VectorNSInsert)
+
+func adaptGoBind_runtime_VectorNSPop(args ...Value) Value {
+	goArgArityExact("vector/pop", args, 1)
+	a0 := args[0]
+	return goRetValue(VectorNSPop(a0))
+}
+
+// GoBind_runtime_VectorNSPop dispatches vector/pop.
+var GoBind_runtime_VectorNSPop = NewFunction(adaptGoBind_runtime_VectorNSPop)
+
+func adaptGoBind_runtime_VectorNSPrepend(args ...Value) Value {
+	goArgArityAtLeast("vector/prepend", args, 1)
+	a0 := args[0]
+	rest := args[1:]
+	return goRetValue(VectorNSPrepend(a0, rest...))
+}
+
+// GoBind_runtime_VectorNSPrepend dispatches vector/prepend.
+var GoBind_runtime_VectorNSPrepend = NewFunction(adaptGoBind_runtime_VectorNSPrepend)
+
+func adaptGoBind_runtime_VectorNSRemove(args ...Value) Value {
+	goArgArityExact("vector/remove", args, 2)
+	a0 := args[0]
+	a1 := args[1]
+	return goRetValue(VectorNSRemove(a0, a1))
+}
+
+// GoBind_runtime_VectorNSRemove dispatches vector/remove.
+var GoBind_runtime_VectorNSRemove = NewFunction(adaptGoBind_runtime_VectorNSRemove)
+
+func adaptGoBind_runtime_VectorNSSet(args ...Value) Value {
+	goArgArityExact("vector/set", args, 3)
+	a0 := args[0]
+	a1 := args[1]
+	a2 := args[2]
+	return goRetValue(VectorNSSet(a0, a1, a2))
+}
+
+// GoBind_runtime_VectorNSSet dispatches vector/set.
+var GoBind_runtime_VectorNSSet = NewFunction(adaptGoBind_runtime_VectorNSSet)
+
+func adaptGoBind_runtime_VectorNSVector(args ...Value) Value {
+	goArgArityAtLeast("vector/vector", args, 0)
+	return goRetValue(VectorNSVector(args...))
+}
+
+// GoBind_runtime_VectorNSVector dispatches vector/vector.
+var GoBind_runtime_VectorNSVector = NewFunction(adaptGoBind_runtime_VectorNSVector)
+
 func adaptGoBind_runtime_Abs(args ...Value) Value {
 	goArgArityExact("math/abs", args, 1)
 	a0 := args[0]
@@ -385,5 +465,13 @@ func GoBindSymbols() map[string]reflect.Value {
 		"GoBind_runtime_TimeMinus":          reflect.ValueOf(GoBind_runtime_TimeMinus),
 		"GoBind_runtime_TimeNow":            reflect.ValueOf(GoBind_runtime_TimeNow),
 		"GoBind_runtime_TimeYears":          reflect.ValueOf(GoBind_runtime_TimeYears),
+		"GoBind_runtime_VectorNSAppend":     reflect.ValueOf(GoBind_runtime_VectorNSAppend),
+		"GoBind_runtime_VectorNSGet":        reflect.ValueOf(GoBind_runtime_VectorNSGet),
+		"GoBind_runtime_VectorNSInsert":     reflect.ValueOf(GoBind_runtime_VectorNSInsert),
+		"GoBind_runtime_VectorNSPop":        reflect.ValueOf(GoBind_runtime_VectorNSPop),
+		"GoBind_runtime_VectorNSPrepend":    reflect.ValueOf(GoBind_runtime_VectorNSPrepend),
+		"GoBind_runtime_VectorNSRemove":     reflect.ValueOf(GoBind_runtime_VectorNSRemove),
+		"GoBind_runtime_VectorNSSet":        reflect.ValueOf(GoBind_runtime_VectorNSSet),
+		"GoBind_runtime_VectorNSVector":     reflect.ValueOf(GoBind_runtime_VectorNSVector),
 	}
 }

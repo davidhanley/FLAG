@@ -9,7 +9,7 @@
 - [ ] Expand `assoc` to match Clojure behavior on **vectors** (`(assoc [a b] 1 x)`), not only maps.
 - [x] Add **`vals`** (map value collection).
 - [x] Add **`find`** (map entry lookup as pair / nil).
-- [ ] Add **`dissoc` parity behaviors** around nil/no-op edge cases to match Clojure exactly.
+- [x] Add **`dissoc` parity behaviors** around nil/no-op edge cases to match Clojure exactly.
 
 ## Sequence + collection APIs
 
@@ -46,7 +46,7 @@
 
 ## Sets
 
-- [ ] Add **`clojure.set`-style ops**: `union`, `intersection`, `difference`, `subset?`, `superset?`, `rename-keys`.
+- [x] Add **`clojure.set`-style ops**: `union`, `intersection`, `difference`, `subset?`, `superset?`, `rename-keys`.
 
 ## Reader/language-level parity
 

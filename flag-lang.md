@@ -319,7 +319,8 @@ Recent optimization: numeric comparisons have fast paths for common integer case
 - `range` with one arg returns a lazy sequence.
 - `range` with no args starts at 0 and returns a lazy sequence.
 - large two-arg ranges can be lazy.
-- map/filter/reduce/take/drop work across list/array/lazy-list values.
+- map/filter/reduce/take/drop work across list/array/vector/lazy-list values.
+- Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.
 - `pmap` currently materializes input tuples, computes in parallel, and returns an eager array while preserving order.
 
@@ -329,4 +330,4 @@ Recent optimization: numeric comparisons have fast paths for common integer case
 - Some semantics intentionally differ while runtime/data model is still evolving.
 - Error messages are improving but still lower-level in some paths.
 - Module `:imports` work for file entry points; directory builds without `main.flag` still use legacy file merging.
-- Host packages such as `str/…` and `io/…` may still resolve without an import during migration; `burp` and `csv` require `libraries/*.lib` imports.
+- Host packages such as `str/…`, `io/…`, and `vector/…` may still resolve without an import during migration; `burp` and `csv` require `libraries/*.lib` imports.

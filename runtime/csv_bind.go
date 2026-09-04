@@ -121,9 +121,9 @@ func csvReadDispatch(source Value, opt csvlib.Options) ([][]string, error) {
 
 func isSeqValue(v Value) bool {
 	switch v.tag {
-	case TagNil, TagList, TagArray, TagLazyList, TagString:
+	case TagNil, TagList, TagArray, TagVector, TagLazyList, TagString:
 		// String already handled as path; not a line seq here.
-		return v.tag == TagList || v.tag == TagArray || v.tag == TagLazyList
+		return v.tag == TagList || v.tag == TagArray || v.tag == TagVector || v.tag == TagLazyList
 	default:
 		return false
 	}

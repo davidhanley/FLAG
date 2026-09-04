@@ -393,6 +393,20 @@ func ValueToString(v Value) string {
 		}
 		out.WriteByte(']')
 		return out.String()
+	case TagVector:
+		values := v.VectorValues()
+		var out strings.Builder
+		out.WriteByte('|')
+		if len(values) == 0 {
+			out.WriteString(" |")
+			return out.String()
+		}
+		for _, value := range values {
+			out.WriteByte(' ')
+			out.WriteString(ValueToString(value))
+		}
+		out.WriteString(" |")
+		return out.String()
 	case TagLazyList:
 		return "#<lazy-list>"
 	case TagRecur:
@@ -456,6 +470,8 @@ func ValueToAny(v Value) any {
 		return listValueToAny(v)
 	case TagArray:
 		return arrayValueToAny(v)
+	case TagVector:
+		return vectorValueToAny(v)
 	default:
 		panic("unknown Value tag")
 	}

@@ -34,6 +34,8 @@ func exprPos(expr Expr) (int, int, bool) {
 		return value.Line, value.Col, value.Line > 0
 	case VectorExpr:
 		return value.Line, value.Col, value.Line > 0
+	case PipeVectorExpr:
+		return value.Line, value.Col, value.Line > 0
 	case MapExpr:
 		return value.Line, value.Col, value.Line > 0
 	case SetExpr:
@@ -129,6 +131,15 @@ func exprToSourceString(expr Expr) string {
 			parts = append(parts, exprToSourceString(item))
 		}
 		return "[" + strings.Join(parts, " ") + "]"
+	case PipeVectorExpr:
+		parts := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			parts = append(parts, exprToSourceString(item))
+		}
+		if len(parts) == 0 {
+			return "| |"
+		}
+		return "| " + strings.Join(parts, " ") + " |"
 	case MapExpr:
 		parts := make([]string, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -388,6 +399,8 @@ func isConstExpr(expr Expr) bool {
 	case SymbolExpr:
 		return e.Name == "true" || e.Name == "false" || e.Name == "nil"
 	case VectorExpr:
+		return allConstExprs(e.Elements)
+	case PipeVectorExpr:
 		return allConstExprs(e.Elements)
 	case SetExpr:
 		return allConstExprs(e.Elements)
@@ -1747,6 +1760,16 @@ func macroExpand(expr Expr, ctx compileContext, depth int) (Expr, error) {
 			out = append(out, expanded)
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			expanded, err := macroExpand(item, ctx, depth)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, expanded)
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -1825,6 +1848,12 @@ func unquoteMacroTree(expr Expr) Expr {
 			out = append(out, unquoteMacroTree(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -1928,6 +1957,25 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[str
 			out = append(out, sub)
 		}
 		return VectorExpr{Elements: out}, nil
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			sym, isSym := unquoteMacro(item).(SymbolExpr)
+			if isSym {
+				if restArgs, ok := restBindings[sym.Name]; ok {
+					for _, restArg := range restArgs {
+						out = append(out, quoteMacro(copyExpr(restArg)))
+					}
+					continue
+				}
+			}
+			sub, err := substituteMacroExpr(item, values, restBindings)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sub)
+		}
+		return PipeVectorExpr{Elements: out}, nil
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -2011,6 +2059,12 @@ func copyExpr(expr Expr) Expr {
 			out = append(out, copyExpr(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, copyExpr(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -2112,6 +2166,13 @@ func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, re
 			}
 		}
 		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
+	case PipeVectorExpr:
+		if len(target) == 1 {
+			if vectorTarget, ok := unwrapMetaExpr(target[0]).(PipeVectorExpr); ok {
+				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
+			}
+		}
+		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
 	case MapExpr, SetExpr, HashFnExpr, MetaExpr:
 		if len(target) != 1 {
 			return false, nil
@@ -2167,6 +2228,17 @@ func exprStructEqual(a, b Expr) bool {
 		return true
 	case VectorExpr:
 		bv, ok := b.(VectorExpr)
+		if !ok || len(av.Elements) != len(bv.Elements) {
+			return false
+		}
+		for i := range av.Elements {
+			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case PipeVectorExpr:
+		bv, ok := b.(PipeVectorExpr)
 		if !ok || len(av.Elements) != len(bv.Elements) {
 			return false
 		}
@@ -2297,6 +2369,8 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return quotedListExprToGo(arg, ctx)
 	case VectorExpr:
 		return vectorExprToGo(arg.Elements, ctx, locals)
+	case PipeVectorExpr:
+		return pipeVectorExprToGo(arg.Elements, ctx, locals)
 	case MapExpr:
 		return mapExprToGo(arg.Entries, ctx, locals)
 	case SetExpr:
@@ -2434,6 +2508,16 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 			out = append(out, part)
 		}
 		return fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case PipeVectorExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewVector(%s)", runtimeAlias, strings.Join(out, ", ")), nil
 	case MapExpr:
 		if len(value.Entries)%2 != 0 {
 			return "", fmt.Errorf("quoted map literal expects an even number of forms")
@@ -4966,6 +5050,10 @@ func collectHashFnPlaceholders(expr Expr, maxParam *int) {
 		for _, item := range value.Elements {
 			collectHashFnPlaceholders(item, maxParam)
 		}
+	case PipeVectorExpr:
+		for _, item := range value.Elements {
+			collectHashFnPlaceholders(item, maxParam)
+		}
 	case MapExpr:
 		for _, item := range value.Entries {
 			collectHashFnPlaceholders(item, maxParam)
@@ -5001,6 +5089,12 @@ func replaceHashFnPlaceholders(expr Expr) Expr {
 			out = append(out, replaceHashFnPlaceholders(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -5204,6 +5298,28 @@ func vectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprK
 	code := fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(parts, ", "))
 	if allConstExprs(elements) {
 		code = ctx.constCode("Vec", code)
+	}
+	return goExpr{code: code, kind: exprKindValue}, nil
+}
+
+func pipeVectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	parts := make([]string, 0, len(elements))
+	for _, element := range elements {
+		part, err := exprToGo(element, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind == exprKindString {
+			part = goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, part.code), kind: exprKindValue}
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, exprError(element, "vector literal entries must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	code := fmt.Sprintf("%s.NewVector(%s)", runtimeAlias, strings.Join(parts, ", "))
+	if allConstExprs(elements) {
+		code = ctx.constCode("PipeVec", code)
 	}
 	return goExpr{code: code, kind: exprKindValue}, nil
 }

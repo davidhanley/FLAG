@@ -22,4 +22,5 @@ const (
 	TagChannel
 	TagRecur
 	TagRecord
+	TagVector
 )

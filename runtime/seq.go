@@ -329,6 +329,11 @@ func NotEmpty(coll Value) Value {
 			return NilValue()
 		}
 		return coll
+	case TagVector:
+		if coll.VectorLen() == 0 {
+			return NilValue()
+		}
+		return coll
 	case TagLazyList:
 		if _, ok := lazyPeek(coll); !ok {
 			return NilValue()
@@ -355,7 +360,7 @@ func NotEmpty(coll Value) Value {
 		}
 		return coll
 	default:
-		panic("not-empty expects list, array, lazy-list, map, set, or string Value")
+		panic("not-empty expects list, array, vector, lazy-list, map, set, or string Value")
 	}
 }
 
@@ -379,6 +384,8 @@ func IsEmpty(coll Value) bool {
 		return coll.ListLen() == 0
 	case TagArray:
 		return coll.ArrayLen() == 0
+	case TagVector:
+		return coll.VectorLen() == 0
 	case TagLazyList:
 		_, ok := lazyPeek(coll)
 		return !ok
@@ -506,6 +513,12 @@ func Conj(coll Value, entries ...Value) Value {
 			out = ArrayAppend(out, item)
 		}
 		return out
+	case TagVector:
+		out := coll
+		for _, item := range entries {
+			out = VectorAppend(out, item)
+		}
+		return out
 	case TagSet:
 		items := coll.setPointer().items
 		for _, item := range entries {
@@ -526,7 +539,7 @@ func Conj(coll Value, entries ...Value) Value {
 		}
 		return newMapValue(items)
 	default:
-		panic("conj expects list, array, set, or map Value")
+		panic("conj expects list, array, vector, set, or map Value")
 	}
 }
 
@@ -544,7 +557,7 @@ func Into(coll Value, from Value) Value {
 
 func conjMapEntry(entry Value) (Value, Value) {
 	switch entry.tag {
-	case TagList, TagArray, TagLazyList:
+	case TagList, TagArray, TagVector, TagLazyList:
 		// valid pair sequence input
 	default:
 		panic("conj on map expects pair sequences")
@@ -570,6 +583,8 @@ func Count(coll Value) int {
 		return coll.ListLen()
 	case TagArray:
 		return coll.ArrayLen()
+	case TagVector:
+		return coll.VectorLen()
 	case TagLazyList:
 		// For lazy lists, count by iterating
 		cursor := newSeqCursor(coll)
@@ -599,7 +614,7 @@ func Count(coll Value) int {
 
 func DoAll(coll Value) Value {
 	switch coll.tag {
-	case TagList, TagArray, TagLazyList:
+	case TagList, TagArray, TagVector, TagLazyList:
 		// Realize seqable collections.
 	default:
 		// Non-seq values are already realized; keep doall as a no-op.
@@ -696,6 +711,13 @@ func Drop(n Value, coll Value) Value {
 		}
 		items := coll.arrayItems()
 		return newArrayValue(items[count:length], length-count)
+	case TagVector:
+		length := coll.VectorLen()
+		if count >= length {
+			return NewVector()
+		}
+		items := coll.vectorItems()
+		return newVectorValue(items[count:length], length-count)
 	case TagList:
 		out := coll
 		for i := 0; i < count && out.ListLen() > 0; i++ {
@@ -712,7 +734,7 @@ func Drop(n Value, coll Value) Value {
 		}
 		return out
 	default:
-		panic("drop expects list, array, or lazy-list Value")
+		panic("drop expects list, array, vector, or lazy-list Value")
 	}
 }
 
@@ -732,6 +754,14 @@ func Nth(coll Value, index Value, notFound ...Value) Value {
 			panic("nth index out of range")
 		}
 		return ArrayGet(coll, i)
+	case TagVector:
+		if i >= coll.VectorLen() {
+			if hasMissing {
+				return missing
+			}
+			panic("nth index out of range")
+		}
+		return VectorGet(coll, i)
 	case TagString:
 		cursor := newSeqCursor(coll)
 		for pos := 0; pos <= i; pos++ {
@@ -755,7 +785,7 @@ func Nth(coll Value, index Value, notFound ...Value) Value {
 	case TagList, TagLazyList:
 		panic("nth does not support list or lazy-list; use slow-nth")
 	default:
-		panic("nth expects array, string, or nil Value")
+		panic("nth expects array, vector, string, or nil Value")
 	}
 }
 
@@ -767,10 +797,10 @@ func SlowNth(coll Value, index Value, notFound ...Value) Value {
 	missing, hasMissing := nthMissing(notFound)
 
 	switch coll.tag {
-	case TagNil, TagList, TagArray, TagLazyList, TagString:
+	case TagNil, TagList, TagArray, TagVector, TagLazyList, TagString:
 		// supported sequential values
 	default:
-		panic("slow-nth expects list, array, lazy-list, string, or nil Value")
+		panic("slow-nth expects list, array, vector, lazy-list, string, or nil Value")
 	}
 
 	cursor := newSeqCursor(coll)
@@ -810,6 +840,11 @@ func First(coll Value) Value {
 			return NilValue()
 		}
 		return coll.arrayItems()[0]
+	case TagVector:
+		if coll.VectorLen() == 0 {
+			return NilValue()
+		}
+		return coll.vectorItems()[0]
 	case TagLazyList:
 		next, ok := lazyPeek(coll)
 		if !ok {
@@ -824,13 +859,13 @@ func First(coll Value) Value {
 		_, size := utf8.DecodeRuneInString(value)
 		return NewString(value[:size])
 	default:
-		panic("first expects nil, list, array, lazy-list, or string Value")
+		panic("first expects nil, list, array, vector, lazy-list, or string Value")
 	}
 }
 
 func SeqPredicate(coll Value) Value {
 	switch coll.tag {
-	case TagList, TagArray, TagLazyList:
+	case TagList, TagArray, TagVector, TagLazyList:
 		return NewBool(true)
 	default:
 		return NewBool(false)
@@ -843,6 +878,8 @@ func Rest(coll Value) Value {
 		return ListRest(coll)
 	case TagArray:
 		return ArrayRest(coll)
+	case TagVector:
+		return VectorRest(coll)
 	case TagLazyList:
 		return lazyTail(coll)
 	case TagString:
@@ -853,7 +890,7 @@ func Rest(coll Value) Value {
 		_, size := utf8.DecodeRuneInString(value)
 		return Vec(NewString(value[size:]))
 	default:
-		panic("rest expects list, array, lazy-list, or string Value")
+		panic("rest expects list, array, vector, lazy-list, or string Value")
 	}
 }
 
@@ -871,12 +908,16 @@ func Next(coll Value) Value {
 		if rest.ArrayLen() == 0 {
 			return NilValue()
 		}
+	case TagVector:
+		if rest.VectorLen() == 0 {
+			return NilValue()
+		}
 	case TagLazyList:
 		if _, ok := lazyPeek(rest); !ok {
 			return NilValue()
 		}
 	default:
-		panic("next expects list, array, or lazy-list Value")
+		panic("next expects list, array, vector, or lazy-list Value")
 	}
 	return rest
 }
@@ -898,6 +939,12 @@ func Last(coll Value) Value {
 		}
 		items := coll.arrayItems()
 		return items[coll.ArrayLen()-1]
+	case TagVector:
+		if coll.VectorLen() == 0 {
+			return NilValue()
+		}
+		items := coll.vectorItems()
+		return items[coll.VectorLen()-1]
 	case TagLazyList:
 		cursor := newSeqCursor(coll)
 		last := NilValue()
@@ -909,7 +956,7 @@ func Last(coll Value) Value {
 			last = next
 		}
 	default:
-		panic("last expects list, array, or lazy-list Value")
+		panic("last expects list, array, vector, or lazy-list Value")
 	}
 }
 
@@ -1098,6 +1145,14 @@ func newSeqCursor(coll Value) seqCursor {
 			length:    length,
 			hasLength: true,
 		}
+	case TagVector:
+		length := coll.VectorLen()
+		return seqCursor{
+			kind:      TagArray,
+			arrayVals: coll.vectorItems()[:length],
+			length:    length,
+			hasLength: true,
+		}
 	case TagLazyList:
 		remaining := coll.lazyListRemainingHint()
 		hasLength := remaining >= 0
@@ -1131,7 +1186,7 @@ func newSeqCursor(coll Value) seqCursor {
 			hasLength: false,
 		}
 	default:
-		panic("sequence expects list, array, lazy-list, map, string, or nil Value")
+		panic("sequence expects list, array, vector, lazy-list, map, string, or nil Value")
 	}
 }
 
