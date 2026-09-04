@@ -402,6 +402,8 @@ func Contains(coll Value, key Value) bool {
 
 func MapDissoc(coll Value, keys ...Value) Value {
 	switch coll.tag {
+	case TagNil:
+		return NilValue()
 	case TagMap:
 		items := coll.mapPointer().items
 		for _, key := range keys {

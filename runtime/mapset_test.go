@@ -44,6 +44,16 @@ func TestAssocAndDissocMap(t *testing.T) {
 	if got := ValueToString(m); got != "{:a 5}" {
 		t.Fatalf("unexpected map after dissoc: %q", got)
 	}
+
+	if got := ValueToString(Dissoc(NewMap(NewKeyword("a"), NewLong(1)))); got != "{:a 1}" {
+		t.Fatalf("unexpected no-op dissoc result: %q", got)
+	}
+	if got := Dissoc(NilValue()); got.tag != TagNil {
+		t.Fatalf("expected nil dissoc on nil, got %v", ValueToAny(got))
+	}
+	if got := Dissoc(NilValue(), NewKeyword("a"), NewKeyword("b")); got.tag != TagNil {
+		t.Fatalf("expected nil dissoc with keys on nil, got %v", ValueToAny(got))
+	}
 }
 
 func TestEqMapAndSet(t *testing.T) {

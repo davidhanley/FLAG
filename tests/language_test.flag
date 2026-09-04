@@ -104,6 +104,9 @@
   (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals find lookup"
     (is (= {:a 1 :b 2} (assoc {:a 1} :b 2)))
     (is (= {:a 1} (dissoc {:a 1 :b 2} :b)))
+    (is (= {:a 1} (dissoc {:a 1})))
+    (is (= nil (dissoc nil)))
+    (is (= nil (dissoc nil :a :b)))
     (is (= {:a {:b 2}} (assoc-in {:a {:b 1}} [:a :b] 2)))
     (is (= {:a {:b 1 :c 2}} (assoc-in {:a {:b 1}} [:a :c] 2)))
     (is (= {:a {:b 1}} (assoc-in nil [:a :b] 1)))
