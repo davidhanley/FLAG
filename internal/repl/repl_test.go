@@ -9,24 +9,86 @@ import (
 	"testing"
 )
 
-func TestRunVectorPrintsPipeSyntax(t *testing.T) {
-	input := strings.NewReader("(def v (vector/vector 1 2 3))\n| 1 2 3 |\n(nth v 1)\n:quit\n")
-	var output bytes.Buffer
+func TestRunCollectionPrinting(t *testing.T) {
+	cases := []struct {
+		expr string
+		want string
+	}{
+		{expr: "(list 1 2 3)", want: "(1 2 3)"},
+		{expr: "'(1 2 3)", want: "(1 2 3)"},
+		{expr: "(list)", want: "()"},
+		{expr: "(array 1 2 3)", want: "[1 2 3]"},
+		{expr: "[1 2 3]", want: "[1 2 3]"},
+		{expr: "(array)", want: "[]"},
+		{expr: "(vector/vector 1 2 3)", want: "| 1 2 3 |"},
+		{expr: "| 1 2 3 |", want: "| 1 2 3 |"},
+		{expr: "| |", want: "| |"},
+		{expr: "{:a 1}", want: "{:a 1}"},
+		{expr: "#{1}", want: "#{1}"},
+		{expr: "true", want: "true"},
+		{expr: `"hi"`, want: "hi"},
+	}
 
+	exprs := make([]string, 0, len(cases))
+	wants := make([]string, 0, len(cases))
+	for _, tc := range cases {
+		exprs = append(exprs, tc.expr)
+		wants = append(wants, tc.want)
+	}
+
+	got := replEval(t, exprs...)
+	if len(got) != len(wants) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(wants), len(got), got)
+	}
+	for i, want := range wants {
+		if got[i] != want {
+			t.Fatalf("expr %s: want %q, got %q", exprs[i], want, got[i])
+		}
+	}
+}
+
+func TestRunVectorPrintsPipeSyntax(t *testing.T) {
+	got := replEval(t,
+		"(def v (vector/vector 1 2 3))",
+		"v",
+		"| 1 2 3 |",
+		"(nth v 1)",
+		"(= [1 2 3] v)",
+	)
+	want := []string{"| 1 2 3 |", "| 1 2 3 |", "| 1 2 3 |", "2", "false"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
+func replEval(t *testing.T, forms ...string) []string {
+	t.Helper()
+	input := strings.NewReader(strings.Join(append(append([]string{}, forms...), ":quit"), "\n") + "\n")
+	var output bytes.Buffer
 	if err := Run(input, &output); err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-
 	got := output.String()
 	if strings.Contains(got, "error:") {
 		t.Fatalf("expected no REPL errors, got:\n%s", got)
 	}
-	if strings.Count(got, "| 1 2 3 |") < 2 {
-		t.Fatalf("expected pipe-vector print for constructor and literal, got:\n%s", got)
+	parts := strings.Split(got, "flag> ")
+	if len(parts) > 0 && parts[0] == "" {
+		parts = parts[1:]
 	}
-	if strings.Contains(got, "[1 2 3]") {
-		t.Fatalf("vector should not print as array, got:\n%s", got)
+	if len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" {
+		parts = parts[:len(parts)-1]
 	}
+	results := make([]string, 0, len(parts))
+	for _, part := range parts {
+		results = append(results, strings.TrimSuffix(part, "\n"))
+	}
+	return results
 }
 
 func TestRunDefAssocMap(t *testing.T) {
