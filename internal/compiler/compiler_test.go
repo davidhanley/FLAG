@@ -542,6 +542,26 @@ func TestCompileExpression(t *testing.T) {
 	}
 }
 
+func TestCompileListAndArrayConstructors(t *testing.T) {
+	got, err := CompileExpression(`(list 1 (+ 1 1))`)
+	if err != nil {
+		t.Fatalf("CompileExpression list returned error: %v", err)
+	}
+	want := "flagrt.ValueToAny(flagrt.NewList(flagrt.NewLong(1), flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(1))))"
+	if got != want {
+		t.Fatalf("unexpected list expression:\nwant: %s\ngot:  %s", want, got)
+	}
+
+	got, err = CompileExpression(`(array 1 2)`)
+	if err != nil {
+		t.Fatalf("CompileExpression array returned error: %v", err)
+	}
+	want = "flagrt.ValueToAny(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)))"
+	if got != want {
+		t.Fatalf("unexpected array expression:\nwant: %s\ngot:  %s", want, got)
+	}
+}
+
 func TestCompileDefrecordGoStruct(t *testing.T) {
 	output, err := Compile(`
 (defrecord SourceToken [^string token ^long line ^long offset])

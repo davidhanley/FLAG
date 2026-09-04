@@ -461,6 +461,14 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)
 		})
+	case "list":
+		return NewFunction(func(args ...Value) Value {
+			return NewList(args...)
+		})
+	case "array":
+		return NewFunction(func(args ...Value) Value {
+			return NewArray(args...)
+		})
 	case "range":
 		return NewFunction(func(args ...Value) Value {
 			return Range(args...)

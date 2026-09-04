@@ -132,8 +132,9 @@ Implemented macros (from standard macros file):
 - nil: `nil`
 - symbols: `'abc`
 - keywords: `:kw`
-- lists: `'(1 2 3)`
-- vectors: `[1 2 3]`
+- lists: `'(1 2 3)` or `(list 1 2 3)`
+- arrays: `[1 2 3]` or `(array 1 2 3)`
+- vectors: `| 1 2 3 |` or `(vector/vector 1 2 3)`
 - maps: `{:a 1 :b 2}`
 - sets: `#{1 2 3}`
 
@@ -200,6 +201,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 
 ### Collections
 
+- `list`, `array` (constructors; evaluate arguments)
 - `get`
 - `assoc`
 - `dissoc`

@@ -462,12 +462,10 @@ func ValueToAny(v Value) any {
 		return v.StringValue()
 	case TagDate:
 		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur, TagRecord, TagVector:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur, TagRecord, TagVector, TagList:
 		return v
 	case TagNil:
 		return nil
-	case TagList:
-		return listValueToAny(v)
 	case TagArray:
 		return arrayValueToAny(v)
 	default:

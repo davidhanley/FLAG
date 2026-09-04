@@ -133,7 +133,16 @@
     (is (= nil (find nil :a)))
     (is (= {:a 1} (select-keys {:a 1 :b 2} [:a])))
     (is (= {:a 1 :b 2} (hash-map :a 1 :b 2)))
-    (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))))
+    (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))
+    (is (= '(1 2 3) (list 1 2 3)))
+    (is (= '(1 2 3) (list 1 (+ 1 1) 3)))
+    (is (= '() (list)))
+    (is (= [1 2 3] (array 1 2 3)))
+    (is (= [1 2 3] (array 1 (+ 1 1) 3)))
+    (is (= [] (array)))
+    (is (not (= (list 1 2 3) (array 1 2 3))))
+    (is (= '(1 2 3) (apply list [1 2 3])))
+    (is (= [1 2 3] (apply array '(1 2 3))))))
 
 (deftest apply-partial-juxt
   (testing "higher-order helpers"

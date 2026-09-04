@@ -67,15 +67,6 @@ func ListAppend(listValue Value, item Value) Value {
 	return NewList(values...)
 }
 
-func listValueToAny(v Value) []any {
-	rawItems := v.ListValues()
-	items := make([]any, 0, len(rawItems))
-	for _, item := range rawItems {
-		items = append(items, ValueToAny(item))
-	}
-	return items
-}
-
 func newListValue(head *listNode, length int) Value {
 	out := Value{p: unsafe.Pointer(head), tag: TagList}
 	*(*int64)(unsafe.Pointer(&out.d)) = int64(length)

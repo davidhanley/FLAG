@@ -62,19 +62,15 @@ func TestListRestOfSingletonIsEmpty(t *testing.T) {
 
 func TestValueToAnyForList(t *testing.T) {
 	listValue := NewList(NewLong(1), NewDouble(2.5))
-
-	converted, ok := ValueToAny(listValue).([]any)
+	converted, ok := ValueToAny(listValue).(Value)
 	if !ok {
-		t.Fatalf("expected []any conversion, got %T", ValueToAny(listValue))
+		t.Fatalf("expected list Value from ValueToAny, got %T", ValueToAny(listValue))
 	}
-	if len(converted) != 2 {
-		t.Fatalf("expected 2 list items, got %d", len(converted))
+	if converted.tag != TagList {
+		t.Fatalf("expected TagList, got %v", converted.tag)
 	}
-	if converted[0] != int64(1) {
-		t.Fatalf("expected first item int64(1), got %#v", converted[0])
-	}
-	if converted[1] != 2.5 {
-		t.Fatalf("expected second item 2.5, got %#v", converted[1])
+	if ValueToString(converted) != "(1 2.5)" {
+		t.Fatalf("unexpected list print: %s", ValueToString(converted))
 	}
 }
 

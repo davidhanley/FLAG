@@ -2551,6 +2551,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
 		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
+		"list", "array",
 		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
 		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
@@ -2681,6 +2682,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return formatExprToGo(list.Elements[1:], ctx, locals)
 		case "hash-map":
 			return hashMapExprToGo(list.Elements[1:], ctx, locals)
+		case "list":
+			return valueCtorExprToGo("list", "NewList", list.Elements[1:], ctx, locals)
+		case "array":
+			return valueCtorExprToGo("array", "NewArray", list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "concat":
@@ -4726,6 +4731,10 @@ func hashMapExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 	if len(args)%2 != 0 {
 		return goExpr{}, fmt.Errorf("hash-map expects key/value pairs")
 	}
+	return valueCtorExprToGo("hash-map", "NewMap", args, ctx, locals)
+}
+
+func valueCtorExprToGo(op, ctor string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
 		part, err := exprToGo(arg, ctx, locals)
@@ -4736,11 +4745,11 @@ func hashMapExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 			part = goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, part.code), kind: exprKindValue}
 		}
 		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("hash-map entries must evaluate to Value")
+			return goExpr{}, fmt.Errorf("%s entries must evaluate to Value", op)
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("%s.%s(%s)", runtimeAlias, ctor, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func updateBangExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
