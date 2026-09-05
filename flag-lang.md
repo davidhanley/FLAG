@@ -211,6 +211,13 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `vals`
 - `find`
 
+### Predicates
+
+- `true?` / `false?` (only the booleans `true` and `false`)
+- `boolean` (truthy → `true`, `nil`/`false` → `false`)
+- `nil?`
+- `some?`
+
 ### Types
 
 - `type-of` returns a keyword: `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:record`

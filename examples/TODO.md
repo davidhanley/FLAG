@@ -28,7 +28,7 @@
 
 ## Predicates + type/core helpers
 
-- [ ] Add **`true?`** and **`false?`**.
+- [x] Add **`true?`** and **`false?`**.
 - [ ] Add **`zero?`**, **`pos?`**, **`neg?`**, **`number?`**, **`int?`**.
 - [ ] Add **`string?`**, **`keyword?`**, **`symbol?`**, **`map?`**, **`vector?`**, **`set?`**, **`sequential?`**, **`coll?`**.
 - [ ] Add **`even?`** / **`odd?`** as core helpers (common enough to be built in, not user-defined per project).

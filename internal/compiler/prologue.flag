@@ -142,6 +142,15 @@
 (defn some? [x]
   (not (nil? x)))
 
+(defn true? [x]
+  (= x true))
+
+(defn false? [x]
+  (= x false))
+
+(defn boolean [x]
+  (if x true false))
+
 (defn not-empty? [coll]
   (not (empty? coll)))
 
