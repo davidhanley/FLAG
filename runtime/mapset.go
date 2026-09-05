@@ -38,7 +38,50 @@ func NewSet(values ...Value) Value {
 }
 
 func Assoc(coll Value, entries ...Value) Value {
-	return MapAssoc(coll, entries...)
+	switch coll.tag {
+	case TagMap:
+		return MapAssoc(coll, entries...)
+	case TagArray, TagVector:
+		return indexedAssoc(coll, entries...)
+	default:
+		panic("assoc expects map, array, or vector Value")
+	}
+}
+
+func indexedAssoc(coll Value, entries ...Value) Value {
+	if len(entries) < 2 || len(entries)%2 != 0 {
+		panic("assoc expects collection and key/value pairs")
+	}
+	out := coll
+	for i := 0; i < len(entries); i += 2 {
+		out = indexedAssocOne(out, nonNegativeCount("assoc", entries[i]), entries[i+1])
+	}
+	return out
+}
+
+func indexedAssocOne(coll Value, index int, item Value) Value {
+	switch coll.tag {
+	case TagArray:
+		n := coll.ArrayLen()
+		if index < n {
+			return ArrayAssoc(coll, index, item)
+		}
+		if index == n {
+			return ArrayAppend(coll, item)
+		}
+		panic("assoc index out of bounds")
+	case TagVector:
+		n := coll.VectorLen()
+		if index < n {
+			return VectorAssoc(coll, index, item)
+		}
+		if index == n {
+			return VectorAppend(coll, item)
+		}
+		panic("assoc index out of bounds")
+	default:
+		panic("assoc expects array or vector Value")
+	}
 }
 
 func Keys(coll Value) Value {

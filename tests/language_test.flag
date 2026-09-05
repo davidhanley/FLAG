@@ -137,6 +137,13 @@
 (deftest maps-and-keys
   (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals find lookup"
     (is (= {:a 1 :b 2} (assoc {:a 1} :b 2)))
+    (is (= [1 9 3] (assoc [1 2 3] 1 9)))
+    (is (= [1 2 3] (assoc [1 2] 2 3)))
+    (is (= [:a :b] (assoc [1 2] 0 :a 1 :b)))
+    (is (= | 1 9 3 | (assoc | 1 2 3 | 1 9)))
+    (is (= | 1 2 3 | (assoc | 1 2 | 2 3)))
+    (is (= [1 2 3] (let [a [1 2 3]] (assoc a 1 9) a)))
+    (expect-exception (assoc [1] 3 0) "out of bounds")
     (is (= {:a 1} (dissoc {:a 1 :b 2} :b)))
     (is (= {:a 1} (dissoc {:a 1})))
     (is (= nil (dissoc nil)))

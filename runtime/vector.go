@@ -35,6 +35,21 @@ func VectorGet(vectorValue Value, index int) Value {
 	return vectorValue.vectorItems()[index]
 }
 
+func VectorAssoc(vectorValue Value, index int, item Value) Value {
+	if vectorValue.tag != TagVector {
+		panic("VectorAssoc expects vector Value")
+	}
+	length := vectorValue.VectorLen()
+	if index < 0 || index >= length {
+		panic("vector index out of range")
+	}
+	items := vectorValue.vectorItems()
+	next := make([]Value, len(items))
+	copy(next, items)
+	next[index] = item
+	return newVectorValue(next, length)
+}
+
 func VectorRest(vectorValue Value) Value {
 	if vectorValue.tag != TagVector {
 		panic("VectorRest expects vector Value")

@@ -205,7 +205,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 
 - `list`, `array` (constructors; evaluate arguments)
 - `get`
-- `assoc`
+- `assoc` (maps by key; arrays and FLAG vectors by index, including append at `count`)
 - `dissoc`
 - `keys`
 - `vals`

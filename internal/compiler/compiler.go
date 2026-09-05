@@ -5406,7 +5406,7 @@ func assocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.MapAssoc(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("%s.Assoc(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func dissocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

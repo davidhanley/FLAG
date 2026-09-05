@@ -56,6 +56,39 @@ func TestAssocAndDissocMap(t *testing.T) {
 	}
 }
 
+func TestAssocArrayAndVector(t *testing.T) {
+	arr := NewArray(NewLong(1), NewLong(2), NewLong(3))
+	updated := Assoc(arr, NewLong(1), NewLong(9))
+	if got := ValueToString(updated); got != "[1 9 3]" {
+		t.Fatalf("unexpected array assoc: %q", got)
+	}
+	if got := ValueToString(arr); got != "[1 2 3]" {
+		t.Fatalf("assoc should not mutate original array: %q", got)
+	}
+	if got := ValueToString(Assoc(NewArray(NewLong(1), NewLong(2)), NewLong(2), NewLong(3))); got != "[1 2 3]" {
+		t.Fatalf("unexpected array assoc append: %q", got)
+	}
+	if got := ValueToString(Assoc(NewArray(NewLong(1), NewLong(2)), NewLong(0), NewKeyword("a"), NewLong(1), NewKeyword("b"))); got != "[:a :b]" {
+		t.Fatalf("unexpected multi-pair array assoc: %q", got)
+	}
+
+	vec := NewVector(NewLong(1), NewLong(2), NewLong(3))
+	updatedVec := Assoc(vec, NewLong(1), NewLong(9))
+	if got := ValueToString(updatedVec); got != "| 1 9 3 |" {
+		t.Fatalf("unexpected vector assoc: %q", got)
+	}
+	if got := ValueToString(vec); got != "| 1 2 3 |" {
+		t.Fatalf("assoc should not mutate original vector: %q", got)
+	}
+	if got := ValueToString(Assoc(NewVector(NewLong(1), NewLong(2)), NewLong(2), NewLong(3))); got != "| 1 2 3 |" {
+		t.Fatalf("unexpected vector assoc append: %q", got)
+	}
+
+	assertPanics(t, func() { Assoc(NewArray(NewLong(1)), NewLong(3), NewLong(0)) })
+	assertPanics(t, func() { Assoc(NewVector(NewLong(1)), NewLong(3), NewLong(0)) })
+	assertPanics(t, func() { Assoc(NewList(NewLong(1)), NewLong(0), NewLong(2)) })
+}
+
 func TestEqMapAndSet(t *testing.T) {
 	mapA := NewMap(NewKeyword("a"), NewLong(1), NewKeyword("b"), NewLong(2))
 	mapB := NewMap(NewKeyword("b"), NewLong(2), NewKeyword("a"), NewLong(1))
