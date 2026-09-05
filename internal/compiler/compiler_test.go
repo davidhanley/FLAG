@@ -542,6 +542,24 @@ func TestCompileExpression(t *testing.T) {
 	}
 }
 
+func TestCompilePeekPopAliases(t *testing.T) {
+	got, err := CompileExpression(`(peek (list 1 2))`)
+	if err != nil {
+		t.Fatalf("CompileExpression peek returned error: %v", err)
+	}
+	if !strings.Contains(got, "flagrt.Call(peek,") {
+		t.Fatalf("expected peek to call prologue alias, got %s", got)
+	}
+
+	got, err = CompileExpression(`(pop (list 1 2))`)
+	if err != nil {
+		t.Fatalf("CompileExpression pop returned error: %v", err)
+	}
+	if !strings.Contains(got, "flagrt.Call(pop,") {
+		t.Fatalf("expected pop to call prologue alias, got %s", got)
+	}
+}
+
 func TestCompileListAndArrayConstructors(t *testing.T) {
 	got, err := CompileExpression(`(list 1 (+ 1 1))`)
 	if err != nil {

@@ -488,6 +488,13 @@ func loadStandardPrologue(ctx *compileContext) error {
 				goName:   def.goName,
 				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
 			})
+		case "def":
+			binding, kind, err := compileDef(list, *ctx)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
+			ctx.globals[binding.goName] = kind
+			ctx.prologueVars = append(ctx.prologueVars, binding)
 		default:
 			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
 		}
@@ -754,7 +761,8 @@ func NewReplCompiler() *ReplCompiler {
 }
 
 func (r *ReplCompiler) PrologueSetup() ReplCompiled {
-	parts := make([]string, 0, len(r.ctx.prologueFns)*4)
+	parts := make([]string, 0, len(r.ctx.prologueFns)*4+len(r.ctx.prologueVars)*2)
+	emitted := make(map[string]bool, len(r.ctx.prologueFns))
 	for _, def := range r.ctx.prologueFns {
 		// Emit full function declarations (arity + variadic wrappers) so
 		// self-recursive prologue fns can resolve their direct arity symbol.
@@ -762,6 +770,16 @@ func (r *ReplCompiler) PrologueSetup() ReplCompiled {
 			strings.TrimSpace(renderFunctionDef(def)),
 			fmt.Sprintf("var %s flagrt.Value", def.goName),
 			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
+		)
+		emitted[def.goName] = true
+	}
+	for _, binding := range r.ctx.prologueVars {
+		if emitted[binding.goName] {
+			continue
+		}
+		parts = append(parts,
+			fmt.Sprintf("var %s flagrt.Value", binding.goName),
+			fmt.Sprintf("%s = %s", binding.goName, binding.expr),
 		)
 	}
 	return ReplCompiled{Setup: strings.Join(parts, ";;")}
@@ -2552,7 +2570,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
 		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
 		"list", "array",
-		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
+		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
 		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
 		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
@@ -2672,6 +2690,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return emptyPredicateExprToGo(list.Elements[1:], ctx, locals)
 		case "nil?":
 			return nilPredicateExprToGo(list.Elements[1:], ctx, locals)
+		case "type-of":
+			return typeOfExprToGo(list.Elements[1:], ctx, locals)
 		case "count":
 			return countExprToGo(list.Elements[1:], ctx, locals)
 		case "double":
@@ -4631,6 +4651,21 @@ func emptyPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]e
 		return goExpr{}, fmt.Errorf("empty? expects an argument that evaluates to Value")
 	}
 	return goExpr{code: fmt.Sprintf("%s.NewBool(%s.IsEmpty(%s))", runtimeAlias, runtimeAlias, argCode), kind: exprKindValue}, nil
+}
+
+func typeOfExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("type-of expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	argCode, err := collectionArgToValueCode(arg)
+	if err != nil {
+		return goExpr{}, fmt.Errorf("type-of expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.TypeOf(%s)", runtimeAlias, argCode), kind: exprKindValue}, nil
 }
 
 func nilPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

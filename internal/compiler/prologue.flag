@@ -101,6 +101,9 @@
 (defmacro not [x]
   (if x false true))
 
+(def peek first)
+(def pop rest)
+
 (defn identity [x] x)
 
 (defn constantly [x]

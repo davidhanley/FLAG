@@ -14,7 +14,7 @@
 ## Sequence + collection APIs
 
 - [x] Add **`nth`** (`not-found` arity included).
-- [ ] Add **`peek` / `pop`** semantics by collection type.
+- [x] Add **`peek` / `pop`** as FLAG aliases of `first` / `rest`.
 - [ ] Add **`interpose`**.
 - [ ] Add **`interleave`**.
 - [ ] Add **`partition`** and **`partition-all`**.

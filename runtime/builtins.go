@@ -273,6 +273,13 @@ func BuiltinFunction(name string) Value {
 			}
 			return NewBool(IsNil(args[0]))
 		})
+	case "type-of":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("type-of expects exactly one argument")
+			}
+			return TypeOf(args[0])
+		})
 	case "set":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {

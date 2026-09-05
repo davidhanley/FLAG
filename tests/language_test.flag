@@ -13,6 +13,24 @@
     (is (= 10N 10N))
     (is (= \M \M))))
 
+(deftest type-of-keywords
+  (testing "type-of returns type keywords"
+    (is (= :int (type-of 1)))
+    (is (= :float (type-of 1.5)))
+    (is (= :bigint (type-of 10N)))
+    (is (= :ratio (type-of 5/6)))
+    (is (= :bool (type-of true)))
+    (is (= :string (type-of "hi")))
+    (is (= :keyword (type-of :kw)))
+    (is (= :symbol (type-of 'abc)))
+    (is (= :nil (type-of nil)))
+    (is (= :list (type-of '(1 2))))
+    (is (= :array (type-of [1 2])))
+    (is (= :vector (type-of | 1 2 |)))
+    (is (= :map (type-of {:a 1})))
+    (is (= :set (type-of #{1})))
+    (is (= :fn (type-of identity)))))
+
 (deftest comparisons
   (testing "eq and ordering"
     (is (= 1 1.0 1))
@@ -80,7 +98,13 @@
     (is (= :missing (nth [1] 8 :missing)))
     (expect-exception (nth '(1 2 3) 1) "use slow-nth")
     (is (= 2 (slow-nth '(1 2 3) 1)))
-    (is (= :missing (slow-nth '(1) 8 :missing)))))
+    (is (= :missing (slow-nth '(1) 8 :missing)))
+    (is (= 1 (peek '(1 2 3))))
+    (is (= '(2 3) (pop '(1 2 3))))
+    (is (= 1 (peek | 1 2 3 |)))
+    (is (= | 2 3 | (pop | 1 2 3 |)))
+    (is (= 1 (peek [1 2 3])))
+    (is (= [2 3] (pop [1 2 3])))))
 
 (deftest seq-functions
   (testing "map filter reduce range and friends"

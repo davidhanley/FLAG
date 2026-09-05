@@ -189,6 +189,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 
 - `first` (also `fist` alias)
 - `rest`
+- `peek` (alias of `first`)
+- `pop` (alias of `rest`)
 - `take`
 - `drop` (usage: `(drop n coll)`)
 - `nth` (fast random-access; arrays/strings)
@@ -208,6 +210,10 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `keys`
 - `vals`
 - `find`
+
+### Types
+
+- `type-of` returns a keyword: `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:record`
 
 ### Symbols/strings/printing
 

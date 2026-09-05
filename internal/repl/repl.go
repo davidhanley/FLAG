@@ -283,6 +283,7 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"SeqPredicate":                reflect.ValueOf(flagrt.SeqPredicate),
 			"IsEmpty":                     reflect.ValueOf(flagrt.IsEmpty),
 			"IsNil":                       reflect.ValueOf(flagrt.IsNil),
+			"TypeOf":                      reflect.ValueOf(flagrt.TypeOf),
 			"Some":                        reflect.ValueOf(flagrt.Some),
 			"Conj":                        reflect.ValueOf(flagrt.Conj),
 			"Contains":                    reflect.ValueOf(flagrt.Contains),
