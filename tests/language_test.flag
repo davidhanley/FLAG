@@ -60,6 +60,34 @@
     (expect-exception (pos? "x") "number")
     (expect-exception (neg? nil) "number")))
 
+(deftest type-predicates
+  (testing "string? symbol? keyword? map? vector? set? sequential? coll?"
+    (is (string? "hi"))
+    (is (= false (string? :hi)))
+    (is (symbol? 'abc))
+    (is (= false (symbol? :abc)))
+    (is (keyword? :kw))
+    (is (= false (keyword? 'kw)))
+    (is (map? {:a 1}))
+    (is (= false (map? #{1})))
+    (is (vector? | 1 2 |))
+    (is (= false (vector? [1 2])))
+    (is (set? #{1}))
+    (is (= false (set? {:a 1})))
+    (is (sequential? [1]))
+    (is (sequential? '(1)))
+    (is (sequential? | 1 |))
+    (is (= false (sequential? {:a 1})))
+    (is (= false (sequential? #{1})))
+    (is (= false (sequential? "hi")))
+    (is (coll? [1]))
+    (is (coll? {:a 1}))
+    (is (coll? #{1}))
+    (is (coll? '(1)))
+    (is (coll? | 1 |))
+    (is (= false (coll? "hi")))
+    (is (= false (coll? 1)))))
+
 (deftest comparisons
   (testing "eq and ordering"
     (is (= 1 1.0 1))

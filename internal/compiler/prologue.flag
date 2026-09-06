@@ -164,6 +164,36 @@
 (defn float? [x]
   (= (type-of x) :float))
 
+(defn string? [x]
+  (= (type-of x) :string))
+
+(defn symbol? [x]
+  (= (type-of x) :symbol))
+
+(defn keyword? [x]
+  (= (type-of x) :keyword))
+
+(defn map? [x]
+  (or (= (type-of x) :map)
+      (= (type-of x) :record)))
+
+(defn vector? [x]
+  (= (type-of x) :vector))
+
+(defn set? [x]
+  (= (type-of x) :set))
+
+(defn sequential? [x]
+  (or (= (type-of x) :list)
+      (= (type-of x) :array)
+      (= (type-of x) :vector)
+      (= (type-of x) :lazy-list)))
+
+(defn coll? [x]
+  (or (sequential? x)
+      (map? x)
+      (set? x)))
+
 (defn zero? [x]
   (if (number? x)
     (= x 0)
@@ -304,12 +334,6 @@
 
 (defn mapcat [f & colls]
   (apply concat (apply map f colls)))
-
-(defn sequential? [x]
-  (or (= (type-of x) :list)
-      (= (type-of x) :array)
-      (= (type-of x) :vector)
-      (= (type-of x) :lazy-list)))
 
 (defn distinct [coll]
   (loop [xs coll seen #{} out []]

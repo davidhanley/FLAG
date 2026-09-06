@@ -224,7 +224,12 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `boolean` (truthy → `true`, `nil`/`false` → `false`)
 - `nil?`
 - `some?`
+- `string?` / `symbol?` / `keyword?`
+- `map?` (`:map` / `:record`)
+- `vector?` (FLAG vectors `| … |` only; arrays are not vectors)
+- `set?`
 - `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list`)
+- `coll?` (sequential, map, or set)
 - `number?` (`:int` / `:float` / `:bigint` / `:ratio`)
 - `int?` (`:int` / `:bigint`)
 - `float?` (`:float`)
