@@ -308,3 +308,12 @@
       (if (empty? xs)
         out
         (recur (rest xs) (conj out sep (first xs)))))))
+
+(defn interleave [& colls]
+  (if (empty? colls)
+    []
+    (loop [cols colls out []]
+      (if (every? not-empty? cols)
+        (recur (map rest cols)
+               (reduce conj out (map first cols)))
+        out))))

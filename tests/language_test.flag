@@ -152,7 +152,13 @@
     (is (= [1] (interpose :a [1])))
     (is (= [] (interpose :a [])))
     (is (= [] (interpose :a nil)))
-    (is (= ["a" "," "b"] (interpose "," ["a" "b"])))))
+    (is (= ["a" "," "b"] (interpose "," ["a" "b"])))
+    (is (= [1 :a 2 :b 3 :c] (interleave [1 2 3] [:a :b :c])))
+    (is (= [1 :a 2 :b] (interleave [1 2 3] [:a :b])))
+    (is (= [1 4 7 2 5 8 3 6 9] (interleave [1 2 3] [4 5 6] [7 8 9])))
+    (is (= [1 2 3] (interleave [1 2 3])))
+    (is (= [] (interleave)))
+    (is (= [] (interleave [1 2] nil)))))
 
 (deftest maps-and-keys
   (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals find lookup"

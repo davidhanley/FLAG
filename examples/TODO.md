@@ -16,7 +16,7 @@
 - [x] Add **`nth`** (`not-found` arity included).
 - [x] Add **`peek` / `pop`** as FLAG aliases of `first` / `rest`.
 - [x] Add **`interpose`**.
-- [ ] Add **`interleave`**.
+- [x] Add **`interleave`**.
 - [ ] Add **`partition`** and **`partition-all`**.
 - [ ] Add **`partition-by`**.
 - [x] Add **`distinct`**.
