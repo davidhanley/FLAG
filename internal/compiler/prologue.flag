@@ -151,6 +151,34 @@
 (defn boolean [x]
   (if x true false))
 
+(defn number? [x]
+  (or (= (type-of x) :int)
+      (= (type-of x) :float)
+      (= (type-of x) :bigint)
+      (= (type-of x) :ratio)))
+
+(defn int? [x]
+  (or (= (type-of x) :int)
+      (= (type-of x) :bigint)))
+
+(defn float? [x]
+  (= (type-of x) :float))
+
+(defn zero? [x]
+  (if (number? x)
+    (= x 0)
+    (throw "zero? expects a number")))
+
+(defn pos? [x]
+  (if (number? x)
+    (> x 0)
+    (throw "pos? expects a number")))
+
+(defn neg? [x]
+  (if (number? x)
+    (< x 0)
+    (throw "neg? expects a number")))
+
 (defn not-empty? [coll]
   (not (empty? coll)))
 

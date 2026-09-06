@@ -225,6 +225,10 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `nil?`
 - `some?`
 - `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list`)
+- `number?` (`:int` / `:float` / `:bigint` / `:ratio`)
+- `int?` (`:int` / `:bigint`)
+- `float?` (`:float`)
+- `zero?` / `pos?` / `neg?` (numeric; throw on non-numbers)
 
 ### Types
 

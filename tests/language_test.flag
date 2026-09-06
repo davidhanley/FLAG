@@ -31,6 +31,35 @@
     (is (= :set (type-of #{1})))
     (is (= :fn (type-of identity)))))
 
+(deftest numeric-predicates
+  (testing "zero? pos? neg? number? int? float?"
+    (is (zero? 0))
+    (is (zero? 0.0))
+    (is (zero? 0N))
+    (is (= false (zero? 1)))
+    (is (pos? 1))
+    (is (pos? 0.5))
+    (is (pos? 1/2))
+    (is (= false (pos? 0)))
+    (is (= false (pos? -1)))
+    (is (neg? -1))
+    (is (neg? -0.5))
+    (is (= false (neg? 0)))
+    (is (number? 1))
+    (is (number? 1.5))
+    (is (number? 10N))
+    (is (number? 5/6))
+    (is (= false (number? :a)))
+    (is (int? 1))
+    (is (int? 10N))
+    (is (= false (int? 1.5)))
+    (is (= false (int? 5/6)))
+    (is (float? 1.5))
+    (is (= false (float? 1)))
+    (expect-exception (zero? :a) "number")
+    (expect-exception (pos? "x") "number")
+    (expect-exception (neg? nil) "number")))
+
 (deftest comparisons
   (testing "eq and ordering"
     (is (= 1 1.0 1))
