@@ -17,8 +17,8 @@
 - [x] Add **`peek` / `pop`** as FLAG aliases of `first` / `rest`.
 - [x] Add **`interpose`**.
 - [x] Add **`interleave`**.
-- [ ] Add **`partition`** and **`partition-all`**.
-- [ ] Add **`partition-by`**.
+- [x] Add **`partition`** and **`partition-all`**.
+- [x] Add **`partition-by`**.
 - [x] Add **`distinct`**.
 - [x] Add **`flatten`** (or `tree-seq` + `flatten` strategy).
 - [ ] Add **`map-indexed`** and **`keep-indexed`**.

@@ -317,3 +317,46 @@
         (recur (map rest cols)
                (reduce conj out (map first cols)))
         out))))
+
+(defn partition [n & more]
+  (if (or (= (count more) 1) (= (count more) 2) (= (count more) 3))
+    (let [c (count more)
+          step (if (= c 1) n (first more))
+          coll (if (= c 1)
+                 (first more)
+                 (if (= c 2)
+                   (second more)
+                   (nth more 2)))
+          pad (if (= c 3) (second more) nil)
+          use-pad (= c 3)]
+      (loop [xs coll out []]
+        (if (empty? xs)
+          out
+          (let [part (vec (take n xs))]
+            (if (= (count part) n)
+              (recur (drop step xs) (conj out part))
+              (if use-pad
+                (conj out (vec (take n (concat part pad))))
+                out))))))
+    (throw "partition expects 2, 3, or 4 arguments")))
+
+(defn partition-all [n & more]
+  (if (or (= (count more) 1) (= (count more) 2))
+    (let [step (if (= (count more) 1) n (first more))
+          coll (if (= (count more) 1) (first more) (second more))]
+      (loop [xs coll out []]
+        (if (empty? xs)
+          out
+          (recur (drop step xs) (conj out (vec (take n xs)))))))
+    (throw "partition-all expects 2 or 3 arguments")))
+
+(defn partition-by [f coll]
+  (loop [xs coll out []]
+    (if (empty? xs)
+      out
+      (let [fv (f (first xs))
+            run (loop [ys (rest xs) acc [(first xs)]]
+                  (if (or (empty? ys) (not= fv (f (first ys))))
+                    acc
+                    (recur (rest ys) (conj acc (first ys)))))]
+        (recur (drop (count run) xs) (conj out run))))))

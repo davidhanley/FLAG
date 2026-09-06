@@ -158,7 +158,20 @@
     (is (= [1 4 7 2 5 8 3 6 9] (interleave [1 2 3] [4 5 6] [7 8 9])))
     (is (= [1 2 3] (interleave [1 2 3])))
     (is (= [] (interleave)))
-    (is (= [] (interleave [1 2] nil)))))
+    (is (= [] (interleave [1 2] nil)))
+    (is (= [[1 2] [3 4] [5 6]] (partition 2 [1 2 3 4 5 6])))
+    (is (= [[1 2] [3 4]] (partition 2 [1 2 3 4 5])))
+    (is (= [[1 2] [2 3] [3 4]] (partition 2 1 [1 2 3 4])))
+    (is (= [[1 2 3] [4 5 0]] (partition 3 3 [0] [1 2 3 4 5])))
+    (is (= [[1 2 3] [4 0]] (partition 3 3 [0] [1 2 3 4])))
+    (is (= [] (partition 2 [])))
+    (is (= [] (partition 2 nil)))
+    (is (= [[1 2] [3 4]] (partition 2 '(1 2 3 4))))
+    (is (= [[1 2] [3 4] [5]] (partition-all 2 [1 2 3 4 5])))
+    (is (= [[1 2] [2 3] [3]] (partition-all 2 1 [1 2 3])))
+    (is (= [] (partition-all 2 [])))
+    (is (= [[1 1 1] [2 2] [3]] (partition-by identity [1 1 1 2 2 3])))
+    (is (= [[1 1] [2 4] [3 5] [6]] (partition-by even? [1 1 2 4 3 5 6])))))
 
 (deftest maps-and-keys
   (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals find lookup"

@@ -204,6 +204,9 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `flatten` (nested lists/arrays/vectors/lazy-lists; maps and sets are leaves)
 - `interpose` (separator between elements; returns an array)
 - `interleave` (round-robin until a collection is exhausted; returns an array)
+- `partition` (`n`, optional `step`/`pad`; incomplete tail dropped unless padded)
+- `partition-all` (`n`, optional `step`; keeps a short final group)
+- `partition-by` (new group when `f` changes)
 
 ### Collections
 
