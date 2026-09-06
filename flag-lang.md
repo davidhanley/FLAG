@@ -200,6 +200,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `filter`
 - `reduce`
 - `range`
+- `distinct` (first occurrence, input order; returns an array)
+- `flatten` (nested lists/arrays/vectors/lazy-lists; maps and sets are leaves)
 
 ### Collections
 
@@ -217,6 +219,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `boolean` (truthy → `true`, `nil`/`false` → `false`)
 - `nil?`
 - `some?`
+- `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list`)
 
 ### Types
 

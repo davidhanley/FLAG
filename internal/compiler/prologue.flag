@@ -276,3 +276,27 @@
 
 (defn mapcat [f & colls]
   (apply concat (apply map f colls)))
+
+(defn sequential? [x]
+  (or (= (type-of x) :list)
+      (= (type-of x) :array)
+      (= (type-of x) :vector)
+      (= (type-of x) :lazy-list)))
+
+(defn distinct [coll]
+  (loop [xs coll seen #{} out []]
+    (if (empty? xs)
+      out
+      (let [x (first xs)]
+        (if (contains? seen x)
+          (recur (rest xs) seen out)
+          (recur (rest xs) (conj seen x) (conj out x)))))))
+
+(defn flatten [x]
+  (if (sequential? x)
+    (vec (mapcat (fn [item]
+                   (if (sequential? item)
+                     (flatten item)
+                     [item]))
+                 x))
+    []))
