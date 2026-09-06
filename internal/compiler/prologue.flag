@@ -300,3 +300,11 @@
                      [item]))
                  x))
     []))
+
+(defn interpose [sep coll]
+  (if (empty? coll)
+    []
+    (loop [xs (rest coll) out [(first coll)]]
+      (if (empty? xs)
+        out
+        (recur (rest xs) (conj out sep (first xs)))))))

@@ -202,6 +202,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `range`
 - `distinct` (first occurrence, input order; returns an array)
 - `flatten` (nested lists/arrays/vectors/lazy-lists; maps and sets are leaves)
+- `interpose` (separator between elements; returns an array)
 
 ### Collections
 

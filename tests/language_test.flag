@@ -147,7 +147,12 @@
     (is (= [1 2 3] (flatten | 1 [2 3] |)))
     (is (= [1 #{2} 3] (flatten [1 #{2} 3])))
     (is (= [] (flatten nil)))
-    (is (= [] (flatten 1)))))
+    (is (= [] (flatten 1)))
+    (is (= [1 :a 2 :a 3] (interpose :a [1 2 3])))
+    (is (= [1] (interpose :a [1])))
+    (is (= [] (interpose :a [])))
+    (is (= [] (interpose :a nil)))
+    (is (= ["a" "," "b"] (interpose "," ["a" "b"])))))
 
 (deftest maps-and-keys
   (testing "assoc dissoc assoc-in dissoc-in update update-in keys vals find lookup"
