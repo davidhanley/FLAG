@@ -98,14 +98,6 @@
        (if name
          (do body))))))
 
-(defmacro comp
-  ([] (fn [x] x))
-  ([f] f)
-  ([f & rest]
-   (let [g (comp rest)]
-     (fn [x]
-       (f (g x))))))
-
 (defmacro not [x]
   (if x false true))
 
@@ -295,6 +287,67 @@
   (fn [& more]
     (apply f (concat bound more))))
 
+(defn complement [f]
+  (fn [& xs]
+    (not (apply f xs))))
+
+(defn fnil
+  ([f x]
+   (fn [& xs]
+     (if (empty? xs)
+       (f)
+       (apply f (if (nil? (first xs)) x (first xs)) (rest xs)))))
+  ([f x y]
+   (fn [& xs]
+     (let [n (count xs)]
+       (if (= n 0)
+         (f)
+         (if (= n 1)
+           (f (if (nil? (first xs)) x (first xs)))
+           (apply f
+                  (if (nil? (first xs)) x (first xs))
+                  (if (nil? (second xs)) y (second xs))
+                  (drop 2 xs)))))))
+  ([f x y z]
+   (fn [& xs]
+     (let [n (count xs)]
+       (if (= n 0)
+         (f)
+         (if (= n 1)
+           (f (if (nil? (first xs)) x (first xs)))
+           (if (= n 2)
+             (f (if (nil? (first xs)) x (first xs))
+                (if (nil? (second xs)) y (second xs)))
+             (apply f
+                    (if (nil? (first xs)) x (first xs))
+                    (if (nil? (second xs)) y (second xs))
+                    (if (nil? (nth xs 2)) z (nth xs 2))
+                    (drop 3 xs)))))))))
+
+(defn comp [& fs]
+  (if (empty? fs)
+    identity
+    (if (empty? (rest fs))
+      (first fs)
+      (reduce (fn [a b]
+                (fn [& xs]
+                  (a (apply b xs))))
+              fs))))
+
+(defn repeatedly
+  ([f]
+   (map (fn [_n] (f)) (range)))
+  ([n f]
+   (take n (repeatedly f))))
+
+(defn iterate [f x]
+  (let [^{:volatile true} v x]
+    (map (fn [_n]
+           (let [cur v]
+             (update! v (f cur))
+             cur))
+         (range))))
+
 (defn keep [f coll]
   (filter some? (map f coll)))
 
@@ -323,6 +376,25 @@
         (recur (rest xs))
         false)
       true)))
+
+(defn every-pred [p & more]
+  (fn [& xs]
+    (loop [ps (cons p more)]
+      (if (empty? ps)
+        true
+        (if (every? (first ps) xs)
+          (recur (rest ps))
+          false)))))
+
+(defn some-fn [p & more]
+  (fn [& xs]
+    (loop [ps (cons p more)]
+      (if (empty? ps)
+        nil
+        (let [r (some (first ps) xs)]
+          (if r
+            r
+            (recur (rest ps))))))))
 
 (defn max-key [kfn x & more]
   (reduce (fn [best cand]

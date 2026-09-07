@@ -325,7 +325,11 @@
     (is (= 6 (apply + [1 2 3])))
     (is (= [2 3] (vec ((partial map add1) [1 2]))))
     (is (= [1 2] (vec ((juxt first second) [1 2]))))
-    (is (= "HI" ((comp str/trim str/upper-case) "  hi  ")))))
+    (is (= "HI" ((comp str/trim str/upper-case) "  hi  ")))
+    (is (= 6 ((comp) 6)))
+    (is (= 6 ((comp +) 1 2 3)))
+    (is (= 7 ((comp add1 *) 2 3)))
+    (is (= "7" ((comp (fn [x] (str x)) add1 *) 2 3)))))
 
 (deftest group-sort-max
   (testing "group-by sort-by sort max-key val"
@@ -482,6 +486,28 @@
     (is (= false (every? (fn [x] (> x 0)) [1 0 3])))
     (is (= [3 4] (vec (keep (fn [x] (when (> x 2) x)) [1 2 3 4]))))
     (is (= [false 2] (vec (keep (fn [x] (if (= x 1) false x)) [1 2])))))
+  (testing "complement fnil every-pred some-fn"
+    (is ((complement nil?) 1))
+    (is (= false ((complement nil?) nil)))
+    (is ((complement =) 1 2))
+    (is (= false ((complement =) 1 1)))
+    (is (= 12 ((fnil + 10) nil 2)))
+    (is (= 3 ((fnil + 10) 1 2)))
+    (is (= 30 ((fnil + 10 20) nil nil)))
+    (is (= "abc" ((fnil (fn [a b c] (str a b c)) "a" "b" "c") nil nil nil)))
+    (is (= "xyz" ((fnil (fn [a b c] (str a b c)) "a" "b" "c") "x" "y" "z")))
+    (is ((every-pred even? pos?) 2 4 6))
+    (is (= false ((every-pred even? pos?) 2 -4)))
+    (is ((every-pred even?)))
+    (is (= 2 ((some-fn :a :b) {:a nil :b 2})))
+    (is ((some-fn even?) 1 2))
+    (is (= nil ((some-fn even?) 1 3)))
+    (is (= nil ((some-fn even?)))))
+  (testing "iterate repeatedly"
+    (is (= [0 1 2 3 4] (take 5 (iterate #(+ % 1) 0))))
+    (is (= [1 2 4] (take 3 (iterate (partial * 2) 1))))
+    (is (= [7 7 7] (repeatedly 3 (fn [] 7))))
+    (is (= [1 1 1] (take 3 (repeatedly (fn [] 1))))))
   (testing "update update-in get-in assoc-in dissoc-in select-keys merge merge-with zipmap group-by max-key"
     (is (= {:a 3} (update {:a 1} :a + 2)))
     (is (= {:b 1} (update {} :b (fn [x] (if (nil? x) 1 x)))))

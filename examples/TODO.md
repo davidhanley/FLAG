@@ -36,13 +36,13 @@
 
 ## Functional combinators
 
-- [ ] Add **`complement`**.
-- [ ] Add **`fnil`**.
-- [ ] Add **`every-pred`**.
-- [ ] Add **`some-fn`**.
-- [ ] Add **`iterate`**.
-- [ ] Add **`repeatedly`**.
-- [ ] Add **`comp` function parity** (current prologue macro version is limited to unary composition).
+- [x] Add **`complement`**.
+- [x] Add **`fnil`**.
+- [x] Add **`every-pred`**.
+- [x] Add **`some-fn`**.
+- [x] Add **`iterate`**.
+- [x] Add **`repeatedly`**.
+- [x] Add **`comp` function parity** (current prologue macro version is limited to unary composition).
 
 ## Sets
 

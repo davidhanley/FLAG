@@ -226,6 +226,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `partition-by` (new group when `f` changes)
 - `sort` (`(sort coll)` or `(sort comp coll)`; default order via `<`; returns an array)
 - `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; returns an array)
+- `iterate` (lazy: `x`, `(f x)`, `(f (f x))`, …)
+- `repeatedly` (`(repeatedly f)` lazy infinite; `(repeatedly n f)` takes `n` calls)
 
 ### Collections
 
@@ -255,6 +257,16 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `float?` (`:float`)
 - `zero?` / `pos?` / `neg?` (numeric; throw on non-numbers)
 - `even?` / `odd?` (integers including bigint; throw otherwise)
+
+### Functional combinators
+
+- `identity` / `constantly`
+- `partial` / `juxt`
+- `comp` (function; rightmost applied to all args, then unary wrapping; `(comp)` is `identity`)
+- `complement` (`(not (apply f args))`)
+- `fnil` (replace nil in the first 1, 2, or 3 arguments with defaults)
+- `every-pred` (true iff every predicate is true for every argument; no args → `true`)
+- `some-fn` (first truthy predicate result across arguments; none → `nil`)
 
 ### Types
 
@@ -372,6 +384,7 @@ Recent optimization: numeric comparisons have fast paths for common integer case
 - `range` with one arg returns a lazy sequence.
 - `range` with no args starts at 0 and returns a lazy sequence.
 - large two-arg ranges can be lazy.
+- `iterate` and `(repeatedly f)` are lazy (built on infinite `range`).
 - map/filter/reduce/take/drop work across list/array/vector/lazy-list values.
 - Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.
