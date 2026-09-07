@@ -20,6 +20,10 @@ var (
 	GoBind_async_PipeEvery      = NewFunction(adaptAsyncPipeEvery)
 	GoBind_async_PipeSome       = NewFunction(adaptAsyncPipeSome)
 	GoBind_async_LinesPipe      = NewFunction(adaptAsyncLinesPipe)
+	GoBind_async_Atom           = NewFunction(adaptAsyncAtom)
+	GoBind_async_Deref          = NewFunction(adaptAsyncDeref)
+	GoBind_async_Reset          = NewFunction(adaptAsyncReset)
+	GoBind_async_Swap           = NewFunction(adaptAsyncSwap)
 )
 
 func adaptAsyncGoRun(args ...Value) Value {
@@ -93,4 +97,23 @@ func adaptAsyncPipeSome(args ...Value) Value {
 func adaptAsyncLinesPipe(args ...Value) Value {
 	goArgArityExact("async/channel-lines", args, 1)
 	return ChannelLinesPipe(args[0])
+}
+
+func adaptAsyncAtom(args ...Value) Value {
+	return Atom(args...)
+}
+
+func adaptAsyncDeref(args ...Value) Value {
+	goArgArityExact("async/deref", args, 1)
+	return Deref(args[0])
+}
+
+func adaptAsyncReset(args ...Value) Value {
+	goArgArityExact("async/reset!", args, 2)
+	return Reset(args[0], args[1])
+}
+
+func adaptAsyncSwap(args ...Value) Value {
+	goArgArityAtLeast("async/swap!", args, 2)
+	return Swap(args...)
 }

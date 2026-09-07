@@ -22,6 +22,7 @@ var (
 	typeRecur    = NewKeyword("recur")
 	typeRecord   = NewKeyword("record")
 	typeVector   = NewKeyword("vector")
+	typeAtom     = NewKeyword("atom")
 )
 
 func TypeOf(v Value) Value {
@@ -69,6 +70,8 @@ func TypeOf(v Value) Value {
 		return typeRecord
 	case TagVector:
 		return typeVector
+	case TagAtom:
+		return typeAtom
 	default:
 		panic("unknown Value tag")
 	}

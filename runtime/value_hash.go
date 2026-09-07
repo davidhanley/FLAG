@@ -107,6 +107,8 @@ func valueIdentity(v Value) string {
 		return "U:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
 	case TagRecord:
 		return "R:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+	case TagAtom:
+		return "O:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
 	default:
 		panic("unknown Value tag")
 	}

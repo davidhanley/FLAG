@@ -23,4 +23,5 @@ const (
 	TagRecur
 	TagRecord
 	TagVector
+	TagAtom
 )

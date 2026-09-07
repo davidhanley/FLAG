@@ -60,6 +60,40 @@
       (channel-send ch "ok")
       (is (= "ok" (channel-receive ch))))))
 
+(deftest atom-basics
+  (testing "atom defaults to nil"
+    (is (= nil (deref (atom)))))
+  (testing "deref reset! swap!"
+    (let [a (atom 1)]
+      (is (= 1 (deref a)))
+      (is (= 9 (reset! a 9)))
+      (is (= 9 (deref a)))
+      (is (= 10 (swap! a + 1)))
+      (is (= 10 (deref a))))))
+
+(deftest atom-swap-concurrent
+  (testing "swap! is atomic across goroutines"
+    (let [a (atom 0)
+          n 20
+          done (make-channel n)]
+      (loop [i 0]
+        (when (< i n)
+          (go (do
+                (swap! a + 1)
+                (channel-send done true)))
+          (recur (+ i 1))))
+      (loop [i 0]
+        (when (< i n)
+          (channel-receive done)
+          (recur (+ i 1))))
+      (is (= n (deref a))))))
+
+(deftest atom-type-and-errors
+  (testing "type-of atom"
+    (is (= :atom (type-of (atom 0)))))
+  (testing "deref expects an atom"
+    (expect-exception (deref 1) "atom")))
+
 (deftest channel-send-stops-after-close
   (testing "channel-send returns false after the channel is terminated"
     (let [ch (make-channel)]

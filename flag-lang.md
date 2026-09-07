@@ -111,6 +111,7 @@ Not in the language core. Full reference: **[docs/async.md](docs/async.md)**.
 | `go` / `future` | macros | Async body; future returns a 0-arg fn `(f)` for the result |
 | `sleep` | function | Pause current goroutine (milliseconds) |
 | `make-channel` / `channel-send` / `channel-receive` | functions | FLAG-value channels |
+| `atom` / `deref` / `reset!` / `swap!` | functions | Atoms (no watches) |
 | `select` | function | Non-blocking multi-receive + handlers; returns count |
 
 Example: [`examples/concurrency`](examples/concurrency).
@@ -273,7 +274,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 
 ### Types
 
-- `type-of` returns a keyword: `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:record`
+- `type-of` returns a keyword: `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:atom`, `:record`
 
 ### Symbols/strings/printing
 

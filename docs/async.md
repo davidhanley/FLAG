@@ -7,7 +7,7 @@ Concurrency is **not** part of the FLAG core language. It lives in
 application binaries small unless you use these features.
 
 Implementation notes (for maintainers): pure Go runtime helpers in
-`runtime/go_async.go`, `runtime/channel.go`, `runtime/time_helpers.go`; FLAG
+`runtime/go_async.go`, `runtime/channel.go`, `runtime/atom.go`, `runtime/time_helpers.go`; FLAG
 adapters in `runtime/async_bind.go`; surface and macros in `libraries/async.lib`.
 Policy for Go-backed libs: [go-libraries.md](go-libraries.md). Modules/imports:
 [modules.md](modules.md).
@@ -19,6 +19,7 @@ Policy for Go-backed libs: [go-libraries.md](go-libraries.md). Modules/imports:
  :imports   [["async.lib" :refer [go future sleep
                                   make-channel channel-send channel-receive
                                   channel-close select
+                                  atom deref reset! swap!
                                   channel-map channel-filter channel-reduce
                                   channel-every? channel-some? channel-lines]]]}
 ```
@@ -52,6 +53,10 @@ Demo and tests: [`examples/concurrency`](../examples/concurrency).
 | `channel-send` | function | Blocking send; returns `true` on success, `false` if terminated |
 | `channel-receive` | function | Blocking receive; returns `nil` after termination once buffered values are drained |
 | `channel-close` | function | Terminate a channel (idempotent) |
+| `atom` | function | Create an atom (`(atom)` → nil, `(atom x)` → x). No watches |
+| `deref` | function | Current value of an atom |
+| `reset!` | function | Set atom to a value; returns the new value |
+| `swap!` | function | `(swap! a f & args)` apply `f` to the old value plus `args`; CAS retry; returns new value |
 | `with-channel` | core macro | Bind channels and close them with `defer` when the body returns |
 | `select` | function | Non-blocking multi-receive; call handlers for ready channels |
 | `channel-map` | function | Non-blocking: apply fn to each value; return output channel |
@@ -222,6 +227,21 @@ Always available (prologue). Same shape as `with-open`:
 
 Expands to `let` + `(defer (fn [] (close name)))` for each binding (LIFO).
 Core `close` / `close-channel` are always available; `async/channel-close` is the same Go primitive.
+
+### Atoms
+
+Uncoordinated synchronous state. No watches.
+
+```clojure
+(def a (atom 0))
+(deref a)          ; 0
+(reset! a 10)      ; 10
+(swap! a + 1)      ; 11
+```
+
+`(atom)` starts as `nil`. `swap!` applies `f` to the current value plus extra
+args and retries if another swap won; `f` may run more than once. `type-of`
+returns `:atom`.
 
 ---
 

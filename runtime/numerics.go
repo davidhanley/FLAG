@@ -333,6 +333,8 @@ func ValueToString(v Value) string {
 		return "#<file " + v.FileObject().Path + ">"
 	case TagChannel:
 		return "#<channel>"
+	case TagAtom:
+		return "#<atom>"
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {
@@ -462,7 +464,7 @@ func ValueToAny(v Value) any {
 		return v.StringValue()
 	case TagDate:
 		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur, TagRecord, TagVector, TagList:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagAtom, TagRecur, TagRecord, TagVector, TagList:
 		return v
 	case TagNil:
 		return nil

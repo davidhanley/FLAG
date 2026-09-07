@@ -3,6 +3,7 @@
 ;;   {:imports [["async.lib" :refer [go future sleep
 ;;                                    make-channel channel-send channel-receive
 ;;                                    channel-close select
+;;                                    atom deref reset! swap!
 ;;                                    channel-map channel-filter channel-reduce
 ;;                                    channel-every? channel-some? channel-lines]]]}
 ;;
@@ -11,6 +12,7 @@
 {:namespace "async"
  :exports   [go future go-run future-run future-piped-run
              sleep make-channel channel-send channel-receive channel-close select
+             atom deref reset! swap!
              channel-map channel-filter channel-reduce channel-every? channel-some? channel-lines]
  :go-exports {go-run          "async/go-run"
               future-run      "async/future-run"
@@ -26,7 +28,11 @@
              channel-reduce  "async/channel-reduce"
              channel-every?  "async/channel-every?"
              channel-some?   "async/channel-some?"
-             channel-lines   "async/channel-lines"}}
+             channel-lines   "async/channel-lines"
+              atom            "async/atom"
+              deref           "async/deref"
+              reset!          "async/reset!"
+              swap!           "async/swap!"}}
 
 (defmacro go
   "Evaluate body on a new goroutine; return nil immediately."
