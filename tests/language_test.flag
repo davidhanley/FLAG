@@ -122,6 +122,17 @@
     (is (= "Ada" (greet "Ada")))
     (is (= 3 (add1 2)))))
 
+(deftest unused-bindings
+  (testing "_ and _-prefixed names are intentionally unused"
+    (is (= 2 ((fn [x _y] x) 2 9)))
+    (is (= 2 ((fn [_ x] x) 1 2)))
+    (is (= 3 ((fn [_ _] 3) 1 2)))
+    (is (= 3 (let [_k 1 _ 2] 3)))
+    (is (= 3 (let [[_ a] [1 3]] a)))
+    (is (= 3 (loop [_i 0] 3)))
+    (is (= [9 9] (vec (for [_ [1 2]] 9))))
+    (is (= nil (doseq [_x [1 2]] 1)))))
+
 (deftest type-hints-and-volatile
   (testing "hints are no-ops; update! mutates"
     (let [^int a 1 ^float b 2]
@@ -199,6 +210,13 @@
     (is (= [1 3] (vec (filter (fn [x] (= 1 (% x 2))) [1 2 3 4]))))
     (is (= 10 (reduce + 0 [1 2 3 4])))
     (is (= 10 (reduce + [1 2 3 4])))
+    (is (= 6 (reduce-kv (fn [acc _k v] (+ acc v)) 0 {:a 1 :b 2 :c 3})))
+    (is (= 9 (reduce-kv (fn [acc _i v] (+ acc v)) 0 [1 2 6])))
+    (is (= 9 (reduce-kv (fn [acc _i v] (+ acc v)) 0 | 1 2 6 |)))
+    (is (= {0 :a 1 :b} (reduce-kv assoc {} [:a :b])))
+    (is (= 0 (reduce-kv (fn [acc _k v] (+ acc v)) 0 {})))
+    (is (= 7 (reduce-kv (fn [acc _k v] (+ acc v)) 7 nil)))
+    (expect-exception (reduce-kv (fn [acc _k _v] acc) 0 '(1 2)) "map, array, or vector")
     (is (= [0 1 2] (vec (range 0 3))))
     (is (= [:a :a] (vec (take 2 (repeat :a)))))
     (is (= 4 (first (rest [1 4 9]))))

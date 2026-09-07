@@ -88,6 +88,7 @@ Implemented special forms:
 - `(let [bindings...] body...)`
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
+- `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
 - `(testing "label" body...)` test grouping
 - `(is expr)` / `(is expr "message")` test assertion with optional message
@@ -158,7 +159,7 @@ for direct non-self calls are not exposed yet.
 
 ## Destructuring (implemented)
 
-Supported in both `let` and function argument vectors (`defn` / `fn`):
+Supported in both `let` and function argument vectors (`defn` / `fn`). Bindings named `_` or starting with `_` do not fail Go unused-variable checks.
 
 ### Sequential/vector destructuring
 
@@ -202,6 +203,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `pmap` (parallel map; worker count = `NumCPU()*2`, capped by item count)
 - `filter`
 - `reduce`
+- `reduce-kv` (maps: `f acc k v`; arrays/vectors: `f acc idx v`; `nil` → init)
 - `range`
 - `distinct` (first occurrence, input order; returns an array)
 - `flatten` (nested lists/arrays/vectors/lazy-lists; maps and sets are leaves)

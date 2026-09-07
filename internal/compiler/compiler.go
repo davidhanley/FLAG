@@ -3327,7 +3327,9 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 	for name, kind := range locals {
 		localKinds[name] = kind
 	}
-	localKinds[ident] = exprKindValue
+	if ident != "_" {
+		localKinds[ident] = exprKindValue
+	}
 
 	rest, err := forBindingsToGo(bindings[2:], bodyExprs, ctx, localKinds)
 	if err != nil {
@@ -3340,7 +3342,12 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
 	fmt.Fprintf(&out, "\t\t\tpanic(\"for binding expects exactly one value\")\n")
 	fmt.Fprintf(&out, "\t\t}\n")
-	fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+	if ident == "_" {
+		out.WriteString("\t\t_ = args[0]\n")
+	} else {
+		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
+	}
 	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
 	out.WriteString("\t}), ")
 	out.WriteString(collCode)
@@ -3392,7 +3399,9 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 	for name, kind := range locals {
 		localKinds[name] = kind
 	}
-	localKinds[ident] = exprKindValue
+	if ident != "_" {
+		localKinds[ident] = exprKindValue
+	}
 
 	rest, err := doseqBindingsToGo(bindings[2:], bodyExprs, ctx, localKinds)
 	if err != nil {
@@ -3405,7 +3414,12 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
 	fmt.Fprintf(&out, "\t\t\tpanic(\"doseq binding expects exactly one value\")\n")
 	fmt.Fprintf(&out, "\t\t}\n")
-	fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+	if ident == "_" {
+		out.WriteString("\t\t_ = args[0]\n")
+	} else {
+		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
+	}
 	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
 	out.WriteString("\t}), ")
 	out.WriteString(collCode)
@@ -3456,11 +3470,9 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 			if err != nil {
 				return goExpr{}, err
 			}
-			if _, exists := declared[name]; exists {
-				return goExpr{}, exprError(bindingPattern, fmt.Sprintf("duplicate binding %q", sym.Name))
+			if err := declareNamedBinding(declared, localKinds, sym.Name, name, exprKindMutableValue); err != nil {
+				return goExpr{}, exprError(bindingPattern, err.Error())
 			}
-			declared[name] = struct{}{}
-			localKinds[name] = exprKindMutableValue
 			if valueExpr.kind != exprKindValue {
 				return goExpr{}, exprError(bindingsExpr.Elements[i+1], "volatile let binding value must evaluate to Value")
 			}
@@ -3468,6 +3480,9 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 			tempCounter++
 			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
 			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", name, sourceName))
+			if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
+				bindings = append(bindings, line)
+			}
 			continue
 		}
 
@@ -3571,10 +3586,9 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		if err != nil {
 			return goExpr{}, err
 		}
-		if _, exists := declared[goName]; exists {
+		if err := declareNamedBinding(declared, localKinds, bindingSymbol.Name, goName, exprKindMutableValue); err != nil {
 			return goExpr{}, exprError(bindingsExpr.Elements[i], fmt.Sprintf("duplicate loop binding %q", bindingSymbol.Name))
 		}
-		declared[goName] = struct{}{}
 
 		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
 		if err != nil {
@@ -3587,7 +3601,6 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 
 		bindingNames = append(bindingNames, goName)
 		initialValues = append(initialValues, valueExpr.code)
-		localKinds[goName] = exprKindMutableValue
 	}
 
 	loopCtx := copyCompileContext(ctx)
@@ -3606,6 +3619,8 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
 	for i := range bindingNames {
 		fmt.Fprintf(&out, "\tvar %s = %s\n", bindingNames[i], initialValues[i])
+		flagName := unwrapMetaExpr(bindingsExpr.Elements[i*2]).(SymbolExpr).Name
+		out.WriteString(unusedUseStmt(flagName, bindingNames[i], "\t"))
 	}
 	out.WriteString("\tfor {\n")
 	fmt.Fprintf(&out, "\t\t__loopResult := %s\n", bodyExpr.code)
@@ -3828,12 +3843,13 @@ func (e destructureEmitter) bindSymbolWithKind(sym SymbolExpr, sourceCode string
 	if err != nil {
 		return err
 	}
-	if _, exists := e.declared[name]; exists {
-		return fmt.Errorf("duplicate binding %q", sym.Name)
+	if err := declareNamedBinding(e.declared, e.locals, sym.Name, name, kind); err != nil {
+		return err
 	}
-	e.declared[name] = struct{}{}
-	e.locals[name] = kind
 	*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s\n", name, sourceCode))
+	if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
+		*e.lines = append(*e.lines, line)
+	}
 	return nil
 }
 
@@ -5278,12 +5294,17 @@ func bindLambdaParams(
 			if err != nil {
 				return nil, nil, nil, false, err
 			}
-			if _, exists := declared[goParam]; exists {
-				return nil, nil, nil, false, fmt.Errorf("duplicate parameter %q", sym.Name)
+			if goParam != "_" {
+				if _, exists := declared[goParam]; exists {
+					return nil, nil, nil, false, fmt.Errorf("duplicate parameter %q", sym.Name)
+				}
+				declared[goParam] = struct{}{}
+				localKinds[goParam] = exprKindValue
 			}
-			declared[goParam] = struct{}{}
-			localKinds[goParam] = exprKindValue
 			params = append(params, goParam)
+			if line := unusedUseStmt(sym.Name, goParam, "\t"); line != "" {
+				localInits = append(localInits, line)
+			}
 			continue
 		}
 
@@ -5609,6 +5630,31 @@ func goTypeForExprKind(kind exprKind) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported expression kind")
 	}
+}
+
+func isUnusedBindingName(name string) bool {
+	return strings.HasPrefix(name, "_")
+}
+
+func unusedUseStmt(flagName, goName, indent string) string {
+	if isUnusedBindingName(flagName) && goName != "_" {
+		return indent + "_ = " + goName + "\n"
+	}
+	return ""
+}
+
+func declareNamedBinding(declared map[string]struct{}, locals map[string]exprKind, flagName, goName string, kind exprKind) error {
+	if goName == "_" {
+		return nil
+	}
+	if _, exists := declared[goName]; exists {
+		return fmt.Errorf("duplicate binding %q", flagName)
+	}
+	declared[goName] = struct{}{}
+	if locals != nil {
+		locals[goName] = kind
+	}
+	return nil
 }
 
 func toGoIdentifier(name string) (string, error) {

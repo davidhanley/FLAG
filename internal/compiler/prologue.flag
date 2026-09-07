@@ -305,6 +305,18 @@
 (defn keep-indexed [f coll]
   (keep identity (map-indexed f coll)))
 
+(defn reduce-kv [f init coll]
+  (if (nil? coll)
+    init
+    (if (map? coll)
+      (reduce (fn [acc pair] (f acc (first pair) (val pair))) init coll)
+      (if (or (= (type-of coll) :array) (vector? coll))
+        (loop [i 0 acc init]
+          (if (= i (count coll))
+            acc
+            (recur (inc i) (f acc i (nth coll i)))))
+        (throw "reduce-kv expects a map, array, or vector")))))
+
 (defn every? [pred coll]
   (loop [xs coll]
     (if (seq xs)

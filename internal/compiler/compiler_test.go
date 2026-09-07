@@ -88,6 +88,31 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 }
 
+func TestCompileUnusedBindingsAreDiscarded(t *testing.T) {
+	output, err := Compile(`
+(defn drop-second [x _y] x)
+(println (drop-second 1 2))
+(println ((fn [a _b _] a) 3 4 5))
+(println (let [_k 9] 1))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"_ = _y",
+		"_ = _b",
+		"_ = args[",
+		"var _k =",
+		"_ = _k",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDeftestAndAssertions(t *testing.T) {
 	output, err := Compile(`
 (deftest sample-test
