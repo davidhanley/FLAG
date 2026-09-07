@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/token"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -173,6 +174,14 @@ type testCase struct {
 	bodySource string
 }
 
+type arityDef struct {
+	params     []string
+	localInits []string
+	body       string
+	hasRest    bool
+	arityName  string
+}
+
 type functionDef struct {
 	flagName     string // original FLAG name (e.g. "move", "flag_main")
 	goName       string
@@ -184,6 +193,7 @@ type functionDef struct {
 	localInits   []string
 	body         string
 	goSignature  string // custom Go signature for interop wrappers (empty = use standard)
+	arities      []arityDef
 }
 
 type varDef struct {
@@ -204,6 +214,7 @@ type compileContext struct {
 	selfArityName     string
 	selfVariadicName  string
 	selfFunctionRest  bool
+	selfArityNames    map[int]string // fixed arity count -> Go arity function
 	// loopBindingNames tracks active loop/recur bindings for the current
 	// expression context (nil when not inside a loop form).
 	loopBindingNames []string
@@ -272,6 +283,12 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfVariadicName:  ctx.selfVariadicName,
 		selfFunctionRest:  ctx.selfFunctionRest,
 		allowRedefine:     ctx.allowRedefine,
+	}
+	if ctx.selfArityNames != nil {
+		out.selfArityNames = make(map[int]string, len(ctx.selfArityNames))
+		for k, v := range ctx.selfArityNames {
+			out.selfArityNames[k] = v
+		}
 	}
 	if len(ctx.loopBindingNames) > 0 {
 		out.loopBindingNames = append([]string(nil), ctx.loopBindingNames...)
@@ -422,11 +439,18 @@ func allConstExprs(exprs []Expr) bool {
 	return true
 }
 
+type macroArity struct {
+	params    []string
+	restParam string
+	body      Expr
+}
+
 type macroDef struct {
 	params    []string
 	restParam string
 	doc       string
 	body      Expr
+	arities   []macroArity
 }
 
 //go:embed prologue.flag
@@ -991,6 +1015,23 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 			out = append(out, ReplCompiled{Setup: strings.TrimSpace(renderFunctionDef(def))})
 			continue
 		}
+		if len(def.arities) > 0 {
+			setupParts := make([]string, 0, 2+len(def.arities)*2)
+			if !exists {
+				for _, a := range def.arities {
+					mini := arityAsFunctionDef(def, a)
+					setupParts = append(setupParts, fmt.Sprintf("var %s %s", a.arityName, renderDirectFunctionType(mini)))
+				}
+				setupParts = append(setupParts, fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName))
+			}
+			for _, a := range def.arities {
+				mini := arityAsFunctionDef(def, a)
+				setupParts = append(setupParts, fmt.Sprintf("%s = %s", a.arityName, renderDirectFunctionLiteral(mini)))
+			}
+			setupParts = append(setupParts, fmt.Sprintf("%s = %s", def.variadicName, renderMultiArityVariadicLiteral(def)))
+			out = append(out, ReplCompiled{Setup: strings.Join(setupParts, ";;")})
+			continue
+		}
 		setupParts := make([]string, 0, 6)
 		if !exists {
 			setupParts = append(setupParts,
@@ -1527,7 +1568,7 @@ func appendTopLevelExpr(form Expr, ctx compileContext, allowTopLevel bool, stmts
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
-	if len(form.Elements) < 4 {
+	if len(form.Elements) < 3 {
 		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
 	}
 
@@ -1539,15 +1580,24 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	doc := ""
 	paramsIndex := 2
 	bodyStartIndex := 3
-	if docExpr, ok := form.Elements[2].(StringExpr); ok {
-		doc = docExpr.Value
-		paramsIndex = 3
-		bodyStartIndex = 4
+	if len(form.Elements) > 2 {
+		if docExpr, ok := form.Elements[2].(StringExpr); ok {
+			doc = docExpr.Value
+			paramsIndex = 3
+			bodyStartIndex = 4
+		}
 	}
 
 	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
+	}
+
+	if paramsIndex >= len(form.Elements) {
+		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
+	}
+	if _, ok := form.Elements[paramsIndex].(ListExpr); ok {
+		return compileMultiArityDefn(form, nameExpr, goName, doc, paramsIndex, ctx)
 	}
 
 	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
@@ -1608,6 +1658,102 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	}, nil
 }
 
+func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc string, start int, ctx compileContext) (functionDef, error) {
+	arityForms := form.Elements[start:]
+	if len(arityForms) == 0 {
+		return functionDef{}, exprError(form, "defn expects at least one arity")
+	}
+
+	type pendingArity struct {
+		form       ListExpr
+		params     []string
+		localInits []string
+		localKinds map[string]exprKind
+		arityName  string
+	}
+
+	pending := make([]pendingArity, 0, len(arityForms))
+	seen := make(map[int]struct{}, len(arityForms))
+	arityNames := make(map[int]string, len(arityForms))
+	for _, raw := range arityForms {
+		list, ok := raw.(ListExpr)
+		if !ok || len(list.Elements) < 2 {
+			return functionDef{}, exprError(raw, "defn arity expects ([params] body...)")
+		}
+		paramsExpr, ok := list.Elements[0].(VectorExpr)
+		if !ok {
+			return functionDef{}, exprError(list.Elements[0], "defn arity expects a parameter vector")
+		}
+		params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, nil, "defn")
+		if err != nil {
+			return functionDef{}, err
+		}
+		if hasRest {
+			return functionDef{}, exprError(list, "multi-arity defn does not yet support & rest")
+		}
+		n := len(params)
+		if _, dup := seen[n]; dup {
+			return functionDef{}, exprError(list, fmt.Sprintf("duplicate arity with %d arguments", n))
+		}
+		seen[n] = struct{}{}
+		arityName := fmt.Sprintf("%s_arity_%d", goName, n)
+		arityNames[n] = arityName
+		pending = append(pending, pendingArity{
+			form:       list,
+			params:     params,
+			localInits: localInits,
+			localKinds: localKinds,
+			arityName:  arityName,
+		})
+	}
+
+	variadicName := goName + "_variadic"
+	fnBase := copyCompileContext(ctx)
+	fnBase.selfFunctionName = nameExpr.Name
+	fnBase.selfVariadicName = variadicName
+	fnBase.selfArityNames = arityNames
+	fnBase.globals[goName] = exprKindValue
+	fnBase.functions[goName] = functionDef{
+		flagName:     nameExpr.Name,
+		goName:       goName,
+		variadicName: variadicName,
+		doc:          doc,
+		arities:      nil,
+	}
+	_ = fnBase.bindModuleName(nameExpr.Name, goName)
+
+	arities := make([]arityDef, 0, len(pending))
+	for _, item := range pending {
+		fnCtx := copyCompileContext(fnBase)
+		fnCtx.selfFunctionArity = len(item.params)
+		fnCtx.selfArityName = item.arityName
+		fnCtx.selfFunctionRest = false
+		bodyExprs := item.form.Elements[1:]
+		body, err := doExprToGo(bodyExprs, fnCtx, item.localKinds)
+		if err != nil {
+			return functionDef{}, err
+		}
+		body, err = coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "defn body", ctx)
+		if err != nil {
+			return functionDef{}, err
+		}
+		arities = append(arities, arityDef{
+			params:     item.params,
+			localInits: item.localInits,
+			body:       body.code,
+			arityName:  item.arityName,
+		})
+	}
+
+	return functionDef{
+		flagName:     nameExpr.Name,
+		goName:       goName,
+		variadicName: variadicName,
+		doc:          doc,
+		arities:      arities,
+	}, nil
+}
+
 func compileDef(form ListExpr, ctx compileContext) (varDef, exprKind, error) {
 	binding, kind, _, err := compileDefForRepl(form, ctx)
 	if err != nil {
@@ -1657,7 +1803,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 }
 
 func compileDefmacro(form ListExpr) (string, macroDef, error) {
-	if len(form.Elements) != 4 && len(form.Elements) != 5 {
+	if len(form.Elements) < 3 {
 		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
 	}
 	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
@@ -1667,39 +1813,29 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 	doc := ""
 	paramsIndex := 2
 	bodyIndex := 3
-	if len(form.Elements) == 5 {
-		docExpr, ok := form.Elements[2].(StringExpr)
-		if !ok {
-			return "", macroDef{}, fmt.Errorf("defmacro docstring must be a string")
+	if len(form.Elements) > 2 {
+		if docExpr, ok := form.Elements[2].(StringExpr); ok {
+			doc = docExpr.Value
+			paramsIndex = 3
+			bodyIndex = 4
 		}
-		doc = docExpr.Value
-		paramsIndex = 3
-		bodyIndex = 4
+	}
+	if paramsIndex >= len(form.Elements) {
+		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
+	}
+	if _, ok := form.Elements[paramsIndex].(ListExpr); ok {
+		return compileMultiArityDefmacro(form, nameExpr.Name, doc, paramsIndex)
+	}
+	if bodyIndex >= len(form.Elements) {
+		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
 	}
 	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
 	if !ok {
 		return "", macroDef{}, fmt.Errorf("defmacro expects a parameter vector")
 	}
-
-	params := make([]string, 0, len(paramsExpr.Elements))
-	restParam := ""
-	for i := 0; i < len(paramsExpr.Elements); i++ {
-		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
-		if !ok || sym.Name == "" {
-			return "", macroDef{}, fmt.Errorf("defmacro parameters must be symbols")
-		}
-		if sym.Name == "&" {
-			if restParam != "" || i != len(paramsExpr.Elements)-2 {
-				return "", macroDef{}, fmt.Errorf("defmacro varargs must use [& name] at end")
-			}
-			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
-			if !ok || next.Name == "" || next.Name == "&" {
-				return "", macroDef{}, fmt.Errorf("defmacro varargs expects symbol after &")
-			}
-			restParam = next.Name
-			break
-		}
-		params = append(params, sym.Name)
+	params, restParam, err := parseMacroParams(paramsExpr)
+	if err != nil {
+		return "", macroDef{}, err
 	}
 
 	return nameExpr.Name, macroDef{
@@ -1708,6 +1844,82 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 		doc:       doc,
 		body:      form.Elements[bodyIndex],
 	}, nil
+}
+
+func compileMultiArityDefmacro(form ListExpr, name, doc string, start int) (string, macroDef, error) {
+	arityForms := form.Elements[start:]
+	if len(arityForms) == 0 {
+		return "", macroDef{}, fmt.Errorf("defmacro expects at least one arity")
+	}
+	arities := make([]macroArity, 0, len(arityForms))
+	seen := make(map[int]struct{}, len(arityForms))
+	maxFixed := -1
+	restMin := -1
+	for _, raw := range arityForms {
+		list, ok := raw.(ListExpr)
+		if !ok || len(list.Elements) < 2 {
+			return "", macroDef{}, fmt.Errorf("defmacro arity expects ([params] body...)")
+		}
+		paramsExpr, ok := list.Elements[0].(VectorExpr)
+		if !ok {
+			return "", macroDef{}, fmt.Errorf("defmacro arity expects a parameter vector")
+		}
+		params, restParam, err := parseMacroParams(paramsExpr)
+		if err != nil {
+			return "", macroDef{}, err
+		}
+		n := len(params)
+		if restParam == "" {
+			if _, dup := seen[n]; dup {
+				return "", macroDef{}, fmt.Errorf("duplicate macro arity with %d arguments", n)
+			}
+			seen[n] = struct{}{}
+			if n > maxFixed {
+				maxFixed = n
+			}
+		} else {
+			if restMin >= 0 {
+				return "", macroDef{}, fmt.Errorf("defmacro supports only one & rest arity")
+			}
+			restMin = n
+		}
+		body := list.Elements[1]
+		if len(list.Elements) > 2 {
+			bodyElems := make([]Expr, 0, 1+len(list.Elements)-1)
+			bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
+			bodyElems = append(bodyElems, list.Elements[1:]...)
+			body = ListExpr{Elements: bodyElems, Line: list.Line, Col: list.Col}
+		}
+		arities = append(arities, macroArity{params: params, restParam: restParam, body: body})
+	}
+	if restMin >= 0 && maxFixed > restMin {
+		return "", macroDef{}, fmt.Errorf("defmacro rest arity must have at least as many required parameters as the largest fixed arity")
+	}
+	return name, macroDef{doc: doc, arities: arities}, nil
+}
+
+func parseMacroParams(paramsExpr VectorExpr) ([]string, string, error) {
+	params := make([]string, 0, len(paramsExpr.Elements))
+	restParam := ""
+	for i := 0; i < len(paramsExpr.Elements); i++ {
+		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
+		if !ok || sym.Name == "" {
+			return nil, "", fmt.Errorf("defmacro parameters must be symbols")
+		}
+		if sym.Name == "&" {
+			if restParam != "" || i != len(paramsExpr.Elements)-2 {
+				return nil, "", fmt.Errorf("defmacro varargs must use [& name] at end")
+			}
+			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
+			if !ok || next.Name == "" || next.Name == "&" {
+				return nil, "", fmt.Errorf("defmacro varargs expects symbol after &")
+			}
+			restParam = next.Name
+			break
+		}
+		params = append(params, sym.Name)
+	}
+	return params, restParam, nil
 }
 
 func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -1894,26 +2106,52 @@ func unquoteMacroTree(expr Expr) Expr {
 }
 
 func applyMacro(m macroDef, args []Expr) (Expr, error) {
-	if m.restParam == "" && len(args) != len(m.params) {
-		return nil, fmt.Errorf("macro expects exactly %d arguments", len(m.params))
+	if len(m.arities) > 0 {
+		var rest *macroArity
+		for i := range m.arities {
+			a := &m.arities[i]
+			if a.restParam == "" && len(args) == len(a.params) {
+				return applyMacroArity(*a, args)
+			}
+			if a.restParam != "" {
+				rest = a
+			}
+		}
+		if rest != nil && len(args) >= len(rest.params) {
+			return applyMacroArity(*rest, args)
+		}
+		counts := make([]int, 0, len(m.arities))
+		for _, a := range m.arities {
+			if a.restParam == "" {
+				counts = append(counts, len(a.params))
+			}
+		}
+		return nil, fmt.Errorf("%s", multiArityExpectsMessage("macro", counts))
 	}
-	if m.restParam != "" && len(args) < len(m.params) {
-		return nil, fmt.Errorf("macro expects at least %d arguments", len(m.params))
+	return applyMacroArity(macroArity{params: m.params, restParam: m.restParam, body: m.body}, args)
+}
+
+func applyMacroArity(a macroArity, args []Expr) (Expr, error) {
+	if a.restParam == "" && len(args) != len(a.params) {
+		return nil, fmt.Errorf("macro expects exactly %d arguments", len(a.params))
+	}
+	if a.restParam != "" && len(args) < len(a.params) {
+		return nil, fmt.Errorf("macro expects at least %d arguments", len(a.params))
 	}
 
-	values := make(map[string]Expr, len(m.params))
-	for i, name := range m.params {
+	values := make(map[string]Expr, len(a.params))
+	for i, name := range a.params {
 		values[name] = copyExpr(args[i])
 	}
 	restBindings := map[string][]Expr{}
-	if m.restParam != "" {
-		restArgs := make([]Expr, 0, len(args)-len(m.params))
-		for _, arg := range args[len(m.params):] {
+	if a.restParam != "" {
+		restArgs := make([]Expr, 0, len(args)-len(a.params))
+		for _, arg := range args[len(a.params):] {
 			restArgs = append(restArgs, copyExpr(arg))
 		}
-		restBindings[m.restParam] = restArgs
+		restBindings[a.restParam] = restArgs
 	}
-	expanded, err := substituteMacroExpr(m.body, values, restBindings)
+	expanded, err := substituteMacroExpr(a.body, values, restBindings)
 	if err != nil {
 		return nil, err
 	}
@@ -2104,6 +2342,29 @@ func copyExpr(expr Expr) Expr {
 	}
 }
 
+func macroCaseClause(expr Expr) (pattern Expr, body Expr, ok bool) {
+	var elems []Expr
+	switch clause := expr.(type) {
+	case ListExpr:
+		elems = clause.Elements
+	case VectorExpr:
+		elems = clause.Elements
+	default:
+		return nil, nil, false
+	}
+	if len(elems) < 2 {
+		return nil, nil, false
+	}
+	pattern = elems[0]
+	if len(elems) == 2 {
+		return pattern, elems[1], true
+	}
+	bodyElems := make([]Expr, 0, 1+len(elems)-1)
+	bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
+	bodyElems = append(bodyElems, elems[1:]...)
+	return pattern, ListExpr{Elements: bodyElems}, true
+}
+
 func expandMacroCase(args []Expr) (Expr, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("macro-case expects a target form and at least one clause")
@@ -2120,20 +2381,20 @@ func expandMacroCase(args []Expr) (Expr, error) {
 	}
 
 	for _, clauseExpr := range clauses {
-		clause, ok := clauseExpr.(VectorExpr)
-		if !ok || len(clause.Elements) != 2 {
-			return nil, fmt.Errorf("macro-case clauses must be [pattern body] vectors")
+		pattern, body, ok := macroCaseClause(clauseExpr)
+		if !ok {
+			return nil, fmt.Errorf("macro-case clauses must be ([pattern] body) lists")
 		}
 		bindings := map[string]Expr{}
 		restBindings := map[string][]Expr{}
-		matched, err := matchMacroPattern(clause.Elements[0], target, bindings, restBindings)
+		matched, err := matchMacroPattern(pattern, target, bindings, restBindings)
 		if err != nil {
 			return nil, err
 		}
 		if !matched {
 			continue
 		}
-		return substituteMacroExpr(clause.Elements[1], bindings, restBindings)
+		return substituteMacroExpr(body, bindings, restBindings)
 	}
 
 	return nil, fmt.Errorf("macro-case had no matching clause")
@@ -2768,6 +3029,21 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 
 func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok && calleeSymbol.Name == ctx.selfFunctionName {
+		if target, ok := ctx.selfArityNames[len(argsExpr)]; ok {
+			args := make([]string, 0, len(argsExpr))
+			for _, item := range argsExpr {
+				part, err := exprToGo(item, ctx, locals)
+				if err != nil {
+					return goExpr{}, err
+				}
+				valueCode, err := functionArgToValueCode(part, item, ctx)
+				if err != nil {
+					return goExpr{}, err
+				}
+				args = append(args, valueCode)
+			}
+			return goExpr{code: fmt.Sprintf("%s(%s)", target, strings.Join(args, ", ")), kind: exprKindValue}, nil
+		}
 		if ctx.selfFunctionRest || len(argsExpr) == ctx.selfFunctionArity {
 			target := ctx.selfArityName
 			if ctx.selfFunctionRest {
@@ -5716,6 +5992,23 @@ func renderFunctionDef(fn functionDef) string {
 	if fn.goSignature != "" {
 		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
 	}
+	if len(fn.arities) > 0 {
+		var out strings.Builder
+		for _, a := range fn.arities {
+			mini := arityAsFunctionDef(fn, a)
+			fmt.Fprintf(&out, "func %s(%s) flagrt.Value {\n%s\treturn %s\n}\n\n",
+				a.arityName,
+				renderDirectParamList(mini),
+				renderLocalInits(a.localInits),
+				a.body,
+			)
+		}
+		fmt.Fprintf(&out, "func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
+			fn.variadicName,
+			renderMultiArityDispatch(fn),
+		)
+		return out.String()
+	}
 	if fn.hasRest {
 		return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
 			fn.variadicName,
@@ -5730,6 +6023,64 @@ func renderFunctionDef(fn functionDef) string {
 		fn.variadicName,
 		renderVariadicFunctionBody(fn),
 	)
+}
+
+func arityAsFunctionDef(parent functionDef, a arityDef) functionDef {
+	return functionDef{
+		goName:       parent.goName,
+		variadicName: parent.variadicName,
+		arityName:    a.arityName,
+		hasRest:      a.hasRest,
+		params:       a.params,
+		localInits:   a.localInits,
+		body:         a.body,
+	}
+}
+
+func renderMultiArityVariadicLiteral(fn functionDef) string {
+	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderMultiArityDispatch(fn))
+}
+
+func renderMultiArityDispatch(fn functionDef) string {
+	counts := make([]int, 0, len(fn.arities))
+	var body strings.Builder
+	body.WriteString("\tswitch len(args) {\n")
+	for _, a := range fn.arities {
+		n := len(a.params)
+		counts = append(counts, n)
+		fmt.Fprintf(&body, "\tcase %d:\n", n)
+		if n == 0 {
+			fmt.Fprintf(&body, "\t\treturn %s()\n", a.arityName)
+			continue
+		}
+		callArgs := make([]string, 0, n)
+		for i := 0; i < n; i++ {
+			callArgs = append(callArgs, fmt.Sprintf("args[%d]", i))
+		}
+		fmt.Fprintf(&body, "\t\treturn %s(%s)\n", a.arityName, strings.Join(callArgs, ", "))
+	}
+	fmt.Fprintf(&body, "\tdefault:\n\t\tpanic(%q)\n\t}\n", multiArityExpectsMessage(fn.flagName, counts))
+	return body.String()
+}
+
+func multiArityExpectsMessage(name string, counts []int) string {
+	if len(counts) == 0 {
+		return name + " expects arguments"
+	}
+	sorted := append([]int(nil), counts...)
+	sort.Ints(sorted)
+	parts := make([]string, len(sorted))
+	for i, n := range sorted {
+		parts[i] = strconv.Itoa(n)
+	}
+	switch len(parts) {
+	case 1:
+		return fmt.Sprintf("%s expects exactly %s arguments", name, parts[0])
+	case 2:
+		return fmt.Sprintf("%s expects %s or %s arguments", name, parts[0], parts[1])
+	default:
+		return fmt.Sprintf("%s expects %s, or %s arguments", name, strings.Join(parts[:len(parts)-1], ", "), parts[len(parts)-1])
+	}
 }
 
 func renderFunctionLiteral(fn functionDef) string {

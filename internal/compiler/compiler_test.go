@@ -88,6 +88,57 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 }
 
+func TestCompileMultiArityDefmacro(t *testing.T) {
+	output, err := Compile(`
+(defmacro pick
+  ([x] x)
+  ([_ y] y))
+(println (pick 1))
+(println (pick 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.NewLong(1)))`,
+		`fmt.Println(flagrt.Str(flagrt.NewLong(2)))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileMultiArityDefn(t *testing.T) {
+	output, err := Compile(`
+(defn add-m
+  ([x] x)
+  ([x y] (+ x y)))
+(println (add-m 1))
+(println (add-m 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func add_m_arity_1(",
+		"func add_m_arity_2(",
+		"func add_m_variadic(args ...flagrt.Value)",
+		"switch len(args)",
+		"case 1:",
+		"case 2:",
+		"add-m expects 1 or 2 arguments",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileUnusedBindingsAreDiscarded(t *testing.T) {
 	output, err := Compile(`
 (defn drop-second [x _y] x)

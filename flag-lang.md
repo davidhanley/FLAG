@@ -76,7 +76,9 @@ Implemented top-level forms:
 - `(def name expr)`
 - `(def name "doc" expr)` optional docstring
 - `(defn fname "doc" [args] body)` optional docstring
+- `(defn fname ([args] body) ([args2] body) ...)` multiple fixed arities
 - `(defmacro name "doc" [args] body)` optional docstring
+- `(defmacro name ([args] body) ([args2] body) ...)` multiple arities, same `()` style as `defn`
 - `(deftest name body...)` runs during build/repl compilation
 - expression forms at top level (evaluated in `main`; entry module only when using imports)
 
@@ -150,9 +152,19 @@ Function calls are Lisp-style:
 
 `defn` currently lowers to:
 
-- a direct arity function (`name_arity_N`)
-- a variadic wrapper (`name_variadic`)
+- a direct arity function (`name_arity_N`) per arity
+- a variadic wrapper (`name_variadic`) that dispatches on argument count
 - a function value var (`name`)
+
+`defmacro` uses the same multiple-arity lists. `macro-case` clauses are `([pattern] body)` lists (vectors still work).
+
+Multiple arities use Clojure-style lists after the name:
+
+```clojure
+(defn sort
+  ([coll] (sort-by identity coll))
+  ([comp coll] (sort-by identity comp coll)))
+```
 
 Self-recursive same-arity calls are compiled to direct arity calls for speed. Compiler flags
 for direct non-self calls are not exposed yet.
@@ -212,6 +224,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `partition` (`n`, optional `step`/`pad`; incomplete tail dropped unless padded)
 - `partition-all` (`n`, optional `step`; keeps a short final group)
 - `partition-by` (new group when `f` changes)
+- `sort` (`(sort coll)` or `(sort comp coll)`; default order via `<`; returns an array)
+- `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; returns an array)
 
 ### Collections
 

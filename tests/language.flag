@@ -27,6 +27,10 @@
 
 (defmacro quote-seven [x] 7)
 
+(defmacro pick
+  ([x] x)
+  ([_ y] y))
+
 (defrecord food [weight calories])
 
 (defrecord nutrients [^int c ^int p ^int f])

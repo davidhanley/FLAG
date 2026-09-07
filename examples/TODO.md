@@ -23,7 +23,7 @@
 - [x] Add **`flatten`** (or `tree-seq` + `flatten` strategy).
 - [x] Add **`map-indexed`** and **`keep-indexed`**.
 - [x] Add **`reduce-kv`** for map/vector keyed reduction.
-- [ ] Add **`sort`** (plain comparator form; `sort-by` already exists).
+- [x] Add **`sort`** (plain comparator form; `sort-by` already exists).
 - [ ] Add vector-specialized helpers **`mapv`** and **`filterv`**.
 
 ## Predicates + type/core helpers
