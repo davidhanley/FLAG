@@ -88,7 +88,7 @@ Implemented special forms:
 - `(if test then [else])`
 - `(do expr1 expr2 ... exprN)`
 - `(let [bindings...] body...)`
-- `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close-channel chan)))`. Yields `nil` if it is the last body form.
+- `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close chan)))`. Yields `nil` if it is the last body form.
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
@@ -124,6 +124,8 @@ Implemented macros (from standard macros file):
 - `->`
 - `->>`
 - `some->`
+- `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
+- `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)
 
 ## Data literals
 
@@ -289,9 +291,14 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 ### File I/O
 
 - `open-file`
+- `close-file` — close a file (Go primitive; idempotent)
+- `close-channel` — terminate a channel (Go primitive; idempotent)
+- `close` — FLAG function: `(type-of x)` then `close-file` or `close-channel`
 - `file-to-strings`
 
 `file-to-strings` is lazy: it opens/reads on demand as elements are consumed.
+
+`with-open` / `with-channel` call `(close name)` from a `defer` thunk.
 
 ### Go interop (early)
 

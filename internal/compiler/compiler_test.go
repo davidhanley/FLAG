@@ -427,13 +427,61 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		"defer __bind0.Close()",
+		"defer flagrt.Call(",
+		"flagrt.Call(close, rdr)",
 		"flagrt.OpenFile(\"sample.txt\")",
 		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestCompileWithChannelEmitsDefer(t *testing.T) {
+	output, err := Compile(`
+(defn use-ch [x]
+  (with-channel [ch x]
+    ch))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"defer flagrt.Call(",
+		"flagrt.Call(close, ch)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
+	output, err := Compile(`
+(defn wrap [x]
+  (close-file x)
+  (close-channel x)
+  (close x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.Call(flagrt.BuiltinFunction("close-file"), x)`,
+		`flagrt.Call(flagrt.BuiltinFunction("close-channel"), x)`,
+		"flagrt.Call(close, x)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "flagrt.Close(") {
+		t.Fatalf("generated Go still special-cased flagrt.Close:\n%s", got)
 	}
 }
 

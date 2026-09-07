@@ -161,6 +161,24 @@
   (testing "last body form yields nil"
     (is (= nil (do (defer (fn [] 1)))))))
 
+(deftest with-open-form
+  (testing "returns the body value"
+    (is (some? (with-open [r (open-file "tests/language.flag")]
+                 (first (file-to-strings r)))))))
+
+(deftest close-file-form
+  (testing "close-file is idempotent"
+    (let [r (open-file "tests/language.flag")]
+      (is (= nil (close-file r)))
+      (is (= nil (close-file r)))))
+  (testing "close dispatches to close-file"
+    (let [r (open-file "tests/language.flag")]
+      (is (= nil (close r)))))
+  (testing "close rejects other types"
+    (expect-exception (close 1) "file or channel"))
+  (testing "close-file rejects non-files"
+    (expect-exception (close-file 1) "close-file")))
+
 (deftest destructuring
   (testing "vector and map bindings"
     (is (= 10 (let [[a b & r :as all] [1 2 3 4]]

@@ -505,6 +505,20 @@ func BuiltinFunction(name string) Value {
 			}
 			return OpenFile(Name(args[0]))
 		})
+	case "close-file":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("close-file expects exactly one argument")
+			}
+			return CloseFile(args[0])
+		})
+	case "close-channel":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("close-channel expects exactly one argument")
+			}
+			return ChannelClose(args[0])
+		})
 	case "file-to-strings":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {

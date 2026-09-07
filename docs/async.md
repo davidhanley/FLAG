@@ -52,6 +52,7 @@ Demo and tests: [`examples/concurrency`](../examples/concurrency).
 | `channel-send` | function | Blocking send; returns `true` on success, `false` if terminated |
 | `channel-receive` | function | Blocking receive; returns `nil` after termination once buffered values are drained |
 | `channel-close` | function | Terminate a channel (idempotent) |
+| `with-channel` | core macro | Bind channels and close them with `defer` when the body returns |
 | `select` | function | Non-blocking multi-receive; call handlers for ready channels |
 | `channel-map` | function | Non-blocking: apply fn to each value; return output channel |
 | `channel-filter` | function | Non-blocking: filter by pred; return output channel |
@@ -208,6 +209,19 @@ Returns a new channel.
 
 Use `channel-close` to signal end-of-stream or cancellation.
 `channel-send` returns `false` if it is blocked when termination arrives.
+
+### `with-channel` (core macro)
+
+Always available (prologue). Same shape as `with-open`:
+
+```clojure
+(with-channel [ch (make-channel)]
+  (go (channel-send ch 7))
+  (channel-receive ch))
+```
+
+Expands to `let` + `(defer (fn [] (close name)))` for each binding (LIFO).
+Core `close` / `close-channel` are always available; `async/channel-close` is the same Go primitive.
 
 ---
 

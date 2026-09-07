@@ -2838,7 +2838,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 		"list", "array",
 		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
-		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
+		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "repeat",
 		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
 		"rename-keys", "map-invert", "select", "project", "rename",
 		"go-fn", "go-fn-args", "re-pattern", "re-matches":
@@ -2918,8 +2918,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return loopExprToGo(list.Elements[1:], ctx, locals)
 		case "recur":
 			return recurExprToGo(list.Elements[1:], ctx, locals)
-		case "with-open":
-			return withOpenExprToGo(list.Elements[1:], ctx, locals)
 		case "defer":
 			return deferExprToGo(list.Elements[1:], ctx, locals)
 		case "update!":
@@ -4032,77 +4030,6 @@ func parseVolatileBindingPattern(expr Expr) (bool, Expr, error) {
 		}
 	}
 	return volatile, meta.Target, nil
-}
-
-func withOpenExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 2 {
-		return goExpr{}, fmt.Errorf("with-open expects a binding vector and body")
-	}
-
-	bindingsExpr, ok := args[0].(VectorExpr)
-	if !ok {
-		return goExpr{}, fmt.Errorf("with-open expects a binding vector")
-	}
-	if len(bindingsExpr.Elements)%2 != 0 {
-		return goExpr{}, fmt.Errorf("with-open binding vector expects name/value pairs")
-	}
-
-	localKinds := make(map[string]exprKind, len(locals)+len(bindingsExpr.Elements)/2)
-	for name, kind := range locals {
-		localKinds[name] = kind
-	}
-
-	bindings := make([]string, 0, len(bindingsExpr.Elements)*2)
-	tempCounter := 0
-	declared := make(map[string]struct{}, len(bindingsExpr.Elements))
-	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
-		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if valueExpr.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("with-open binding value must evaluate to Value")
-		}
-
-		sourceName := fmt.Sprintf("__bind%d", tempCounter)
-		tempCounter++
-		bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
-		bindings = append(bindings, fmt.Sprintf("\tdefer %s.Close()\n", sourceName))
-
-		emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
-		if err := emitter.bind(bindingsExpr.Elements[i], sourceName); err != nil {
-			return goExpr{}, err
-		}
-	}
-
-	bodyExprs := args[1:]
-	if len(bodyExprs) == 0 {
-		return goExpr{}, fmt.Errorf("with-open expects at least one body form")
-	}
-	compiledBody := make([]goExpr, 0, len(bodyExprs))
-	for _, bodyExpr := range bodyExprs {
-		compiled, err := exprToGo(bodyExpr, ctx, localKinds)
-		if err != nil {
-			return goExpr{}, err
-		}
-		compiledBody = append(compiledBody, compiled)
-	}
-
-	resultKind := sequentialResultKind(compiledBody)
-	typeName, err := goTypeForExprKind(resultKind)
-	if err != nil {
-		return goExpr{}, err
-	}
-
-	var out strings.Builder
-	fmt.Fprintf(&out, "func() %s {\n", typeName)
-	for _, binding := range bindings {
-		out.WriteString(binding)
-	}
-	writeSequentialBody(&out, compiledBody)
-	out.WriteString("}()")
-
-	return goExpr{code: out.String(), kind: resultKind}, nil
 }
 
 type destructureEmitter struct {

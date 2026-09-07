@@ -98,6 +98,23 @@
        (if name
          (do body))))))
 
+(defmacro with-open [bindings & body]
+  (macro-case (do bindings)
+    ([] (do body))
+    ([name value & rest]
+     (let [name value]
+       (defer (fn [] (close name)))
+       (with-open [rest] body)))))
+
+(defmacro with-channel [bindings & body]
+  (with-open bindings body))
+
+(defn close [x]
+  (case (type-of x)
+    :file (close-file x)
+    :channel (close-channel x)
+    (throw (str "close expects a file or channel, got " (type-of x)))))
+
 (defmacro not [x]
   (if x false true))
 

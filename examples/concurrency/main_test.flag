@@ -66,6 +66,37 @@
       (channel-close ch)
       (is (= false (channel-send ch 42))))))
 
+(deftest close-channel-form
+  (testing "close-channel terminates"
+    (let [ch (make-channel)]
+      (is (= nil (close-channel ch)))
+      (is (= false (channel-send ch 1)))))
+  (testing "close dispatches to close-channel"
+    (let [ch (make-channel)]
+      (is (= nil (close ch)))
+      (is (= false (channel-send ch 1)))))
+  (testing "close-channel rejects non-channels"
+    (expect-exception (close-channel 1) "channel")))
+
+(deftest with-channel-closes
+  (testing "with-channel closes the channel after the body"
+    (let [ch (with-channel [c (make-channel)]
+               c)]
+      (is (= false (channel-send ch 1)))))
+  (testing "body can use the channel before close"
+    (is (= 7 (with-channel [c (make-channel 1)]
+               (do
+                 (channel-send c 7)
+                 (channel-receive c))))))
+  (testing "multiple bindings close LIFO"
+    (let [outer (make-channel 1)
+          inner (make-channel 1)]
+      (with-channel [a outer b inner]
+        (channel-send a 1)
+        (channel-send b 2))
+      (is (= false (channel-send inner 3)))
+      (is (= false (channel-send outer 4))))))
+
 (deftest channel-with-future
   (testing "producer future and receive in main"
     (let [ch (make-channel)

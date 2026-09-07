@@ -50,3 +50,13 @@ func TestChannelSelect(t *testing.T) {
 		t.Fatalf("expected 0, got %d", n2.Long())
 	}
 }
+
+func TestCloseChannel(t *testing.T) {
+	ch := MakeChannel()
+	if got := ChannelClose(ch); !IsNil(got) {
+		t.Fatalf("ChannelClose = %v", ValueToString(got))
+	}
+	if IsTruthy(ChannelSend(ch, NewLong(1))) {
+		t.Fatal("expected send to fail after ChannelClose")
+	}
+}

@@ -65,6 +65,26 @@ func TestOpenFileAndFileToStringsIntegration(t *testing.T) {
 	}
 }
 
+func TestCloseFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "close-file.txt")
+	if err := os.WriteFile(path, []byte("x\n"), 0o600); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	file := OpenFile(path)
+	if got := CloseFile(file); !IsNil(got) {
+		t.Fatalf("CloseFile = %v", ValueToString(got))
+	}
+	if got := CloseFile(file); !IsNil(got) {
+		t.Fatalf("second CloseFile = %v", ValueToString(got))
+	}
+
+	assertPanics(t, func() {
+		_ = CloseFile(NewLong(1))
+	})
+}
+
 func TestOpenFileCloseIsIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "close.txt")
