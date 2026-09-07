@@ -233,7 +233,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `pmap` (parallel map; workers = `NumCPU()*2`, capped by item count; eager array, order preserved)
 - **R** `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; array)
 - **P** `sort` (`(sort coll)` or `(sort comp coll)`; default `<`)
-- **R** `range` (0-arg infinite from 0; 1-arg lazy; large 2-arg may be lazy)
+- **R** `range` (0-arg infinite from 0; 1-arg infinite from *n*; 2-arg `[start, end)`; large 2-arg may be lazy)
 - **R** `repeat` (`(repeat x)` infinite lazy; `(repeat n x)`)
 - **R** `some` (first truthy `(pred x)`, else `nil`)
 - **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)

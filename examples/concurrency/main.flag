@@ -3,7 +3,9 @@
                                   make-channel channel-send channel-receive
                                   channel-close select
                                   atom deref reset! swap!
-                                  channel-some? channel-every?]]]}
+                                  channel-some? channel-every?
+                                  channel-map channel-filter channel-reduce
+                                  channel-lines go-run future-run]]]}
 
 ;; Demo of the async package (import with :refer).
 ;;   go / future  — macros

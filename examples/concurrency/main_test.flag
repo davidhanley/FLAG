@@ -188,3 +188,46 @@
     (let [ch (make-channel 1)
           n (select ch (fn [v] v))]
       (is (= 0 n)))))
+
+(deftest channel-map-filter-reduce
+  (testing "channel-map transforms values"
+    (let [ch (make-channel 3)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (close-channel ch)
+      (let [out (channel-map (fn [n] (* n 2)) ch)]
+        (is (= 2 (channel-receive out)))
+        (is (= 4 (channel-receive out)))
+        (is (= 6 (channel-receive out)))
+        (is (= nil (channel-receive out))))))
+  (testing "channel-filter keeps matching values"
+    (let [ch (make-channel 4)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (channel-send ch 4)
+      (close-channel ch)
+      (let [out (channel-filter even? ch)]
+        (is (= 2 (channel-receive out)))
+        (is (= 4 (channel-receive out)))
+        (is (= nil (channel-receive out))))))
+  (testing "channel-reduce folds the channel"
+    (let [ch (make-channel 4)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (channel-send ch 4)
+      (close-channel ch)
+      (is (= 10 (channel-reduce + 0 ch))))))
+
+(deftest channel-lines-from-path
+  (testing "channel-lines sends file lines"
+    (let [ch (channel-lines "tests/language.flag")]
+      (is (= "(ns language.core)" (channel-receive ch))))))
+
+(deftest go-run-and-future-run
+  (testing "go-run returns nil immediately"
+    (is (= nil (go-run (fn [] 1)))))
+  (testing "future-run result is callable"
+    (is (= 7 ((future-run (fn [] 7)))))))

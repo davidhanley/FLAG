@@ -504,8 +504,13 @@
     (is (= nil (second [1])))
     (is (= 3 (third [1 2 3])))
     (is (= 4 (fourth [1 2 3 4])))
+    (is (= 5 (fifth [1 2 3 4 5])))
+    (is (= 6 (sixth [1 2 3 4 5 6])))
+    (is (= 7 (seventh [1 2 3 4 5 6 7])))
+    (is (= 8 (eighth [1 2 3 4 5 6 7 8])))
+    (is (= 9 (ninth [1 2 3 4 5 6 7 8 9])))
     (is (= 10 (tenth [1 2 3 4 5 6 7 8 9 10])))
-    (is (= 10 (tenth '(1 2 3 4 5 6 7 8 9 10))))
+    (is (= 10 (tenth (list 1 2 3 4 5 6 7 8 9 10))))
     (is (= 2 (val [:k 2])))
     (is (some? 0))
     (is (some? false))
@@ -600,3 +605,77 @@
     (is (= [2 4 6] (drop-heads [[1 2] [3 4] [5 6]]))))
   (testing "FRS-style ->> with mapcat rest, another mapcat, then map"
     (is (= [3 3 5 5] (thread-mapcat-rest-then-map [[1 2] [3 4]])))))
+
+(deftest documented-core-gaps
+  (testing "multiply next drop fist and or doto"
+    (is (= 6 (* 1 2 3)))
+    (is (= 1 (fist [1 2 3])))
+    (is (= '(2 3) (next '(1 2 3))))
+    (is (= nil (next '())))
+    (is (= [3] (vec (drop 2 [1 2 3]))))
+    (is (= 1 (or false nil 1)))
+    (is (= nil (or false nil)))
+    (is (= false (and true false)))
+    (is (= 2 (and 1 2)))
+    (is (= 1 (doto 1 identity))))
+  (testing "rand-int pmap doall dorun"
+    (let [n (rand-int 10)]
+      (is (and (>= n 0) (< n 10))))
+    (is (= 0 (rand-int 1)))
+    (is (= [2 3 4] (pmap add1 [1 2 3])))
+    (is (= [0 1 2] (doall (range 0 3))))
+    (is (= nil (dorun (range 0 3)))))
+  (testing "ex-info throw data"
+    (let [e (ex-info "boom" {:a 1})]
+      (is (= "boom" (:message e)))
+      (is (= {:a 1} (:data e))))
+    (expect-exception (throw (ex-info "nope" {})) "nope"))
+  (testing "line-seq file-to-strings io reader readline scan-directory"
+    (is (= "(ns language.core)" (str (first (line-seq (open-file "tests/language.flag"))))))
+    (is (= "(ns language.core)" (str (first (file-to-strings "tests/language.flag")))))
+    (let [r (io/reader "tests/language.flag")]
+      (is (= "(ns language.core)" (io/readline r)))
+      (close-file r))
+    (is (some (fn [e] (= "language.flag" (:name e))) (io/scan-directory "tests"))))
+  (testing "io/writer and .write"
+    (let [path "/tmp/flag-lang-io-write-test.txt"
+          w (io/writer path)]
+      (.write w "hello-flag")
+      (close-file w)
+      (is (= "hello-flag" (str (first (file-to-strings path)))))))
+  (testing "json to-json json/read json/read-str"
+    (is (= "{\"a\":1}" (to-json {:a 1})))
+    (is (= 1 (get (json/read-str "{\"a\":1}") "a")))
+    (is (= 1 (get (json/read "{\"a\":1}") "a"))))
+  (testing "str helpers .endsWith"
+    (is (= "hello FLAG" (str/replace "hello world" "world" "FLAG")))
+    (is (= "3 &lt; 5" (str/escape "3 < 5" {"<" "&lt;"})))
+    (is (= ["a" "b" "c"] (str/split "a,b,c" ",")))
+    (is (= "a-b-c" (str/join "-" ["a" "b" "c"])))
+    (is (str/blank? "   "))
+    (is (= false (str/blank? "x")))
+    (is (str/starts-with? "hello" "he"))
+    (is (str/ends-with? "hello" "lo"))
+    (is (.endsWith "hello" "lo"))
+    (is (= "Hello" (str/capitalize "hELLO"))))
+  (testing "math abs regex compile character long"
+    (is (= 3 (math/abs -3)))
+    (is (re-matches (regex/compile "^he.*o$") "hello"))
+    (is (= "HI" (character/toUpperCase "hi")))
+    (is (= 42 (long/parse "42"))))
+  (testing "dates"
+    (is (= :date (type-of (date/from-string "2026-03-08"))))
+    (is (= :date (type-of (t/now))))
+    (is (= :date (type-of (dateTime/now))))
+    (let [now (t/now)
+          past (t/minus now (t/years 1))]
+      (is (t/after? now past)))
+    (let [fmt (dateTime/formatter "yyyy-MM-dd")
+          d (date/from-string "2026-03-08")]
+      (is (= "2026-03-08" (dateTime/unparse fmt d)))))
+  (testing "go-fn go-fn-args extra type-of"
+    (is (= "HI" ((go-fn "str/upper-case") "hi")))
+    (is (= 'str/trim (:name (go-fn-args "str/trim"))))
+    (is (= :file (type-of (open-file "tests/language.flag"))))
+    (is (= :lazy-list (type-of (range))))
+    (is (= :record (type-of (->food 1 2))))))
