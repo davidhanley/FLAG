@@ -234,6 +234,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `int?` (`:int` / `:bigint`)
 - `float?` (`:float`)
 - `zero?` / `pos?` / `neg?` (numeric; throw on non-numbers)
+- `even?` / `odd?` (integers including bigint; throw otherwise)
 
 ### Types
 

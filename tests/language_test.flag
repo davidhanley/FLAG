@@ -32,7 +32,7 @@
     (is (= :fn (type-of identity)))))
 
 (deftest numeric-predicates
-  (testing "zero? pos? neg? number? int? float?"
+  (testing "zero? pos? neg? number? int? float? even? odd?"
     (is (zero? 0))
     (is (zero? 0.0))
     (is (zero? 0N))
@@ -58,7 +58,18 @@
     (is (= false (float? 1)))
     (expect-exception (zero? :a) "number")
     (expect-exception (pos? "x") "number")
-    (expect-exception (neg? nil) "number")))
+    (expect-exception (neg? nil) "number")
+    (is (even? 8))
+    (is (even? 0))
+    (is (even? -2))
+    (is (even? 10N))
+    (is (= false (even? 7)))
+    (is (odd? 7))
+    (is (odd? -1))
+    (is (= false (odd? 8)))
+    (expect-exception (even? 1.5) "integer")
+    (expect-exception (odd? 1/2) "integer")
+    (expect-exception (even? :a) "integer")))
 
 (deftest type-predicates
   (testing "string? symbol? keyword? map? vector? set? sequential? coll?"

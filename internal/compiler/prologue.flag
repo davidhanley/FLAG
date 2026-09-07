@@ -209,6 +209,16 @@
     (< x 0)
     (throw "neg? expects a number")))
 
+(defn even? [n]
+  (if (int? n)
+    (zero? (% n 2))
+    (throw "even? expects an integer")))
+
+(defn odd? [n]
+  (if (int? n)
+    (not (even? n))
+    (throw "odd? expects an integer")))
+
 (defn not-empty? [coll]
   (not (empty? coll)))
 
