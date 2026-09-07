@@ -32,7 +32,7 @@
 - [x] Add **`zero?`**, **`pos?`**, **`neg?`**, **`number?`**, **`int?`**, **`float?`**.
 - [x] Add **`string?`**, **`keyword?`**, **`symbol?`**, **`map?`**, **`vector?`**, **`set?`**, **`sequential?`**, **`coll?`**.
 - [x] Add **`even?`** / **`odd?`** as core helpers (common enough to be built in, not user-defined per project).
-- [ ] Add **`empty`** (return same-type empty collection).
+- [x] Add **`empty`** (return same-type empty collection).
 
 ## Functional combinators
 

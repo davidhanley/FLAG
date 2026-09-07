@@ -116,6 +116,7 @@ Implemented macros (from standard macros file):
 - `when`
 - `not=`
 - `cond`
+- `case` (constant match/expr pairs; optional final default)
 - `->`
 - `->>`
 - `some->`
@@ -211,6 +212,7 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 ### Collections
 
 - `list`, `array` (constructors; evaluate arguments)
+- `empty` (same-type empty collection; `nil` for non-collections)
 - `get`
 - `assoc` (maps by key; arrays and FLAG vectors by index, including append at `count`)
 - `dissoc`
