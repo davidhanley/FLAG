@@ -1010,6 +1010,27 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 			out = append(out, ReplCompiled{Setup: decl})
 		}
 	}
+	emitVar := func(binding varDef) {
+		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
+		if _, exists := knownVars[binding.goName]; !exists {
+			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
+		}
+		out = append(out, ReplCompiled{Setup: setup})
+	}
+	// Yaegi evals snippets in order. FLAG defns may call :go-exports vars, so
+	// bind those before compiling function literals. Function wrapper vars
+	// (NewFunction(..._variadic)) must come after the functions exist.
+	var goBinds, fnVars []varDef
+	for _, binding := range result.vars {
+		if strings.Contains(binding.expr, "GoBind_") {
+			goBinds = append(goBinds, binding)
+		} else {
+			fnVars = append(fnVars, binding)
+		}
+	}
+	for _, binding := range goBinds {
+		emitVar(binding)
+	}
 	for _, def := range result.functions {
 		_, exists := knownFns[def.goName]
 		if def.goSignature != "" {
@@ -1046,12 +1067,8 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 		)
 		out = append(out, ReplCompiled{Setup: strings.Join(setupParts, ";;")})
 	}
-	for _, binding := range result.vars {
-		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
-		if _, exists := knownVars[binding.goName]; !exists {
-			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
-		}
-		out = append(out, ReplCompiled{Setup: setup})
+	for _, binding := range fnVars {
+		emitVar(binding)
 	}
 	return out
 }

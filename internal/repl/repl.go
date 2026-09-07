@@ -319,9 +319,11 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"GoBind_async_PipeMap":        reflect.ValueOf(flagrt.GoBind_async_PipeMap),
 			"GoBind_async_PipeFilter":     reflect.ValueOf(flagrt.GoBind_async_PipeFilter),
 			"GoBind_async_PipeReduce":     reflect.ValueOf(flagrt.GoBind_async_PipeReduce),
-			"GoBind_async_PipeEvery":      reflect.ValueOf(flagrt.GoBind_async_PipeEvery),
-			"GoBind_async_PipeSome":       reflect.ValueOf(flagrt.GoBind_async_PipeSome),
 			"GoBind_async_LinesPipe":      reflect.ValueOf(flagrt.GoBind_async_LinesPipe),
+			"GoBind_async_Atom":           reflect.ValueOf(flagrt.GoBind_async_Atom),
+			"GoBind_async_Deref":          reflect.ValueOf(flagrt.GoBind_async_Deref),
+			"GoBind_async_Reset":          reflect.ValueOf(flagrt.GoBind_async_Reset),
+			"GoBind_async_Swap":           reflect.ValueOf(flagrt.GoBind_async_Swap),
 		},
 	}
 	// Merge the generated static Go-function adapters (GoBind_*), which the

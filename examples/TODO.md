@@ -57,13 +57,13 @@
 
 ## State model
 
-- [ ] Add **atom-like refs** (`atom`, `deref`, `reset!`, `swap!`) as core state primitive.
+- [x] Add **atom-like refs** (`atom`, `deref`, `reset!`, `swap!`) as core state primitive.
 - [ ] Add **`compare-and-set!`** behavior for lock-free coordination.
 - [ ] Clarify interaction of `update!` (mutable let bindings) vs Clojure-style state refs and document migration guidance.
 
 ## Runtime/perf follow-ups
 
-- [ ] channel-some? / channel-every? drain the sender, huge efficiency loss.
+- [x] channel-some? / channel-every? close the input on short-circuit (FLAG in async.lib).
 - [ ] Records: make keyword lookup fast (no reflection). Today `(:field rec)` walks struct fields and `flag` tags on every get.
 - [ ] Typed defrecord constructors must reject wrong field types consistently (constructor + map->record paths).
 

@@ -18,8 +18,6 @@ var libraryGoBinds = map[string]string{
 	"async/channel-map":      "GoBind_async_PipeMap",
 	"async/channel-filter":   "GoBind_async_PipeFilter",
 	"async/channel-reduce":   "GoBind_async_PipeReduce",
-	"async/channel-every?":   "GoBind_async_PipeEvery",
-	"async/channel-some?":    "GoBind_async_PipeSome",
 	"async/channel-lines":    "GoBind_async_LinesPipe",
 	"async/atom":             "GoBind_async_Atom",
 	"async/deref":            "GoBind_async_Deref",

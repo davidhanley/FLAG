@@ -67,44 +67,6 @@ func ChannelPipeReduce(fn, init, inch Value) Value {
 	}
 }
 
-// ChannelPipeEvery drains inch, returning true if pred is truthy for every
-// value, false as soon as any value fails.
-// Blocking: returns a bool Value.
-func ChannelPipeEvery(pred, inch Value) Value {
-	if inch.tag != TagChannel {
-		panic("channel-every?: second argument must be a channel")
-	}
-	for {
-		v := ChannelReceive(inch)
-		if v.tag == TagNil {
-			return NewBool(true)
-		}
-		if !IsTruthy(Call(pred, v)) {
-			ChannelClose(inch)
-			return NewBool(false)
-		}
-	}
-}
-
-// ChannelPipeSome drains inch, returning the first value for which pred is
-// truthy, or nil if none.
-// Blocking: returns the matching Value or nil.
-func ChannelPipeSome(pred, inch Value) Value {
-	if inch.tag != TagChannel {
-		panic("channel-some?: second argument must be a channel")
-	}
-	for {
-		v := ChannelReceive(inch)
-		if v.tag == TagNil {
-			return NilValue()
-		}
-		if IsTruthy(Call(pred, v)) {
-			ChannelClose(inch)
-			return v
-		}
-	}
-}
-
 // ChannelLinesPipe reads lines from source (a string path or TagFile value)
 // and sends each line as a string Value on a new buffered channel.
 // The channel is terminated when all lines have been read.

@@ -17,8 +17,6 @@ var (
 	GoBind_async_PipeMap        = NewFunction(adaptAsyncPipeMap)
 	GoBind_async_PipeFilter     = NewFunction(adaptAsyncPipeFilter)
 	GoBind_async_PipeReduce     = NewFunction(adaptAsyncPipeReduce)
-	GoBind_async_PipeEvery      = NewFunction(adaptAsyncPipeEvery)
-	GoBind_async_PipeSome       = NewFunction(adaptAsyncPipeSome)
 	GoBind_async_LinesPipe      = NewFunction(adaptAsyncLinesPipe)
 	GoBind_async_Atom           = NewFunction(adaptAsyncAtom)
 	GoBind_async_Deref          = NewFunction(adaptAsyncDeref)
@@ -82,16 +80,6 @@ func adaptAsyncPipeFilter(args ...Value) Value {
 func adaptAsyncPipeReduce(args ...Value) Value {
 	goArgArityExact("async/channel-reduce", args, 3)
 	return ChannelPipeReduce(args[0], args[1], args[2])
-}
-
-func adaptAsyncPipeEvery(args ...Value) Value {
-	goArgArityExact("async/channel-every?", args, 2)
-	return ChannelPipeEvery(args[0], args[1])
-}
-
-func adaptAsyncPipeSome(args ...Value) Value {
-	goArgArityExact("async/channel-some?", args, 2)
-	return ChannelPipeSome(args[0], args[1])
 }
 
 func adaptAsyncLinesPipe(args ...Value) Value {

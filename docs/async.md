@@ -320,8 +320,9 @@ size of 32 on output channels.  Import from `async.lib`:
 ```
 
 - **Blocking**: returns `true` if `(pred v)` is truthy for every value in `ch`
-- Short-circuits on the first falsy result and terminates `ch`
+- Short-circuits on the first falsy result and **closes** `ch` (does not drain leftover values)
 - Returns `false` as soon as any value fails
+- Implemented in FLAG in `async.lib`
 
 ```clojure
 (channel-every? pos? numbers-ch)
@@ -334,7 +335,8 @@ size of 32 on output channels.  Import from `async.lib`:
 ```
 
 - **Blocking**: returns the first value for which `(pred v)` is truthy, or `nil` if none
-- Short-circuits after the first match and terminates `ch`
+- Short-circuits after the first match and **closes** `ch` (does not drain leftover values)
+- Implemented in FLAG in `async.lib`
 
 ```clojure
 (channel-some? even? numbers-ch)   ;; first even value or nil
