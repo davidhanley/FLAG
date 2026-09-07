@@ -197,6 +197,8 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 - `nth` (fast random-access; arrays/strings)
 - `slow-nth` (sequential traversal; use for lists/lazy seqs)
 - `map`
+- `map-indexed` (`(map f (range) coll)`)
+- `keep-indexed` (`keep` of `map-indexed`)
 - `pmap` (parallel map; worker count = `NumCPU()*2`, capped by item count)
 - `filter`
 - `reduce`

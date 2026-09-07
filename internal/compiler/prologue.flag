@@ -299,6 +299,12 @@
 (defn keep [f coll]
   (filter some? (map f coll)))
 
+(defn map-indexed [f coll]
+  (map f (range) coll))
+
+(defn keep-indexed [f coll]
+  (keep identity (map-indexed f coll)))
+
 (defn every? [pred coll]
   (loop [xs coll]
     (if (seq xs)
