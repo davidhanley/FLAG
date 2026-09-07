@@ -69,6 +69,6 @@
 
 ## Docs/tests parity tasks
 
-- [ ] Update `flag-lang.md` builtin lists to match actual implemented surface (currently stale in places).
+- [x] Update `flag-lang.md` builtin lists to match actual implemented surface (currently stale in places).
 - [ ] Add language tests for each new core fn/macro and edge-case parity tests vs Clojure where behavior intentionally matches.
 - [ ] Add a "Clojure parity matrix" page showing: implemented, partial, planned, and intentionally different semantics.
