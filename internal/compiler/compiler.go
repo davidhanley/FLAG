@@ -22,6 +22,7 @@ const (
 	exprKindString
 	exprKindBool
 	exprKindMutableValue
+	exprKindDefer
 )
 
 type goExpr struct {
@@ -1563,6 +1564,10 @@ func appendTopLevelExpr(form Expr, ctx compileContext, allowTopLevel bool, stmts
 	if err != nil {
 		return err
 	}
+	if expr.kind == exprKindDefer {
+		*stmts = append(*stmts, mainStmt{code: expr.code})
+		return nil
+	}
 	*stmts = append(*stmts, mainStmt{code: expr.code, kind: expr.kind})
 	return nil
 }
@@ -2915,6 +2920,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return recurExprToGo(list.Elements[1:], ctx, locals)
 		case "with-open":
 			return withOpenExprToGo(list.Elements[1:], ctx, locals)
+		case "defer":
+			return deferExprToGo(list.Elements[1:], ctx, locals)
 		case "update!":
 			return updateBangExprToGo(list.Elements[1:], ctx, locals)
 		case "or":
@@ -3414,20 +3421,64 @@ func doExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 		compiled = append(compiled, part)
 	}
 
-	result := compiled[len(compiled)-1]
-	typeName, err := goTypeForExprKind(result.kind)
+	resultKind := sequentialResultKind(compiled)
+	typeName, err := goTypeForExprKind(resultKind)
 	if err != nil {
 		return goExpr{}, err
 	}
 
 	var out strings.Builder
 	fmt.Fprintf(&out, "func() %s {\n", typeName)
-	for i := 0; i < len(compiled)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiled[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	writeSequentialBody(&out, compiled)
 	out.WriteString("}()")
-	return goExpr{code: out.String(), kind: result.kind}, nil
+	return goExpr{code: out.String(), kind: resultKind}, nil
+}
+
+// deferExprToGo lowers (defer f) to a Go defer statement that calls zero-arg f.
+// The thunk expression is evaluated immediately; the call runs when the enclosing
+// compiled Go function (typically a do/let/defn IIFE) returns.
+func deferExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("defer expects a zero-argument function")
+	}
+	fn, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	fn, err = coerceExprToValue(fn, args[0], "defer function", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("defer %s.Call(%s)", runtimeAlias, fn.code), kind: exprKindDefer}, nil
+}
+
+func sequentialResultKind(compiled []goExpr) exprKind {
+	last := compiled[len(compiled)-1]
+	if last.kind == exprKindDefer {
+		return exprKindValue
+	}
+	return last.kind
+}
+
+func emitSequentialForm(out *strings.Builder, expr goExpr) {
+	if expr.kind == exprKindDefer {
+		fmt.Fprintf(out, "\t%s\n", expr.code)
+		return
+	}
+	fmt.Fprintf(out, "\t_ = %s\n", expr.code)
+}
+
+func writeSequentialBody(out *strings.Builder, compiled []goExpr) {
+	last := compiled[len(compiled)-1]
+	for i := 0; i < len(compiled)-1; i++ {
+		emitSequentialForm(out, compiled[i])
+	}
+	if last.kind == exprKindDefer {
+		emitSequentialForm(out, last)
+		fmt.Fprintf(out, "\treturn %s.NilValue()\n", runtimeAlias)
+		return
+	}
+	fmt.Fprintf(out, "\treturn %s\n", last.code)
 }
 
 func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3807,8 +3858,8 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		compiledBody = append(compiledBody, compiled)
 	}
 
-	result := compiledBody[len(compiledBody)-1]
-	typeName, err := goTypeForExprKind(result.kind)
+	resultKind := sequentialResultKind(compiledBody)
+	typeName, err := goTypeForExprKind(resultKind)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -3818,13 +3869,10 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	for _, binding := range bindings {
 		out.WriteString(binding)
 	}
-	for i := 0; i < len(compiledBody)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiledBody[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	writeSequentialBody(&out, compiledBody)
 	out.WriteString("}()")
 
-	return goExpr{code: out.String(), kind: result.kind}, nil
+	return goExpr{code: out.String(), kind: resultKind}, nil
 }
 
 func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4040,8 +4088,8 @@ func withOpenExprToGo(args []Expr, ctx compileContext, locals map[string]exprKin
 		compiledBody = append(compiledBody, compiled)
 	}
 
-	result := compiledBody[len(compiledBody)-1]
-	typeName, err := goTypeForExprKind(result.kind)
+	resultKind := sequentialResultKind(compiledBody)
+	typeName, err := goTypeForExprKind(resultKind)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -4051,13 +4099,10 @@ func withOpenExprToGo(args []Expr, ctx compileContext, locals map[string]exprKin
 	for _, binding := range bindings {
 		out.WriteString(binding)
 	}
-	for i := 0; i < len(compiledBody)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiledBody[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	writeSequentialBody(&out, compiledBody)
 	out.WriteString("}()")
 
-	return goExpr{code: out.String(), kind: result.kind}, nil
+	return goExpr{code: out.String(), kind: resultKind}, nil
 }
 
 type destructureEmitter struct {
@@ -5487,6 +5532,13 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	if err != nil {
 		return goExpr{}, err
 	}
+	if body.kind == exprKindDefer {
+		var wrapped strings.Builder
+		fmt.Fprintf(&wrapped, "func() %s.Value {\n", runtimeAlias)
+		writeSequentialBody(&wrapped, []goExpr{body})
+		wrapped.WriteString("}()")
+		body = goExpr{code: wrapped.String(), kind: exprKindValue}
+	}
 	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), lambdaCtx)
 	if err != nil {
 		return goExpr{}, err
@@ -5517,6 +5569,8 @@ func coerceExprToValue(expr goExpr, source Expr, label string, ctx compileContex
 			return goExpr{code: code, kind: exprKindValue}, nil
 		}
 		return goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
+	case exprKindDefer:
+		return goExpr{}, exprError(source, fmt.Sprintf("%s cannot be a defer form (defer is a statement)", label))
 	default:
 		return goExpr{}, exprError(source, fmt.Sprintf("%s must evaluate to Value", label))
 	}

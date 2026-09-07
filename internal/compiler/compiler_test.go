@@ -377,6 +377,45 @@ func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
 	}
 }
 
+func TestCompileDeferEmitsGoDefer(t *testing.T) {
+	output, err := Compile(`
+(defn work [chan]
+  (defer (fn [] chan))
+  1)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"defer flagrt.Call(",
+		"return flagrt.NewLong(1)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileDeferRejectsWrongArity(t *testing.T) {
+	_, err := Compile(`(defer)`)
+	if err == nil {
+		t.Fatal("expected (defer) to fail")
+	}
+	if !strings.Contains(err.Error(), "defer expects a zero-argument function") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = Compile(`(defer (fn [] 1) (fn [] 2))`)
+	if err == nil {
+		t.Fatal("expected extra defer arguments to fail")
+	}
+	if !strings.Contains(err.Error(), "defer expects a zero-argument function") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestCompileWithOpenEmitsDefer(t *testing.T) {
 	output, err := Compile(`
 (with-open [rdr (open-file "sample.txt")]

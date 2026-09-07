@@ -88,6 +88,7 @@ Implemented special forms:
 - `(if test then [else])`
 - `(do expr1 expr2 ... exprN)`
 - `(let [bindings...] body...)`
+- `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close-channel chan)))`. Yields `nil` if it is the last body form.
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.

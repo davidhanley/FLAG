@@ -141,6 +141,26 @@
       (update! seen (assoc seen :b 2))
       (is (= {:a 1 :b 2} seen)))))
 
+(deftest defer-form
+  (testing "runs thunk after enclosing do returns"
+    (let [^{:volatile true} acc []]
+      (let [during (do
+                     (defer (fn [] (update! acc (conj acc 2))))
+                     (update! acc (conj acc 1))
+                     acc)]
+        (is (= [1] during))
+        (is (= [1 2] acc)))))
+  (testing "multiple defers run LIFO"
+    (let [^{:volatile true} acc []]
+      ((fn []
+         (do
+           (defer (fn [] (update! acc (conj acc 3))))
+           (defer (fn [] (update! acc (conj acc 2))))
+           (update! acc (conj acc 1)))))
+      (is (= [1 2 3] acc))))
+  (testing "last body form yields nil"
+    (is (= nil (do (defer (fn [] 1)))))))
+
 (deftest destructuring
   (testing "vector and map bindings"
     (is (= 10 (let [[a b & r :as all] [1 2 3 4]]
