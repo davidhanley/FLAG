@@ -94,12 +94,21 @@ func valueIdentity(v Value) string {
 			parts = append(parts, valueIdentity(value))
 		}
 		return "A:[" + strings.Join(parts, ",") + "]"
+	case TagVector:
+		values := v.VectorValues()
+		parts := make([]string, 0, len(values))
+		for _, value := range values {
+			parts = append(parts, valueIdentity(value))
+		}
+		return "V:|" + strings.Join(parts, ",") + "|"
 	case TagLazyList:
 		return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)
 	case TagRecur:
 		return "U:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
 	case TagRecord:
 		return "R:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+	case TagAtom:
+		return "O:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
 	default:
 		panic("unknown Value tag")
 	}

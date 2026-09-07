@@ -38,7 +38,50 @@ func NewSet(values ...Value) Value {
 }
 
 func Assoc(coll Value, entries ...Value) Value {
-	return MapAssoc(coll, entries...)
+	switch coll.tag {
+	case TagMap:
+		return MapAssoc(coll, entries...)
+	case TagArray, TagVector:
+		return indexedAssoc(coll, entries...)
+	default:
+		panic("assoc expects map, array, or vector Value")
+	}
+}
+
+func indexedAssoc(coll Value, entries ...Value) Value {
+	if len(entries) < 2 || len(entries)%2 != 0 {
+		panic("assoc expects collection and key/value pairs")
+	}
+	out := coll
+	for i := 0; i < len(entries); i += 2 {
+		out = indexedAssocOne(out, nonNegativeCount("assoc", entries[i]), entries[i+1])
+	}
+	return out
+}
+
+func indexedAssocOne(coll Value, index int, item Value) Value {
+	switch coll.tag {
+	case TagArray:
+		n := coll.ArrayLen()
+		if index < n {
+			return ArrayAssoc(coll, index, item)
+		}
+		if index == n {
+			return ArrayAppend(coll, item)
+		}
+		panic("assoc index out of bounds")
+	case TagVector:
+		n := coll.VectorLen()
+		if index < n {
+			return VectorAssoc(coll, index, item)
+		}
+		if index == n {
+			return VectorAppend(coll, item)
+		}
+		panic("assoc index out of bounds")
+	default:
+		panic("assoc expects array or vector Value")
+	}
 }
 
 func Keys(coll Value) Value {
@@ -55,6 +98,276 @@ func Keys(coll Value) Value {
 	default:
 		panic("keys expects map Value")
 	}
+}
+
+func Vals(coll Value) Value {
+	switch coll.tag {
+	case TagNil:
+		return NilValue()
+	case TagMap, TagDate:
+		entries := coll.MapEntries()
+		vals := make([]Value, 0, len(entries))
+		for _, entry := range entries {
+			vals = append(vals, entry.Value)
+		}
+		return NewArray(vals...)
+	default:
+		panic("vals expects map Value")
+	}
+}
+
+func Find(coll Value, key Value) Value {
+	switch coll.tag {
+	case TagNil:
+		return NilValue()
+	case TagMap:
+		value, ok := coll.mapPointer().items.Get(key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	case TagDate:
+		value, ok := dateFieldValue(coll, key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	case TagRecord:
+		value, ok := recordFieldValue(coll, key)
+		if !ok {
+			return NilValue()
+		}
+		return NewArray(key, value)
+	default:
+		panic("find expects map Value")
+	}
+}
+
+func Union(sets ...Value) Value {
+	items := immutable.NewSet[Value](valueHasher{})
+	for _, set := range sets {
+		if set.tag == TagNil {
+			continue
+		}
+		if set.tag != TagSet {
+			panic("union expects set arguments")
+		}
+		for _, value := range set.SetValues() {
+			items = items.Add(value)
+		}
+	}
+	return newSetValue(items)
+}
+
+func Intersection(sets ...Value) Value {
+	if len(sets) == 0 {
+		return NewSet()
+	}
+	for _, set := range sets {
+		if set.tag != TagSet && set.tag != TagNil {
+			panic("intersection expects set arguments")
+		}
+		if set.tag == TagNil {
+			return NewSet()
+		}
+	}
+	base := sets[0]
+	if base.tag == TagNil {
+		return NewSet()
+	}
+	items := immutable.NewSet[Value](valueHasher{})
+	for _, value := range base.SetValues() {
+		keep := true
+		for i := 1; i < len(sets); i++ {
+			if !sets[i].setPointer().items.Has(value) {
+				keep = false
+				break
+			}
+		}
+		if keep {
+			items = items.Add(value)
+		}
+	}
+	return newSetValue(items)
+}
+
+func Difference(sets ...Value) Value {
+	if len(sets) == 0 {
+		return NewSet()
+	}
+	first := sets[0]
+	if first.tag == TagNil {
+		return NewSet()
+	}
+	if first.tag != TagSet {
+		panic("difference expects set arguments")
+	}
+	items := first.setPointer().items
+	for _, set := range sets[1:] {
+		if set.tag == TagNil {
+			continue
+		}
+		if set.tag != TagSet {
+			panic("difference expects set arguments")
+		}
+		for _, value := range set.SetValues() {
+			items = items.Delete(value)
+		}
+	}
+	return newSetValue(items)
+}
+
+func Subset(set1 Value, set2 Value) bool {
+	if set1.tag == TagNil {
+		return true
+	}
+	if set1.tag != TagSet {
+		panic("subset? expects set arguments")
+	}
+	if set2.tag == TagNil {
+		return set1.SetLen() == 0
+	}
+	if set2.tag != TagSet {
+		panic("subset? expects set arguments")
+	}
+	for _, value := range set1.SetValues() {
+		if !set2.setPointer().items.Has(value) {
+			return false
+		}
+	}
+	return true
+}
+
+func Superset(set1 Value, set2 Value) bool {
+	return Subset(set2, set1)
+}
+
+func Disjoint(set1 Value, set2 Value) bool {
+	if set1.tag == TagNil || set2.tag == TagNil {
+		return true
+	}
+	if set1.tag != TagSet || set2.tag != TagSet {
+		panic("disjoint? expects set arguments")
+	}
+	left := set1
+	right := set2
+	if right.SetLen() < left.SetLen() {
+		left, right = right, left
+	}
+	for _, value := range left.SetValues() {
+		if right.setPointer().items.Has(value) {
+			return false
+		}
+	}
+	return true
+}
+
+func RenameKeys(coll Value, keyMap Value) Value {
+	if coll.tag == TagNil {
+		return NilValue()
+	}
+	if coll.tag != TagMap {
+		panic("rename-keys expects map and key-map")
+	}
+	if keyMap.tag == TagNil {
+		return coll
+	}
+	if keyMap.tag != TagMap {
+		panic("rename-keys expects map and key-map")
+	}
+	out := coll
+	for _, entry := range keyMap.MapEntries() {
+		oldKey := entry.Key
+		newKey := entry.Value
+		if !Contains(out, oldKey) {
+			continue
+		}
+		value := Get(out, oldKey)
+		out = MapDissoc(out, oldKey)
+		out = MapAssoc(out, newKey, value)
+	}
+	return out
+}
+
+func MapInvert(coll Value) Value {
+	if coll.tag == TagNil {
+		return NilValue()
+	}
+	if coll.tag != TagMap {
+		panic("map-invert expects map")
+	}
+	out := NewMap()
+	for _, entry := range coll.MapEntries() {
+		out = MapAssoc(out, entry.Value, entry.Key)
+	}
+	return out
+}
+
+func SetSelect(pred Value, set Value) Value {
+	if set.tag == TagNil {
+		return NewSet()
+	}
+	if set.tag != TagSet {
+		panic("select expects predicate and set")
+	}
+	items := immutable.NewSet[Value](valueHasher{})
+	for _, value := range set.SetValues() {
+		if IsTruthy(Call(pred, value)) {
+			items = items.Add(value)
+		}
+	}
+	return newSetValue(items)
+}
+
+func SetProject(rel Value, keys Value) Value {
+	if rel.tag == TagNil {
+		return NewSet()
+	}
+	if rel.tag != TagSet {
+		panic("project expects relation set and key sequence")
+	}
+	keyCursor := newSeqCursor(keys)
+	keyList := make([]Value, 0)
+	for {
+		key, ok := keyCursor.nextOrDone()
+		if !ok {
+			break
+		}
+		keyList = append(keyList, key)
+	}
+
+	items := immutable.NewSet[Value](valueHasher{})
+	for _, row := range rel.SetValues() {
+		items = items.Add(projectRow(row, keyList))
+	}
+	return newSetValue(items)
+}
+
+func SetRename(rel Value, keyMap Value) Value {
+	if rel.tag == TagNil {
+		return NewSet()
+	}
+	if rel.tag != TagSet {
+		panic("rename expects relation set and key-map")
+	}
+	items := immutable.NewSet[Value](valueHasher{})
+	for _, row := range rel.SetValues() {
+		items = items.Add(RenameKeys(row, keyMap))
+	}
+	return newSetValue(items)
+}
+
+func projectRow(row Value, keys []Value) Value {
+	if row.tag != TagMap && row.tag != TagDate && row.tag != TagRecord {
+		panic("project expects set of map-like values")
+	}
+	out := NewMap()
+	for _, key := range keys {
+		if Contains(row, key) {
+			out = MapAssoc(out, key, Get(row, key))
+		}
+	}
+	return out
 }
 
 func MapAssoc(coll Value, entries ...Value) Value {
@@ -132,6 +445,8 @@ func Contains(coll Value, key Value) bool {
 
 func MapDissoc(coll Value, keys ...Value) Value {
 	switch coll.tag {
+	case TagNil:
+		return NilValue()
 	case TagMap:
 		items := coll.mapPointer().items
 		for _, key := range keys {

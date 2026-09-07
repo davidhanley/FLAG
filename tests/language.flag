@@ -16,13 +16,6 @@
     1
     (+ (fib (- x 1)) (fib (- x 2)))))
 
-(defn even? [n]
-  (if (= n 0)
-    true
-    (if (= n 1)
-      false
-      (even? (- n 2)))))
-
 (defn sum-to [n]
   (loop [i n acc 0]
     (if (= i 0)
@@ -33,6 +26,10 @@
   (+ a b x))
 
 (defmacro quote-seven [x] 7)
+
+(defmacro pick
+  ([x] x)
+  ([_ y] y))
 
 (defrecord food [weight calories])
 

@@ -5,7 +5,7 @@
              ["stdlib.lib" :refer [second third]]]}
 
 (def whitespace-chars #{" " "\t" "\n" "\r" ","})
-(def delimiter-chars #{"(" ")" "[" "]" "{" "}" "^" "'"})
+(def delimiter-chars #{"(" ")" "[" "]" "{" "}" "^" "'" "|"})
 
 ;; Mirrors internal/compiler.ParseTokenKind values.
 (def token-eof 0)
@@ -22,6 +22,7 @@
 (def token-dispatch-fn-open 11)
 (def token-string 12)
 (def token-atom 13)
+(def token-pipe 14)
 
 (defn whitespace-char? [ch]
   (contains? whitespace-chars ch))
@@ -100,6 +101,7 @@
     (= token ")") (->ParseToken token-list-close "" "" "" line offset)
     (= token "[") (->ParseToken token-vector-open "" "" "" line offset)
     (= token "]") (->ParseToken token-vector-close "" "" "" line offset)
+    (= token "|") (->ParseToken token-pipe "" "" "" line offset)
     (= token "{") (->ParseToken token-map-open "" "" "" line offset)
     (= token "}") (->ParseToken token-map-close "" "" "" line offset)
     (= token "^") (->ParseToken token-metadata "" "" "" line offset)

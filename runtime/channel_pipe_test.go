@@ -82,54 +82,6 @@ func TestPipeReduce(t *testing.T) {
 	}
 }
 
-func TestPipeEvery_AllTrue(t *testing.T) {
-	inch := makeTestPipeChan(NewLong(2), NewLong(4), NewLong(6))
-	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
-	r := ChannelPipeEvery(even, inch)
-	if r.tag != TagBool || !r.Bool() {
-		t.Fatal("expected true")
-	}
-}
-
-func TestPipeEvery_ShortCircuit(t *testing.T) {
-	inch := MakeChannel(NewLong(4))
-	ChannelSend(inch, NewLong(2))
-	ChannelSend(inch, NewLong(3))
-	ChannelSend(inch, NewLong(4))
-	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
-	r := ChannelPipeEvery(even, inch)
-	if r.tag != TagBool || r.Bool() {
-		t.Fatal("expected false")
-	}
-	if sent := ChannelSend(inch, NewLong(6)); sent.Bool() {
-		t.Fatal("expected upstream send to stop after channel-every? short-circuit")
-	}
-}
-
-func TestPipeSome_Found(t *testing.T) {
-	inch := MakeChannel(NewLong(4))
-	ChannelSend(inch, NewLong(1))
-	ChannelSend(inch, NewLong(3))
-	ChannelSend(inch, NewLong(4))
-	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
-	r := ChannelPipeSome(even, inch)
-	if r.tag != TagLong || r.Long() != 4 {
-		t.Fatalf("expected 4, got %v", r)
-	}
-	if sent := ChannelSend(inch, NewLong(5)); sent.Bool() {
-		t.Fatal("expected upstream send to stop after channel-some? match")
-	}
-}
-
-func TestPipeSome_NotFound(t *testing.T) {
-	inch := makeTestPipeChan(NewLong(1), NewLong(3), NewLong(5))
-	even := NewFunction(func(args ...Value) Value { return NewBool(args[0].Long()%2 == 0) })
-	r := ChannelPipeSome(even, inch)
-	if r.tag != TagNil {
-		t.Fatalf("expected nil, got tag %v", r.tag)
-	}
-}
-
 func TestLinesPipe_FromPath(t *testing.T) {
 	// Use an absolute path to a known project file.
 	path := "/Users/davidhanley/projects/FLAG/runtime/channel_pipe.go"

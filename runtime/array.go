@@ -87,7 +87,10 @@ func ArrayRest(arrayValue Value) Value {
 }
 
 func arrayValueToAny(v Value) []any {
-	values := v.ArrayValues()
+	return valuesToAny(v.ArrayValues())
+}
+
+func valuesToAny(values []Value) []any {
 	out := make([]any, 0, len(values))
 	for _, value := range values {
 		out = append(out, ValueToAny(value))

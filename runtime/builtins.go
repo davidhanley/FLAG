@@ -172,6 +172,26 @@ func BuiltinFunction(name string) Value {
 			}
 			return Drop(args[0], args[1])
 		})
+	case "nth":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 && len(args) != 3 {
+				panic("nth expects collection, index, and optional default")
+			}
+			if len(args) == 2 {
+				return Nth(args[0], args[1])
+			}
+			return Nth(args[0], args[1], args[2])
+		})
+	case "slow-nth":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 && len(args) != 3 {
+				panic("slow-nth expects collection, index, and optional default")
+			}
+			if len(args) == 2 {
+				return SlowNth(args[0], args[1])
+			}
+			return SlowNth(args[0], args[1], args[2])
+		})
 	case "map":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) < 2 {
@@ -252,6 +272,13 @@ func BuiltinFunction(name string) Value {
 				panic("nil? expects exactly one argument")
 			}
 			return NewBool(IsNil(args[0]))
+		})
+	case "type-of":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("type-of expects exactly one argument")
+			}
+			return TypeOf(args[0])
 		})
 	case "set":
 		return NewFunction(func(args ...Value) Value {
@@ -355,9 +382,99 @@ func BuiltinFunction(name string) Value {
 			}
 			return Keys(args[0])
 		})
+	case "vals":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("vals expects exactly one argument")
+			}
+			return Vals(args[0])
+		})
+	case "find":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("find expects map and key")
+			}
+			return Find(args[0], args[1])
+		})
+	case "union":
+		return NewFunction(func(args ...Value) Value {
+			return Union(args...)
+		})
+	case "intersection":
+		return NewFunction(func(args ...Value) Value {
+			return Intersection(args...)
+		})
+	case "difference":
+		return NewFunction(func(args ...Value) Value {
+			return Difference(args...)
+		})
+	case "subset?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("subset? expects exactly two sets")
+			}
+			return NewBool(Subset(args[0], args[1]))
+		})
+	case "superset?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("superset? expects exactly two sets")
+			}
+			return NewBool(Superset(args[0], args[1]))
+		})
+	case "disjoint?":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("disjoint? expects exactly two sets")
+			}
+			return NewBool(Disjoint(args[0], args[1]))
+		})
+	case "rename-keys":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("rename-keys expects map and key map")
+			}
+			return RenameKeys(args[0], args[1])
+		})
+	case "map-invert":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("map-invert expects exactly one map")
+			}
+			return MapInvert(args[0])
+		})
+	case "select":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("select expects predicate and set")
+			}
+			return SetSelect(args[0], args[1])
+		})
+	case "project":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("project expects relation set and key sequence")
+			}
+			return SetProject(args[0], args[1])
+		})
+	case "rename":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("rename expects relation set and key map")
+			}
+			return SetRename(args[0], args[1])
+		})
 	case "hash-map":
 		return NewFunction(func(args ...Value) Value {
 			return NewMap(args...)
+		})
+	case "list":
+		return NewFunction(func(args ...Value) Value {
+			return NewList(args...)
+		})
+	case "array":
+		return NewFunction(func(args ...Value) Value {
+			return NewArray(args...)
 		})
 	case "range":
 		return NewFunction(func(args ...Value) Value {
@@ -387,6 +504,20 @@ func BuiltinFunction(name string) Value {
 				panic("open-file expects exactly one argument")
 			}
 			return OpenFile(Name(args[0]))
+		})
+	case "close-file":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("close-file expects exactly one argument")
+			}
+			return CloseFile(args[0])
+		})
+	case "close-channel":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("close-channel expects exactly one argument")
+			}
+			return ChannelClose(args[0])
 		})
 	case "file-to-strings":
 		return NewFunction(func(args ...Value) Value {

@@ -172,6 +172,8 @@ func valueToJSONValue(v Value) (any, error) {
 		return mapToJSONValue(v)
 	case TagArray:
 		return arrayToJSONValue(v.ArrayValues())
+	case TagVector:
+		return arrayToJSONValue(v.VectorValues())
 	case TagList:
 		return arrayToJSONValue(v.ListValues())
 	case TagLazyList:

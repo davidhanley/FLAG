@@ -23,6 +23,7 @@ const (
 	sourceTokenDispatchFnOpen
 	sourceTokenString
 	sourceTokenAtom
+	sourceTokenPipe
 )
 
 type parsedSourceToken struct {
@@ -104,6 +105,8 @@ func (p *sourceTokenParser) readExpr() (Expr, error) {
 		return p.readList(sourceTokenListOpen, sourceTokenListClose, false)
 	case sourceTokenVectorOpen:
 		return p.readList(sourceTokenVectorOpen, sourceTokenVectorClose, true)
+	case sourceTokenPipe:
+		return p.readPipeVector()
 	case sourceTokenMapOpen:
 		return p.readMap()
 	case sourceTokenMetadata:
@@ -164,6 +167,38 @@ func (p *sourceTokenParser) readList(openKind, closeKind sourceTokenKind, asVect
 			return ListExpr{Elements: elements, Line: open.Line, Col: open.Col}, nil
 		}
 
+		item, err := p.readExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := item.(CommentExpr); ok {
+			continue
+		}
+		elements = append(elements, item)
+	}
+}
+
+func (p *sourceTokenParser) readPipeVector() (Expr, error) {
+	open, err := p.next()
+	if err != nil {
+		return nil, err
+	}
+	elements := make([]Expr, 0, 4)
+	for {
+		tok, err := p.peek()
+		if err != nil {
+			return nil, err
+		}
+		if tok.Kind == sourceTokenEOF {
+			return nil, parseErrorAt(open.Line, open.Col, "missing closing \"|\"")
+		}
+		if tok.Kind == sourceTokenPipe {
+			_, err := p.next()
+			if err != nil {
+				return nil, err
+			}
+			return PipeVectorExpr{Elements: elements, Line: open.Line, Col: open.Col}, nil
+		}
 		item, err := p.readExpr()
 		if err != nil {
 			return nil, err
@@ -321,6 +356,8 @@ func classifySourceToken(st SourceToken) parsedSourceToken {
 		return parsedSourceToken{Kind: sourceTokenVectorOpen, Line: line, Col: col}
 	case "]":
 		return parsedSourceToken{Kind: sourceTokenVectorClose, Line: line, Col: col}
+	case "|":
+		return parsedSourceToken{Kind: sourceTokenPipe, Line: line, Col: col}
 	case "{":
 		return parsedSourceToken{Kind: sourceTokenMapOpen, Line: line, Col: col}
 	case "}":
@@ -442,6 +479,8 @@ func tokenKindLabel(kind sourceTokenKind) string {
 		return ")"
 	case sourceTokenVectorClose:
 		return "]"
+	case sourceTokenPipe:
+		return "|"
 	case sourceTokenMapClose:
 		return "}"
 	default:

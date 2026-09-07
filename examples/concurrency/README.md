@@ -13,6 +13,7 @@ Full API reference: **[docs/async.md](../../docs/async.md)**.
 
 - `(go body...)` / `(future body...)` — macros; future values also answer `(f :ready?)` and may be piped with `:piped? true`
 - `(make-channel)`, `(channel-send)`, `(channel-receive)`, `(channel-close)`, `(sleep ms)` — functions
+- `(atom)`, `(deref)`, `(reset!)`, `(swap!)` — atoms (no watches)
 - `(select ch f ch f…)` — non-blocking multi-receive; calls each ready handler; returns count
 - `(channel-some?)` / `(channel-every?)` — short-circuiting stream reducers that terminate their input
 

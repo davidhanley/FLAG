@@ -15,91 +15,111 @@
 
 (defmacro cond [& clauses]
   (macro-case (do clauses)
-    [[] nil]
-    [[:else expr] expr]
-    [[test expr & rest]
+    ([] nil)
+    ([:else expr] expr)
+    ([test expr & rest]
      (if test
        expr
-       (cond rest))]))
+       (cond rest)))))
+
+(defmacro case [e & clauses]
+  (macro-case (do clauses)
+    ([] nil)
+    ([default] default)
+    ([test expr & rest]
+     (if (= e test)
+       expr
+       (case e rest)))))
 
 (defmacro -> [x & forms]
   (macro-case (do forms)
-    [[] x]
-    [[(f & args) & rest]
-     (-> (f x args) rest)]
-    [[f & rest]
-     (-> (f x) rest)]))
+    ([] x)
+    ([(f & args) & rest]
+     (-> (f x args) rest))
+    ([f & rest]
+     (-> (f x) rest))))
 
 (defmacro ->> [x & forms]
   (macro-case (do forms)
-    [[] x]
-    [[(f & args) & rest]
-     (->> (f args x) rest)]
-    [[f & rest]
-     (->> (f x) rest)]))
+    ([] x)
+    ([(f & args) & rest]
+     (->> (f args x) rest))
+    ([f & rest]
+     (->> (f x) rest))))
 
 (defmacro some-> [x & forms]
   (macro-case (do forms)
-    [[] x]
-    [[(f & args) & rest]
+    ([] x)
+    ([(f & args) & rest]
      (let [tmp x]
        (if (= tmp nil)
          nil
-         (some-> (f tmp args) rest)))]
-    [[f & rest]
+         (some-> (f tmp args) rest))))
+    ([f & rest]
      (let [tmp x]
        (if (= tmp nil)
          nil
-         (some-> (f tmp) rest)))]))
+         (some-> (f tmp) rest))))))
 
 (defmacro some->> [x & forms]
   (macro-case (do forms)
-    [[] x]
-    [[(f & args) & rest]
+    ([] x)
+    ([(f & args) & rest]
      (let [tmp x]
        (if (= tmp nil)
          nil
-         (some->> (f args tmp) rest)))]
-    [[f & rest]
+         (some->> (f args tmp) rest))))
+    ([f & rest]
      (let [tmp x]
        (if (= tmp nil)
          nil
-         (some->> (f tmp) rest)))]))
+         (some->> (f tmp) rest))))))
 
 (defmacro cond-> [x & clauses]
   (macro-case (do clauses)
-    [[] x]
-    [[test (f & args) & rest]
+    ([] x)
+    ([test (f & args) & rest]
      (let [tmp x]
        (cond-> (if test
                  (f tmp args)
                  tmp)
-               rest))]
-    [[test f & rest]
+               rest)))
+    ([test f & rest]
      (let [tmp x]
        (cond-> (if test
                  (f tmp)
                  tmp)
-               rest))]))
+               rest)))))
 
 (defmacro when-let [bindings & body]
   (macro-case (do bindings)
-    [[name value]
+    ([name value]
      (let [name value]
        (if name
-         (do body)))]))
+         (do body))))))
 
-(defmacro comp [& fns]
-  (macro-case (do fns)
-    [[] (fn [x] x)]
-    [[f] f]
-    [[f & rest]
-     (let [g (comp rest)]
-       (fn [x]
-         (f (g x))))]))
+(defmacro with-open [bindings & body]
+  (macro-case (do bindings)
+    ([] (do body))
+    ([name value & rest]
+     (let [name value]
+       (defer (fn [] (close name)))
+       (with-open [rest] body)))))
+
+(defmacro with-channel [bindings & body]
+  (with-open bindings body))
+
+(defn close [x]
+  (case (type-of x)
+    :file (close-file x)
+    :channel (close-channel x)
+    (throw (str "close expects a file or channel, got " (type-of x)))))
 
 (defmacro not [x]
   (if x false true))
+
+(def peek first)
+(def pop rest)
 
 (defn identity [x] x)
 
@@ -109,11 +129,123 @@
 (defn second [coll]
   (first (rest coll)))
 
+(defn third [coll]
+  (slow-nth coll 2))
+
+(defn fourth [coll]
+  (slow-nth coll 3))
+
+(defn fifth [coll]
+  (slow-nth coll 4))
+
+(defn sixth [coll]
+  (slow-nth coll 5))
+
+(defn seventh [coll]
+  (slow-nth coll 6))
+
+(defn eighth [coll]
+  (slow-nth coll 7))
+
+(defn ninth [coll]
+  (slow-nth coll 8))
+
+(defn tenth [coll]
+  (slow-nth coll 9))
+
 (defn val [entry]
   (second entry))
 
 (defn some? [x]
   (not (nil? x)))
+
+(defn true? [x]
+  (= x true))
+
+(defn false? [x]
+  (= x false))
+
+(defn boolean [x]
+  (if x true false))
+
+(defn number? [x]
+  (or (= (type-of x) :int)
+      (= (type-of x) :float)
+      (= (type-of x) :bigint)
+      (= (type-of x) :ratio)))
+
+(defn int? [x]
+  (or (= (type-of x) :int)
+      (= (type-of x) :bigint)))
+
+(defn float? [x]
+  (= (type-of x) :float))
+
+(defn string? [x]
+  (= (type-of x) :string))
+
+(defn symbol? [x]
+  (= (type-of x) :symbol))
+
+(defn keyword? [x]
+  (= (type-of x) :keyword))
+
+(defn map? [x]
+  (or (= (type-of x) :map)
+      (= (type-of x) :record)))
+
+(defn vector? [x]
+  (= (type-of x) :vector))
+
+(defn set? [x]
+  (= (type-of x) :set))
+
+(defn sequential? [x]
+  (or (= (type-of x) :list)
+      (= (type-of x) :array)
+      (= (type-of x) :vector)
+      (= (type-of x) :lazy-list)))
+
+(defn coll? [x]
+  (or (sequential? x)
+      (map? x)
+      (set? x)))
+
+(defn empty [coll]
+  (case (type-of coll)
+    :list (list)
+    :array []
+    :vector | |
+    :map {}
+    :set #{}
+    :lazy-list (list)
+    :record {}
+    nil))
+
+(defn zero? [x]
+  (if (number? x)
+    (= x 0)
+    (throw "zero? expects a number")))
+
+(defn pos? [x]
+  (if (number? x)
+    (> x 0)
+    (throw "pos? expects a number")))
+
+(defn neg? [x]
+  (if (number? x)
+    (< x 0)
+    (throw "neg? expects a number")))
+
+(defn even? [n]
+  (if (int? n)
+    (zero? (% n 2))
+    (throw "even? expects an integer")))
+
+(defn odd? [n]
+  (if (int? n)
+    (not (even? n))
+    (throw "odd? expects an integer")))
 
 (defn not-empty? [coll]
   (not (empty? coll)))
@@ -130,6 +262,40 @@
 (defn get-in [m ks]
   (reduce get m ks))
 
+(defn update-in [m ks f & extra]
+  (if (seq ks)
+    (let [k (first ks)
+          rest-ks (rest ks)
+          base (if (nil? m) {} m)]
+      (if (seq rest-ks)
+        (assoc base k (apply update-in (get base k) rest-ks f extra))
+        (assoc base k (apply f (get base k) extra))))
+    (apply f m extra)))
+
+(defn assoc-in [m ks v]
+  (if (seq ks)
+    (let [k (first ks)
+          rest-ks (rest ks)
+          base (if (nil? m) {} m)]
+      (if (seq rest-ks)
+        (assoc base k (assoc-in (get base k) rest-ks v))
+        (assoc base k v)))
+    m))
+
+(defn dissoc-in [m ks]
+  (if (nil? m)
+    nil
+    (if (seq ks)
+      (let [k (first ks)
+            rest-ks (rest ks)]
+        (if (seq rest-ks)
+          (let [next (dissoc-in (get m k) rest-ks)]
+            (if (or (nil? next) (empty? next))
+              (dissoc m k)
+              (assoc m k next)))
+          (dissoc m k)))
+      m)))
+
 (defn juxt [& fns]
   (fn [& xs]
     (vec (map (fn [f] (apply f xs)) fns))))
@@ -138,8 +304,87 @@
   (fn [& more]
     (apply f (concat bound more))))
 
+(defn complement [f]
+  (fn [& xs]
+    (not (apply f xs))))
+
+(defn fnil
+  ([f x]
+   (fn [& xs]
+     (if (empty? xs)
+       (f)
+       (apply f (if (nil? (first xs)) x (first xs)) (rest xs)))))
+  ([f x y]
+   (fn [& xs]
+     (let [n (count xs)]
+       (if (= n 0)
+         (f)
+         (if (= n 1)
+           (f (if (nil? (first xs)) x (first xs)))
+           (apply f
+                  (if (nil? (first xs)) x (first xs))
+                  (if (nil? (second xs)) y (second xs))
+                  (drop 2 xs)))))))
+  ([f x y z]
+   (fn [& xs]
+     (let [n (count xs)]
+       (if (= n 0)
+         (f)
+         (if (= n 1)
+           (f (if (nil? (first xs)) x (first xs)))
+           (if (= n 2)
+             (f (if (nil? (first xs)) x (first xs))
+                (if (nil? (second xs)) y (second xs)))
+             (apply f
+                    (if (nil? (first xs)) x (first xs))
+                    (if (nil? (second xs)) y (second xs))
+                    (if (nil? (nth xs 2)) z (nth xs 2))
+                    (drop 3 xs)))))))))
+
+(defn comp [& fs]
+  (if (empty? fs)
+    identity
+    (if (empty? (rest fs))
+      (first fs)
+      (reduce (fn [a b]
+                (fn [& xs]
+                  (a (apply b xs))))
+              fs))))
+
+(defn repeatedly
+  ([f]
+   (map (fn [_n] (f)) (range)))
+  ([n f]
+   (take n (repeatedly f))))
+
+(defn iterate [f x]
+  (let [^{:volatile true} v x]
+    (map (fn [_n]
+           (let [cur v]
+             (update! v (f cur))
+             cur))
+         (range))))
+
 (defn keep [f coll]
   (filter some? (map f coll)))
+
+(defn map-indexed [f coll]
+  (map f (range) coll))
+
+(defn keep-indexed [f coll]
+  (keep identity (map-indexed f coll)))
+
+(defn reduce-kv [f init coll]
+  (if (nil? coll)
+    init
+    (if (map? coll)
+      (reduce (fn [acc pair] (f acc (first pair) (val pair))) init coll)
+      (if (or (= (type-of coll) :array) (vector? coll))
+        (loop [i 0 acc init]
+          (if (= i (count coll))
+            acc
+            (recur (inc i) (f acc i (nth coll i)))))
+        (throw "reduce-kv expects a map, array, or vector")))))
 
 (defn every? [pred coll]
   (loop [xs coll]
@@ -148,6 +393,25 @@
         (recur (rest xs))
         false)
       true)))
+
+(defn every-pred [p & more]
+  (fn [& xs]
+    (loop [ps (cons p more)]
+      (if (empty? ps)
+        true
+        (if (every? (first ps) xs)
+          (recur (rest ps))
+          false)))))
+
+(defn some-fn [p & more]
+  (fn [& xs]
+    (loop [ps (cons p more)]
+      (if (empty? ps)
+        nil
+        (let [r (some (first ps) xs)]
+          (if r
+            r
+            (recur (rest ps))))))))
 
 (defn max-key [kfn x & more]
   (reduce (fn [best cand]
@@ -189,5 +453,103 @@
           nil
           maps))
 
+(defn merge-with [f & maps]
+  (reduce (fn [out m]
+            (if (nil? m)
+              out
+              (reduce (fn [acc pair]
+                        (let [k (first pair)
+                              v (val pair)]
+                          (if (contains? acc k)
+                            (assoc acc k (f (get acc k) v))
+                            (assoc acc k v))))
+                      (if (nil? out) {} out)
+                      m)))
+          nil
+          maps))
+
 (defn mapcat [f & colls]
   (apply concat (apply map f colls)))
+
+(defn distinct [coll]
+  (loop [xs coll seen #{} out []]
+    (if (empty? xs)
+      out
+      (let [x (first xs)]
+        (if (contains? seen x)
+          (recur (rest xs) seen out)
+          (recur (rest xs) (conj seen x) (conj out x)))))))
+
+(defn flatten [x]
+  (if (sequential? x)
+    (vec (mapcat (fn [item]
+                   (if (sequential? item)
+                     (flatten item)
+                     [item]))
+                 x))
+    []))
+
+(defn interpose [sep coll]
+  (if (empty? coll)
+    []
+    (loop [xs (rest coll) out [(first coll)]]
+      (if (empty? xs)
+        out
+        (recur (rest xs) (conj out sep (first xs)))))))
+
+(defn interleave [& colls]
+  (if (empty? colls)
+    []
+    (loop [cols colls out []]
+      (if (every? not-empty? cols)
+        (recur (map rest cols)
+               (reduce conj out (map first cols)))
+        out))))
+
+(defn partition [n & more]
+  (if (or (= (count more) 1) (= (count more) 2) (= (count more) 3))
+    (let [c (count more)
+          step (if (= c 1) n (first more))
+          coll (if (= c 1)
+                 (first more)
+                 (if (= c 2)
+                   (second more)
+                   (nth more 2)))
+          pad (if (= c 3) (second more) nil)
+          use-pad (= c 3)]
+      (loop [xs coll out []]
+        (if (empty? xs)
+          out
+          (let [part (vec (take n xs))]
+            (if (= (count part) n)
+              (recur (drop step xs) (conj out part))
+              (if use-pad
+                (conj out (vec (take n (concat part pad))))
+                out))))))
+    (throw "partition expects 2, 3, or 4 arguments")))
+
+(defn partition-all [n & more]
+  (if (or (= (count more) 1) (= (count more) 2))
+    (let [step (if (= (count more) 1) n (first more))
+          coll (if (= (count more) 1) (first more) (second more))]
+      (loop [xs coll out []]
+        (if (empty? xs)
+          out
+          (recur (drop step xs) (conj out (vec (take n xs)))))))
+    (throw "partition-all expects 2 or 3 arguments")))
+
+(defn partition-by [f coll]
+  (loop [xs coll out []]
+    (if (empty? xs)
+      out
+      (let [fv (f (first xs))
+            run (loop [ys (rest xs) acc [(first xs)]]
+                  (if (or (empty? ys) (not= fv (f (first ys))))
+                    acc
+                    (recur (rest ys) (conj acc (first ys)))))]
+        (recur (drop (count run) xs) (conj out run))))))
+
+(defn sort
+  ([coll] (sort-by identity coll))
+  ([comp coll] (sort-by identity comp coll)))
+

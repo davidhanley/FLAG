@@ -55,4 +55,12 @@ var goFnBindings = map[string]string{
 	"t/minus":                "GoBind_runtime_TimeMinus",
 	"t/now":                  "GoBind_runtime_TimeNow",
 	"t/years":                "GoBind_runtime_TimeYears",
+	"vector/append":          "GoBind_runtime_VectorNSAppend",
+	"vector/get":             "GoBind_runtime_VectorNSGet",
+	"vector/insert":          "GoBind_runtime_VectorNSInsert",
+	"vector/pop":             "GoBind_runtime_VectorNSPop",
+	"vector/prepend":         "GoBind_runtime_VectorNSPrepend",
+	"vector/remove":          "GoBind_runtime_VectorNSRemove",
+	"vector/set":             "GoBind_runtime_VectorNSSet",
+	"vector/vector":          "GoBind_runtime_VectorNSVector",
 }

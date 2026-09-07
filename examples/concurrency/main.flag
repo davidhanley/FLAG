@@ -2,7 +2,10 @@
  :imports   [["async.lib" :refer [go future sleep
                                   make-channel channel-send channel-receive
                                   channel-close select
-                                  channel-some? channel-every?]]]}
+                                  atom deref reset! swap!
+                                  channel-some? channel-every?
+                                  channel-map channel-filter channel-reduce
+                                  channel-lines go-run future-run]]]}
 
 ;; Demo of the async package (import with :refer).
 ;;   go / future  — macros

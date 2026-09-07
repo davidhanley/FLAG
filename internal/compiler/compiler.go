@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/token"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -21,6 +22,7 @@ const (
 	exprKindString
 	exprKindBool
 	exprKindMutableValue
+	exprKindDefer
 )
 
 type goExpr struct {
@@ -33,6 +35,8 @@ func exprPos(expr Expr) (int, int, bool) {
 	case ListExpr:
 		return value.Line, value.Col, value.Line > 0
 	case VectorExpr:
+		return value.Line, value.Col, value.Line > 0
+	case PipeVectorExpr:
 		return value.Line, value.Col, value.Line > 0
 	case MapExpr:
 		return value.Line, value.Col, value.Line > 0
@@ -129,6 +133,15 @@ func exprToSourceString(expr Expr) string {
 			parts = append(parts, exprToSourceString(item))
 		}
 		return "[" + strings.Join(parts, " ") + "]"
+	case PipeVectorExpr:
+		parts := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			parts = append(parts, exprToSourceString(item))
+		}
+		if len(parts) == 0 {
+			return "| |"
+		}
+		return "| " + strings.Join(parts, " ") + " |"
 	case MapExpr:
 		parts := make([]string, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -162,6 +175,14 @@ type testCase struct {
 	bodySource string
 }
 
+type arityDef struct {
+	params     []string
+	localInits []string
+	body       string
+	hasRest    bool
+	arityName  string
+}
+
 type functionDef struct {
 	flagName     string // original FLAG name (e.g. "move", "flag_main")
 	goName       string
@@ -173,6 +194,7 @@ type functionDef struct {
 	localInits   []string
 	body         string
 	goSignature  string // custom Go signature for interop wrappers (empty = use standard)
+	arities      []arityDef
 }
 
 type varDef struct {
@@ -191,6 +213,9 @@ type compileContext struct {
 	selfFunctionName  string // FLAG source name for self-recursion matching
 	selfFunctionArity int
 	selfArityName     string
+	selfVariadicName  string
+	selfFunctionRest  bool
+	selfArityNames    map[int]string // fixed arity count -> Go arity function
 	// loopBindingNames tracks active loop/recur bindings for the current
 	// expression context (nil when not inside a loop form).
 	loopBindingNames []string
@@ -256,7 +281,15 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionName:  ctx.selfFunctionName,
 		selfFunctionArity: ctx.selfFunctionArity,
 		selfArityName:     ctx.selfArityName,
+		selfVariadicName:  ctx.selfVariadicName,
+		selfFunctionRest:  ctx.selfFunctionRest,
 		allowRedefine:     ctx.allowRedefine,
+	}
+	if ctx.selfArityNames != nil {
+		out.selfArityNames = make(map[int]string, len(ctx.selfArityNames))
+		for k, v := range ctx.selfArityNames {
+			out.selfArityNames[k] = v
+		}
 	}
 	if len(ctx.loopBindingNames) > 0 {
 		out.loopBindingNames = append([]string(nil), ctx.loopBindingNames...)
@@ -385,6 +418,8 @@ func isConstExpr(expr Expr) bool {
 		return e.Name == "true" || e.Name == "false" || e.Name == "nil"
 	case VectorExpr:
 		return allConstExprs(e.Elements)
+	case PipeVectorExpr:
+		return allConstExprs(e.Elements)
 	case SetExpr:
 		return allConstExprs(e.Elements)
 	case MapExpr:
@@ -405,11 +440,18 @@ func allConstExprs(exprs []Expr) bool {
 	return true
 }
 
+type macroArity struct {
+	params    []string
+	restParam string
+	body      Expr
+}
+
 type macroDef struct {
 	params    []string
 	restParam string
 	doc       string
 	body      Expr
+	arities   []macroArity
 }
 
 //go:embed prologue.flag
@@ -471,6 +513,13 @@ func loadStandardPrologue(ctx *compileContext) error {
 				goName:   def.goName,
 				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
 			})
+		case "def":
+			binding, kind, err := compileDef(list, *ctx)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
+			ctx.globals[binding.goName] = kind
+			ctx.prologueVars = append(ctx.prologueVars, binding)
 		default:
 			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
 		}
@@ -737,13 +786,25 @@ func NewReplCompiler() *ReplCompiler {
 }
 
 func (r *ReplCompiler) PrologueSetup() ReplCompiled {
-	parts := make([]string, 0, len(r.ctx.prologueFns)*4)
+	parts := make([]string, 0, len(r.ctx.prologueFns)*4+len(r.ctx.prologueVars)*2)
+	emitted := make(map[string]bool, len(r.ctx.prologueFns))
 	for _, def := range r.ctx.prologueFns {
+		// Emit full function declarations (arity + variadic wrappers) so
+		// self-recursive prologue fns can resolve their direct arity symbol.
 		parts = append(parts,
-			fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName),
+			strings.TrimSpace(renderFunctionDef(def)),
 			fmt.Sprintf("var %s flagrt.Value", def.goName),
-			fmt.Sprintf("%s = %s", def.variadicName, renderFunctionLiteral(def)),
 			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
+		)
+		emitted[def.goName] = true
+	}
+	for _, binding := range r.ctx.prologueVars {
+		if emitted[binding.goName] {
+			continue
+		}
+		parts = append(parts,
+			fmt.Sprintf("var %s flagrt.Value", binding.goName),
+			fmt.Sprintf("%s = %s", binding.goName, binding.expr),
 		)
 	}
 	return ReplCompiled{Setup: strings.Join(parts, ";;")}
@@ -949,10 +1010,48 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 			out = append(out, ReplCompiled{Setup: decl})
 		}
 	}
+	emitVar := func(binding varDef) {
+		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
+		if _, exists := knownVars[binding.goName]; !exists {
+			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
+		}
+		out = append(out, ReplCompiled{Setup: setup})
+	}
+	// Yaegi evals snippets in order. FLAG defns may call :go-exports vars, so
+	// bind those before compiling function literals. Function wrapper vars
+	// (NewFunction(..._variadic)) must come after the functions exist.
+	var goBinds, fnVars []varDef
+	for _, binding := range result.vars {
+		if strings.Contains(binding.expr, "GoBind_") {
+			goBinds = append(goBinds, binding)
+		} else {
+			fnVars = append(fnVars, binding)
+		}
+	}
+	for _, binding := range goBinds {
+		emitVar(binding)
+	}
 	for _, def := range result.functions {
 		_, exists := knownFns[def.goName]
 		if def.goSignature != "" {
 			out = append(out, ReplCompiled{Setup: strings.TrimSpace(renderFunctionDef(def))})
+			continue
+		}
+		if len(def.arities) > 0 {
+			setupParts := make([]string, 0, 2+len(def.arities)*2)
+			if !exists {
+				for _, a := range def.arities {
+					mini := arityAsFunctionDef(def, a)
+					setupParts = append(setupParts, fmt.Sprintf("var %s %s", a.arityName, renderDirectFunctionType(mini)))
+				}
+				setupParts = append(setupParts, fmt.Sprintf("var %s func(args ...flagrt.Value) flagrt.Value", def.variadicName))
+			}
+			for _, a := range def.arities {
+				mini := arityAsFunctionDef(def, a)
+				setupParts = append(setupParts, fmt.Sprintf("%s = %s", a.arityName, renderDirectFunctionLiteral(mini)))
+			}
+			setupParts = append(setupParts, fmt.Sprintf("%s = %s", def.variadicName, renderMultiArityVariadicLiteral(def)))
+			out = append(out, ReplCompiled{Setup: strings.Join(setupParts, ";;")})
 			continue
 		}
 		setupParts := make([]string, 0, 6)
@@ -968,12 +1067,8 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 		)
 		out = append(out, ReplCompiled{Setup: strings.Join(setupParts, ";;")})
 	}
-	for _, binding := range result.vars {
-		setup := fmt.Sprintf("%s = %s", binding.goName, binding.expr)
-		if _, exists := knownVars[binding.goName]; !exists {
-			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", binding.goName, binding.goName, binding.expr)
-		}
-		out = append(out, ReplCompiled{Setup: setup})
+	for _, binding := range fnVars {
+		emitVar(binding)
 	}
 	return out
 }
@@ -1486,12 +1581,16 @@ func appendTopLevelExpr(form Expr, ctx compileContext, allowTopLevel bool, stmts
 	if err != nil {
 		return err
 	}
+	if expr.kind == exprKindDefer {
+		*stmts = append(*stmts, mainStmt{code: expr.code})
+		return nil
+	}
 	*stmts = append(*stmts, mainStmt{code: expr.code, kind: expr.kind})
 	return nil
 }
 
 func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
-	if len(form.Elements) < 4 {
+	if len(form.Elements) < 3 {
 		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
 	}
 
@@ -1503,15 +1602,24 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	doc := ""
 	paramsIndex := 2
 	bodyStartIndex := 3
-	if docExpr, ok := form.Elements[2].(StringExpr); ok {
-		doc = docExpr.Value
-		paramsIndex = 3
-		bodyStartIndex = 4
+	if len(form.Elements) > 2 {
+		if docExpr, ok := form.Elements[2].(StringExpr); ok {
+			doc = docExpr.Value
+			paramsIndex = 3
+			bodyStartIndex = 4
+		}
 	}
 
 	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
+	}
+
+	if paramsIndex >= len(form.Elements) {
+		return functionDef{}, exprError(form, "defn expects name, optional docstring, vector params, and body")
+	}
+	if _, ok := form.Elements[paramsIndex].(ListExpr); ok {
+		return compileMultiArityDefn(form, nameExpr, goName, doc, paramsIndex, ctx)
 	}
 
 	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
@@ -1529,9 +1637,11 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	fnCtx := copyCompileContext(ctx)
 	fnCtx.selfFunctionName = nameExpr.Name
 	fnCtx.selfFunctionArity = len(params)
+	fnCtx.selfVariadicName = goName + "_variadic"
+	fnCtx.selfFunctionRest = hasRest
 	fnCtx.selfArityName = fmt.Sprintf("%s_arity_%d", goName, len(params))
 	if hasRest {
-		fnCtx.selfArityName = goName + "_variadic"
+		fnCtx.selfArityName = fnCtx.selfVariadicName
 	}
 	fnCtx.globals[goName] = exprKindValue
 	fnCtx.functions[goName] = functionDef{
@@ -1567,6 +1677,102 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		params:       params,
 		localInits:   localInits,
 		body:         body.code,
+	}, nil
+}
+
+func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc string, start int, ctx compileContext) (functionDef, error) {
+	arityForms := form.Elements[start:]
+	if len(arityForms) == 0 {
+		return functionDef{}, exprError(form, "defn expects at least one arity")
+	}
+
+	type pendingArity struct {
+		form       ListExpr
+		params     []string
+		localInits []string
+		localKinds map[string]exprKind
+		arityName  string
+	}
+
+	pending := make([]pendingArity, 0, len(arityForms))
+	seen := make(map[int]struct{}, len(arityForms))
+	arityNames := make(map[int]string, len(arityForms))
+	for _, raw := range arityForms {
+		list, ok := raw.(ListExpr)
+		if !ok || len(list.Elements) < 2 {
+			return functionDef{}, exprError(raw, "defn arity expects ([params] body...)")
+		}
+		paramsExpr, ok := list.Elements[0].(VectorExpr)
+		if !ok {
+			return functionDef{}, exprError(list.Elements[0], "defn arity expects a parameter vector")
+		}
+		params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, nil, "defn")
+		if err != nil {
+			return functionDef{}, err
+		}
+		if hasRest {
+			return functionDef{}, exprError(list, "multi-arity defn does not yet support & rest")
+		}
+		n := len(params)
+		if _, dup := seen[n]; dup {
+			return functionDef{}, exprError(list, fmt.Sprintf("duplicate arity with %d arguments", n))
+		}
+		seen[n] = struct{}{}
+		arityName := fmt.Sprintf("%s_arity_%d", goName, n)
+		arityNames[n] = arityName
+		pending = append(pending, pendingArity{
+			form:       list,
+			params:     params,
+			localInits: localInits,
+			localKinds: localKinds,
+			arityName:  arityName,
+		})
+	}
+
+	variadicName := goName + "_variadic"
+	fnBase := copyCompileContext(ctx)
+	fnBase.selfFunctionName = nameExpr.Name
+	fnBase.selfVariadicName = variadicName
+	fnBase.selfArityNames = arityNames
+	fnBase.globals[goName] = exprKindValue
+	fnBase.functions[goName] = functionDef{
+		flagName:     nameExpr.Name,
+		goName:       goName,
+		variadicName: variadicName,
+		doc:          doc,
+		arities:      nil,
+	}
+	_ = fnBase.bindModuleName(nameExpr.Name, goName)
+
+	arities := make([]arityDef, 0, len(pending))
+	for _, item := range pending {
+		fnCtx := copyCompileContext(fnBase)
+		fnCtx.selfFunctionArity = len(item.params)
+		fnCtx.selfArityName = item.arityName
+		fnCtx.selfFunctionRest = false
+		bodyExprs := item.form.Elements[1:]
+		body, err := doExprToGo(bodyExprs, fnCtx, item.localKinds)
+		if err != nil {
+			return functionDef{}, err
+		}
+		body, err = coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "defn body", ctx)
+		if err != nil {
+			return functionDef{}, err
+		}
+		arities = append(arities, arityDef{
+			params:     item.params,
+			localInits: item.localInits,
+			body:       body.code,
+			arityName:  item.arityName,
+		})
+	}
+
+	return functionDef{
+		flagName:     nameExpr.Name,
+		goName:       goName,
+		variadicName: variadicName,
+		doc:          doc,
+		arities:      arities,
 	}, nil
 }
 
@@ -1619,7 +1825,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 }
 
 func compileDefmacro(form ListExpr) (string, macroDef, error) {
-	if len(form.Elements) != 4 && len(form.Elements) != 5 {
+	if len(form.Elements) < 3 {
 		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
 	}
 	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
@@ -1629,39 +1835,29 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 	doc := ""
 	paramsIndex := 2
 	bodyIndex := 3
-	if len(form.Elements) == 5 {
-		docExpr, ok := form.Elements[2].(StringExpr)
-		if !ok {
-			return "", macroDef{}, fmt.Errorf("defmacro docstring must be a string")
+	if len(form.Elements) > 2 {
+		if docExpr, ok := form.Elements[2].(StringExpr); ok {
+			doc = docExpr.Value
+			paramsIndex = 3
+			bodyIndex = 4
 		}
-		doc = docExpr.Value
-		paramsIndex = 3
-		bodyIndex = 4
+	}
+	if paramsIndex >= len(form.Elements) {
+		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
+	}
+	if _, ok := form.Elements[paramsIndex].(ListExpr); ok {
+		return compileMultiArityDefmacro(form, nameExpr.Name, doc, paramsIndex)
+	}
+	if bodyIndex >= len(form.Elements) {
+		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
 	}
 	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
 	if !ok {
 		return "", macroDef{}, fmt.Errorf("defmacro expects a parameter vector")
 	}
-
-	params := make([]string, 0, len(paramsExpr.Elements))
-	restParam := ""
-	for i := 0; i < len(paramsExpr.Elements); i++ {
-		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
-		if !ok || sym.Name == "" {
-			return "", macroDef{}, fmt.Errorf("defmacro parameters must be symbols")
-		}
-		if sym.Name == "&" {
-			if restParam != "" || i != len(paramsExpr.Elements)-2 {
-				return "", macroDef{}, fmt.Errorf("defmacro varargs must use [& name] at end")
-			}
-			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
-			if !ok || next.Name == "" || next.Name == "&" {
-				return "", macroDef{}, fmt.Errorf("defmacro varargs expects symbol after &")
-			}
-			restParam = next.Name
-			break
-		}
-		params = append(params, sym.Name)
+	params, restParam, err := parseMacroParams(paramsExpr)
+	if err != nil {
+		return "", macroDef{}, err
 	}
 
 	return nameExpr.Name, macroDef{
@@ -1670,6 +1866,82 @@ func compileDefmacro(form ListExpr) (string, macroDef, error) {
 		doc:       doc,
 		body:      form.Elements[bodyIndex],
 	}, nil
+}
+
+func compileMultiArityDefmacro(form ListExpr, name, doc string, start int) (string, macroDef, error) {
+	arityForms := form.Elements[start:]
+	if len(arityForms) == 0 {
+		return "", macroDef{}, fmt.Errorf("defmacro expects at least one arity")
+	}
+	arities := make([]macroArity, 0, len(arityForms))
+	seen := make(map[int]struct{}, len(arityForms))
+	maxFixed := -1
+	restMin := -1
+	for _, raw := range arityForms {
+		list, ok := raw.(ListExpr)
+		if !ok || len(list.Elements) < 2 {
+			return "", macroDef{}, fmt.Errorf("defmacro arity expects ([params] body...)")
+		}
+		paramsExpr, ok := list.Elements[0].(VectorExpr)
+		if !ok {
+			return "", macroDef{}, fmt.Errorf("defmacro arity expects a parameter vector")
+		}
+		params, restParam, err := parseMacroParams(paramsExpr)
+		if err != nil {
+			return "", macroDef{}, err
+		}
+		n := len(params)
+		if restParam == "" {
+			if _, dup := seen[n]; dup {
+				return "", macroDef{}, fmt.Errorf("duplicate macro arity with %d arguments", n)
+			}
+			seen[n] = struct{}{}
+			if n > maxFixed {
+				maxFixed = n
+			}
+		} else {
+			if restMin >= 0 {
+				return "", macroDef{}, fmt.Errorf("defmacro supports only one & rest arity")
+			}
+			restMin = n
+		}
+		body := list.Elements[1]
+		if len(list.Elements) > 2 {
+			bodyElems := make([]Expr, 0, 1+len(list.Elements)-1)
+			bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
+			bodyElems = append(bodyElems, list.Elements[1:]...)
+			body = ListExpr{Elements: bodyElems, Line: list.Line, Col: list.Col}
+		}
+		arities = append(arities, macroArity{params: params, restParam: restParam, body: body})
+	}
+	if restMin >= 0 && maxFixed > restMin {
+		return "", macroDef{}, fmt.Errorf("defmacro rest arity must have at least as many required parameters as the largest fixed arity")
+	}
+	return name, macroDef{doc: doc, arities: arities}, nil
+}
+
+func parseMacroParams(paramsExpr VectorExpr) ([]string, string, error) {
+	params := make([]string, 0, len(paramsExpr.Elements))
+	restParam := ""
+	for i := 0; i < len(paramsExpr.Elements); i++ {
+		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
+		if !ok || sym.Name == "" {
+			return nil, "", fmt.Errorf("defmacro parameters must be symbols")
+		}
+		if sym.Name == "&" {
+			if restParam != "" || i != len(paramsExpr.Elements)-2 {
+				return nil, "", fmt.Errorf("defmacro varargs must use [& name] at end")
+			}
+			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
+			if !ok || next.Name == "" || next.Name == "&" {
+				return nil, "", fmt.Errorf("defmacro varargs expects symbol after &")
+			}
+			restParam = next.Name
+			break
+		}
+		params = append(params, sym.Name)
+	}
+	return params, restParam, nil
 }
 
 func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -1740,6 +2012,16 @@ func macroExpand(expr Expr, ctx compileContext, depth int) (Expr, error) {
 			out = append(out, expanded)
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			expanded, err := macroExpand(item, ctx, depth)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, expanded)
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -1818,6 +2100,12 @@ func unquoteMacroTree(expr Expr) Expr {
 			out = append(out, unquoteMacroTree(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, unquoteMacroTree(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -1840,26 +2128,52 @@ func unquoteMacroTree(expr Expr) Expr {
 }
 
 func applyMacro(m macroDef, args []Expr) (Expr, error) {
-	if m.restParam == "" && len(args) != len(m.params) {
-		return nil, fmt.Errorf("macro expects exactly %d arguments", len(m.params))
+	if len(m.arities) > 0 {
+		var rest *macroArity
+		for i := range m.arities {
+			a := &m.arities[i]
+			if a.restParam == "" && len(args) == len(a.params) {
+				return applyMacroArity(*a, args)
+			}
+			if a.restParam != "" {
+				rest = a
+			}
+		}
+		if rest != nil && len(args) >= len(rest.params) {
+			return applyMacroArity(*rest, args)
+		}
+		counts := make([]int, 0, len(m.arities))
+		for _, a := range m.arities {
+			if a.restParam == "" {
+				counts = append(counts, len(a.params))
+			}
+		}
+		return nil, fmt.Errorf("%s", multiArityExpectsMessage("macro", counts))
 	}
-	if m.restParam != "" && len(args) < len(m.params) {
-		return nil, fmt.Errorf("macro expects at least %d arguments", len(m.params))
+	return applyMacroArity(macroArity{params: m.params, restParam: m.restParam, body: m.body}, args)
+}
+
+func applyMacroArity(a macroArity, args []Expr) (Expr, error) {
+	if a.restParam == "" && len(args) != len(a.params) {
+		return nil, fmt.Errorf("macro expects exactly %d arguments", len(a.params))
+	}
+	if a.restParam != "" && len(args) < len(a.params) {
+		return nil, fmt.Errorf("macro expects at least %d arguments", len(a.params))
 	}
 
-	values := make(map[string]Expr, len(m.params))
-	for i, name := range m.params {
+	values := make(map[string]Expr, len(a.params))
+	for i, name := range a.params {
 		values[name] = copyExpr(args[i])
 	}
 	restBindings := map[string][]Expr{}
-	if m.restParam != "" {
-		restArgs := make([]Expr, 0, len(args)-len(m.params))
-		for _, arg := range args[len(m.params):] {
+	if a.restParam != "" {
+		restArgs := make([]Expr, 0, len(args)-len(a.params))
+		for _, arg := range args[len(a.params):] {
 			restArgs = append(restArgs, copyExpr(arg))
 		}
-		restBindings[m.restParam] = restArgs
+		restBindings[a.restParam] = restArgs
 	}
-	expanded, err := substituteMacroExpr(m.body, values, restBindings)
+	expanded, err := substituteMacroExpr(a.body, values, restBindings)
 	if err != nil {
 		return nil, err
 	}
@@ -1921,6 +2235,25 @@ func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[str
 			out = append(out, sub)
 		}
 		return VectorExpr{Elements: out}, nil
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			sym, isSym := unquoteMacro(item).(SymbolExpr)
+			if isSym {
+				if restArgs, ok := restBindings[sym.Name]; ok {
+					for _, restArg := range restArgs {
+						out = append(out, quoteMacro(copyExpr(restArg)))
+					}
+					continue
+				}
+			}
+			sub, err := substituteMacroExpr(item, values, restBindings)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sub)
+		}
+		return PipeVectorExpr{Elements: out}, nil
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -2004,6 +2337,12 @@ func copyExpr(expr Expr) Expr {
 			out = append(out, copyExpr(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, copyExpr(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -2025,6 +2364,29 @@ func copyExpr(expr Expr) Expr {
 	}
 }
 
+func macroCaseClause(expr Expr) (pattern Expr, body Expr, ok bool) {
+	var elems []Expr
+	switch clause := expr.(type) {
+	case ListExpr:
+		elems = clause.Elements
+	case VectorExpr:
+		elems = clause.Elements
+	default:
+		return nil, nil, false
+	}
+	if len(elems) < 2 {
+		return nil, nil, false
+	}
+	pattern = elems[0]
+	if len(elems) == 2 {
+		return pattern, elems[1], true
+	}
+	bodyElems := make([]Expr, 0, 1+len(elems)-1)
+	bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
+	bodyElems = append(bodyElems, elems[1:]...)
+	return pattern, ListExpr{Elements: bodyElems}, true
+}
+
 func expandMacroCase(args []Expr) (Expr, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("macro-case expects a target form and at least one clause")
@@ -2041,20 +2403,20 @@ func expandMacroCase(args []Expr) (Expr, error) {
 	}
 
 	for _, clauseExpr := range clauses {
-		clause, ok := clauseExpr.(VectorExpr)
-		if !ok || len(clause.Elements) != 2 {
-			return nil, fmt.Errorf("macro-case clauses must be [pattern body] vectors")
+		pattern, body, ok := macroCaseClause(clauseExpr)
+		if !ok {
+			return nil, fmt.Errorf("macro-case clauses must be ([pattern] body) lists")
 		}
 		bindings := map[string]Expr{}
 		restBindings := map[string][]Expr{}
-		matched, err := matchMacroPattern(clause.Elements[0], target, bindings, restBindings)
+		matched, err := matchMacroPattern(pattern, target, bindings, restBindings)
 		if err != nil {
 			return nil, err
 		}
 		if !matched {
 			continue
 		}
-		return substituteMacroExpr(clause.Elements[1], bindings, restBindings)
+		return substituteMacroExpr(body, bindings, restBindings)
 	}
 
 	return nil, fmt.Errorf("macro-case had no matching clause")
@@ -2101,6 +2463,13 @@ func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, re
 	case VectorExpr:
 		if len(target) == 1 {
 			if vectorTarget, ok := unwrapMetaExpr(target[0]).(VectorExpr); ok {
+				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
+			}
+		}
+		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
+	case PipeVectorExpr:
+		if len(target) == 1 {
+			if vectorTarget, ok := unwrapMetaExpr(target[0]).(PipeVectorExpr); ok {
 				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
 			}
 		}
@@ -2160,6 +2529,17 @@ func exprStructEqual(a, b Expr) bool {
 		return true
 	case VectorExpr:
 		bv, ok := b.(VectorExpr)
+		if !ok || len(av.Elements) != len(bv.Elements) {
+			return false
+		}
+		for i := range av.Elements {
+			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case PipeVectorExpr:
+		bv, ok := b.(PipeVectorExpr)
 		if !ok || len(av.Elements) != len(bv.Elements) {
 			return false
 		}
@@ -2290,6 +2670,8 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return quotedListExprToGo(arg, ctx)
 	case VectorExpr:
 		return vectorExprToGo(arg.Elements, ctx, locals)
+	case PipeVectorExpr:
+		return pipeVectorExprToGo(arg.Elements, ctx, locals)
 	case MapExpr:
 		return mapExprToGo(arg.Entries, ctx, locals)
 	case SetExpr:
@@ -2318,6 +2700,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 					return goExpr{code: ident, kind: kind}, nil
 				}
 			}
+		}
+		if arg.Name == ctx.selfFunctionName && ctx.selfVariadicName != "" {
+			return goExpr{code: fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, ctx.selfVariadicName), kind: exprKindValue}, nil
 		}
 		// Module table: bare locals, :refer names, and qualified imports.
 		if goIdent, ok := ctx.resolveModuleSymbol(arg.Name); ok {
@@ -2424,6 +2809,16 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 			out = append(out, part)
 		}
 		return fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, strings.Join(out, ", ")), nil
+	case PipeVectorExpr:
+		out := make([]string, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			part, err := quotedLiteralToValueCode(item)
+			if err != nil {
+				return "", err
+			}
+			out = append(out, part)
+		}
+		return fmt.Sprintf("%s.NewVector(%s)", runtimeAlias, strings.Join(out, ", ")), nil
 	case MapExpr:
 		if len(value.Entries)%2 != 0 {
 			return "", fmt.Errorf("quoted map literal expects an even number of forms")
@@ -2455,11 +2850,14 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
-		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop",
-		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "hash-map",
-		"not-empty", "empty?", "nil?", "count", "double", "format", "keyword", "into",
+		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
+		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
+		"list", "array",
+		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
-		"assoc", "dissoc", "open-file", "file-to-strings", "rand-int", "repeat",
+		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "repeat",
+		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
+		"rename-keys", "map-invert", "select", "project", "rename",
 		"go-fn", "go-fn-args", "re-pattern", "re-matches":
 		return true
 	default:
@@ -2537,8 +2935,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return loopExprToGo(list.Elements[1:], ctx, locals)
 		case "recur":
 			return recurExprToGo(list.Elements[1:], ctx, locals)
-		case "with-open":
-			return withOpenExprToGo(list.Elements[1:], ctx, locals)
+		case "defer":
+			return deferExprToGo(list.Elements[1:], ctx, locals)
 		case "update!":
 			return updateBangExprToGo(list.Elements[1:], ctx, locals)
 		case "or":
@@ -2575,6 +2973,8 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return emptyPredicateExprToGo(list.Elements[1:], ctx, locals)
 		case "nil?":
 			return nilPredicateExprToGo(list.Elements[1:], ctx, locals)
+		case "type-of":
+			return typeOfExprToGo(list.Elements[1:], ctx, locals)
 		case "count":
 			return countExprToGo(list.Elements[1:], ctx, locals)
 		case "double":
@@ -2585,6 +2985,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return formatExprToGo(list.Elements[1:], ctx, locals)
 		case "hash-map":
 			return hashMapExprToGo(list.Elements[1:], ctx, locals)
+		case "list":
+			return valueCtorExprToGo("list", "NewList", list.Elements[1:], ctx, locals)
+		case "array":
+			return valueCtorExprToGo("array", "NewArray", list.Elements[1:], ctx, locals)
 		case "map":
 			return mapCallExprToGo(list.Elements[1:], ctx, locals)
 		case "concat":
@@ -2646,23 +3050,42 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 }
 
 func callExprToGo(calleeExpr Expr, argsExpr []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok &&
-		calleeSymbol.Name == ctx.selfFunctionName &&
-		len(argsExpr) == ctx.selfFunctionArity {
-		args := make([]string, 0, len(argsExpr))
-		for _, item := range argsExpr {
-			part, err := exprToGo(item, ctx, locals)
-			if err != nil {
-				return goExpr{}, err
+	if calleeSymbol, ok := calleeExpr.(SymbolExpr); ok && calleeSymbol.Name == ctx.selfFunctionName {
+		if target, ok := ctx.selfArityNames[len(argsExpr)]; ok {
+			args := make([]string, 0, len(argsExpr))
+			for _, item := range argsExpr {
+				part, err := exprToGo(item, ctx, locals)
+				if err != nil {
+					return goExpr{}, err
+				}
+				valueCode, err := functionArgToValueCode(part, item, ctx)
+				if err != nil {
+					return goExpr{}, err
+				}
+				args = append(args, valueCode)
 			}
-
-			valueCode, err := functionArgToValueCode(part, item, ctx)
-			if err != nil {
-				return goExpr{}, err
-			}
-			args = append(args, valueCode)
+			return goExpr{code: fmt.Sprintf("%s(%s)", target, strings.Join(args, ", ")), kind: exprKindValue}, nil
 		}
-		return goExpr{code: fmt.Sprintf("%s(%s)", ctx.selfArityName, strings.Join(args, ", ")), kind: exprKindValue}, nil
+		if ctx.selfFunctionRest || len(argsExpr) == ctx.selfFunctionArity {
+			target := ctx.selfArityName
+			if ctx.selfFunctionRest {
+				target = ctx.selfVariadicName
+			}
+			args := make([]string, 0, len(argsExpr))
+			for _, item := range argsExpr {
+				part, err := exprToGo(item, ctx, locals)
+				if err != nil {
+					return goExpr{}, err
+				}
+
+				valueCode, err := functionArgToValueCode(part, item, ctx)
+				if err != nil {
+					return goExpr{}, err
+				}
+				args = append(args, valueCode)
+			}
+			return goExpr{code: fmt.Sprintf("%s(%s)", target, strings.Join(args, ", ")), kind: exprKindValue}, nil
+		}
 	}
 
 	callee, err := exprToGo(calleeExpr, ctx, locals)
@@ -3013,20 +3436,64 @@ func doExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 		compiled = append(compiled, part)
 	}
 
-	result := compiled[len(compiled)-1]
-	typeName, err := goTypeForExprKind(result.kind)
+	resultKind := sequentialResultKind(compiled)
+	typeName, err := goTypeForExprKind(resultKind)
 	if err != nil {
 		return goExpr{}, err
 	}
 
 	var out strings.Builder
 	fmt.Fprintf(&out, "func() %s {\n", typeName)
-	for i := 0; i < len(compiled)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiled[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	writeSequentialBody(&out, compiled)
 	out.WriteString("}()")
-	return goExpr{code: out.String(), kind: result.kind}, nil
+	return goExpr{code: out.String(), kind: resultKind}, nil
+}
+
+// deferExprToGo lowers (defer f) to a Go defer statement that calls zero-arg f.
+// The thunk expression is evaluated immediately; the call runs when the enclosing
+// compiled Go function (typically a do/let/defn IIFE) returns.
+func deferExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("defer expects a zero-argument function")
+	}
+	fn, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	fn, err = coerceExprToValue(fn, args[0], "defer function", ctx)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("defer %s.Call(%s)", runtimeAlias, fn.code), kind: exprKindDefer}, nil
+}
+
+func sequentialResultKind(compiled []goExpr) exprKind {
+	last := compiled[len(compiled)-1]
+	if last.kind == exprKindDefer {
+		return exprKindValue
+	}
+	return last.kind
+}
+
+func emitSequentialForm(out *strings.Builder, expr goExpr) {
+	if expr.kind == exprKindDefer {
+		fmt.Fprintf(out, "\t%s\n", expr.code)
+		return
+	}
+	fmt.Fprintf(out, "\t_ = %s\n", expr.code)
+}
+
+func writeSequentialBody(out *strings.Builder, compiled []goExpr) {
+	last := compiled[len(compiled)-1]
+	for i := 0; i < len(compiled)-1; i++ {
+		emitSequentialForm(out, compiled[i])
+	}
+	if last.kind == exprKindDefer {
+		emitSequentialForm(out, last)
+		fmt.Fprintf(out, "\treturn %s.NilValue()\n", runtimeAlias)
+		return
+	}
+	fmt.Fprintf(out, "\treturn %s\n", last.code)
 }
 
 func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3202,7 +3669,9 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 	for name, kind := range locals {
 		localKinds[name] = kind
 	}
-	localKinds[ident] = exprKindValue
+	if ident != "_" {
+		localKinds[ident] = exprKindValue
+	}
 
 	rest, err := forBindingsToGo(bindings[2:], bodyExprs, ctx, localKinds)
 	if err != nil {
@@ -3215,7 +3684,12 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
 	fmt.Fprintf(&out, "\t\t\tpanic(\"for binding expects exactly one value\")\n")
 	fmt.Fprintf(&out, "\t\t}\n")
-	fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+	if ident == "_" {
+		out.WriteString("\t\t_ = args[0]\n")
+	} else {
+		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
+	}
 	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
 	out.WriteString("\t}), ")
 	out.WriteString(collCode)
@@ -3267,7 +3741,9 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 	for name, kind := range locals {
 		localKinds[name] = kind
 	}
-	localKinds[ident] = exprKindValue
+	if ident != "_" {
+		localKinds[ident] = exprKindValue
+	}
 
 	rest, err := doseqBindingsToGo(bindings[2:], bodyExprs, ctx, localKinds)
 	if err != nil {
@@ -3280,7 +3756,12 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
 	fmt.Fprintf(&out, "\t\t\tpanic(\"doseq binding expects exactly one value\")\n")
 	fmt.Fprintf(&out, "\t\t}\n")
-	fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+	if ident == "_" {
+		out.WriteString("\t\t_ = args[0]\n")
+	} else {
+		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
+		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
+	}
 	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
 	out.WriteString("\t}), ")
 	out.WriteString(collCode)
@@ -3331,11 +3812,9 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 			if err != nil {
 				return goExpr{}, err
 			}
-			if _, exists := declared[name]; exists {
-				return goExpr{}, exprError(bindingPattern, fmt.Sprintf("duplicate binding %q", sym.Name))
+			if err := declareNamedBinding(declared, localKinds, sym.Name, name, exprKindMutableValue); err != nil {
+				return goExpr{}, exprError(bindingPattern, err.Error())
 			}
-			declared[name] = struct{}{}
-			localKinds[name] = exprKindMutableValue
 			if valueExpr.kind != exprKindValue {
 				return goExpr{}, exprError(bindingsExpr.Elements[i+1], "volatile let binding value must evaluate to Value")
 			}
@@ -3343,6 +3822,9 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 			tempCounter++
 			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
 			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", name, sourceName))
+			if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
+				bindings = append(bindings, line)
+			}
 			continue
 		}
 
@@ -3391,8 +3873,8 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		compiledBody = append(compiledBody, compiled)
 	}
 
-	result := compiledBody[len(compiledBody)-1]
-	typeName, err := goTypeForExprKind(result.kind)
+	resultKind := sequentialResultKind(compiledBody)
+	typeName, err := goTypeForExprKind(resultKind)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -3402,13 +3884,10 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	for _, binding := range bindings {
 		out.WriteString(binding)
 	}
-	for i := 0; i < len(compiledBody)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiledBody[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
+	writeSequentialBody(&out, compiledBody)
 	out.WriteString("}()")
 
-	return goExpr{code: out.String(), kind: result.kind}, nil
+	return goExpr{code: out.String(), kind: resultKind}, nil
 }
 
 func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3446,10 +3925,9 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		if err != nil {
 			return goExpr{}, err
 		}
-		if _, exists := declared[goName]; exists {
+		if err := declareNamedBinding(declared, localKinds, bindingSymbol.Name, goName, exprKindMutableValue); err != nil {
 			return goExpr{}, exprError(bindingsExpr.Elements[i], fmt.Sprintf("duplicate loop binding %q", bindingSymbol.Name))
 		}
-		declared[goName] = struct{}{}
 
 		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
 		if err != nil {
@@ -3462,7 +3940,6 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 
 		bindingNames = append(bindingNames, goName)
 		initialValues = append(initialValues, valueExpr.code)
-		localKinds[goName] = exprKindMutableValue
 	}
 
 	loopCtx := copyCompileContext(ctx)
@@ -3481,6 +3958,8 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
 	for i := range bindingNames {
 		fmt.Fprintf(&out, "\tvar %s = %s\n", bindingNames[i], initialValues[i])
+		flagName := unwrapMetaExpr(bindingsExpr.Elements[i*2]).(SymbolExpr).Name
+		out.WriteString(unusedUseStmt(flagName, bindingNames[i], "\t"))
 	}
 	out.WriteString("\tfor {\n")
 	fmt.Fprintf(&out, "\t\t__loopResult := %s\n", bodyExpr.code)
@@ -3570,80 +4049,6 @@ func parseVolatileBindingPattern(expr Expr) (bool, Expr, error) {
 	return volatile, meta.Target, nil
 }
 
-func withOpenExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) < 2 {
-		return goExpr{}, fmt.Errorf("with-open expects a binding vector and body")
-	}
-
-	bindingsExpr, ok := args[0].(VectorExpr)
-	if !ok {
-		return goExpr{}, fmt.Errorf("with-open expects a binding vector")
-	}
-	if len(bindingsExpr.Elements)%2 != 0 {
-		return goExpr{}, fmt.Errorf("with-open binding vector expects name/value pairs")
-	}
-
-	localKinds := make(map[string]exprKind, len(locals)+len(bindingsExpr.Elements)/2)
-	for name, kind := range locals {
-		localKinds[name] = kind
-	}
-
-	bindings := make([]string, 0, len(bindingsExpr.Elements)*2)
-	tempCounter := 0
-	declared := make(map[string]struct{}, len(bindingsExpr.Elements))
-	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
-		valueExpr, err := exprToGo(bindingsExpr.Elements[i+1], ctx, localKinds)
-		if err != nil {
-			return goExpr{}, err
-		}
-		if valueExpr.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("with-open binding value must evaluate to Value")
-		}
-
-		sourceName := fmt.Sprintf("__bind%d", tempCounter)
-		tempCounter++
-		bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
-		bindings = append(bindings, fmt.Sprintf("\tdefer %s.Close()\n", sourceName))
-
-		emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
-		if err := emitter.bind(bindingsExpr.Elements[i], sourceName); err != nil {
-			return goExpr{}, err
-		}
-	}
-
-	bodyExprs := args[1:]
-	if len(bodyExprs) == 0 {
-		return goExpr{}, fmt.Errorf("with-open expects at least one body form")
-	}
-	compiledBody := make([]goExpr, 0, len(bodyExprs))
-	for _, bodyExpr := range bodyExprs {
-		compiled, err := exprToGo(bodyExpr, ctx, localKinds)
-		if err != nil {
-			return goExpr{}, err
-		}
-		compiledBody = append(compiledBody, compiled)
-	}
-
-	result := compiledBody[len(compiledBody)-1]
-	typeName, err := goTypeForExprKind(result.kind)
-	if err != nil {
-		return goExpr{}, err
-	}
-
-	var out strings.Builder
-	fmt.Fprintf(&out, "func() %s {\n", typeName)
-	for _, binding := range bindings {
-		out.WriteString(binding)
-	}
-	for i := 0; i < len(compiledBody)-1; i++ {
-		fmt.Fprintf(&out, "\t_ = %s\n", compiledBody[i].code)
-	}
-	fmt.Fprintf(&out, "\treturn %s\n", result.code)
-	out.WriteString("}()")
-
-	return goExpr{code: out.String(), kind: result.kind}, nil
-}
-
 type destructureEmitter struct {
 	ctx         compileContext
 	locals      map[string]exprKind
@@ -3703,12 +4108,13 @@ func (e destructureEmitter) bindSymbolWithKind(sym SymbolExpr, sourceCode string
 	if err != nil {
 		return err
 	}
-	if _, exists := e.declared[name]; exists {
-		return fmt.Errorf("duplicate binding %q", sym.Name)
+	if err := declareNamedBinding(e.declared, e.locals, sym.Name, name, kind); err != nil {
+		return err
 	}
-	e.declared[name] = struct{}{}
-	e.locals[name] = kind
 	*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s\n", name, sourceCode))
+	if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
+		*e.lines = append(*e.lines, line)
+	}
 	return nil
 }
 
@@ -4528,6 +4934,21 @@ func emptyPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]e
 	return goExpr{code: fmt.Sprintf("%s.NewBool(%s.IsEmpty(%s))", runtimeAlias, runtimeAlias, argCode), kind: exprKindValue}, nil
 }
 
+func typeOfExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("type-of expects exactly one argument")
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	argCode, err := collectionArgToValueCode(arg)
+	if err != nil {
+		return goExpr{}, fmt.Errorf("type-of expects an argument that evaluates to Value")
+	}
+	return goExpr{code: fmt.Sprintf("%s.TypeOf(%s)", runtimeAlias, argCode), kind: exprKindValue}, nil
+}
+
 func nilPredicateExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 1 {
 		return goExpr{}, fmt.Errorf("nil? expects exactly one argument")
@@ -4626,6 +5047,10 @@ func hashMapExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 	if len(args)%2 != 0 {
 		return goExpr{}, fmt.Errorf("hash-map expects key/value pairs")
 	}
+	return valueCtorExprToGo("hash-map", "NewMap", args, ctx, locals)
+}
+
+func valueCtorExprToGo(op, ctor string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
 		part, err := exprToGo(arg, ctx, locals)
@@ -4636,11 +5061,11 @@ func hashMapExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind
 			part = goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, part.code), kind: exprKindValue}
 		}
 		if part.kind != exprKindValue {
-			return goExpr{}, fmt.Errorf("hash-map entries must evaluate to Value")
+			return goExpr{}, fmt.Errorf("%s entries must evaluate to Value", op)
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.NewMap(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("%s.%s(%s)", runtimeAlias, ctor, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func updateBangExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4950,6 +5375,10 @@ func collectHashFnPlaceholders(expr Expr, maxParam *int) {
 		for _, item := range value.Elements {
 			collectHashFnPlaceholders(item, maxParam)
 		}
+	case PipeVectorExpr:
+		for _, item := range value.Elements {
+			collectHashFnPlaceholders(item, maxParam)
+		}
 	case MapExpr:
 		for _, item := range value.Entries {
 			collectHashFnPlaceholders(item, maxParam)
@@ -4985,6 +5414,12 @@ func replaceHashFnPlaceholders(expr Expr) Expr {
 			out = append(out, replaceHashFnPlaceholders(item))
 		}
 		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
+	case PipeVectorExpr:
+		out := make([]Expr, 0, len(value.Elements))
+		for _, item := range value.Elements {
+			out = append(out, replaceHashFnPlaceholders(item))
+		}
+		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
 	case MapExpr:
 		out := make([]Expr, 0, len(value.Entries))
 		for _, item := range value.Entries {
@@ -5041,6 +5476,13 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	if err != nil {
 		return goExpr{}, err
 	}
+	if body.kind == exprKindDefer {
+		var wrapped strings.Builder
+		fmt.Fprintf(&wrapped, "func() %s.Value {\n", runtimeAlias)
+		writeSequentialBody(&wrapped, []goExpr{body})
+		wrapped.WriteString("}()")
+		body = goExpr{code: wrapped.String(), kind: exprKindValue}
+	}
 	body, err = coerceExprToValue(body, bodyExpr, fmt.Sprintf("%s body", label), lambdaCtx)
 	if err != nil {
 		return goExpr{}, err
@@ -5071,6 +5513,8 @@ func coerceExprToValue(expr goExpr, source Expr, label string, ctx compileContex
 			return goExpr{code: code, kind: exprKindValue}, nil
 		}
 		return goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, expr.code), kind: exprKindValue}, nil
+	case exprKindDefer:
+		return goExpr{}, exprError(source, fmt.Sprintf("%s cannot be a defer form (defer is a statement)", label))
 	default:
 		return goExpr{}, exprError(source, fmt.Sprintf("%s must evaluate to Value", label))
 	}
@@ -5124,12 +5568,17 @@ func bindLambdaParams(
 			if err != nil {
 				return nil, nil, nil, false, err
 			}
-			if _, exists := declared[goParam]; exists {
-				return nil, nil, nil, false, fmt.Errorf("duplicate parameter %q", sym.Name)
+			if goParam != "_" {
+				if _, exists := declared[goParam]; exists {
+					return nil, nil, nil, false, fmt.Errorf("duplicate parameter %q", sym.Name)
+				}
+				declared[goParam] = struct{}{}
+				localKinds[goParam] = exprKindValue
 			}
-			declared[goParam] = struct{}{}
-			localKinds[goParam] = exprKindValue
 			params = append(params, goParam)
+			if line := unusedUseStmt(sym.Name, goParam, "\t"); line != "" {
+				localInits = append(localInits, line)
+			}
 			continue
 		}
 
@@ -5192,6 +5641,28 @@ func vectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprK
 	return goExpr{code: code, kind: exprKindValue}, nil
 }
 
+func pipeVectorExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	parts := make([]string, 0, len(elements))
+	for _, element := range elements {
+		part, err := exprToGo(element, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind == exprKindString {
+			part = goExpr{code: fmt.Sprintf("%s.NewString(%s)", runtimeAlias, part.code), kind: exprKindValue}
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, exprError(element, "vector literal entries must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	code := fmt.Sprintf("%s.NewVector(%s)", runtimeAlias, strings.Join(parts, ", "))
+	if allConstExprs(elements) {
+		code = ctx.constCode("PipeVec", code)
+	}
+	return goExpr{code: code, kind: exprKindValue}, nil
+}
+
 func setExprToGo(elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	parts := make([]string, 0, len(elements))
 	for _, element := range elements {
@@ -5230,7 +5701,7 @@ func assocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 		}
 		parts = append(parts, part.code)
 	}
-	return goExpr{code: fmt.Sprintf("%s.MapAssoc(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("%s.Assoc(%s)", runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
 }
 
 func dissocExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5435,6 +5906,31 @@ func goTypeForExprKind(kind exprKind) (string, error) {
 	}
 }
 
+func isUnusedBindingName(name string) bool {
+	return strings.HasPrefix(name, "_")
+}
+
+func unusedUseStmt(flagName, goName, indent string) string {
+	if isUnusedBindingName(flagName) && goName != "_" {
+		return indent + "_ = " + goName + "\n"
+	}
+	return ""
+}
+
+func declareNamedBinding(declared map[string]struct{}, locals map[string]exprKind, flagName, goName string, kind exprKind) error {
+	if goName == "_" {
+		return nil
+	}
+	if _, exists := declared[goName]; exists {
+		return fmt.Errorf("duplicate binding %q", flagName)
+	}
+	declared[goName] = struct{}{}
+	if locals != nil {
+		locals[goName] = kind
+	}
+	return nil
+}
+
 func toGoIdentifier(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("empty symbol")
@@ -5494,6 +5990,23 @@ func renderFunctionDef(fn functionDef) string {
 	if fn.goSignature != "" {
 		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
 	}
+	if len(fn.arities) > 0 {
+		var out strings.Builder
+		for _, a := range fn.arities {
+			mini := arityAsFunctionDef(fn, a)
+			fmt.Fprintf(&out, "func %s(%s) flagrt.Value {\n%s\treturn %s\n}\n\n",
+				a.arityName,
+				renderDirectParamList(mini),
+				renderLocalInits(a.localInits),
+				a.body,
+			)
+		}
+		fmt.Fprintf(&out, "func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
+			fn.variadicName,
+			renderMultiArityDispatch(fn),
+		)
+		return out.String()
+	}
 	if fn.hasRest {
 		return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
 			fn.variadicName,
@@ -5508,6 +6021,64 @@ func renderFunctionDef(fn functionDef) string {
 		fn.variadicName,
 		renderVariadicFunctionBody(fn),
 	)
+}
+
+func arityAsFunctionDef(parent functionDef, a arityDef) functionDef {
+	return functionDef{
+		goName:       parent.goName,
+		variadicName: parent.variadicName,
+		arityName:    a.arityName,
+		hasRest:      a.hasRest,
+		params:       a.params,
+		localInits:   a.localInits,
+		body:         a.body,
+	}
+}
+
+func renderMultiArityVariadicLiteral(fn functionDef) string {
+	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderMultiArityDispatch(fn))
+}
+
+func renderMultiArityDispatch(fn functionDef) string {
+	counts := make([]int, 0, len(fn.arities))
+	var body strings.Builder
+	body.WriteString("\tswitch len(args) {\n")
+	for _, a := range fn.arities {
+		n := len(a.params)
+		counts = append(counts, n)
+		fmt.Fprintf(&body, "\tcase %d:\n", n)
+		if n == 0 {
+			fmt.Fprintf(&body, "\t\treturn %s()\n", a.arityName)
+			continue
+		}
+		callArgs := make([]string, 0, n)
+		for i := 0; i < n; i++ {
+			callArgs = append(callArgs, fmt.Sprintf("args[%d]", i))
+		}
+		fmt.Fprintf(&body, "\t\treturn %s(%s)\n", a.arityName, strings.Join(callArgs, ", "))
+	}
+	fmt.Fprintf(&body, "\tdefault:\n\t\tpanic(%q)\n\t}\n", multiArityExpectsMessage(fn.flagName, counts))
+	return body.String()
+}
+
+func multiArityExpectsMessage(name string, counts []int) string {
+	if len(counts) == 0 {
+		return name + " expects arguments"
+	}
+	sorted := append([]int(nil), counts...)
+	sort.Ints(sorted)
+	parts := make([]string, len(sorted))
+	for i, n := range sorted {
+		parts[i] = strconv.Itoa(n)
+	}
+	switch len(parts) {
+	case 1:
+		return fmt.Sprintf("%s expects exactly %s arguments", name, parts[0])
+	case 2:
+		return fmt.Sprintf("%s expects %s or %s arguments", name, parts[0], parts[1])
+	default:
+		return fmt.Sprintf("%s expects %s, or %s arguments", name, strings.Join(parts[:len(parts)-1], ", "), parts[len(parts)-1])
+	}
 }
 
 func renderFunctionLiteral(fn functionDef) string {

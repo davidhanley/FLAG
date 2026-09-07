@@ -60,11 +60,76 @@
       (channel-send ch "ok")
       (is (= "ok" (channel-receive ch))))))
 
+(deftest atom-basics
+  (testing "atom defaults to nil"
+    (is (= nil (deref (atom)))))
+  (testing "deref reset! swap!"
+    (let [a (atom 1)]
+      (is (= 1 (deref a)))
+      (is (= 9 (reset! a 9)))
+      (is (= 9 (deref a)))
+      (is (= 10 (swap! a + 1)))
+      (is (= 10 (deref a))))))
+
+(deftest atom-swap-concurrent
+  (testing "swap! is atomic across goroutines"
+    (let [a (atom 0)
+          n 20
+          done (make-channel n)]
+      (loop [i 0]
+        (when (< i n)
+          (go (do
+                (swap! a + 1)
+                (channel-send done true)))
+          (recur (+ i 1))))
+      (loop [i 0]
+        (when (< i n)
+          (channel-receive done)
+          (recur (+ i 1))))
+      (is (= n (deref a))))))
+
+(deftest atom-type-and-errors
+  (testing "type-of atom"
+    (is (= :atom (type-of (atom 0)))))
+  (testing "deref expects an atom"
+    (expect-exception (deref 1) "atom")))
+
 (deftest channel-send-stops-after-close
   (testing "channel-send returns false after the channel is terminated"
     (let [ch (make-channel)]
       (channel-close ch)
       (is (= false (channel-send ch 42))))))
+
+(deftest close-channel-form
+  (testing "close-channel terminates"
+    (let [ch (make-channel)]
+      (is (= nil (close-channel ch)))
+      (is (= false (channel-send ch 1)))))
+  (testing "close dispatches to close-channel"
+    (let [ch (make-channel)]
+      (is (= nil (close ch)))
+      (is (= false (channel-send ch 1)))))
+  (testing "close-channel rejects non-channels"
+    (expect-exception (close-channel 1) "channel")))
+
+(deftest with-channel-closes
+  (testing "with-channel closes the channel after the body"
+    (let [ch (with-channel [c (make-channel)]
+               c)]
+      (is (= false (channel-send ch 1)))))
+  (testing "body can use the channel before close"
+    (is (= 7 (with-channel [c (make-channel 1)]
+               (do
+                 (channel-send c 7)
+                 (channel-receive c))))))
+  (testing "multiple bindings close LIFO"
+    (let [outer (make-channel 1)
+          inner (make-channel 1)]
+      (with-channel [a outer b inner]
+        (channel-send a 1)
+        (channel-send b 2))
+      (is (= false (channel-send inner 3)))
+      (is (= false (channel-send outer 4))))))
 
 (deftest channel-with-future
   (testing "producer future and receive in main"
@@ -79,6 +144,14 @@
       (is (= 4 (channel-some? (fn [v] (= v 4)) ch)))
       (is (= false (channel-send ch 5))))))
 
+(deftest channel-some-none
+  (testing "channel-some? returns nil when nothing matches"
+    (let [ch (make-channel 2)]
+      (channel-send ch 1)
+      (channel-send ch 3)
+      (close-channel ch)
+      (is (= nil (channel-some? even? ch))))))
+
 (deftest channel-every-closes-input-on-failure
   (testing "channel-every? terminates its input when it short-circuits"
     (let [ch (make-channel 3)]
@@ -87,6 +160,14 @@
       (channel-send ch 3)
       (is (= false (channel-every? (fn [v] (< v 3)) ch)))
       (is (= false (channel-send ch 4))))))
+
+(deftest channel-every-all-true
+  (testing "channel-every? is true when every value matches"
+    (let [ch (make-channel 2)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (close-channel ch)
+      (is (= true (channel-every? pos? ch))))))
 
 (deftest select-processes-ready-channels
   (testing "select calls handlers for ready channels only and returns count"
@@ -107,3 +188,46 @@
     (let [ch (make-channel 1)
           n (select ch (fn [v] v))]
       (is (= 0 n)))))
+
+(deftest channel-map-filter-reduce
+  (testing "channel-map transforms values"
+    (let [ch (make-channel 3)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (close-channel ch)
+      (let [out (channel-map (fn [n] (* n 2)) ch)]
+        (is (= 2 (channel-receive out)))
+        (is (= 4 (channel-receive out)))
+        (is (= 6 (channel-receive out)))
+        (is (= nil (channel-receive out))))))
+  (testing "channel-filter keeps matching values"
+    (let [ch (make-channel 4)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (channel-send ch 4)
+      (close-channel ch)
+      (let [out (channel-filter even? ch)]
+        (is (= 2 (channel-receive out)))
+        (is (= 4 (channel-receive out)))
+        (is (= nil (channel-receive out))))))
+  (testing "channel-reduce folds the channel"
+    (let [ch (make-channel 4)]
+      (channel-send ch 1)
+      (channel-send ch 2)
+      (channel-send ch 3)
+      (channel-send ch 4)
+      (close-channel ch)
+      (is (= 10 (channel-reduce + 0 ch))))))
+
+(deftest channel-lines-from-path
+  (testing "channel-lines sends file lines"
+    (let [ch (channel-lines "tests/language.flag")]
+      (is (= "(ns language.core)" (channel-receive ch))))))
+
+(deftest go-run-and-future-run
+  (testing "go-run returns nil immediately"
+    (is (= nil (go-run (fn [] 1)))))
+  (testing "future-run result is callable"
+    (is (= 7 ((future-run (fn [] 7)))))))

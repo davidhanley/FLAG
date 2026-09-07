@@ -3,6 +3,7 @@
 ;;   {:imports [["async.lib" :refer [go future sleep
 ;;                                    make-channel channel-send channel-receive
 ;;                                    channel-close select
+;;                                    atom deref reset! swap!
 ;;                                    channel-map channel-filter channel-reduce
 ;;                                    channel-every? channel-some? channel-lines]]]}
 ;;
@@ -11,6 +12,7 @@
 {:namespace "async"
  :exports   [go future go-run future-run future-piped-run
              sleep make-channel channel-send channel-receive channel-close select
+             atom deref reset! swap!
              channel-map channel-filter channel-reduce channel-every? channel-some? channel-lines]
  :go-exports {go-run          "async/go-run"
               future-run      "async/future-run"
@@ -24,9 +26,11 @@
              channel-map     "async/channel-map"
              channel-filter  "async/channel-filter"
              channel-reduce  "async/channel-reduce"
-             channel-every?  "async/channel-every?"
-             channel-some?   "async/channel-some?"
-             channel-lines   "async/channel-lines"}}
+             channel-lines   "async/channel-lines"
+              atom            "async/atom"
+              deref           "async/deref"
+              reset!          "async/reset!"
+              swap!           "async/swap!"}}
 
 (defmacro go
   "Evaluate body on a new goroutine; return nil immediately."
@@ -41,3 +45,23 @@
      (async/future-piped-run (fn [] (do forms)))]
     [[& forms]
      (async/future-run (fn [] (do forms)))]))
+
+(defn channel-every?
+  "True if pred is truthy for every value. On first failure, close ch and return false."
+  [pred ch]
+  (let [v (channel-receive ch)]
+    (if (nil? v)
+     true
+     (if (pred v)
+       (channel-every? pred ch)
+       (do (close ch) false)))))
+
+(defn channel-some?
+  "First value for which pred is truthy, or nil. On match, close ch and return the value."
+  [pred ch]
+  (let [v (channel-receive ch)]
+    (if (nil? v)
+     nil
+     (if (pred v)
+       (do (close ch) v)
+       (channel-some? pred ch)))))

@@ -68,6 +68,24 @@ func TestParseFileMultipleFormsWhitespaceInsensitive(t *testing.T) {
 	}
 }
 
+func TestParseFilePipeVectorLiteral(t *testing.T) {
+	ast, err := ParseFile(`(def v | 1 2 3 |)`)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+	if len(ast.Forms) != 1 {
+		t.Fatalf("expected 1 form, got %d", len(ast.Forms))
+	}
+	form, ok := ast.Forms[0].(ListExpr)
+	if !ok || len(form.Elements) != 3 {
+		t.Fatalf("expected def list, got %#v", ast.Forms[0])
+	}
+	vec, ok := form.Elements[2].(PipeVectorExpr)
+	if !ok || len(vec.Elements) != 3 {
+		t.Fatalf("expected pipe vector of 3, got %#v", form.Elements[2])
+	}
+}
+
 func TestParseFileUnterminatedList(t *testing.T) {
 	_, err := ParseFile(`(println "x"`)
 	if err == nil {

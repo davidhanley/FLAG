@@ -76,21 +76,36 @@ Implemented top-level forms:
 - `(def name expr)`
 - `(def name "doc" expr)` optional docstring
 - `(defn fname "doc" [args] body)` optional docstring
+- `(defn fname ([args] body) ([args2] body) ...)` multiple fixed arities
 - `(defmacro name "doc" [args] body)` optional docstring
+- `(defmacro name ([args] body) ([args2] body) ...)` multiple arities, same `()` style as `defn`
 - `(deftest name body...)` runs during build/repl compilation
+- `(defrecord Name [fields])` — Go struct + `->Name` / `map->Name` constructors
 - expression forms at top level (evaluated in `main`; entry module only when using imports)
 
+Every compiled program gets **`internal/compiler/prologue.flag`** (macros and FLAG functions). Unqualified **runtime builtins** live in `runtime/builtins.go`. Namespaced hosts (`str/…`, `io/…`, `vector/…`, …) are compile-time Go adapters (`goFnBindings`).
 
 Implemented special forms:
 
 - `(if test then [else])`
 - `(do expr1 expr2 ... exprN)`
 - `(let [bindings...] body...)`
+- `(loop [bindings...] body...)` with `(recur args...)` only in **tail position** of the loop body (not nested in `let` / `if`)
+- `(for [bindings...] body)` list comprehension (eager array)
+- `(doseq [bindings...] body)` sequential side effects (currently lazy `mapcat`; do not rely on it to launch `go` — use `loop`)
+- `(or …)` / `(and …)` short-circuit
+- `(doto obj form…)` thread `obj` as first argument
+- `(update! name expr)` mutate a `^{:volatile true}` let binding
+- `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close chan)))`. Yields `nil` if it is the last body form.
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
+- `(throw x)` / `(ex-info msg map)`
+- `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(println …)` / `(format fmt args…)`
+- `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
 - `(testing "label" body...)` test grouping
 - `(is expr)` / `(is expr "message")` test assertion with optional message
+- `(expect-exception body…)` test helper
 
 ### Concurrency (`async.lib`)
 
@@ -107,18 +122,23 @@ Not in the language core. Full reference: **[docs/async.md](docs/async.md)**.
 | `go` / `future` | macros | Async body; future returns a 0-arg fn `(f)` for the result |
 | `sleep` | function | Pause current goroutine (milliseconds) |
 | `make-channel` / `channel-send` / `channel-receive` | functions | FLAG-value channels |
+| `atom` / `deref` / `reset!` / `swap!` | functions | Atoms (no watches) |
 | `select` | function | Non-blocking multi-receive + handlers; returns count |
+| `channel-every?` / `channel-some?` | FLAG fns | Close the input on short-circuit |
 
 Example: [`examples/concurrency`](examples/concurrency).
 
-Implemented macros (from standard macros file):
+Implemented macros (from `prologue.flag`):
 
-- `when`
-- `not=`
+- `when` / `when-not`
+- `inc` / `dec` (macros, not first-class functions — do not pass to `swap!`)
+- `not` / `not=`
 - `cond`
-- `->`
-- `->>`
-- `some->`
+- `case` (constant match/expr pairs; optional final default)
+- `->` / `->>` / `some->` / `some->>` / `cond->`
+- `when-let`
+- `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
+- `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)
 
 ## Data literals
 
@@ -132,10 +152,12 @@ Implemented macros (from standard macros file):
 - nil: `nil`
 - symbols: `'abc`
 - keywords: `:kw`
-- lists: `'(1 2 3)`
-- vectors: `[1 2 3]`
+- lists: `'(1 2 3)` or `(list 1 2 3)`
+- arrays: `[1 2 3]` or `(array 1 2 3)`
+- vectors: `| 1 2 3 |` or `(vector/vector 1 2 3)`
 - maps: `{:a 1 :b 2}`
 - sets: `#{1 2 3}`
+- characters: `\a`, `\newline`, `\space`, `\tab` (and similar reader chars)
 
 ## Functions and calling
 
@@ -147,16 +169,26 @@ Function calls are Lisp-style:
 
 `defn` currently lowers to:
 
-- a direct arity function (`name_arity_N`)
-- a variadic wrapper (`name_variadic`)
+- a direct arity function (`name_arity_N`) per arity
+- a variadic wrapper (`name_variadic`) that dispatches on argument count
 - a function value var (`name`)
+
+`defmacro` uses the same multiple-arity lists. `macro-case` clauses are `([pattern] body)` lists (vectors still work).
+
+Multiple arities use Clojure-style lists after the name:
+
+```clojure
+(defn sort
+  ([coll] (sort-by identity coll))
+  ([comp coll] (sort-by identity comp coll)))
+```
 
 Self-recursive same-arity calls are compiled to direct arity calls for speed. Compiler flags
 for direct non-self calls are not exposed yet.
 
 ## Destructuring (implemented)
 
-Supported in both `let` and function argument vectors (`defn` / `fn`):
+Supported in both `let` and function argument vectors (`defn` / `fn`). Bindings named `_` or starting with `_` do not fail Go unused-variable checks.
 
 ### Sequential/vector destructuring
 
@@ -179,48 +211,127 @@ Note: `:strs` currently maps via symbol-key lookup (runtime does not yet have a 
 
 ## Builtin functions
 
-### Numeric and comparison
+Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag` (FLAG). Marks: **R** = runtime builtin, **P** = prologue.
+
+### Numeric and comparison — R
 
 - `+`, `-`, `*`, `/`, `%`
-- `=`, `<`, `>`
+- `=`, `<`, `<=`, `>`, `>=`
+- `max` / `min` (at least one argument)
+- `rand-int` (`(rand-int n)` → `[0, n)`)
+- `double` (coerce to float)
 
 ### Sequence operations
 
-- `first` (also `fist` alias)
-- `rest`
-- `take`
-- `drop` (usage: `(drop n coll)`)
-- `map`
-- `pmap` (parallel map; worker count = `NumCPU()*2`, capped by item count)
-- `filter`
-- `reduce`
-- `range`
+- **R** `first` (also `fist`) / `rest` / `next` (`next` is `nil` on empty) / `last` / `reverse` / `cons`
+- **P** `peek` = `first`, `pop` = `rest`
+- **P** `second` … `tenth`, `val` (second of a pair)
+- **R** `take` / `drop` (`(drop n coll)`)
+- **R** `nth` (fast random-access; arrays/strings/vectors; optional not-found)
+- **R** `slow-nth` (sequential; lists/lazy seqs; optional not-found)
+- **R** `map` (lazy when every input is lazy) / `concat` / `filter` / `reduce` (2- or 3-arg) / `apply`
+- **R** `pmap` (parallel map; workers = `NumCPU()*2`, capped by item count; eager array, order preserved)
+- **R** `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; array)
+- **P** `sort` (`(sort coll)` or `(sort comp coll)`; default `<`)
+- **R** `range` (0-arg infinite from 0; 1-arg infinite from *n*; 2-arg `[start, end)`; large 2-arg may be lazy)
+- **R** `repeat` (`(repeat x)` infinite lazy; `(repeat n x)`)
+- **R** `some` (first truthy `(pred x)`, else `nil`)
+- **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)
+- **R** `line-seq` (lazy lines from a file)
+- **P** `keep` / `mapcat` / `map-indexed` (`(map f (range) coll)`) / `keep-indexed`
+- **P** `reduce-kv` (maps: `f acc k v`; arrays/vectors: `f acc idx v`; `nil` → init)
+- **P** `distinct` (first occurrence, input order; array)
+- **P** `flatten` (nested sequential; maps/sets are leaves)
+- **P** `interpose` / `interleave` (arrays)
+- **P** `partition` (`n`, optional `step`/`pad`; drop short tail unless padded)
+- **P** `partition-all` (`n`, optional `step`; keep short final group)
+- **P** `partition-by` (new group when `f` changes)
+- **P** `iterate` (lazy: `x`, `(f x)`, …) / `repeatedly` (`(repeatedly f)` infinite; `(repeatedly n f)`)
+- **P** `remove` (`filter` of complement) / `not-any?` / `every?`
 
 ### Collections
 
-- `get`
-- `assoc`
-- `dissoc`
+- **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
+- **R** `set` (from a seq) / `vec` (from a seq)
+- **R** `conj` (collection + items) / `into` / `contains?`
+- **R** `seq` (`nil` if empty) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
+- **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
+- **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`
+- **R** `keys` / `vals` / `find` (entry pair or `nil`)
+- **P** `update` / `get-in` / `update-in` / `assoc-in` / `dissoc-in`
+- **P** `zipmap` / `group-by` / `select-keys` / `merge` / `merge-with` / `max-key`
 
-### Symbols/strings/printing
+### Sets and relations — R
 
-- `symbol`
-- `name`
-- `str`
-- `println`
-- `print`
+- `union` / `intersection` / `difference`
+- `subset?` / `superset?` / `disjoint?`
+- `rename-keys` (map) / `map-invert`
+- `select` (predicate + set) / `project` / `rename` (relation set of maps)
+
+### Predicates — P except `nil?` **R**
+
+- `true?` / `false?` (only booleans `true` / `false`)
+- `boolean` (truthy → `true`, `nil`/`false` → `false`)
+- `nil?` / `some?`
+- `string?` / `symbol?` / `keyword?`
+- `map?` (`:map` / `:record`)
+- `vector?` (FLAG vectors `| … |` only; arrays are not vectors)
+- `set?` / `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list`) / `coll?`
+- `number?` (`:int` / `:float` / `:bigint` / `:ratio`) / `int?` / `float?`
+- `zero?` / `pos?` / `neg?` (throw on non-numbers)
+- `even?` / `odd?` (integers including bigint; throw otherwise)
+
+### Functional combinators — P
+
+- `identity` / `constantly`
+- `partial` / `juxt`
+- `comp` (rightmost applied to all args, then unary wrapping; `(comp)` is `identity`)
+- `complement` / `fnil` (1–3 defaulted leading args)
+- `every-pred` / `some-fn`
+
+### Types — R
+
+- `type-of` → `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:atom`, `:record`
+
+### Symbols / strings / printing
+
+- **R/special** `symbol` / `name` / `keyword` / `str` / `println` / `format` (Go `fmt.Sprintf`)
+- **R** `re-pattern` / `re-matches`
 
 ### JSON
 
-- `to-json`
-- `from-json`
+- `to-json` / `from-json`
+- also `json/read` / `json/read-str` (namespaced)
 
 ### File I/O
 
-- `open-file`
-- `file-to-strings`
+- **R** `open-file` / `close-file` (idempotent) / `close-channel` (idempotent) / `file-to-strings` (lazy)
+- **P** `close` — `(type-of x)` then `close-file` or `close-channel`; throw otherwise
+- `(.write file content)` method
+- `with-open` / `with-channel` call `(close name)` from a `defer` thunk
 
-`file-to-strings` is lazy: it opens/reads on demand as elements are consumed.
+### Namespaced runtime packages
+
+Canonical names (aliases such as `string/…`, `datetime/…` also bind):
+
+| Namespace | Functions |
+|-----------|-----------|
+| `str/` | `trim`, `replace`, `escape`, `split`, `join`, `blank?`, `starts-with?`, `ends-with?`, `upper-case`, `capitalize` |
+| `io/` | `reader`, `writer`, `readline`, `scan-directory` |
+| `vector/` | `vector`, `get`, `set`, `append`, `prepend`, `pop`, `insert`, `remove` (FLAG vectors only) |
+| `json/` | `read`, `read-str` |
+| `math/` | `abs` |
+| `regex/` | `compile` (`re-pattern` wraps this) |
+| `date/` `dateTime/` `t/` | `from-string`, `formatter`, `now`, `unparse`, `after?`, `minus`, `years` |
+| `character/` | `toUpperCase` |
+| `long/` | `parse` |
+
+`(.endsWith s suffix)` is a compiler method (string suffix).
+
+### Prelude aliases (not extra implementations)
+
+- `peek` / `pop` — see sequences
+- `close` — see File I/O
 
 ### Go interop (early)
 
@@ -314,7 +425,9 @@ Recent optimization: numeric comparisons have fast paths for common integer case
 - `range` with one arg returns a lazy sequence.
 - `range` with no args starts at 0 and returns a lazy sequence.
 - large two-arg ranges can be lazy.
-- map/filter/reduce/take/drop work across list/array/lazy-list values.
+- `iterate` and `(repeatedly f)` are lazy (built on infinite `range`).
+- map/filter/reduce/take/drop work across list/array/vector/lazy-list values.
+- Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.
 - `pmap` currently materializes input tuples, computes in parallel, and returns an eager array while preserving order.
 
@@ -324,4 +437,4 @@ Recent optimization: numeric comparisons have fast paths for common integer case
 - Some semantics intentionally differ while runtime/data model is still evolving.
 - Error messages are improving but still lower-level in some paths.
 - Module `:imports` work for file entry points; directory builds without `main.flag` still use legacy file merging.
-- Host packages such as `str/…` and `io/…` may still resolve without an import during migration; `burp` and `csv` require `libraries/*.lib` imports.
+- Host packages such as `str/…`, `io/…`, and `vector/…` may still resolve without an import during migration; `burp` and `csv` require `libraries/*.lib` imports.

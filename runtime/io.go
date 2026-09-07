@@ -21,6 +21,17 @@ func OpenFile(path string) Value {
 	return NewFile(file)
 }
 
+// CloseFile closes a FLAG file Value. Idempotent; panics on a non-file.
+func CloseFile(v Value) Value {
+	if v.tag != TagFile {
+		panic("close-file expects a file")
+	}
+	if err := v.Close(); err != nil {
+		panic("close-file failed: " + err.Error())
+	}
+	return NilValue()
+}
+
 func OpenWriter(path string) Value {
 	if path == "" {
 		panic("io/writer expects a non-empty path")

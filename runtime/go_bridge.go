@@ -247,7 +247,7 @@ func valueToGoArg(value Value, targetType reflect.Type) (reflect.Value, error) {
 		return rv.Convert(targetType), nil
 	}
 
-	if value.tag == TagArray || value.tag == TagList {
+	if value.tag == TagArray || value.tag == TagVector || value.tag == TagList {
 		if targetType.Kind() == reflect.Slice {
 			return convertSeqToSlice(value, targetType)
 		}
@@ -308,6 +308,8 @@ func nativeAny(value Value) any {
 		return nativeSeq(value.ListValues())
 	case TagArray:
 		return nativeSeq(value.ArrayValues())
+	case TagVector:
+		return nativeSeq(value.VectorValues())
 	case TagSet:
 		return nativeSeq(value.SetValues())
 	case TagLazyList:
@@ -364,9 +366,12 @@ func canBeNilType(t reflect.Type) bool {
 
 func convertSeqToSlice(value Value, targetType reflect.Type) (reflect.Value, error) {
 	var items []Value
-	if value.tag == TagArray {
+	switch value.tag {
+	case TagArray:
 		items = value.ArrayValues()
-	} else {
+	case TagVector:
+		items = value.VectorValues()
+	default:
 		items = value.ListValues()
 	}
 	out := reflect.MakeSlice(targetType, len(items), len(items))

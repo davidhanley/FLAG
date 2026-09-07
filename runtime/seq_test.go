@@ -962,6 +962,29 @@ func TestTakeDropPanicsOnInvalidCount(t *testing.T) {
 	assertPanics(t, func() { Drop(NewDouble(1.2), NewArray()) })
 }
 
+func TestNthAndSlowNth(t *testing.T) {
+	if got := Nth(NewArray(NewLong(10), NewLong(20), NewLong(30)), NewLong(1)); got.Long() != 20 {
+		t.Fatalf("unexpected nth array result: %v", ValueToAny(got))
+	}
+	if got := Nth(NewString("a😀"), NewLong(1)); got.StringValue() != "😀" {
+		t.Fatalf("unexpected nth string result: %q", got.StringValue())
+	}
+	if got := Nth(NewArray(NewLong(1)), NewLong(5), NewKeyword("missing")); got.tag != TagSymbol || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "missing" {
+		t.Fatalf("expected nth not-found keyword, got %v", ValueToAny(got))
+	}
+	assertPanics(t, func() { Nth(NewList(NewLong(1), NewLong(2)), NewLong(1)) })
+
+	if got := SlowNth(NewList(NewLong(1), NewLong(2), NewLong(3)), NewLong(1)); got.Long() != 2 {
+		t.Fatalf("unexpected slow-nth list result: %v", ValueToAny(got))
+	}
+	if got := SlowNth(Range(NewLong(10)), NewLong(2)); got.Long() != 12 {
+		t.Fatalf("unexpected slow-nth lazy result: %v", ValueToAny(got))
+	}
+	if got := SlowNth(NewList(NewLong(1)), NewLong(8), NewKeyword("missing")); got.tag != TagSymbol || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "missing" {
+		t.Fatalf("expected slow-nth not-found keyword, got %v", ValueToAny(got))
+	}
+}
+
 func TestLazyListConcurrentRealizationIsSafe(t *testing.T) {
 	source := Range(NewLong(1), NewLong(1200))
 

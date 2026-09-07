@@ -333,6 +333,8 @@ func ValueToString(v Value) string {
 		return "#<file " + v.FileObject().Path + ">"
 	case TagChannel:
 		return "#<channel>"
+	case TagAtom:
+		return "#<atom>"
 	case TagSymbol:
 		symbol := v.SymbolObject()
 		if symbol.IsKeyword {
@@ -393,6 +395,20 @@ func ValueToString(v Value) string {
 		}
 		out.WriteByte(']')
 		return out.String()
+	case TagVector:
+		values := v.VectorValues()
+		var out strings.Builder
+		out.WriteByte('|')
+		if len(values) == 0 {
+			out.WriteString(" |")
+			return out.String()
+		}
+		for _, value := range values {
+			out.WriteByte(' ')
+			out.WriteString(ValueToString(value))
+		}
+		out.WriteString(" |")
+		return out.String()
 	case TagLazyList:
 		return "#<lazy-list>"
 	case TagRecur:
@@ -448,12 +464,10 @@ func ValueToAny(v Value) any {
 		return v.StringValue()
 	case TagDate:
 		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagRecur, TagRecord:
+	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagAtom, TagRecur, TagRecord, TagVector, TagList:
 		return v
 	case TagNil:
 		return nil
-	case TagList:
-		return listValueToAny(v)
 	case TagArray:
 		return arrayValueToAny(v)
 	default:

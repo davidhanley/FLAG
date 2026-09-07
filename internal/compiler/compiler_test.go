@@ -88,6 +88,82 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 }
 
+func TestCompileMultiArityDefmacro(t *testing.T) {
+	output, err := Compile(`
+(defmacro pick
+  ([x] x)
+  ([_ y] y))
+(println (pick 1))
+(println (pick 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`fmt.Println(flagrt.Str(flagrt.NewLong(1)))`,
+		`fmt.Println(flagrt.Str(flagrt.NewLong(2)))`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileMultiArityDefn(t *testing.T) {
+	output, err := Compile(`
+(defn add-m
+  ([x] x)
+  ([x y] (+ x y)))
+(println (add-m 1))
+(println (add-m 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"func add_m_arity_1(",
+		"func add_m_arity_2(",
+		"func add_m_variadic(args ...flagrt.Value)",
+		"switch len(args)",
+		"case 1:",
+		"case 2:",
+		"add-m expects 1 or 2 arguments",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileUnusedBindingsAreDiscarded(t *testing.T) {
+	output, err := Compile(`
+(defn drop-second [x _y] x)
+(println (drop-second 1 2))
+(println ((fn [a _b _] a) 3 4 5))
+(println (let [_k 9] 1))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"_ = _y",
+		"_ = _b",
+		"_ = args[",
+		"var _k =",
+		"_ = _k",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDeftestAndAssertions(t *testing.T) {
 	output, err := Compile(`
 (deftest sample-test
@@ -240,6 +316,46 @@ func TestCompileRejectsRecurOutsideLoop(t *testing.T) {
 	}
 }
 
+func TestCompileVariadicSelfReferenceUsesFunctionSymbol(t *testing.T) {
+	output, err := Compile(`
+(defn walk [x & more]
+  (if x
+    (apply walk more)
+    0))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "flagrt.Apply(flagrt.NewFunction(walk_variadic),") {
+		t.Fatalf("expected self function value reference to use walk_variadic:\n%s", got)
+	}
+	if strings.Contains(got, "flagrt.Apply(walk,") {
+		t.Fatalf("expected no self value var reference in variadic recursion path:\n%s", got)
+	}
+}
+
+func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
+	output, err := Compile(`
+(defn countdown [n & more]
+  (if (= n 0)
+    0
+    (countdown (- n 1))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "return countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
+		t.Fatalf("expected direct variadic self-call lowering:\n%s", got)
+	}
+	if strings.Contains(got, "flagrt.Call(countdown,") {
+		t.Fatalf("expected no runtime self-call through value var:\n%s", got)
+	}
+}
+
 func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
 	_, err := Compile(`(print "hello" "world")`)
 	if err == nil {
@@ -261,6 +377,45 @@ func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
 	}
 }
 
+func TestCompileDeferEmitsGoDefer(t *testing.T) {
+	output, err := Compile(`
+(defn work [chan]
+  (defer (fn [] chan))
+  1)
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"defer flagrt.Call(",
+		"return flagrt.NewLong(1)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileDeferRejectsWrongArity(t *testing.T) {
+	_, err := Compile(`(defer)`)
+	if err == nil {
+		t.Fatal("expected (defer) to fail")
+	}
+	if !strings.Contains(err.Error(), "defer expects a zero-argument function") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = Compile(`(defer (fn [] 1) (fn [] 2))`)
+	if err == nil {
+		t.Fatal("expected extra defer arguments to fail")
+	}
+	if !strings.Contains(err.Error(), "defer expects a zero-argument function") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestCompileWithOpenEmitsDefer(t *testing.T) {
 	output, err := Compile(`
 (with-open [rdr (open-file "sample.txt")]
@@ -272,13 +427,61 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		"defer __bind0.Close()",
+		"defer flagrt.Call(",
+		"flagrt.Call(close, rdr)",
 		"flagrt.OpenFile(\"sample.txt\")",
 		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestCompileWithChannelEmitsDefer(t *testing.T) {
+	output, err := Compile(`
+(defn use-ch [x]
+  (with-channel [ch x]
+    ch))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		"defer flagrt.Call(",
+		"flagrt.Call(close, ch)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
+	output, err := Compile(`
+(defn wrap [x]
+  (close-file x)
+  (close-channel x)
+  (close x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+
+	got := string(output)
+	for _, want := range []string{
+		`flagrt.Call(flagrt.BuiltinFunction("close-file"), x)`,
+		`flagrt.Call(flagrt.BuiltinFunction("close-channel"), x)`,
+		"flagrt.Call(close, x)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "flagrt.Close(") {
+		t.Fatalf("generated Go still special-cased flagrt.Close:\n%s", got)
 	}
 }
 
@@ -499,6 +702,44 @@ func TestCompileExpression(t *testing.T) {
 	want := "flagrt.ValueToAny(flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewDouble(2.0)))"
 	if got != want {
 		t.Fatalf("unexpected expression:\nwant: %s\ngot:  %s", want, got)
+	}
+}
+
+func TestCompilePeekPopAliases(t *testing.T) {
+	got, err := CompileExpression(`(peek (list 1 2))`)
+	if err != nil {
+		t.Fatalf("CompileExpression peek returned error: %v", err)
+	}
+	if !strings.Contains(got, "flagrt.Call(peek,") {
+		t.Fatalf("expected peek to call prologue alias, got %s", got)
+	}
+
+	got, err = CompileExpression(`(pop (list 1 2))`)
+	if err != nil {
+		t.Fatalf("CompileExpression pop returned error: %v", err)
+	}
+	if !strings.Contains(got, "flagrt.Call(pop,") {
+		t.Fatalf("expected pop to call prologue alias, got %s", got)
+	}
+}
+
+func TestCompileListAndArrayConstructors(t *testing.T) {
+	got, err := CompileExpression(`(list 1 (+ 1 1))`)
+	if err != nil {
+		t.Fatalf("CompileExpression list returned error: %v", err)
+	}
+	want := "flagrt.ValueToAny(flagrt.NewList(flagrt.NewLong(1), flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(1))))"
+	if got != want {
+		t.Fatalf("unexpected list expression:\nwant: %s\ngot:  %s", want, got)
+	}
+
+	got, err = CompileExpression(`(array 1 2)`)
+	if err != nil {
+		t.Fatalf("CompileExpression array returned error: %v", err)
+	}
+	want = "flagrt.ValueToAny(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)))"
+	if got != want {
+		t.Fatalf("unexpected array expression:\nwant: %s\ngot:  %s", want, got)
 	}
 }
 
