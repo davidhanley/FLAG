@@ -91,6 +91,22 @@
                  tmp)
                rest)))))
 
+(defmacro cond->> [x & clauses]
+  (macro-case (do clauses)
+    ([] x)
+    ([test (f & args) & rest]
+     (let [tmp x]
+       (cond->> (if test
+                  (f args tmp)
+                  tmp)
+                rest)))
+    ([test f & rest]
+     (let [tmp x]
+       (cond->> (if test
+                  (f tmp)
+                  tmp)
+                rest)))))
+
 (defmacro when-let [bindings & body]
   (macro-case (do bindings)
     ([name value]

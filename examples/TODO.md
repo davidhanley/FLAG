@@ -75,10 +75,10 @@
 
 ## Control-flow macros a Clojure programmer will type
 
-Already in prologue: `when`, `when-not`, `when-let`, `cond`, `case`, `->`, `->>`, `some->`, `some->>`, `cond->`.
+Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-some`, `when-some`, `cond`, `case`, `->`, `->>`, `some->`, `some->>`, `cond->`, `cond->>`.
 
 - [x] Add **`if-let`** / **`if-not`** / **`if-some`** / **`when-some`**.
-- [ ] Add **`cond->>`** (thread last only when the test is truthy).
+- [x] Add **`cond->>`** (thread last only when the test is truthy).
 - [ ] Add **`as->`** (named-binding thread).
 - [ ] Add **`condp`**.
 - [ ] Add **`dotimes`** and **`while`**.

@@ -475,7 +475,10 @@
     (is (= 9 (some-> 3 (+ 6))))
     (is (= nil (some-> nil (+ 6))))
     (is (= 4/5 (some->> 5 (- 10) (/ 4))))
-    (is (= 11 (cond-> 10 true inc false dec)))))
+    (is (= 11 (cond-> 10 true inc false dec)))
+    (is (= 15 (cond->> 5 true (- 10) true (* 3))))
+    (is (= 5 (cond->> 5 false (- 10))))
+    (is (= [2 3 4] (cond->> [1 2 3] true (map add1) true vec)))))
 
 (deftest fn-literals
   (testing "fn hash-fn def lambda"
