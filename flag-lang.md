@@ -136,7 +136,7 @@ Implemented macros (from `prologue.flag`):
 - `cond`
 - `case` (constant match/expr pairs; optional final default)
 - `->` / `->>` / `some->` / `some->>` / `cond->`
-- `when-let`
+- `when-let` / `if-let` / `if-not` / `if-some` / `when-some` (`if-some`/`when-some` bind when not `nil`, so `false` is kept)
 - `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
 - `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)
 

@@ -98,6 +98,38 @@
        (if name
          (do body))))))
 
+(defmacro if-let
+  ([bindings then]
+   (if-let bindings then nil))
+  ([bindings then else]
+   (macro-case (do bindings)
+     ([name value]
+      (let [name value]
+        (if name then else))))))
+
+(defmacro if-not
+  ([test then]
+   (if test nil then))
+  ([test then else]
+   (if test else then)))
+
+(defmacro if-some
+  ([bindings then]
+   (if-some bindings then nil))
+  ([bindings then else]
+   (macro-case (do bindings)
+     ([name value]
+      (let [name value]
+        (if (nil? name) else then))))))
+
+(defmacro when-some [bindings & body]
+  (macro-case (do bindings)
+    ([name value]
+     (let [name value]
+       (if (nil? name)
+         nil
+         (do body))))))
+
 (defmacro with-open [bindings & body]
   (macro-case (do bindings)
     ([] (do body))
