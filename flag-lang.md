@@ -135,7 +135,9 @@ Implemented macros (from `prologue.flag`):
 - `not` / `not=`
 - `cond`
 - `case` (constant match/expr pairs; optional final default)
-- `->` / `->>` / `some->` / `some->>` / `cond->` / `cond->>`
+- `condp` (predicate + expr; test/result pairs, `test :>> result-fn`, leftover or `:else` default)
+- `->` / `->>` / `some->` / `some->>` / `cond->` / `cond->>` / `as->`
+- `dotimes` (eager `0 .. n-1` via `doseq`; returns `nil`)
 - `when-let` / `if-let` / `if-not` / `if-some` / `when-some` (`if-some`/`when-some` bind when not `nil`, so `false` is kept)
 - `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
 - `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)

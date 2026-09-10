@@ -478,7 +478,23 @@
     (is (= 11 (cond-> 10 true inc false dec)))
     (is (= 15 (cond->> 5 true (- 10) true (* 3))))
     (is (= 5 (cond->> 5 false (- 10))))
-    (is (= [2 3 4] (cond->> [1 2 3] true (map add1) true vec)))))
+    (is (= [2 3 4] (cond->> [1 2 3] true (map add1) true vec)))
+    (is (= 0 (as-> 0 n)))
+    (is (= 3 (as-> 0 n (inc n) (+ n 5) (/ n 2))))
+    (is (= 15 (as-> 5 n (- 10 n) (* n 3))))
+    (is (= :b (condp = 2 1 :a 2 :b 3 :c)))
+    (is (= :z (condp = 9 1 :a :z)))
+    (is (= :z (condp = 9 1 :a :else :z)))
+    (is (= 3 (condp (fn [want x] (if (= want x) x nil)) 4
+                    1 :>> inc
+                    4 :>> dec)))
+    (expect-exception (condp = 1 2 :a) "No matching clause")
+    (is (= nil (dotimes [_i 0] 1)))
+    (is (= nil (dotimes [_ 3])))
+    (let [^{:volatile true} acc 0]
+      (dotimes [i 5]
+        (update! acc (+ acc i)))
+      (is (= 10 acc)))))
 
 (deftest fn-literals
   (testing "fn hash-fn def lambda"

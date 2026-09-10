@@ -75,13 +75,13 @@
 
 ## Control-flow macros a Clojure programmer will type
 
-Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-some`, `when-some`, `cond`, `case`, `->`, `->>`, `some->`, `some->>`, `cond->`, `cond->>`.
+Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-some`, `when-some`, `cond`, `case`, `condp`, `->`, `->>`, `some->`, `some->>`, `cond->`, `cond->>`, `as->`, `dotimes`.
 
 - [x] Add **`if-let`** / **`if-not`** / **`if-some`** / **`when-some`**.
 - [x] Add **`cond->>`** (thread last only when the test is truthy).
-- [ ] Add **`as->`** (named-binding thread).
-- [ ] Add **`condp`**.
-- [ ] Add **`dotimes`** and **`while`**.
+- [x] Add **`as->`** (named-binding thread).
+- [x] Add **`condp`**.
+- [x] Add **`dotimes`** (not `while` — open-ended imperative loops are discouraged; use `loop`/`for`/`doseq`).
 - [ ] Add **`comment`** is done; add **`declare`**, **`defonce`**.
 
 ## Math (`clojure.core` / `Math`)
@@ -94,7 +94,7 @@ Have: `+` `-` `*` `/` `%` `max` `min` `rand-int` `double` `math/abs` `inc`/`dec`
 - [ ] Add **`numerator`** / **`denominator`** for ratios.
 - [ ] Add bit ops: **`bit-and`**, **`bit-or`**, **`bit-xor`**, **`bit-not`**, **`bit-shift-left`**, **`bit-shift-right`**, **`unsigned-bit-shift-right`**, **`bit-test`**, **`bit-set`**, **`bit-clear`**, **`bit-flip`**.
 - [ ] Add common `Math` surface as `math/…` (or core aliases): **`sqrt`**, **`pow`**, **`exp`**, **`log`**, **`log10`**, **`sin`/`cos`/`tan`**, **`floor`**, **`ceil`**, **`round`**, **`IEEE-remainder`**.
-- [ ] Make **`inc` / `dec` first-class functions** (or add function variants) so `(map inc xs)` and `(swap! a inc)` work. Today they are macros.
+- [x] Make **`inc` / `dec` first-class functions** (or add function variants) so `(map inc xs)` and `(swap! a inc)` work. Today they are macros.
 
 ## Strings (`clojure.core` / `clojure.string`)
 
