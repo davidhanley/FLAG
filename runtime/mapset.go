@@ -400,29 +400,69 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 		missing = notFound[0]
 	}
 
-	if coll.tag == TagNil {
+	switch coll.tag {
+	case TagNil:
 		return missing
-	}
-	if coll.tag == TagDate {
+	case TagDate:
 		if value, ok := dateFieldValue(coll, key); ok {
 			return value
 		}
 		return missing
-	}
-	if coll.tag == TagRecord {
+	case TagRecord:
 		if value, ok := recordFieldValue(coll, key); ok {
 			return value
 		}
 		return missing
-	}
-	if coll.tag != TagMap {
-		panic("get expects map Value")
-	}
-	value, ok := coll.mapPointer().items.Get(key)
-	if !ok {
+	case TagMap:
+		value, ok := coll.mapPointer().items.Get(key)
+		if !ok {
+			return missing
+		}
+		return value
+	case TagArray:
+		if i, ok := associativeIndex(key); ok && i < coll.ArrayLen() {
+			return ArrayGet(coll, i)
+		}
 		return missing
+	case TagVector:
+		if i, ok := associativeIndex(key); ok && i < coll.VectorLen() {
+			return VectorGet(coll, i)
+		}
+		return missing
+	case TagSet:
+		if coll.setPointer().items.Has(key) {
+			return key
+		}
+		return missing
+	case TagString:
+		if i, ok := associativeIndex(key); ok {
+			runes := []rune(coll.StringValue())
+			if i < len(runes) {
+				return NewString(string(runes[i]))
+			}
+		}
+		return missing
+	default:
+		panic("get expects associative Value")
 	}
-	return value
+}
+
+func associativeIndex(key Value) (int, bool) {
+	switch key.tag {
+	case TagLong:
+		if key.Long() < 0 {
+			return 0, false
+		}
+		return int(key.Long()), true
+	case TagBigInt:
+		bi := key.BigInt()
+		if bi.Sign() < 0 || bi.BitLen() > 62 {
+			return 0, false
+		}
+		return int(bi.Int64()), true
+	default:
+		return 0, false
+	}
 }
 
 func Contains(coll Value, key Value) bool {
