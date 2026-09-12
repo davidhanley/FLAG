@@ -276,9 +276,62 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 }
 
 func TestCompileRejectsUnsupportedForms(t *testing.T) {
-	_, err := Compile("(try 1)")
+	_, err := Compile("(monitor-enter 1)")
 	if err == nil {
 		t.Fatal("Compile succeeded for unsupported form")
+	}
+}
+
+func TestCompileTryCatchGeneratesRecover(t *testing.T) {
+	output, err := Compile(`
+(println
+  (try
+    (throw "nope")
+    (catch Exception e e)
+    (finally 1)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"recover()",
+		`flagrt.CatchMatches("Exception", __flag_thrown)`,
+		"flagrt.PanicValue(r)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileCatchOutsideTryFails(t *testing.T) {
+	_, err := Compile("(catch Exception e e)")
+	if err == nil {
+		t.Fatal("Compile succeeded for catch outside try")
+	}
+	if !strings.Contains(err.Error(), "catch used outside try") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCompileUnknownCatchTypeFails(t *testing.T) {
+	_, err := Compile("(try (throw 1) (catch ArithmeticException e e))")
+	if err == nil {
+		t.Fatal("Compile succeeded for unknown catch type")
+	}
+	if !strings.Contains(err.Error(), "unknown catch type") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCompileCatchAfterFinallyFails(t *testing.T) {
+	_, err := Compile("(try 1 (finally 2) (catch Exception e e))")
+	if err == nil {
+		t.Fatal("Compile succeeded for catch after finally")
+	}
+	if !strings.Contains(err.Error(), "catch and finally") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

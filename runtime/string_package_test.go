@@ -24,6 +24,13 @@ func TestStringPackageFunctionsAreRegistered(t *testing.T) {
 		{name: "string/upper-case", args: []Value{NewString("hello")}, want: "HELLO"},
 		{name: "str/capitalize", args: []Value{NewString("hELLO")}, want: "Hello"},
 		{name: "string/capitalize", args: []Value{NewString("hELLO")}, want: "Hello"},
+		{name: "str/lower-case", args: []Value{NewString("HeLLo")}, want: "hello"},
+		{name: "string/lower-case", args: []Value{NewString("HeLLo")}, want: "hello"},
+		{name: "str/triml", args: []Value{NewString("  hi  ")}, want: "hi  "},
+		{name: "str/trimr", args: []Value{NewString("  hi  ")}, want: "  hi"},
+		{name: "str/trim-newline", args: []Value{NewString("hi\n")}, want: "hi"},
+		{name: "str/replace-first", args: []Value{NewString("aa-aa"), NewString("aa"), NewString("b")}, want: "b-aa"},
+		{name: "str/reverse", args: []Value{NewString("abc")}, want: "cba"},
 		{name: "str/starts-with?", args: []Value{NewString("hello world"), NewString("hello")}, want: "true"},
 		{name: "str/ends-with?", args: []Value{NewString("hello world"), NewString("world")}, want: "true"},
 		{name: "str/blank?", args: []Value{NewString("   ")}, want: "true"},
@@ -61,6 +68,7 @@ func TestStringSplitFunctionsAreRegistered(t *testing.T) {
 	}{
 		{name: "str/split", args: []Value{NewString("a,b,c"), NewString(",")}, want: []string{"a", "b", "c"}},
 		{name: "string/split", args: []Value{NewString("a,b,c"), NewString(","), NewLong(2)}, want: []string{"a", "b,c"}},
+		{name: "str/split-lines", args: []Value{NewString("a\nb\r\nc")}, want: []string{"a", "b", "c"}},
 	} {
 		got := Call(GoFunction(tc.name), tc.args...)
 		if got.tag != TagArray || got.ArrayLen() != len(tc.want) {
@@ -72,6 +80,27 @@ func TestStringSplitFunctionsAreRegistered(t *testing.T) {
 				t.Fatalf("unexpected split result at %d for %s: %#v", i, tc.name, got)
 			}
 		}
+	}
+}
+
+func TestStringIndexHelpersAreRegistered(t *testing.T) {
+	if got := Call(GoFunction("str/includes?"), NewString("hello"), NewString("ell")); got.tag != TagBool || !got.Bool() {
+		t.Fatalf("unexpected includes? result: %#v", got)
+	}
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l")); got.tag != TagLong || got.Long() != 2 {
+		t.Fatalf("unexpected index-of result: %#v", got)
+	}
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l"), NewLong(3)); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("unexpected index-of-from result: %#v", got)
+	}
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("z")); got.tag != TagNil {
+		t.Fatalf("expected nil index-of, got %#v", got)
+	}
+	if got := Call(GoFunction("str/last-index-of"), NewString("hello"), NewString("l")); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("unexpected last-index-of result: %#v", got)
+	}
+	if got := Call(GoFunction("string/includes?"), NewString("hello"), NewString("xyz")); got.tag != TagBool || got.Bool() {
+		t.Fatalf("unexpected string/includes? result: %#v", got)
 	}
 }
 

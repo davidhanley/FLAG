@@ -16,7 +16,7 @@ import (
 )
 
 func Run(input io.Reader, output io.Writer) error {
-	i := interp.New(interp.Options{})
+	i := interp.New(interp.Options{Stderr: io.Discard})
 	i.Use(stdlib.Symbols)
 	flagrt.RegisterGoSymbols(stdlib.Symbols)
 	if err := i.Use(runtimeSymbols()); err != nil {
@@ -243,6 +243,12 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"Mul":                         reflect.ValueOf(flagrt.Mul),
 			"Div":                         reflect.ValueOf(flagrt.Div),
 			"Mod":                         reflect.ValueOf(flagrt.Mod),
+			"Quot":                        reflect.ValueOf(flagrt.Quot),
+			"Rem":                         reflect.ValueOf(flagrt.Rem),
+			"Le":                          reflect.ValueOf(flagrt.Le),
+			"Ge":                          reflect.ValueOf(flagrt.Ge),
+			"Compare":                     reflect.ValueOf(flagrt.Compare),
+			"NumericEq":                   reflect.ValueOf(flagrt.NumericEq),
 			"ValueToAny":                  reflect.ValueOf(flagrt.ValueToAny),
 			"NewList":                     reflect.ValueOf(flagrt.NewList),
 			"ListCons":                    reflect.ValueOf(flagrt.ListCons),
@@ -324,6 +330,12 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"GoBind_async_Deref":          reflect.ValueOf(flagrt.GoBind_async_Deref),
 			"GoBind_async_Reset":          reflect.ValueOf(flagrt.GoBind_async_Reset),
 			"GoBind_async_Swap":           reflect.ValueOf(flagrt.GoBind_async_Swap),
+			"Throw":                       reflect.ValueOf(flagrt.Throw),
+			"PanicValue":                  reflect.ValueOf(flagrt.PanicValue),
+			"CatchMatches":                reflect.ValueOf(flagrt.CatchMatches),
+			"ExMessage":                   reflect.ValueOf(flagrt.ExMessage),
+			"ExData":                      reflect.ValueOf(flagrt.ExData),
+			"ExCause":                     reflect.ValueOf(flagrt.ExCause),
 		},
 	}
 	// Merge the generated static Go-function adapters (GoBind_*), which the

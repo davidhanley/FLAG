@@ -78,3 +78,72 @@ func TestStringCapitalize(t *testing.T) {
 		t.Fatalf("expected empty string, got %q", got)
 	}
 }
+
+func TestStringLowerCase(t *testing.T) {
+	if got := StringLowerCase("HeLLo"); got != "hello" {
+		t.Fatalf("expected lower case string, got %q", got)
+	}
+}
+
+func TestStringTrimSidesAndNewline(t *testing.T) {
+	if got := StringTriml("  hello  "); got != "hello  " {
+		t.Fatalf("unexpected triml: %q", got)
+	}
+	if got := StringTrimr("  hello  "); got != "  hello" {
+		t.Fatalf("unexpected trimr: %q", got)
+	}
+	if got := StringTrimNewline("hello\r\n\n"); got != "hello" {
+		t.Fatalf("unexpected trim-newline: %q", got)
+	}
+	if got := StringTrimNewline("hello"); got != "hello" {
+		t.Fatalf("expected unchanged string, got %q", got)
+	}
+}
+
+func TestStringIncludesAndIndexOf(t *testing.T) {
+	if !StringIncludes("hello", "ell") || StringIncludes("hello", "xyz") {
+		t.Fatalf("unexpected includes? checks")
+	}
+	if got := StringIndexOf("hello", "l"); got != int64(2) {
+		t.Fatalf("unexpected index-of: %#v", got)
+	}
+	if got := StringIndexOf("hello", "l", 3); got != int64(3) {
+		t.Fatalf("unexpected index-of from: %#v", got)
+	}
+	if got := StringIndexOf("hello", "z"); got != nil {
+		t.Fatalf("expected nil index-of, got %#v", got)
+	}
+	if got := StringIndexOf("café", "é"); got != int64(3) {
+		t.Fatalf("expected rune index-of, got %#v", got)
+	}
+	if got := StringLastIndexOf("hello", "l"); got != int64(3) {
+		t.Fatalf("unexpected last-index-of: %#v", got)
+	}
+	if got := StringLastIndexOf("hello", "l", 2); got != int64(2) {
+		t.Fatalf("unexpected last-index-of from: %#v", got)
+	}
+	if got := StringLastIndexOf("hello", "z"); got != nil {
+		t.Fatalf("expected nil last-index-of, got %#v", got)
+	}
+	if got := StringLastIndexOf("hello", "l", -1); got != nil {
+		t.Fatalf("expected nil last-index-of for negative from, got %#v", got)
+	}
+}
+
+func TestStringReplaceFirstSplitLinesReverse(t *testing.T) {
+	if got := StringReplaceFirst("aa-aa", "aa", "b"); got != "b-aa" {
+		t.Fatalf("unexpected replace-first: %q", got)
+	}
+	if got := StringSplitLines("a\nb\r\nc\n"); len(got) != 3 || got[0] != "a" || got[1] != "b" || got[2] != "c" {
+		t.Fatalf("unexpected split-lines: %#v", got)
+	}
+	if got := StringSplitLines(""); len(got) != 1 || got[0] != "" {
+		t.Fatalf("unexpected empty split-lines: %#v", got)
+	}
+	if got := StringSplitLines("\n"); len(got) != 0 {
+		t.Fatalf("unexpected newline-only split-lines: %#v", got)
+	}
+	if got := StringReverse("a😀b"); got != "b😀a" {
+		t.Fatalf("unexpected reverse: %q", got)
+	}
+}

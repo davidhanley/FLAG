@@ -3,6 +3,7 @@ package repl
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,6 +67,51 @@ func TestRunVectorPrintsPipeSyntax(t *testing.T) {
 	}
 }
 
+func TestRunTryCatch(t *testing.T) {
+	stderr := captureStderr(t)
+	got := replEval(t,
+		`(try (/ 1 0) (catch Exception e :caught))`,
+		`(try (throw (ex-info "boom" {:a 1})) (catch ExceptionInfo e (ex-data e)))`,
+		`(ex-message (ex-info "boom" {}))`,
+	)
+	want := []string{":caught", "{:a 1}", "boom"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+	if errOut := stderr(); strings.Contains(errOut, "panic:") {
+		t.Fatalf("caught try should not print panic traces, stderr:\n%s", errOut)
+	}
+}
+
+func captureStderr(t *testing.T) func() string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	t.Cleanup(func() {
+		os.Stderr = old
+		_ = w.Close()
+		_ = r.Close()
+	})
+	return func() string {
+		_ = w.Close()
+		os.Stderr = old
+		b, readErr := io.ReadAll(r)
+		if readErr != nil {
+			t.Fatalf("read stderr: %v", readErr)
+		}
+		return string(b)
+	}
+}
+
 func replEval(t *testing.T, forms ...string) []string {
 	t.Helper()
 	input := strings.NewReader(strings.Join(append(append([]string{}, forms...), ":quit"), "\n") + "\n")
@@ -89,6 +135,28 @@ func replEval(t *testing.T, forms ...string) []string {
 		results = append(results, strings.TrimSuffix(part, "\n"))
 	}
 	return results
+}
+
+func TestRunQuotRemCompareNumericEq(t *testing.T) {
+	got := replEval(t,
+		"(quot 10 3)",
+		"(quot -10 3)",
+		"(rem -10 3)",
+		"(mod -10 3)",
+		"(<= 1 2 2)",
+		"(>= 3 2 2)",
+		"(== 1 1.0 1)",
+		"(compare 1 2)",
+	)
+	want := []string{"3", "-3", "-1", "2", "true", "true", "true", "-1"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
 }
 
 func TestRunDefAssocMap(t *testing.T) {

@@ -5,13 +5,47 @@
     (is (= 5 (+ 1 2 2)))
     (is (= 5 (- 10 3 2)))
     (is (= 3/2 (/ 3 2)))
-    (is (= 1 (% -5 3)))))
+    (is (= 1 (% -5 3)))
+    (is (= 1 (mod -5 3)))
+    (is (= 3 (quot 10 3)))
+    (is (= -3 (quot -10 3)))
+    (is (= -3 (quot 10 -3)))
+    (is (= 3 (quot -10 -3)))
+    (is (= 5 (quot 5/2 1/2)))
+    (is (= 3.0 (quot 10.0 3)))
+    (is (= 1 (rem 10 3)))
+    (is (= -1 (rem -10 3)))
+    (is (= 1 (rem 10 -3)))
+    (is (= -1 (rem -10 -3)))
+    (is (= 1 (mod 10 3)))
+    (is (= 2 (mod -10 3)))
+    (is (= -2 (mod 10 -3)))
+    (is (= -1 (mod -10 -3)))
+    (is (= 1 (apply rem [10 3])))
+    (is (= 3 (apply quot [10 3])))
+    (is (= (+ (* (quot 10 3) 3) (rem 10 3)) 10))
+    (expect-exception (quot 1 0) "zero")
+    (expect-exception (rem 1 0) "zero")
+    (expect-exception (mod 1 0) "zero")))
 
 (deftest literals
   (testing "ratio bigint char"
     (is (= 5/6 5/6))
     (is (= 10N 10N))
-    (is (= \M \M))))
+    (is (= \M \M))
+    (is (= 5 (numerator 5/6)))
+    (is (= 6 (denominator 5/6)))
+    (is (= 2 (numerator 4/6)))
+    (is (= 3 (denominator 4/6)))
+    (is (= -2 (numerator (/ -2 3))))
+    (is (= 3 (denominator (/ -2 3))))
+    (is (= 7 (numerator 7)))
+    (is (= 1 (denominator 7)))
+    (is (= 10N (numerator 10N)))
+    (is (= 1 (denominator 10N)))
+    (is (= 3 (apply numerator [3/2])))
+    (expect-exception (numerator 1.5) "ratio")
+    (expect-exception (denominator :a) "ratio")))
 
 (deftest type-of-keywords
   (testing "type-of returns type keywords"
@@ -108,7 +142,20 @@
     (is (> 3 2 1))
     (is (>= 3 2 2))
     (is (< "a" "b"))
-    (is (>= "b" "a"))))
+    (is (>= "b" "a"))
+    (is (== 1 1.0))
+    (is (== 1 1 1.0))
+    (is (==))
+    (is (== 1))
+    (is (= false (== 1 2)))
+    (is (= -1 (compare 1 2)))
+    (is (= 1 (compare 2 1)))
+    (is (= 0 (compare 1 1.0)))
+    (is (= -1 (compare "a" "b")))
+    (is (= -1 (compare nil 1)))
+    (is (= 1 (compare 1 nil)))
+    (is (= 0 (compare nil nil)))
+    (expect-exception (== 1 :a) "numeric")))
 
 (deftest if-let-and-names
   (testing "if let hyphen predicate bang"
@@ -457,10 +504,44 @@
     (is (= 2 (pick 1 2)))
     (is (= 3 (when-let [x 3] x)))
     (is (= nil (when-let [x nil] x)))
+    (is (= nil (when-let [x false] x)))
+    (is (= 3 (if-let [x 3] x 0)))
+    (is (= 0 (if-let [x nil] x 0)))
+    (is (= 0 (if-let [x false] x 0)))
+    (is (= nil (if-let [x nil] x)))
+    (is (= :t (if-not false :t :e)))
+    (is (= :e (if-not true :t :e)))
+    (is (= nil (if-not true :t)))
+    (is (= false (if-some [x false] x :none)))
+    (is (= :none (if-some [x nil] x :none)))
+    (is (= 1 (if-some [x 1] x :none)))
+    (is (= nil (if-some [x nil] x)))
+    (is (= false (when-some [x false] x)))
+    (is (= nil (when-some [x nil] x)))
+    (is (= 4 (when-some [x 4] x)))
     (is (= 9 (some-> 3 (+ 6))))
     (is (= nil (some-> nil (+ 6))))
     (is (= 4/5 (some->> 5 (- 10) (/ 4))))
-    (is (= 11 (cond-> 10 true inc false dec)))))
+    (is (= 11 (cond-> 10 true inc false dec)))
+    (is (= 15 (cond->> 5 true (- 10) true (* 3))))
+    (is (= 5 (cond->> 5 false (- 10))))
+    (is (= [2 3 4] (cond->> [1 2 3] true (map add1) true vec)))
+    (is (= 0 (as-> 0 n)))
+    (is (= 3 (as-> 0 n (inc n) (+ n 5) (/ n 2))))
+    (is (= 15 (as-> 5 n (- 10 n) (* n 3))))
+    (is (= :b (condp = 2 1 :a 2 :b 3 :c)))
+    (is (= :z (condp = 9 1 :a :z)))
+    (is (= :z (condp = 9 1 :a :else :z)))
+    (is (= 3 (condp (fn [want x] (if (= want x) x nil)) 4
+                    1 :>> inc
+                    4 :>> dec)))
+    (expect-exception (condp = 1 2 :a) "No matching clause")
+    (is (= nil (dotimes [_i 0] 1)))
+    (is (= nil (dotimes [_ 3])))
+    (let [^{:volatile true} acc 0]
+      (dotimes [i 5]
+        (update! acc (+ acc i)))
+      (is (= 10 acc)))))
 
 (deftest fn-literals
   (testing "fn hash-fn def lambda"
@@ -586,6 +667,49 @@
     (expect-exception (throw "nope") "nope")
     (expect-exception (throw "nope"))))
 
+(deftest try-catch-finally
+  (testing "body value"
+    (is (= 1 (try 1)))
+    (is (= 2 (try 1 2)))
+    (is (= nil (try))))
+  (testing "catch thrown value"
+    (is (= "nope" (try (throw "nope") (catch Exception e e))))
+    (is (= :info (try (throw (ex-info "x" {:a 1})) (catch ExceptionInfo e :info)))))
+  (testing "Exception catches ExceptionInfo"
+    (is (= :ex (try (throw (ex-info "x" {})) (catch Exception e :ex)))))
+  (testing "ExceptionInfo does not catch a plain throw"
+    (expect-exception (try (throw "x") (catch ExceptionInfo e :nope)) "x"))
+  (testing "first matching catch wins"
+    (is (= :info (try (throw (ex-info "x" {}))
+                   (catch ExceptionInfo e :info)
+                   (catch Exception e :ex)))))
+  (testing ":default catches all"
+    (is (= 1 (try (throw "x") (catch :default e 1)))))
+  (testing "ex-message and ex-data"
+    (let [e (ex-info "boom" {:a 1})]
+      (is (= "boom" (ex-message e)))
+      (is (= {:a 1} (ex-data e)))
+      (is (= nil (ex-cause e)))
+      (is (= "boom" (:message e))))
+    (let [e (ex-info "boom" {:a 1} :cause)]
+      (is (= :cause (ex-cause e))))
+    (is (= "nope" (try (throw "nope") (catch Exception e (ex-message e)))))
+    (is (= nil (ex-data "nope")))
+    (is (= nil (ex-message nil)))
+    (is (= "boom" (apply ex-message [(ex-info "boom" {})]))))
+  (testing "finally runs"
+    (let [^{:volatile true} acc 0]
+      (is (= 1 (try 1 (finally (update! acc (inc acc))))))
+      (is (= 1 acc)))
+    (let [^{:volatile true} acc 0]
+      (is (= :caught (try (throw "x") (catch Exception e :caught) (finally (update! acc (inc acc))))))
+      (is (= 1 acc)))
+    (let [^{:volatile true} acc 0]
+      (expect-exception (try (throw "boom") (finally (update! acc (inc acc)))) "boom")
+      (is (= 1 acc))))
+  (testing "catch runtime panic"
+    (is (str/includes? (try (quot 1 0) (catch Exception e (ex-message e))) "zero"))))
+
 (deftest records
   (testing "defrecord constructor and keyword lookup"
     (let [f (->food 10 200)]
@@ -622,6 +746,16 @@
     (let [n (rand-int 10)]
       (is (and (>= n 0) (< n 10))))
     (is (= 0 (rand-int 1)))
+    (let [x (rand)]
+      (is (and (>= x 0) (< x 1))))
+    (let [x (rand 10)]
+      (is (and (>= x 0) (< x 10))))
+    (is (= :float (type-of (rand))))
+    (is (= :a (rand-nth [:a])))
+    (is (= [] (shuffle [])))
+    (is (= [1] (shuffle [1])))
+    (is (= [1 2 3] (sort (shuffle [3 1 2]))))
+    (expect-exception (rand-nth []) "empty")
     (is (= [2 3 4] (pmap add1 [1 2 3])))
     (is (= [0 1 2] (doall (range 0 3))))
     (is (= nil (dorun (range 0 3)))))
@@ -657,7 +791,30 @@
     (is (str/starts-with? "hello" "he"))
     (is (str/ends-with? "hello" "lo"))
     (is (.endsWith "hello" "lo"))
-    (is (= "Hello" (str/capitalize "hELLO"))))
+    (is (= "Hello" (str/capitalize "hELLO")))
+    (is (= "hello" (str/lower-case "HeLLo")))
+    (is (= "hi  " (str/triml "  hi  ")))
+    (is (= "  hi" (str/trimr "  hi  ")))
+    (is (= "hi" (str/trim-newline "hi\n\r")))
+    (is (str/includes? "hello" "ell"))
+    (is (= false (str/includes? "hello" "xyz")))
+    (is (= 2 (str/index-of "hello" "l")))
+    (is (= 3 (str/index-of "hello" "l" 3)))
+    (is (nil? (str/index-of "hello" "z")))
+    (is (= 3 (str/index-of "café" "é")))
+    (is (= 3 (str/last-index-of "hello" "l")))
+    (is (= 2 (str/last-index-of "hello" "l" 2)))
+    (is (nil? (str/last-index-of "hello" "z")))
+    (is (= "b-aa" (str/replace-first "aa-aa" "aa" "b")))
+    (is (= ["a" "b" "c"] (str/split-lines "a\nb\r\nc\n")))
+    (is (= "cba" (str/reverse "abc")))
+    (is (= "b😀a" (str/reverse "a😀b")))
+    (is (= "ello" (subs "hello" 1)))
+    (is (= "ell" (subs "hello" 1 4)))
+    (is (= "😀" (subs "a😀b" 1 2)))
+    (is (= "" (subs "ab" 2)))
+    (is (= "ell" (apply subs ["hello" 1 4])))
+    (expect-exception (subs "ab" 3) "range"))
   (testing "math abs regex compile character long"
     (is (= 3 (math/abs -3)))
     (is (re-matches (regex/compile "^he.*o$") "hello"))

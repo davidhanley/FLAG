@@ -99,7 +99,9 @@ Implemented special forms:
 - `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close chan)))`. Yields `nil` if it is the last body form.
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
-- `(throw x)` / `(ex-info msg map)`
+- `(throw x)` / `(ex-info msg map)` / `(ex-info msg map cause)`
+- `(try expr* catch-clause* finally-clause?)` with `(catch Type name expr*)` and `(finally expr*)`
+- `(ex-message e)` / `(ex-data e)` / `(ex-cause e)`
 - `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(println …)` / `(format fmt args…)`
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
@@ -135,10 +137,112 @@ Implemented macros (from `prologue.flag`):
 - `not` / `not=`
 - `cond`
 - `case` (constant match/expr pairs; optional final default)
-- `->` / `->>` / `some->` / `some->>` / `cond->`
-- `when-let`
+- `condp` (pred + expr; test/result pairs, `test :>> result-fn`, leftover or `:else`)
+- `->` / `->>` / `some->` / `some->>` / `cond->` / `cond->>` / `as->`
+- `dotimes` (eager `0 .. n-1`; returns `nil`)
+- `when-let` / `if-let` / `if-not` / `if-some` / `when-some` (`if-some`/`when-some` bind when not `nil`, so `false` is kept)
 - `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
 - `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)
+
+There is no `while`. Prefer `loop` / `for` / `doseq` / `dotimes` over open-ended imperative loops.
+
+### `as->`
+
+Named-binding thread. Bind `name` to `expr`, then to each successive form.
+
+```clojure
+(as-> 0 n
+  (inc n)
+  (+ n 5)
+  (/ n 2))
+;; => 3
+
+(as-> 5 n
+  (- 10 n)
+  (* n 3))
+;; => 15
+```
+
+`(as-> x name)` with no forms is `x`.
+
+### `condp`
+
+`(condp pred expr & clauses)` tests `(pred test expr)` for each clause.
+
+- `test result` — if the pred call is truthy, return `result`
+- `test :>> result-fn` — if truthy, call `(result-fn pred-result)`
+- leftover form or `:else result` — default
+- no match — throw (`"No matching clause: …"`)
+
+```clojure
+(condp = 2
+  1 :a
+  2 :b
+  3 :c)
+;; => :b
+
+(condp = 9
+  1 :a
+  :z)
+;; => :z
+
+(condp = 9
+  1 :a
+  :else :z)
+;; => :z
+
+(condp (fn [want x] (if (= want x) x nil)) 4
+  1 :>> inc
+  4 :>> dec)
+;; => 3
+```
+
+`pred` is spliced into each test (same as `case` for the expression).
+
+### `dotimes`
+
+`(dotimes [name n] body…)` runs `body` with `name` bound to `0 .. n-1`. Eager (`doseq` over `(range 0 n)`). Returns `nil`. Negative or zero `n` does nothing.
+
+```clojure
+(let [^{:volatile true} acc 0]
+  (dotimes [i 5]
+    (update! acc (+ acc i)))
+  acc)
+;; => 10
+```
+
+### `try` / `catch` / `finally`
+
+Clojure-shaped. Compiles to Go `defer`/`recover`. `(throw x)` panics the FLAG value; runtime panics (strings) become strings in `catch`.
+
+```clojure
+(try
+  expr*
+  (catch ExceptionInfo e expr*)
+  (catch Exception e expr*)
+  (finally expr*))
+```
+
+Catch types (first match wins):
+
+| Type | Matches |
+|------|---------|
+| `ExceptionInfo` | maps from `(ex-info msg data)` / `(ex-info msg data cause)` |
+| `Exception` / `Throwable` / `:default` | any recovered panic |
+
+`(ex-message e)` / `(ex-data e)` / `(ex-cause e)` follow Clojure (`nil` when absent). Thrown strings yield themselves from `ex-message`.
+
+```clojure
+(try
+  (throw (ex-info "boom" {:a 1}))
+  (catch ExceptionInfo e
+    (ex-data e))
+  (finally
+    (println "done")))
+;; => {:a 1}
+```
+
+`catch` / `finally` are only legal inside `try`. There are no Java exception classes.
 
 ## Data literals
 
@@ -215,11 +319,17 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### Numeric and comparison — R
 
-- `+`, `-`, `*`, `/`, `%`
-- `=`, `<`, `<=`, `>`, `>=`
+- `+`, `-`, `*`, `/`, `%` (`%` is Clojure `mod`)
+- `quot` / `rem` / `mod` (Clojure: truncating quotient; remainder with sign of dividend; modulus with sign of divisor)
+- `=`, `==` (numeric equality; `(== 1 1.0)` is true; non-numbers throw), `<`, `<=`, `>`, `>=`
+- `compare` (returns `-1`/`0`/`1`; numbers, strings, and `nil`)
 - `max` / `min` (at least one argument)
-- `rand-int` (`(rand-int n)` → `[0, n)`)
+- `rand-int` (`(rand-int n)` → integer `[0, n)`)
+- `rand` (`(rand)` → float `[0, 1)`; `(rand n)` → float `[0, n)`)
+- `rand-nth` (random element; empty collection throws)
+- `shuffle` (random permutation as an array; does not mutate the input)
 - `double` (coerce to float)
+- `numerator` / `denominator` (ratios and integers; denominator is always positive; floats throw)
 
 ### Sequence operations
 
@@ -296,6 +406,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 ### Symbols / strings / printing
 
 - **R/special** `symbol` / `name` / `keyword` / `str` / `println` / `format` (Go `fmt.Sprintf`)
+- **R** `subs` (`(subs s start)` or `(subs s start end)`; rune indices, exclusive end; panics out of range)
 - **R** `re-pattern` / `re-matches`
 
 ### JSON
@@ -316,7 +427,7 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 
 | Namespace | Functions |
 |-----------|-----------|
-| `str/` | `trim`, `replace`, `escape`, `split`, `join`, `blank?`, `starts-with?`, `ends-with?`, `upper-case`, `capitalize` |
+| `str/` | `trim`, `triml`, `trimr`, `trim-newline`, `replace`, `replace-first`, `escape`, `split`, `split-lines`, `join`, `blank?`, `includes?`, `index-of`, `last-index-of`, `starts-with?`, `ends-with?`, `upper-case`, `lower-case`, `capitalize`, `reverse` |
 | `io/` | `reader`, `writer`, `readline`, `scan-directory` |
 | `vector/` | `vector`, `get`, `set`, `append`, `prepend`, `pop`, `insert`, `remove` (FLAG vectors only) |
 | `json/` | `read`, `read-str` |
@@ -419,6 +530,48 @@ Runtime numeric tags include:
 Arithmetic promotes as needed across numeric types.
 
 Recent optimization: numeric comparisons have fast paths for common integer cases (`long/long`, `long/bigint`, `bigint/bigint`), significantly reducing overhead in hot recursive numeric code.
+
+### `quot`, `rem`, `mod` (and `%`)
+
+Clojure-style two-argument ops on ints, ratios, and floats. Integer (or ratio) divide-by-zero throws; float zero follows IEEE.
+
+| Form | Meaning | Sign / rounding | Example |
+|------|---------|-----------------|---------|
+| `(quot num div)` | integer quotient | toward zero | `(quot -10 3)` → `-3` |
+| `(rem num div)` | remainder | sign of **dividend** | `(rem -10 3)` → `-1` |
+| `(mod num div)` | modulus | sign of **divisor** | `(mod -10 3)` → `2` |
+| `(% num div)` | same as `mod` | sign of **divisor** | `(% -5 3)` → `1` |
+
+Identity: `(+ (* (quot n d) d) (rem n d))` equals `n` (when `d` is nonzero).
+
+```clojure
+(quot 10 3)       ;; 3
+(quot 10 -3)      ;; -3
+(quot 5/2 1/2)    ;; 5
+(quot 10.0 3)     ;; 3.0
+
+(rem 10 3)        ;; 1
+(rem -10 -3)      ;; -1
+
+(mod 10 3)        ;; 1
+(mod -10 3)       ;; 2
+(mod 10 -3)       ;; -2
+(mod -10 -3)      ;; -1
+```
+
+### `==` and `compare`
+
+- `==` is numeric-only (ints, ratios, floats). Zero or one argument is `true`. Non-numbers throw.
+- `=` is value equality (and also treats `1` and `1.0` as equal).
+- `compare` returns `-1`, `0`, or `1`. `nil` is smaller than any other value.
+
+```clojure
+(== 1 1.0 1)          ;; true
+(== 1 2)              ;; false
+(compare 1 2)         ;; -1
+(compare "a" "b")     ;; -1
+(compare nil 1)       ;; -1
+```
 
 ## Sequences and laziness
 

@@ -4,10 +4,10 @@
 (defmacro when-not [test & body]
   (if test nil (do body)))
 
-(defmacro inc [x]
+(defn inc [x]
   (+ x 1))
 
-(defmacro dec [x]
+(defn dec [x]
   (- x 1))
 
 (defmacro not= [a b]
@@ -91,11 +91,87 @@
                  tmp)
                rest)))))
 
+(defmacro cond->> [x & clauses]
+  (macro-case (do clauses)
+    ([] x)
+    ([test (f & args) & rest]
+     (let [tmp x]
+       (cond->> (if test
+                  (f args tmp)
+                  tmp)
+                rest)))
+    ([test f & rest]
+     (let [tmp x]
+       (cond->> (if test
+                  (f tmp)
+                  tmp)
+                rest)))))
+
+(defmacro as-> [expr name & forms]
+  (macro-case (do forms)
+    ([] expr)
+    ([form & rest]
+     (let [name expr]
+       (as-> form name rest)))))
+
+(defmacro condp [pred expr & clauses]
+  (macro-case (do clauses)
+    ([] (throw (str "No matching clause: " expr)))
+    ([:else result] result)
+    ([default] default)
+    ([test :>> result-fn & rest]
+     (let [tmp (pred test expr)]
+       (if tmp
+         (result-fn tmp)
+         (condp pred expr rest))))
+    ([test result & rest]
+     (if (pred test expr)
+       result
+       (condp pred expr rest)))))
+
+(defmacro dotimes [bindings & body]
+  (macro-case (do bindings)
+    ([name n]
+     (doseq [name (range 0 n)]
+       (do body)))))
+
 (defmacro when-let [bindings & body]
   (macro-case (do bindings)
     ([name value]
      (let [name value]
        (if name
+         (do body))))))
+
+(defmacro if-let
+  ([bindings then]
+   (if-let bindings then nil))
+  ([bindings then else]
+   (macro-case (do bindings)
+     ([name value]
+      (let [name value]
+        (if name then else))))))
+
+(defmacro if-not
+  ([test then]
+   (if test nil then))
+  ([test then else]
+   (if test else then)))
+
+(defmacro if-some
+  ([bindings then]
+   (if-some bindings then nil))
+  ([bindings then else]
+   (macro-case (do bindings)
+     ([name value]
+      (let [name value]
+        (if (nil? name) else then))))))
+
+(defmacro when-some [bindings & body]
+  (macro-case (do bindings)
+    ([name value]
+     (let [name value]
+       (if (nil? name)
+         nil
          (do body))))))
 
 (defmacro with-open [bindings & body]

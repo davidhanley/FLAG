@@ -985,6 +985,23 @@ func TestNthAndSlowNth(t *testing.T) {
 	}
 }
 
+func TestSubs(t *testing.T) {
+	if got := Subs(NewString("hello"), NewLong(1)); got.StringValue() != "ello" {
+		t.Fatalf("unexpected 2-arg subs: %q", got.StringValue())
+	}
+	if got := Subs(NewString("hello"), NewLong(1), NewLong(4)); got.StringValue() != "ell" {
+		t.Fatalf("unexpected 3-arg subs: %q", got.StringValue())
+	}
+	if got := Subs(NewString("a😀b"), NewLong(1), NewLong(2)); got.StringValue() != "😀" {
+		t.Fatalf("unexpected rune subs: %q", got.StringValue())
+	}
+	if got := Subs(NewString("ab"), NewLong(2)); got.StringValue() != "" {
+		t.Fatalf("expected empty end-of-string subs, got %q", got.StringValue())
+	}
+	assertPanics(t, func() { Subs(NewString("ab"), NewLong(3)) })
+	assertPanics(t, func() { Subs(NewString("ab"), NewLong(1), NewLong(0)) })
+}
+
 func TestLazyListConcurrentRealizationIsSafe(t *testing.T) {
 	source := Range(NewLong(1), NewLong(1200))
 

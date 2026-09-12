@@ -789,6 +789,26 @@ func Nth(coll Value, index Value, notFound ...Value) Value {
 	}
 }
 
+func Subs(s Value, start Value, end ...Value) Value {
+	if s.tag != TagString {
+		panic("subs expects a string")
+	}
+	if len(end) > 1 {
+		panic("subs expects 2 or 3 arguments")
+	}
+	runes := []rune(s.StringValue())
+	n := len(runes)
+	i := nonNegativeCount("subs", start)
+	j := n
+	if len(end) == 1 {
+		j = nonNegativeCount("subs", end[0])
+	}
+	if i > n || j > n || i > j {
+		panic("subs index out of range")
+	}
+	return NewString(string(runes[i:j]))
+}
+
 func SlowNth(coll Value, index Value, notFound ...Value) Value {
 	if len(notFound) > 1 {
 		panic("slow-nth expects collection, index, and optional default")
