@@ -66,7 +66,7 @@
   (loop [cs (seq token) n 0]
     (if (empty? cs)
       n
-      (recur (rest cs) (if (= "/" (first cs)) (inc n) n)))))
+      (recur (rest cs) (if (= "/" (first cs)) (+ n 1) n)))))
 
 (defn split-once
   [token sep]
@@ -164,9 +164,9 @@
              (if (and (= idx 0) (or (= ch "+") (= ch "-")))
                (if (empty? (rest cs))
                  false
-                 (recur (rest cs) (inc idx)))
+                 (recur (rest cs) (+ idx 1)))
                (if (not (nil? (long/parse ch)))
-                 (recur (rest cs) (inc idx))
+                 (recur (rest cs) (+ idx 1))
                  false)))))))
 
 (defn parse-atom-token
