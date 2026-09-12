@@ -3,39 +3,44 @@
 
 (defn ast->source
   [expr]
-  (cond
-    (= :atom (:kind expr)) (:value expr)
-    (= :list (:kind expr))
-    (loop [remaining (:children expr)
-           out ""
-           first? true]
-      (if (empty? remaining)
-        (str "(" out ")")
-        (let [piece (ast->source (first remaining))]
-          (if first?
-            (recur (rest remaining) piece false)
-            (recur (rest remaining) (str out " " piece) false)))))
-    (= :vector (:kind expr))
-    (loop [remaining (:children expr)
-           out ""
-           first? true]
-      (if (empty? remaining)
-        (str "[" out "]")
-        (let [piece (ast->source (first remaining))]
-          (if first?
-            (recur (rest remaining) piece false)
-            (recur (rest remaining) (str out " " piece) false)))))
-    (= :map (:kind expr))
-    (loop [remaining (:children expr)
-           out ""
-           first? true]
-      (if (empty? remaining)
-        (str "{" out "}")
-        (let [piece (ast->source (first remaining))]
-          (if first?
-            (recur (rest remaining) piece false)
-            (recur (rest remaining) (str out " " piece) false)))))
-    true (throw (ex-info "unsupported AST node" {:expr expr}))))
+  (let [kind (:kind expr)
+        join (fn [nodes]
+               (loop [remaining nodes out "" first? true]
+                 (if (empty? remaining)
+                   out
+                   (let [piece (ast->source (first remaining))]
+                     (if first?
+                       (recur (rest remaining) piece false)
+                       (recur (rest remaining) (str out " " piece) false))))))]
+    (cond
+      (= kind :symbol) (:name expr)
+      (= kind :keyword) (str ":" (:name expr))
+      (= kind :quoted-symbol) (str "'" (:name expr))
+      (= kind :int) (str (:value expr))
+      (= kind :bigint) (str (:value expr) "N")
+      (= kind :float) (:raw expr)
+      (= kind :ratio) (str (:numerator expr) "/" (:denominator expr))
+      (= kind :string) (format "%q" (:value expr))
+      (= kind :char)
+      (let [ch (:value expr)]
+        (cond
+          (= ch " ") "\\space"
+          (= ch "\n") "\\newline"
+          (= ch "\t") "\\tab"
+          true (str "\\" ch)))
+      (= kind :list) (str "(" (join (:elements expr)) ")")
+      (= kind :vector) (str "[" (join (:elements expr)) "]")
+      (= kind :pipe-vector)
+      (let [inner (join (:elements expr))]
+        (if (empty? inner)
+          "| |"
+          (str "| " inner " |")))
+      (= kind :map) (str "{" (join (:entries expr)) "}")
+      (= kind :set) (str "#{" (join (:elements expr)) "}")
+      (= kind :quoted-list) (str "'(" (join (:elements expr)) ")")
+      (= kind :hash-fn) (str "#(" (ast->source (:body expr)) ")")
+      (= kind :meta) (str "^" (ast->source (:meta expr)) " " (ast->source (:target expr)))
+      true (throw (ex-info "unsupported AST node" {:expr expr})))))
 
 (defn asts->source
   [exprs]

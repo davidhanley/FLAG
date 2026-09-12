@@ -1,93 +1,419 @@
 {:namespace "compiler"
- :exports   [build-ast-from-tokens]
- :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close]]]}
+ :exports   [build-ast-from-tokens ast-node->canonical asts->canonical]
+ :imports   [["async.lib" :refer [go make-channel channel-send channel-receive channel-close atom deref reset!]]]}
 
-(defn opening-token->kind
+(defn parse-error
+  [line col msg]
+  (throw (str "parse error at " line ":" col ": " msg)))
+
+(defn token-line [tok] (:line tok))
+(defn token-col [tok] (:offset tok))
+
+(defn make-parser
+  [in]
+  {:in in :la (atom :none) :last (atom nil)})
+
+(defn peek
+  [p]
+  (let [la (deref (:la p))]
+    (if (= :none la)
+      (let [t (channel-receive (:in p))]
+        (if (nil? t)
+          (do
+            (reset! (:la p) :eof)
+            :eof)
+          (do
+            (reset! (:last p) t)
+            (reset! (:la p) t)
+            t)))
+      la)))
+
+(defn next-tok
+  [p]
+  (let [t (peek p)]
+    (reset! (:la p) :none)
+    t))
+
+(defn eof-line-col
+  [p]
+  (let [last (deref (:last p))]
+    (if (nil? last)
+      [1 1]
+      [(:line last) (+ (:offset last) (count (:token last)))])))
+
+(defn starts-with-char?
+  [token ch]
+  (and (not (empty? token))
+       (= ch (first (seq token)))))
+
+(defn ends-with-char?
+  [token ch]
+  (and (not (empty? token))
+       (= ch (last (seq token)))))
+
+(defn contains-float-mark?
   [token]
+  (loop [cs (seq token)]
+    (if (empty? cs)
+      false
+      (let [ch (first cs)]
+        (if (or (= ch ".") (= ch "e") (= ch "E"))
+          true
+          (recur (rest cs)))))))
+
+(defn slash-count
+  [token]
+  (loop [cs (seq token) n 0]
+    (if (empty? cs)
+      n
+      (recur (rest cs) (if (= "/" (first cs)) (+ n 1) n)))))
+
+(defn split-once
+  [token sep]
+  (loop [cs (seq token) left ""]
+    (if (empty? cs)
+      nil
+      (if (= sep (first cs))
+        (loop [r (rest cs) right ""]
+          (if (empty? r)
+            [left right]
+            (recur (rest r) (str right (first r)))))
+        (recur (rest cs) (str left (first cs)))))))
+
+(defn unescape-char
+  [ch]
   (cond
-    (= token "(") :list
-    (= token "[") :vector
-    (= token "{") :map
-    :else nil))
+    (= ch "n") "\n"
+    (= ch "t") "\t"
+    (= ch "r") "\r"
+    true ch))
 
-(defn closing-token?
+(defn unquote-go-string
   [token]
-  (or (= token ")")
-      (= token "]")
-      (= token "}")))
+  (let [chars (seq token)
+        n (count chars)]
+    (if (or (< n 2)
+            (not= "\"" (first chars))
+            (not= "\"" (last chars)))
+      :error
+      (loop [remaining (take (- n 2) (drop 1 chars))
+             out ""
+             escaped false]
+        (if (empty? remaining)
+          (if escaped :error out)
+          (let [ch (first remaining)]
+            (if escaped
+              (recur (rest remaining) (str out (unescape-char ch)) false)
+              (if (= ch "\\")
+                (recur (rest remaining) out true)
+                (if (= ch "\"")
+                  :error
+                  (recur (rest remaining) (str out ch) false))))))))))
 
-(defn matches-closing-token?
-  [kind token]
-  (or (and (= kind :list) (= token ")"))
-      (and (= kind :vector) (= token "]"))
-      (and (= kind :map) (= token "}"))))
+(defn string-token?
+  [tok]
+  (starts-with-char? (:token tok) "\""))
 
-(defn make-branch-node
-  [kind line offset]
-  {:kind kind
-   :line line
-   :offset offset
-   :children []})
+(defn strip-edges
+  [token left right]
+  (let [chars (seq token)
+        n (count chars)]
+    (if (<= n (+ left right))
+      ""
+      (loop [remaining (take (- n left right) (drop left chars))
+             out ""]
+        (if (empty? remaining)
+          out
+          (recur (rest remaining) (str out (first remaining))))))))
 
-(defn make-atom-node
-  [token line offset]
-  {:kind :atom
-   :line line
-   :offset offset
-   :value token})
+(defn triple-quoted?
+  [token]
+  (let [chars (seq token)
+        n (count chars)]
+    (and (>= n 6)
+         (= "\"" (nth chars 0))
+         (= "\"" (nth chars 1))
+         (= "\"" (nth chars 2)))))
 
-(defn append-child
-  [node child]
-  (assoc node :children (conj (:children node) child)))
+(defn triple-quoted-closed?
+  [token]
+  (let [chars (seq token)
+        n (count chars)]
+    (and (>= n 6)
+         (= "\"" (nth chars (- n 1)))
+         (= "\"" (nth chars (- n 2)))
+         (= "\"" (nth chars (- n 3))))))
 
-(defn stack-top
-  [stack]
-  (last stack))
+(defn parse-char-token
+  [token line col]
+  (let [text (subs token 1)]
+    (cond
+      (= text "space") {:kind :char :value " " :line line :col col}
+      (= text "newline") {:kind :char :value "\n" :line line :col col}
+      (= text "tab") {:kind :char :value "\t" :line line :col col}
+      (= 1 (count (seq text))) {:kind :char :value text :line line :col col}
+      true (parse-error line col "unsupported character literal"))))
 
-(defn stack-pop
-  [stack]
-  (reverse (rest (reverse stack))))
+(defn signed-decimal-int?
+  [token]
+  (and (not (empty? token))
+       (loop [cs (seq token) idx 0]
+         (if (empty? cs)
+           (> idx 0)
+           (let [ch (first cs)]
+             (if (and (= idx 0) (or (= ch "+") (= ch "-")))
+               (if (empty? (rest cs))
+                 false
+                 (recur (rest cs) (+ idx 1)))
+               (if (not (nil? (long/parse ch)))
+                 (recur (rest cs) (+ idx 1))
+                 false)))))))
 
-(defn append-node-to-stack
-  [stack node out]
-  (if (empty? stack)
-    (do
-      (channel-send out node)
-      stack)
-    (conj (stack-pop stack) (append-child (stack-top stack) node))))
+(defn parse-atom-token
+  [tok]
+  (let [token (:token tok)
+        line (token-line tok)
+        col (token-col tok)]
+    (cond
+      (and (starts-with-char? token ":") (> (count token) 1))
+      {:kind :keyword :name (subs token 1) :line line :col col}
+
+      (and (starts-with-char? token "\\") (> (count token) 1))
+      (parse-char-token token line col)
+
+      (and (= 1 (slash-count token))
+           (not (starts-with-char? token "/"))
+           (not (ends-with-char? token "/")))
+      (let [parts (split-once token "/")
+            numerator (long/parse (first parts))
+            denominator (long/parse (first (rest parts)))]
+        (if (and (not (nil? numerator)) (not (nil? denominator)))
+          (if (= 0 denominator)
+            (parse-error line col "ratio denominator cannot be zero")
+            {:kind :ratio :numerator numerator :denominator denominator :line line :col col})
+          {:kind :symbol :name token :line line :col col}))
+
+      (and (ends-with-char? token "N")
+           (signed-decimal-int? (subs token 0 (- (count token) 1))))
+      {:kind :bigint :value (subs token 0 (- (count token) 1)) :line line :col col}
+
+      true
+      (let [as-int (long/parse token)]
+        (if (and (not (nil? as-int)) (signed-decimal-int? token))
+          {:kind :int :value as-int :line line :col col}
+          (if (contains-float-mark? token)
+            (try
+              {:kind :float :value (double (json/read-str token)) :raw token :line line :col col}
+              (catch Exception e
+                {:kind :symbol :name token :line line :col col}))
+            {:kind :symbol :name token :line line :col col}))))))
+
+(defn comment-list?
+  [elements]
+  (and (not (empty? elements))
+       (= :symbol (:kind (first elements)))
+       (= "comment" (:name (first elements)))))
+
+(defn collection-node
+  [kind elements tok]
+  (if (= kind :map)
+    {:kind :map :entries elements :line (token-line tok) :col (token-col tok)}
+    {:kind kind :elements elements :line (token-line tok) :col (token-col tok)}))
+
+(defn dispatch-error
+  [tok]
+  (if (= "#" (:token tok))
+    (parse-error (token-line tok) (token-col tok) "unexpected end after #")
+    (parse-error (token-line tok) (token-col tok) "unsupported reader dispatch")))
+
+(defn read-string-token
+  [p]
+  (let [tok (next-tok p)
+        token (:token tok)
+        line (token-line tok)
+        col (token-col tok)]
+    (if (triple-quoted? token)
+      (if (triple-quoted-closed? token)
+        {:kind :string :value (strip-edges token 3 3) :line line :col col}
+        (parse-error line col "unterminated string literal"))
+      (let [unquoted (unquote-go-string token)]
+        (if (= :error unquoted)
+          (parse-error line col "unterminated string literal")
+          {:kind :string :value unquoted :line line :col col})))))
+
+(defn read-expr
+  [p]
+  (let [tok (peek p)]
+    (if (= :eof tok)
+      (let [pos (eof-line-col p)]
+        (parse-error (first pos) (first (rest pos)) "unexpected end of input"))
+      (let [token (:token tok)]
+        (cond
+          (or (= token "(") (= token "[") (= token "|") (= token "{") (= token "#{"))
+          (let [kind (cond
+                       (= token "(") :list
+                       (= token "[") :vector
+                       (= token "|") :pipe-vector
+                       (= token "{") :map
+                       true :set)
+                closer (cond
+                         (= token "(") ")"
+                         (= token "[") "]"
+                         (= token "|") "|"
+                         true "}")
+                missing (cond
+                          (= token "(") "missing closing \")\""
+                          (= token "[") "missing closing \"]\""
+                          (= token "|") "missing closing \"|\""
+                          true "missing closing \"}\"")
+                open (next-tok p)]
+            (loop [elements []]
+              (let [cur (peek p)]
+                (if (= :eof cur)
+                  (parse-error (token-line open) (token-col open) missing)
+                  (if (= closer (:token cur))
+                    (do
+                      (next-tok p)
+                      (if (and (= kind :list) (comment-list? elements))
+                        nil
+                        (collection-node kind elements open)))
+                    (let [item (read-expr p)]
+                      (if (nil? item)
+                        (recur elements)
+                        (recur (conj elements item)))))))))
+
+          (= token "#(")
+          (let [open (next-tok p)]
+            (loop [elements []]
+              (let [cur (peek p)]
+                (if (= :eof cur)
+                  (parse-error (token-line open) (token-col open) "missing closing \")\"")
+                  (if (= ")" (:token cur))
+                    (do
+                      (next-tok p)
+                      {:kind :hash-fn
+                       :body {:kind :list :elements elements :line (token-line open) :col (token-col open)}
+                       :line (token-line open)
+                       :col (token-col open)})
+                    (let [item (read-expr p)]
+                      (if (nil? item)
+                        (recur elements)
+                        (recur (conj elements item)))))))))
+
+          (= token "^")
+          (let [meta-tok (next-tok p)
+                meta (read-expr p)
+                target (read-expr p)]
+            {:kind :meta :meta meta :target target :line (token-line meta-tok) :col (token-col meta-tok)})
+
+          (= token "'")
+          (let [quote-tok (next-tok p)
+                quoted (read-expr p)]
+            (cond
+              (= :symbol (:kind quoted))
+              {:kind :quoted-symbol :name (:name quoted) :line (token-line quote-tok) :col (token-col quote-tok)}
+              (= :list (:kind quoted))
+              {:kind :quoted-list :elements (:elements quoted) :line (token-line quote-tok) :col (token-col quote-tok)}
+              true
+              (parse-error (token-line quote-tok) (token-col quote-tok) "quote currently supports symbols and lists")))
+
+          (string-token? tok) (read-string-token p)
+
+          (or (= token ")") (= token "]") (= token "}"))
+          (parse-error (token-line tok) (token-col tok) "expected expression")
+
+          (starts-with-char? token "#") (do (next-tok p) (dispatch-error tok))
+
+          true (do (next-tok p) (parse-atom-token tok)))))))
+
+(defn ast-node->canonical
+  [expr]
+  (let [kind (:kind expr)
+        line (:line expr)
+        col (:col expr)
+        join (fn [nodes]
+               (loop [remaining nodes out "" first? true]
+                 (if (empty? remaining)
+                   out
+                   (let [piece (ast-node->canonical (first remaining))]
+                     (if first?
+                       (recur (rest remaining) piece false)
+                       (recur (rest remaining) (str out " " piece) false))))))]
+    (cond
+      (= kind :list)
+      (str "(:list :line " line " :col " col " :elements [" (join (:elements expr)) "])")
+      (= kind :vector)
+      (str "(:vector :line " line " :col " col " :elements [" (join (:elements expr)) "])")
+      (= kind :pipe-vector)
+      (str "(:pipe-vector :line " line " :col " col " :elements [" (join (:elements expr)) "])")
+      (= kind :map)
+      (str "(:map :line " line " :col " col " :entries [" (join (:entries expr)) "])")
+      (= kind :set)
+      (str "(:set :line " line " :col " col " :elements [" (join (:elements expr)) "])")
+      (= kind :hash-fn)
+      (str "(:hash-fn :line " line " :col " col " :body " (ast-node->canonical (:body expr)) ")")
+      (= kind :meta)
+      (str "(:meta :line " line " :col " col " :meta " (ast-node->canonical (:meta expr)) " :target " (ast-node->canonical (:target expr)) ")")
+      (= kind :symbol)
+      (str "(:symbol :name " (:name expr) " :line " line " :col " col ")")
+      (= kind :keyword)
+      (str "(:keyword :name " (:name expr) " :line " line " :col " col ")")
+      (= kind :quoted-symbol)
+      (str "(:quoted-symbol :name " (:name expr) " :line " line " :col " col ")")
+      (= kind :quoted-list)
+      (str "(:quoted-list :line " line " :col " col " :elements [" (join (:elements expr)) "])")
+      (= kind :string)
+      (str "(:string :value " (format "%q" (:value expr)) " :line " line " :col " col ")")
+      (= kind :char)
+      (str "(:char :value " (format "%q" (:value expr)) " :line " line " :col " col ")")
+      (= kind :int)
+      (str "(:int :value " (:value expr) " :line " line " :col " col ")")
+      (= kind :bigint)
+      (str "(:bigint :value " (:value expr) " :line " line " :col " col ")")
+      (= kind :float)
+      (str "(:float :value " (:value expr) " :raw " (:raw expr) " :line " line " :col " col ")")
+      (= kind :ratio)
+      (str "(:ratio :numerator " (:numerator expr) " :denominator " (:denominator expr) " :line " line " :col " col ")")
+      true
+      (throw (str "unsupported AST node " kind)))))
+
+(defn asts->canonical
+  [exprs]
+  (loop [remaining exprs out "" first? true]
+    (if (empty? remaining)
+      out
+      (let [piece (ast-node->canonical (first remaining))]
+        (if first?
+          (recur (rest remaining) piece false)
+          (recur (rest remaining) (str out "\n" piece) false))))))
+
+(defn drain-remaining
+  [in]
+  (loop [_more true]
+    (if (nil? (channel-receive in))
+      nil
+      (recur true))))
 
 (defn build-ast-from-tokens
   "Read SourceToken maps from in, parse top-level expressions, and send AST nodes to a new output channel."
   [in]
-  (let [out (make-channel 64)]
+  (let [out (make-channel 64)
+        p (make-parser in)]
     (go
-      (loop [stack []]
-        (let [source-token (channel-receive in)]
-          (if (nil? source-token)
-            (if (empty? stack)
-              (channel-close out)
-              (throw (ex-info "unterminated expression"
-                              {:kind (:kind (stack-top stack))
-                               :line (:line (stack-top stack))
-                               :offset (:offset (stack-top stack))})))
-            (let [token (:token source-token)
-                  line (:line source-token)
-                  offset (:offset source-token)
-                  kind (opening-token->kind token)]
-              (if kind
-                (recur (conj stack (make-branch-node kind line offset)))
-                (if (closing-token? token)
-                  (if (empty? stack)
-                    (throw (ex-info "unexpected closing token"
-                                    {:token token :line line :offset offset}))
-                    (let [node (stack-top stack)
-                          remaining (stack-pop stack)]
-                      (if (matches-closing-token? (:kind node) token)
-                        (recur (append-node-to-stack remaining node out))
-                        (throw (ex-info "mismatched closing token"
-                                        {:token token
-                                         :expected-kind (:kind node)
-                                         :line line
-                                         :offset offset})))))
-                  (recur (append-node-to-stack stack (make-atom-node token line offset) out)))))))))
+      (try
+        (loop [_more true]
+          (let [tok (peek p)]
+            (if (= :eof tok)
+              nil
+              (let [form (read-expr p)]
+                (if (nil? form)
+                  (recur true)
+                  (do
+                    (channel-send out form)
+                    (recur true)))))))
+        (catch Exception e
+          (channel-send out {:kind :error :message (ex-message e)}))
+        (finally
+          (channel-close out)
+          (drain-remaining in))))
     out))

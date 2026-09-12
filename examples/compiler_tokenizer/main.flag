@@ -31,6 +31,11 @@
   (drain-tokens (->> (tokenizer/tokenize-file path)
                      (ast/build-ast-from-tokens))))
 
+(defn build-ast-source-to-array
+  [source]
+  (drain-tokens (->> (tokenizer/tokenize-source source)
+                     (ast/build-ast-from-tokens))))
+
 (defn expand-file-to-array
   [path]
   (drain-tokens (parser/parse-file path)))
@@ -55,6 +60,12 @@
   [tokens n]
   (first (drop n tokens)))
 
+(defn node-children
+  [node]
+  (if (= :map (:kind node))
+    (:entries node)
+    (:elements node)))
+
 (defn nth-child
   [node n]
-  (nth-token (:children node) n))
+  (nth-token (node-children node) n))

@@ -346,7 +346,8 @@ func parseFlagTokenizerLine(line string) (compiler.SourceToken, error) {
 
 // Acceptance: FLAG tests for ->> hygiene with (mapcat rest) then map.
 func TestAcceptanceThreadingFlagTests(t *testing.T) {
-	testsDir, err := filepath.Abs(filepath.Join("..", "..", "tests"))
+	chdirRepoRoot(t)
+	testsDir, err := filepath.Abs(filepath.Join("tests"))
 	if err != nil {
 		t.Fatalf("Abs testsDir: %v", err)
 	}
@@ -363,24 +364,11 @@ func TestAcceptanceThreadingFlagTests(t *testing.T) {
 
 // Acceptance: examples/compiler_tokenizer FLAG tests for tokenizer behavior.
 func TestAcceptanceCompilerTokenizerFlagTests(t *testing.T) {
-	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "compiler_tokenizer"))
+	chdirRepoRoot(t)
+	exampleDir, err := filepath.Abs(filepath.Join("examples", "compiler_tokenizer"))
 	if err != nil {
 		t.Fatalf("Abs exampleDir: %v", err)
 	}
-	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("Abs repoRoot: %v", err)
-	}
-	prevWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	if err := os.Chdir(repoRoot); err != nil {
-		t.Fatalf("Chdir repoRoot: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(prevWD)
-	})
 	cleanup := func() {
 		_ = os.Remove(filepath.Join(exampleDir, "main.go"))
 		_ = os.Remove(filepath.Join(exampleDir, "compiler_tokenizer.go"))
@@ -395,7 +383,8 @@ func TestAcceptanceCompilerTokenizerFlagTests(t *testing.T) {
 
 // Acceptance: examples/concurrency FLAG tests (sleep, go, fib) via `flag-lang test`.
 func TestAcceptanceConcurrencyFlagTests(t *testing.T) {
-	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "examples", "concurrency"))
+	chdirRepoRoot(t)
+	exampleDir, err := filepath.Abs(filepath.Join("examples", "concurrency"))
 	if err != nil {
 		t.Fatalf("Abs exampleDir: %v", err)
 	}
@@ -622,4 +611,22 @@ func TestRunTestRemapsTestFileErrors(t *testing.T) {
 	if !strings.Contains(err.Error(), "at 3:") {
 		t.Fatalf("expected remapped line number in error, got: %v", err)
 	}
+}
+
+func chdirRepoRoot(t *testing.T) {
+	t.Helper()
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Abs repoRoot: %v", err)
+	}
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir repoRoot: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(prevWD)
+	})
 }
