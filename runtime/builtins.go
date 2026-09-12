@@ -28,12 +28,26 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(func(args ...Value) Value {
 			return foldNumericBuiltin("/", Div, args...)
 		})
-	case "%":
+	case "%", "mod":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 2 {
-				panic("% expects exactly two arguments")
+				panic(name + " expects exactly two arguments")
 			}
 			return Mod(args[0], args[1])
+		})
+	case "quot":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("quot expects exactly two arguments")
+			}
+			return Quot(args[0], args[1])
+		})
+	case "rem":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("rem expects exactly two arguments")
+			}
+			return Rem(args[0], args[1])
 		})
 	case "=":
 		return NewFunction(func(args ...Value) Value {
@@ -357,6 +371,16 @@ func BuiltinFunction(name string) Value {
 			}
 			format := valueAsString(args[0])
 			return NewString(Format(format, args[1:]...))
+		})
+	case "subs":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 && len(args) != 3 {
+				panic("subs expects 2 or 3 arguments")
+			}
+			if len(args) == 2 {
+				return Subs(args[0], args[1])
+			}
+			return Subs(args[0], args[1], args[2])
 		})
 	case "keyword":
 		return NewFunction(func(args ...Value) Value {

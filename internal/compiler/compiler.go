@@ -2849,11 +2849,11 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
-	case "+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "max", "min",
+	case "+", "-", "*", "/", "%", "quot", "rem", "mod", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
 		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
 		"list", "array",
-		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "keyword", "into",
+		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "subs", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
 		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "repeat",
 		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
@@ -2890,7 +2890,13 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 		case "/":
 			return infixExprToGo(list.Elements[1:], runtimeAlias+".Div", ctx, locals)
 		case "%":
-			return modExprToGo(list.Elements[1:], ctx, locals)
+			return binaryNumericCallExprToGo("%", runtimeAlias+".Mod", list.Elements[1:], ctx, locals)
+		case "mod":
+			return binaryNumericCallExprToGo("mod", runtimeAlias+".Mod", list.Elements[1:], ctx, locals)
+		case "quot":
+			return binaryNumericCallExprToGo("quot", runtimeAlias+".Quot", list.Elements[1:], ctx, locals)
+		case "rem":
+			return binaryNumericCallExprToGo("rem", runtimeAlias+".Rem", list.Elements[1:], ctx, locals)
 		case "=":
 			return equalityExprToGo(list.Elements[1:], ctx, locals)
 		case "<":
@@ -3211,25 +3217,25 @@ func infixExprToGo(args []Expr, runtimeOp string, ctx compileContext, locals map
 	return goExpr{code: acc, kind: exprKindValue}, nil
 }
 
-func modExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+func binaryNumericCallExprToGo(name, goName string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	if len(args) != 2 {
-		return goExpr{}, fmt.Errorf("%% expects exactly two arguments")
+		return goExpr{}, fmt.Errorf("%s expects exactly two arguments", name)
 	}
 	left, err := exprToGo(args[0], ctx, locals)
 	if err != nil {
 		return goExpr{}, err
 	}
 	if left.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("%% expects numeric Value arguments")
+		return goExpr{}, fmt.Errorf("%s expects numeric Value arguments", name)
 	}
 	right, err := exprToGo(args[1], ctx, locals)
 	if err != nil {
 		return goExpr{}, err
 	}
 	if right.kind != exprKindValue {
-		return goExpr{}, fmt.Errorf("%% expects numeric Value arguments")
+		return goExpr{}, fmt.Errorf("%s expects numeric Value arguments", name)
 	}
-	return goExpr{code: fmt.Sprintf("%s.Mod(%s, %s)", runtimeAlias, left.code, right.code), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("%s(%s, %s)", goName, left.code, right.code), kind: exprKindValue}, nil
 }
 
 func maxExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

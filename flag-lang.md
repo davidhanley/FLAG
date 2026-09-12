@@ -135,12 +135,79 @@ Implemented macros (from `prologue.flag`):
 - `not` / `not=`
 - `cond`
 - `case` (constant match/expr pairs; optional final default)
-- `condp` (predicate + expr; test/result pairs, `test :>> result-fn`, leftover or `:else` default)
+- `condp` (pred + expr; test/result pairs, `test :>> result-fn`, leftover or `:else`)
 - `->` / `->>` / `some->` / `some->>` / `cond->` / `cond->>` / `as->`
-- `dotimes` (eager `0 .. n-1` via `doseq`; returns `nil`)
+- `dotimes` (eager `0 .. n-1`; returns `nil`)
 - `when-let` / `if-let` / `if-not` / `if-some` / `when-some` (`if-some`/`when-some` bind when not `nil`, so `false` is kept)
 - `with-open` — bind resources and `(defer (fn [] (close name)))` each; LIFO close
 - `with-channel` — same as `with-open`, for channels (`(with-channel [ch (make-channel)] ...)`)
+
+There is no `while`. Prefer `loop` / `for` / `doseq` / `dotimes` over open-ended imperative loops.
+
+### `as->`
+
+Named-binding thread. Bind `name` to `expr`, then to each successive form.
+
+```clojure
+(as-> 0 n
+  (inc n)
+  (+ n 5)
+  (/ n 2))
+;; => 3
+
+(as-> 5 n
+  (- 10 n)
+  (* n 3))
+;; => 15
+```
+
+`(as-> x name)` with no forms is `x`.
+
+### `condp`
+
+`(condp pred expr & clauses)` tests `(pred test expr)` for each clause.
+
+- `test result` — if the pred call is truthy, return `result`
+- `test :>> result-fn` — if truthy, call `(result-fn pred-result)`
+- leftover form or `:else result` — default
+- no match — throw (`"No matching clause: …"`)
+
+```clojure
+(condp = 2
+  1 :a
+  2 :b
+  3 :c)
+;; => :b
+
+(condp = 9
+  1 :a
+  :z)
+;; => :z
+
+(condp = 9
+  1 :a
+  :else :z)
+;; => :z
+
+(condp (fn [want x] (if (= want x) x nil)) 4
+  1 :>> inc
+  4 :>> dec)
+;; => 3
+```
+
+`pred` is spliced into each test (same as `case` for the expression).
+
+### `dotimes`
+
+`(dotimes [name n] body…)` runs `body` with `name` bound to `0 .. n-1`. Eager (`doseq` over `(range 0 n)`). Returns `nil`. Negative or zero `n` does nothing.
+
+```clojure
+(let [^{:volatile true} acc 0]
+  (dotimes [i 5]
+    (update! acc (+ acc i)))
+  acc)
+;; => 10
+```
 
 ## Data literals
 
@@ -217,7 +284,8 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### Numeric and comparison — R
 
-- `+`, `-`, `*`, `/`, `%`
+- `+`, `-`, `*`, `/`, `%` (`%` is Clojure `mod`)
+- `quot` / `rem` / `mod` (Clojure: truncating quotient; remainder with sign of dividend; modulus with sign of divisor)
 - `=`, `<`, `<=`, `>`, `>=`
 - `max` / `min` (at least one argument)
 - `rand-int` (`(rand-int n)` → `[0, n)`)
@@ -298,6 +366,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 ### Symbols / strings / printing
 
 - **R/special** `symbol` / `name` / `keyword` / `str` / `println` / `format` (Go `fmt.Sprintf`)
+- **R** `subs` (`(subs s start)` or `(subs s start end)`; rune indices, exclusive end; panics out of range)
 - **R** `re-pattern` / `re-matches`
 
 ### JSON
@@ -318,7 +387,7 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 
 | Namespace | Functions |
 |-----------|-----------|
-| `str/` | `trim`, `replace`, `escape`, `split`, `join`, `blank?`, `starts-with?`, `ends-with?`, `upper-case`, `capitalize` |
+| `str/` | `trim`, `triml`, `trimr`, `trim-newline`, `replace`, `replace-first`, `escape`, `split`, `split-lines`, `join`, `blank?`, `includes?`, `index-of`, `last-index-of`, `starts-with?`, `ends-with?`, `upper-case`, `lower-case`, `capitalize`, `reverse` |
 | `io/` | `reader`, `writer`, `readline`, `scan-directory` |
 | `vector/` | `vector`, `get`, `set`, `append`, `prepend`, `pop`, `insert`, `remove` (FLAG vectors only) |
 | `json/` | `read`, `read-str` |
@@ -421,6 +490,34 @@ Runtime numeric tags include:
 Arithmetic promotes as needed across numeric types.
 
 Recent optimization: numeric comparisons have fast paths for common integer cases (`long/long`, `long/bigint`, `bigint/bigint`), significantly reducing overhead in hot recursive numeric code.
+
+### `quot`, `rem`, `mod` (and `%`)
+
+Clojure-style two-argument ops on ints, ratios, and floats. Integer (or ratio) divide-by-zero throws; float zero follows IEEE.
+
+| Form | Meaning | Sign / rounding | Example |
+|------|---------|-----------------|---------|
+| `(quot num div)` | integer quotient | toward zero | `(quot -10 3)` → `-3` |
+| `(rem num div)` | remainder | sign of **dividend** | `(rem -10 3)` → `-1` |
+| `(mod num div)` | modulus | sign of **divisor** | `(mod -10 3)` → `2` |
+| `(% num div)` | same as `mod` | sign of **divisor** | `(% -5 3)` → `1` |
+
+Identity: `(+ (* (quot n d) d) (rem n d))` equals `n` (when `d` is nonzero).
+
+```clojure
+(quot 10 3)       ;; 3
+(quot 10 -3)      ;; -3
+(quot 5/2 1/2)    ;; 5
+(quot 10.0 3)     ;; 3.0
+
+(rem 10 3)        ;; 1
+(rem -10 -3)      ;; -1
+
+(mod 10 3)        ;; 1
+(mod -10 3)       ;; 2
+(mod 10 -3)       ;; -2
+(mod -10 -3)      ;; -1
+```
 
 ## Sequences and laziness
 

@@ -86,9 +86,9 @@ Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-som
 
 ## Math (`clojure.core` / `Math`)
 
-Have: `+` `-` `*` `/` `%` `max` `min` `rand-int` `double` `math/abs` `inc`/`dec` (macros) `zero?` `pos?` `neg?` `even?` `odd?`.
+Have: `+` `-` `*` `/` `%` `quot` `rem` `mod` `max` `min` `rand-int` `double` `math/abs` `inc`/`dec` `zero?` `pos?` `neg?` `even?` `odd?`.
 
-- [ ] Add **`quot`**, **`rem`**, **`mod`** (Clojure names; document how they relate to FLAG `%`).
+- [x] Add **`quot`**, **`rem`**, **`mod`** (Clojure names; FLAG `%` is `mod`).
 - [ ] Add **`compare`** and numeric **`==`**.
 - [ ] Add **`rand`**, **`rand-nth`**, **`shuffle`**.
 - [ ] Add **`numerator`** / **`denominator`** for ratios.
@@ -98,12 +98,12 @@ Have: `+` `-` `*` `/` `%` `max` `min` `rand-int` `double` `math/abs` `inc`/`dec`
 
 ## Strings (`clojure.core` / `clojure.string`)
 
-Have: `str`, `format`, `str/trim`, `str/replace`, `str/escape`, `str/split`, `str/join`, `str/blank?`, `str/starts-with?`, `str/ends-with?`, `str/upper-case`, `str/capitalize`.
+Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-newline`, `str/replace`, `str/replace-first`, `str/escape`, `str/split`, `str/split-lines`, `str/join`, `str/blank?`, `str/includes?`, `str/index-of`, `str/last-index-of`, `str/starts-with?`, `str/ends-with?`, `str/upper-case`, `str/lower-case`, `str/capitalize`, `str/reverse`.
 
-- [ ] Add **`subs`**.
-- [ ] Add **`str/lower-case`**, **`str/triml`**, **`str/trimr`**, **`str/trim-newline`**.
-- [ ] Add **`str/includes?`**, **`str/index-of`**, **`str/last-index-of`**.
-- [ ] Add **`str/replace-first`**, **`str/split-lines`**, **`str/reverse`**.
+- [x] Add **`subs`**.
+- [x] Add **`str/lower-case`**, **`str/triml`**, **`str/trimr`**, **`str/trim-newline`**.
+- [x] Add **`str/includes?`**, **`str/index-of`**, **`str/last-index-of`**.
+- [x] Add **`str/replace-first`**, **`str/split-lines`**, **`str/reverse`**.
 - [ ] Add regex seq helpers: **`re-find`**, **`re-seq`**, **`re-find`** groups / **`re-matches`** already exists.
 
 ## Sequence extras

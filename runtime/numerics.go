@@ -222,21 +222,38 @@ func Min(values ...Value) Value {
 	return best
 }
 
-func Mod(lhs, rhs Value) Value {
-	if !isIntegerTag(lhs.tag) || !isIntegerTag(rhs.tag) {
-		panic("mod expects integer Value arguments")
+func Quot(lhs, rhs Value) Value {
+	ensureNumericOperands("quot", lhs, rhs)
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return NewDouble(math.Trunc(numericToFloat64(lhs) / numericToFloat64(rhs)))
 	}
-	left := valueToBigInt(lhs)
-	right := valueToBigInt(rhs)
-	if right.Sign() == 0 {
-		panic("mod by zero")
+	if isNumericZero(rhs) {
+		panic("quot by zero")
 	}
+	left := valueToRat(lhs)
+	right := valueToRat(rhs)
+	n := new(big.Int).Mul(left.Num(), right.Denom())
+	d := new(big.Int).Mul(left.Denom(), right.Num())
+	return newIntegerValueFromBigInt(new(big.Int).Quo(n, d))
+}
 
-	remainder := new(big.Int).Rem(left, right)
-	if remainder.Sign() != 0 && ((remainder.Sign() < 0) != (right.Sign() < 0)) {
-		remainder.Add(remainder, right)
+func Rem(lhs, rhs Value) Value {
+	ensureNumericOperands("rem", lhs, rhs)
+	panicIfExactZeroDivisor("rem", lhs, rhs)
+	return Sub(lhs, Mul(Quot(lhs, rhs), rhs))
+}
+
+func Mod(lhs, rhs Value) Value {
+	ensureNumericOperands("mod", lhs, rhs)
+	panicIfExactZeroDivisor("mod", lhs, rhs)
+	m := Rem(lhs, rhs)
+	if isNumericZero(m) {
+		return m
 	}
-	return newIntegerValueFromBigInt(remainder)
+	if (compareNumeric(m, NewLong(0)) < 0) == (compareNumeric(rhs, NewLong(0)) < 0) {
+		return m
+	}
+	return Add(m, rhs)
 }
 
 func Eq(lhs, rhs Value) bool {
@@ -551,6 +568,19 @@ func (v Value) bigIntPointer() *big.Int {
 
 func isIntegerTag(tag ValueTag) bool {
 	return tag == TagLong || tag == TagBigInt
+}
+
+func isNumericZero(v Value) bool {
+	return compareNumeric(v, NewLong(0)) == 0
+}
+
+func panicIfExactZeroDivisor(op string, lhs, rhs Value) {
+	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+		return
+	}
+	if isNumericZero(rhs) {
+		panic(op + " by zero")
+	}
 }
 
 func ensureNumericOperands(op string, lhs, rhs Value) {

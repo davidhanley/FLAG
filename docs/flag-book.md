@@ -47,8 +47,9 @@ Themes that run through the rest of the book:
 
 What is implemented **today**: CLI commands, core syntax, special forms, data
 literals, destructuring, builtins, functional combinators (`comp`, `complement`,
-`fnil`, `every-pred`, `some-fn`, `iterate`, `repeatedly`), numerics, sequences,
-testing, and pointers into modules / async / libraries.
+`fnil`, `every-pred`, `some-fn`, `iterate`, `repeatedly`), control macros
+(`as->`, `condp`, `dotimes`), numerics (`quot` / `rem` / `mod`), sequences,
+testing, strings (`subs`, `str/lower-case`, `str/index-of`, …), and pointers into modules / async / libraries.
 
 Read this for day-to-day “how do I write FLAG?”
 

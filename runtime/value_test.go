@@ -44,6 +44,44 @@ func TestModIntegers(t *testing.T) {
 	}
 }
 
+func TestQuotRemMod(t *testing.T) {
+	if got := Quot(NewLong(10), NewLong(3)); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("quot 10 3: expected 3, got %#v", got)
+	}
+	if got := Quot(NewLong(-10), NewLong(3)); got.tag != TagLong || got.Long() != -3 {
+		t.Fatalf("quot -10 3: expected -3, got %#v", got)
+	}
+	if got := Quot(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != -3 {
+		t.Fatalf("quot 10 -3: expected -3, got %#v", got)
+	}
+	if got := Quot(NewRatio(5, 2), NewRatio(1, 2)); got.tag != TagLong || got.Long() != 5 {
+		t.Fatalf("quot 5/2 1/2: expected 5, got %#v", got)
+	}
+	if got := Quot(NewDouble(10), NewLong(3)); got.tag != TagDouble || got.Double() != 3 {
+		t.Fatalf("quot 10.0 3: expected 3.0, got %#v", got)
+	}
+
+	if got := Rem(NewLong(10), NewLong(3)); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("rem 10 3: expected 1, got %#v", got)
+	}
+	if got := Rem(NewLong(-10), NewLong(3)); got.tag != TagLong || got.Long() != -1 {
+		t.Fatalf("rem -10 3: expected -1, got %#v", got)
+	}
+	if got := Rem(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("rem 10 -3: expected 1, got %#v", got)
+	}
+	if got := Rem(NewLong(-10), NewLong(-3)); got.tag != TagLong || got.Long() != -1 {
+		t.Fatalf("rem -10 -3: expected -1, got %#v", got)
+	}
+
+	if got := Mod(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != -2 {
+		t.Fatalf("mod 10 -3: expected -2, got %#v", got)
+	}
+	if got := Mod(NewDouble(-5), NewLong(3)); got.tag != TagDouble || got.Double() != 1 {
+		t.Fatalf("mod -5.0 3: expected 1.0, got %#v", got)
+	}
+}
+
 func TestValueToAnyForRatio(t *testing.T) {
 	div := Div(NewLong(3), NewLong(2))
 	rat, ok := ValueToAny(div).(*big.Rat)
