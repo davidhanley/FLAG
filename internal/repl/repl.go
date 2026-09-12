@@ -330,6 +330,12 @@ func runtimeSymbols() map[string]map[string]reflect.Value {
 			"GoBind_async_Deref":          reflect.ValueOf(flagrt.GoBind_async_Deref),
 			"GoBind_async_Reset":          reflect.ValueOf(flagrt.GoBind_async_Reset),
 			"GoBind_async_Swap":           reflect.ValueOf(flagrt.GoBind_async_Swap),
+			"Throw":                       reflect.ValueOf(flagrt.Throw),
+			"PanicValue":                  reflect.ValueOf(flagrt.PanicValue),
+			"CatchMatches":                reflect.ValueOf(flagrt.CatchMatches),
+			"ExMessage":                   reflect.ValueOf(flagrt.ExMessage),
+			"ExData":                      reflect.ValueOf(flagrt.ExData),
+			"ExCause":                     reflect.ValueOf(flagrt.ExCause),
 		},
 	}
 	// Merge the generated static Go-function adapters (GoBind_*), which the

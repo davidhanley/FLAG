@@ -66,6 +66,23 @@ func TestRunVectorPrintsPipeSyntax(t *testing.T) {
 	}
 }
 
+func TestRunTryCatch(t *testing.T) {
+	got := replEval(t,
+		`(try (/ 1 0) (catch Exception e :caught))`,
+		`(try (throw (ex-info "boom" {:a 1})) (catch ExceptionInfo e (ex-data e)))`,
+		`(ex-message (ex-info "boom" {}))`,
+	)
+	want := []string{":caught", "{:a 1}", "boom"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
 func replEval(t *testing.T, forms ...string) []string {
 	t.Helper()
 	input := strings.NewReader(strings.Join(append(append([]string{}, forms...), ":quit"), "\n") + "\n")

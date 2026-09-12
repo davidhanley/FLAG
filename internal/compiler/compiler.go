@@ -3658,7 +3658,7 @@ func throwExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-	return goExpr{code: fmt.Sprintf("func() %s.Value {\n\tpanic(%s)\n\treturn %s.NilValue()\n}()", runtimeAlias, valueCode.code, runtimeAlias), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("func() %s.Value {\n\t%s.Throw(%s)\n\treturn %s.NilValue()\n}()", runtimeAlias, runtimeAlias, valueCode.code, runtimeAlias), kind: exprKindValue}, nil
 }
 
 type tryCatchClause struct {
