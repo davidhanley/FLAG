@@ -91,6 +91,28 @@ func replEval(t *testing.T, forms ...string) []string {
 	return results
 }
 
+func TestRunQuotRemCompareNumericEq(t *testing.T) {
+	got := replEval(t,
+		"(quot 10 3)",
+		"(quot -10 3)",
+		"(rem -10 3)",
+		"(mod -10 3)",
+		"(<= 1 2 2)",
+		"(>= 3 2 2)",
+		"(== 1 1.0 1)",
+		"(compare 1 2)",
+	)
+	want := []string{"3", "-3", "-1", "2", "true", "true", "true", "-1"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
 func TestRunDefAssocMap(t *testing.T) {
 	input := strings.NewReader("(def a {:a 1 :b 2})\n(def b (assoc a :c 3))\nb\n:quit\n")
 	var output bytes.Buffer

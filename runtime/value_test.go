@@ -82,6 +82,66 @@ func TestQuotRemMod(t *testing.T) {
 	}
 }
 
+func TestCompareAndNumericEq(t *testing.T) {
+	if got := Compare(NewLong(1), NewLong(2)); got.tag != TagLong || got.Long() != -1 {
+		t.Fatalf("compare 1 2: expected -1, got %#v", got)
+	}
+	if got := Compare(NewLong(2), NewLong(1)); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("compare 2 1: expected 1, got %#v", got)
+	}
+	if got := Compare(NewLong(1), NewDouble(1)); got.tag != TagLong || got.Long() != 0 {
+		t.Fatalf("compare 1 1.0: expected 0, got %#v", got)
+	}
+	if got := Compare(NewString("a"), NewString("b")); got.tag != TagLong || got.Long() != -1 {
+		t.Fatalf("compare a b: expected -1, got %#v", got)
+	}
+	if got := Compare(NilValue(), NewLong(1)); got.tag != TagLong || got.Long() != -1 {
+		t.Fatalf("compare nil 1: expected -1, got %#v", got)
+	}
+	if got := Compare(NewLong(1), NilValue()); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("compare 1 nil: expected 1, got %#v", got)
+	}
+	if !NumericEq() || !NumericEq(NewLong(1)) || !NumericEq(NewLong(1), NewDouble(1), NewRatio(2, 2)) {
+		t.Fatal("expected numeric == to hold")
+	}
+	if NumericEq(NewLong(1), NewLong(2)) {
+		t.Fatal("expected 1 == 2 to be false")
+	}
+	assertPanics(t, func() { NumericEq(NewLong(1), NewKeyword("a")) })
+}
+
+func TestNumeratorDenominator(t *testing.T) {
+	if got := Numerator(NewRatio(5, 6)); got.tag != TagLong || got.Long() != 5 {
+		t.Fatalf("numerator 5/6: %#v", got)
+	}
+	if got := Denominator(NewRatio(5, 6)); got.tag != TagLong || got.Long() != 6 {
+		t.Fatalf("denominator 5/6: %#v", got)
+	}
+	if got := Numerator(NewRatio(4, 6)); got.tag != TagLong || got.Long() != 2 {
+		t.Fatalf("numerator 4/6 reduced: %#v", got)
+	}
+	if got := Denominator(NewRatio(4, 6)); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("denominator 4/6 reduced: %#v", got)
+	}
+	if got := Numerator(NewRatio(-2, 3)); got.tag != TagLong || got.Long() != -2 {
+		t.Fatalf("numerator -2/3: %#v", got)
+	}
+	if got := Denominator(NewRatio(-2, 3)); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("denominator -2/3: %#v", got)
+	}
+	if got := Numerator(NewLong(7)); got.tag != TagLong || got.Long() != 7 {
+		t.Fatalf("numerator 7: %#v", got)
+	}
+	if got := Denominator(NewLong(7)); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("denominator 7: %#v", got)
+	}
+	if got := Denominator(NewBigInt(10)); got.tag != TagLong || got.Long() != 1 {
+		t.Fatalf("denominator bigint: %#v", got)
+	}
+	assertPanics(t, func() { Numerator(NewDouble(1.5)) })
+	assertPanics(t, func() { Denominator(NewKeyword("a")) })
+}
+
 func TestValueToAnyForRatio(t *testing.T) {
 	div := Div(NewLong(3), NewLong(2))
 	rat, ok := ValueToAny(div).(*big.Rat)

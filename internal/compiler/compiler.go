@@ -2849,13 +2849,13 @@ func quotedLiteralToValueCode(expr Expr) (string, error) {
 
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
-	case "+", "-", "*", "/", "%", "quot", "rem", "mod", "=", "<", "<=", ">", ">=", "max", "min",
+	case "+", "-", "*", "/", "%", "quot", "rem", "mod", "compare", "==", "=", "<", "<=", ">", ">=", "max", "min",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
 		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
 		"list", "array",
-		"not-empty", "empty?", "nil?", "type-of", "count", "double", "format", "subs", "keyword", "into",
+		"not-empty", "empty?", "nil?", "type-of", "count", "double", "numerator", "denominator", "format", "subs", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
-		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "repeat",
+		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "rand", "rand-nth", "shuffle", "repeat",
 		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
 		"rename-keys", "map-invert", "select", "project", "rename",
 		"go-fn", "go-fn-args", "re-pattern", "re-matches":
@@ -2897,6 +2897,10 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return binaryNumericCallExprToGo("quot", runtimeAlias+".Quot", list.Elements[1:], ctx, locals)
 		case "rem":
 			return binaryNumericCallExprToGo("rem", runtimeAlias+".Rem", list.Elements[1:], ctx, locals)
+		case "compare":
+			return compareExprToGo(list.Elements[1:], ctx, locals)
+		case "==":
+			return numericEqExprToGo(list.Elements[1:], ctx, locals)
 		case "=":
 			return equalityExprToGo(list.Elements[1:], ctx, locals)
 		case "<":
@@ -3262,6 +3266,55 @@ func variadicNumericCallExprToGo(name, goName string, args []Expr, ctx compileCo
 		parts = append(parts, part.code)
 	}
 	return goExpr{code: fmt.Sprintf("%s(%s)", goName, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func compareExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 2 {
+		return goExpr{}, fmt.Errorf("compare expects exactly two arguments")
+	}
+	left, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	right, err := exprToGo(args[1], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	leftCode, err := comparisonValueCode(args[0], left, "compare")
+	if err != nil {
+		return goExpr{}, err
+	}
+	rightCode, err := comparisonValueCode(args[1], right, "compare")
+	if err != nil {
+		return goExpr{}, err
+	}
+	return goExpr{code: fmt.Sprintf("%s.Compare(%s, %s)", runtimeAlias, leftCode, rightCode), kind: exprKindValue}, nil
+}
+
+func numericEqExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	parts := make([]string, 0, len(args))
+	for _, item := range args {
+		part, err := exprToGo(item, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		if part.kind != exprKindValue {
+			return goExpr{}, exprError(item, "== arguments must evaluate to Value")
+		}
+		parts = append(parts, part.code)
+	}
+	return goExpr{code: fmt.Sprintf("%s.NewBool(%s.NumericEq(%s))", runtimeAlias, runtimeAlias, strings.Join(parts, ", ")), kind: exprKindValue}, nil
+}
+
+func comparisonValueCode(item Expr, part goExpr, name string) (string, error) {
+	switch part.kind {
+	case exprKindValue:
+		return part.code, nil
+	case exprKindString:
+		return fmt.Sprintf("%s.NewString(%s)", runtimeAlias, part.code), nil
+	default:
+		return "", exprError(item, name+" arguments must evaluate to Value")
+	}
 }
 
 func equalityExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

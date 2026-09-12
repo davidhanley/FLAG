@@ -22,6 +22,8 @@
     (is (= -2 (mod 10 -3)))
     (is (= -1 (mod -10 -3)))
     (is (= 1 (apply rem [10 3])))
+    (is (= 3 (apply quot [10 3])))
+    (is (= (+ (* (quot 10 3) 3) (rem 10 3)) 10))
     (expect-exception (quot 1 0) "zero")
     (expect-exception (rem 1 0) "zero")
     (expect-exception (mod 1 0) "zero")))
@@ -30,7 +32,20 @@
   (testing "ratio bigint char"
     (is (= 5/6 5/6))
     (is (= 10N 10N))
-    (is (= \M \M))))
+    (is (= \M \M))
+    (is (= 5 (numerator 5/6)))
+    (is (= 6 (denominator 5/6)))
+    (is (= 2 (numerator 4/6)))
+    (is (= 3 (denominator 4/6)))
+    (is (= -2 (numerator (/ -2 3))))
+    (is (= 3 (denominator (/ -2 3))))
+    (is (= 7 (numerator 7)))
+    (is (= 1 (denominator 7)))
+    (is (= 10N (numerator 10N)))
+    (is (= 1 (denominator 10N)))
+    (is (= 3 (apply numerator [3/2])))
+    (expect-exception (numerator 1.5) "ratio")
+    (expect-exception (denominator :a) "ratio")))
 
 (deftest type-of-keywords
   (testing "type-of returns type keywords"
@@ -127,7 +142,20 @@
     (is (> 3 2 1))
     (is (>= 3 2 2))
     (is (< "a" "b"))
-    (is (>= "b" "a"))))
+    (is (>= "b" "a"))
+    (is (== 1 1.0))
+    (is (== 1 1 1.0))
+    (is (==))
+    (is (== 1))
+    (is (= false (== 1 2)))
+    (is (= -1 (compare 1 2)))
+    (is (= 1 (compare 2 1)))
+    (is (= 0 (compare 1 1.0)))
+    (is (= -1 (compare "a" "b")))
+    (is (= -1 (compare nil 1)))
+    (is (= 1 (compare 1 nil)))
+    (is (= 0 (compare nil nil)))
+    (expect-exception (== 1 :a) "numeric")))
 
 (deftest if-let-and-names
   (testing "if let hyphen predicate bang"
@@ -675,6 +703,16 @@
     (let [n (rand-int 10)]
       (is (and (>= n 0) (< n 10))))
     (is (= 0 (rand-int 1)))
+    (let [x (rand)]
+      (is (and (>= x 0) (< x 1))))
+    (let [x (rand 10)]
+      (is (and (>= x 0) (< x 10))))
+    (is (= :float (type-of (rand))))
+    (is (= :a (rand-nth [:a])))
+    (is (= [] (shuffle [])))
+    (is (= [1] (shuffle [1])))
+    (is (= [1 2 3] (sort (shuffle [3 1 2]))))
+    (expect-exception (rand-nth []) "empty")
     (is (= [2 3 4] (pmap add1 [1 2 3])))
     (is (= [0 1 2] (doall (range 0 3))))
     (is (= nil (dorun (range 0 3)))))

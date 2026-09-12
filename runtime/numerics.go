@@ -41,6 +41,28 @@ func Double(v Value) Value {
 	return NewDouble(numericToFloat64(v))
 }
 
+func Numerator(v Value) Value {
+	switch v.tag {
+	case TagLong, TagBigInt:
+		return v
+	case TagRatio:
+		return newIntegerValueFromBigInt(new(big.Int).Set(v.Ratio().Num()))
+	default:
+		panic("numerator expects an integer or ratio")
+	}
+}
+
+func Denominator(v Value) Value {
+	switch v.tag {
+	case TagLong, TagBigInt:
+		return NewLong(1)
+	case TagRatio:
+		return newIntegerValueFromBigInt(new(big.Int).Set(v.Ratio().Denom()))
+	default:
+		panic("denominator expects an integer or ratio")
+	}
+}
+
 func NewRatio(numerator, denominator int64) Value {
 	rat := big.NewRat(numerator, denominator)
 	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
@@ -294,6 +316,42 @@ func Le(lhs, rhs Value) bool {
 
 func Ge(lhs, rhs Value) bool {
 	return compareOrdered(lhs, rhs) >= 0
+}
+
+func Compare(lhs, rhs Value) Value {
+	if lhs.tag == TagNil || rhs.tag == TagNil {
+		switch {
+		case lhs.tag == TagNil && rhs.tag == TagNil:
+			return NewLong(0)
+		case lhs.tag == TagNil:
+			return NewLong(-1)
+		default:
+			return NewLong(1)
+		}
+	}
+	return NewLong(int64(compareOrdered(lhs, rhs)))
+}
+
+func NumericEq(values ...Value) bool {
+	if len(values) <= 1 {
+		for _, value := range values {
+			if !isNumericTag(value.tag) {
+				panic("== expects numeric Value arguments")
+			}
+		}
+		return true
+	}
+	for _, value := range values {
+		if !isNumericTag(value.tag) {
+			panic("== expects numeric Value arguments")
+		}
+	}
+	for i := 1; i < len(values); i++ {
+		if compareNumeric(values[i-1], values[i]) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func compareOrdered(lhs, rhs Value) int {

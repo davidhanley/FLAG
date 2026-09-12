@@ -286,10 +286,15 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 - `+`, `-`, `*`, `/`, `%` (`%` is Clojure `mod`)
 - `quot` / `rem` / `mod` (Clojure: truncating quotient; remainder with sign of dividend; modulus with sign of divisor)
-- `=`, `<`, `<=`, `>`, `>=`
+- `=`, `==` (numeric equality; `(== 1 1.0)` is true; non-numbers throw), `<`, `<=`, `>`, `>=`
+- `compare` (returns `-1`/`0`/`1`; numbers, strings, and `nil`)
 - `max` / `min` (at least one argument)
-- `rand-int` (`(rand-int n)` → `[0, n)`)
+- `rand-int` (`(rand-int n)` → integer `[0, n)`)
+- `rand` (`(rand)` → float `[0, 1)`; `(rand n)` → float `[0, n)`)
+- `rand-nth` (random element; empty collection throws)
+- `shuffle` (random permutation as an array; does not mutate the input)
 - `double` (coerce to float)
+- `numerator` / `denominator` (ratios and integers; denominator is always positive; floats throw)
 
 ### Sequence operations
 
@@ -517,6 +522,20 @@ Identity: `(+ (* (quot n d) d) (rem n d))` equals `n` (when `d` is nonzero).
 (mod -10 3)       ;; 2
 (mod 10 -3)       ;; -2
 (mod -10 -3)      ;; -1
+```
+
+### `==` and `compare`
+
+- `==` is numeric-only (ints, ratios, floats). Zero or one argument is `true`. Non-numbers throw.
+- `=` is value equality (and also treats `1` and `1.0` as equal).
+- `compare` returns `-1`, `0`, or `1`. `nil` is smaller than any other value.
+
+```clojure
+(== 1 1.0 1)          ;; true
+(== 1 2)              ;; false
+(compare 1 2)         ;; -1
+(compare "a" "b")     ;; -1
+(compare nil 1)       ;; -1
 ```
 
 ## Sequences and laziness

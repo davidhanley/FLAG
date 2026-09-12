@@ -49,6 +49,17 @@ func BuiltinFunction(name string) Value {
 			}
 			return Rem(args[0], args[1])
 		})
+	case "compare":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("compare expects exactly two arguments")
+			}
+			return Compare(args[0], args[1])
+		})
+	case "==":
+		return NewFunction(func(args ...Value) Value {
+			return NewBool(NumericEq(args...))
+		})
 	case "=":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) < 2 {
@@ -129,6 +140,24 @@ func BuiltinFunction(name string) Value {
 				panic("rand-int expects exactly one argument")
 			}
 			return RandInt(args[0])
+		})
+	case "rand":
+		return NewFunction(func(args ...Value) Value {
+			return Rand(args...)
+		})
+	case "rand-nth":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("rand-nth expects exactly one argument")
+			}
+			return RandNth(args[0])
+		})
+	case "shuffle":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("shuffle expects exactly one argument")
+			}
+			return Shuffle(args[0])
 		})
 	case "first", "fist":
 		return NewFunction(func(args ...Value) Value {
@@ -363,6 +392,20 @@ func BuiltinFunction(name string) Value {
 				panic("double expects exactly one argument")
 			}
 			return Double(args[0])
+		})
+	case "numerator":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("numerator expects exactly one argument")
+			}
+			return Numerator(args[0])
+		})
+	case "denominator":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("denominator expects exactly one argument")
+			}
+			return Denominator(args[0])
 		})
 	case "format":
 		return NewFunction(func(args ...Value) Value {
