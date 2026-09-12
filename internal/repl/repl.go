@@ -16,7 +16,7 @@ import (
 )
 
 func Run(input io.Reader, output io.Writer) error {
-	i := interp.New(interp.Options{})
+	i := interp.New(interp.Options{Stderr: io.Discard})
 	i.Use(stdlib.Symbols)
 	flagrt.RegisterGoSymbols(stdlib.Symbols)
 	if err := i.Use(runtimeSymbols()); err != nil {

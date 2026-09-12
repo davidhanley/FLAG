@@ -3,6 +3,7 @@ package repl
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +68,7 @@ func TestRunVectorPrintsPipeSyntax(t *testing.T) {
 }
 
 func TestRunTryCatch(t *testing.T) {
+	stderr := captureStderr(t)
 	got := replEval(t,
 		`(try (/ 1 0) (catch Exception e :caught))`,
 		`(try (throw (ex-info "boom" {:a 1})) (catch ExceptionInfo e (ex-data e)))`,
@@ -80,6 +82,33 @@ func TestRunTryCatch(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
 		}
+	}
+	if errOut := stderr(); strings.Contains(errOut, "panic:") {
+		t.Fatalf("caught try should not print panic traces, stderr:\n%s", errOut)
+	}
+}
+
+func captureStderr(t *testing.T) func() string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	t.Cleanup(func() {
+		os.Stderr = old
+		_ = w.Close()
+		_ = r.Close()
+	})
+	return func() string {
+		_ = w.Close()
+		os.Stderr = old
+		b, readErr := io.ReadAll(r)
+		if readErr != nil {
+			t.Fatalf("read stderr: %v", readErr)
+		}
+		return string(b)
 	}
 }
 
