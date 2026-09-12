@@ -26,6 +26,65 @@ func TestParseTokenChannelMatchesParseFile(t *testing.T) {
 	}
 }
 
+func collectASTForms(t *testing.T, forms <-chan ASTForm) []Expr {
+	t.Helper()
+	out := make([]Expr, 0, 8)
+	for form := range forms {
+		if form.Err != nil {
+			t.Fatalf("AST stream returned error: %v", form.Err)
+		}
+		out = append(out, form.Expr)
+	}
+	return out
+}
+
+func TestBuildASTFromTokensStreamsTopLevelForms(t *testing.T) {
+	source := `(do
+  (println "hi")
+  {:x [1 2 3] :ok true}
+  '(1 2 3)
+  ^long value)
+(comment skipped)
+(def v | 1 2 |)`
+
+	fromSource, err := ParseFile(source)
+	if err != nil {
+		t.Fatalf("ParseFile returned error: %v", err)
+	}
+	streamed := collectASTForms(t, ParseSourceToChannel(source))
+	if len(streamed) != len(fromSource.Forms) {
+		t.Fatalf("expected %d streamed forms, got %d", len(fromSource.Forms), len(streamed))
+	}
+	for i := range streamed {
+		got := exprToSourceString(streamed[i])
+		want := exprToSourceString(fromSource.Forms[i])
+		if got != want {
+			t.Fatalf("form %d: streamed %s, ParseFile %s", i, got, want)
+		}
+	}
+}
+
+func TestBuildASTFromTokensReportsUnterminatedList(t *testing.T) {
+	var err error
+	count := 0
+	for form := range ParseSourceToChannel(`(println "x"`) {
+		if form.Err != nil {
+			err = form.Err
+			continue
+		}
+		count++
+	}
+	if err == nil {
+		t.Fatal("expected unterminated list error from AST stream")
+	}
+	if !strings.Contains(err.Error(), "missing closing") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no forms before error, got %d", count)
+	}
+}
+
 func TestParseFileMultipleFormsWhitespaceInsensitive(t *testing.T) {
 	source := `
 		; file comment

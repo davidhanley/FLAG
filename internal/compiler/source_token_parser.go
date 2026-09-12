@@ -41,28 +41,57 @@ type sourceTokenParser struct {
 	last      *SourceToken
 }
 
+// ASTForm is one top-level form from the streaming AST builder.
+// On failure, Err is set, Expr is nil, and the channel is then closed.
+type ASTForm struct {
+	Expr Expr
+	Err  error
+}
+
+// BuildASTFromTokens parses SourceToken values into top-level AST forms
+// and writes them to a channel, matching the tokenizer's streaming shape.
+func BuildASTFromTokens(tokens <-chan SourceToken) <-chan ASTForm {
+	out := make(chan ASTForm, 8)
+	go func() {
+		defer func() {
+			close(out)
+			for range tokens {
+			}
+		}()
+		p := sourceTokenParser{tokens: tokens}
+		for {
+			tok, err := p.peek()
+			if err != nil {
+				out <- ASTForm{Err: err}
+				return
+			}
+			if tok.Kind == sourceTokenEOF {
+				return
+			}
+			form, err := p.readExpr()
+			if err != nil {
+				out <- ASTForm{Err: err}
+				return
+			}
+			if _, ok := form.(CommentExpr); ok {
+				continue
+			}
+			out <- ASTForm{Expr: form}
+		}
+	}()
+	return out
+}
+
 // ParseTokenChannel parses a stream of SourceToken values into a file AST.
 func ParseTokenChannel(tokens <-chan SourceToken) (FileAST, error) {
-	p := sourceTokenParser{tokens: tokens}
 	forms := make([]Expr, 0, 8)
-
-	for {
-		tok, err := p.peek()
-		if err != nil {
-			return FileAST{}, err
+	for form := range BuildASTFromTokens(tokens) {
+		if form.Err != nil {
+			return FileAST{}, form.Err
 		}
-		if tok.Kind == sourceTokenEOF {
-			return FileAST{Forms: forms}, nil
-		}
-		form, err := p.readExpr()
-		if err != nil {
-			return FileAST{}, err
-		}
-		if _, ok := form.(CommentExpr); ok {
-			continue
-		}
-		forms = append(forms, form)
+		forms = append(forms, form.Expr)
 	}
+	return FileAST{Forms: forms}, nil
 }
 
 func (p *sourceTokenParser) peek() (parsedSourceToken, error) {
