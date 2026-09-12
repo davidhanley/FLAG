@@ -99,7 +99,9 @@ Implemented special forms:
 - `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close chan)))`. Yields `nil` if it is the last body form.
 - `(fn [args] body)`
 - `#(...)` shorthand function literals (`%`, `%1`, `%2`, ...)
-- `(throw x)` / `(ex-info msg map)`
+- `(throw x)` / `(ex-info msg map)` / `(ex-info msg map cause)`
+- `(try expr* catch-clause* finally-clause?)` with `(catch Type name expr*)` and `(finally expr*)`
+- `(ex-message e)` / `(ex-data e)` / `(ex-cause e)`
 - `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(println …)` / `(format fmt args…)`
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
@@ -208,6 +210,39 @@ Named-binding thread. Bind `name` to `expr`, then to each successive form.
   acc)
 ;; => 10
 ```
+
+### `try` / `catch` / `finally`
+
+Clojure-shaped. Compiles to Go `defer`/`recover`. `(throw x)` panics the FLAG value; runtime panics (strings) become strings in `catch`.
+
+```clojure
+(try
+  expr*
+  (catch ExceptionInfo e expr*)
+  (catch Exception e expr*)
+  (finally expr*))
+```
+
+Catch types (first match wins):
+
+| Type | Matches |
+|------|---------|
+| `ExceptionInfo` | maps from `(ex-info msg data)` / `(ex-info msg data cause)` |
+| `Exception` / `Throwable` / `:default` | any recovered panic |
+
+`(ex-message e)` / `(ex-data e)` / `(ex-cause e)` follow Clojure (`nil` when absent). Thrown strings yield themselves from `ex-message`.
+
+```clojure
+(try
+  (throw (ex-info "boom" {:a 1}))
+  (catch ExceptionInfo e
+    (ex-data e))
+  (finally
+    (println "done")))
+;; => {:a 1}
+```
+
+`catch` / `finally` are only legal inside `try`. There are no Java exception classes.
 
 ## Data literals
 

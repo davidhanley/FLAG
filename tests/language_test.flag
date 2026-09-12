@@ -667,6 +667,49 @@
     (expect-exception (throw "nope") "nope")
     (expect-exception (throw "nope"))))
 
+(deftest try-catch-finally
+  (testing "body value"
+    (is (= 1 (try 1)))
+    (is (= 2 (try 1 2)))
+    (is (= nil (try))))
+  (testing "catch thrown value"
+    (is (= "nope" (try (throw "nope") (catch Exception e e))))
+    (is (= :info (try (throw (ex-info "x" {:a 1})) (catch ExceptionInfo e :info)))))
+  (testing "Exception catches ExceptionInfo"
+    (is (= :ex (try (throw (ex-info "x" {})) (catch Exception e :ex)))))
+  (testing "ExceptionInfo does not catch a plain throw"
+    (expect-exception (try (throw "x") (catch ExceptionInfo e :nope)) "x"))
+  (testing "first matching catch wins"
+    (is (= :info (try (throw (ex-info "x" {}))
+                   (catch ExceptionInfo e :info)
+                   (catch Exception e :ex)))))
+  (testing ":default catches all"
+    (is (= 1 (try (throw "x") (catch :default e 1)))))
+  (testing "ex-message and ex-data"
+    (let [e (ex-info "boom" {:a 1})]
+      (is (= "boom" (ex-message e)))
+      (is (= {:a 1} (ex-data e)))
+      (is (= nil (ex-cause e)))
+      (is (= "boom" (:message e))))
+    (let [e (ex-info "boom" {:a 1} :cause)]
+      (is (= :cause (ex-cause e))))
+    (is (= "nope" (try (throw "nope") (catch Exception e (ex-message e)))))
+    (is (= nil (ex-data "nope")))
+    (is (= nil (ex-message nil)))
+    (is (= "boom" (apply ex-message [(ex-info "boom" {})]))))
+  (testing "finally runs"
+    (let [^{:volatile true} acc 0]
+      (is (= 1 (try 1 (finally (update! acc (inc acc))))))
+      (is (= 1 acc)))
+    (let [^{:volatile true} acc 0]
+      (is (= :caught (try (throw "x") (catch Exception e :caught) (finally (update! acc (inc acc))))))
+      (is (= 1 acc)))
+    (let [^{:volatile true} acc 0]
+      (expect-exception (try (throw "boom") (finally (update! acc (inc acc)))) "boom")
+      (is (= 1 acc))))
+  (testing "catch runtime panic"
+    (is (str/includes? (try (quot 1 0) (catch Exception e (ex-message e))) "zero"))))
+
 (deftest records
   (testing "defrecord constructor and keyword lookup"
     (let [f (->food 10 200)]

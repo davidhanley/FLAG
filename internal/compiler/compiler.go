@@ -2858,7 +2858,8 @@ func isBuiltinFunctionSymbol(name string) bool {
 		"assoc", "dissoc", "open-file", "close-file", "close-channel", "file-to-strings", "rand-int", "rand", "rand-nth", "shuffle", "repeat",
 		"union", "intersection", "difference", "subset?", "superset?", "disjoint?",
 		"rename-keys", "map-invert", "select", "project", "rename",
-		"go-fn", "go-fn-args", "re-pattern", "re-matches":
+		"go-fn", "go-fn-args", "re-pattern", "re-matches",
+		"ex-message", "ex-data", "ex-cause":
 		return true
 	default:
 		return false
@@ -2923,8 +2924,20 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return testingExprToGo(list.Elements[1:], ctx, locals)
 		case "ex-info":
 			return exInfoExprToGo(list.Elements[1:], ctx, locals)
+		case "ex-message":
+			return unaryValueRuntimeCall("ex-message", "ExMessage", list.Elements[1:], ctx, locals)
+		case "ex-data":
+			return unaryValueRuntimeCall("ex-data", "ExData", list.Elements[1:], ctx, locals)
+		case "ex-cause":
+			return unaryValueRuntimeCall("ex-cause", "ExCause", list.Elements[1:], ctx, locals)
 		case "throw":
 			return throwExprToGo(list.Elements[1:], ctx, locals)
+		case "try":
+			return tryExprToGo(list.Elements[1:], ctx, locals)
+		case "catch":
+			return goExpr{}, fmt.Errorf("catch used outside try")
+		case "finally":
+			return goExpr{}, fmt.Errorf("finally used outside try")
 		case "is":
 			return isExprToGo(list, ctx, locals)
 		case "expect-exception":
@@ -3645,7 +3658,217 @@ func throwExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-	return goExpr{code: fmt.Sprintf("func() %s.Value {\n\tpanic(%s.ValueToString(%s))\n\treturn %s.NilValue()\n}()", runtimeAlias, runtimeAlias, valueCode.code, runtimeAlias), kind: exprKindValue}, nil
+	return goExpr{code: fmt.Sprintf("func() %s.Value {\n\tpanic(%s)\n\treturn %s.NilValue()\n}()", runtimeAlias, valueCode.code, runtimeAlias), kind: exprKindValue}, nil
+}
+
+type tryCatchClause struct {
+	class string
+	name  SymbolExpr
+	body  []Expr
+}
+
+func tryExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	body, catches, finally, err := parseTryArgs(args)
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	bodyCode, err := compileExprsToValue(body, ctx, locals, "try body")
+	if err != nil {
+		return goExpr{}, err
+	}
+	if len(catches) == 0 && len(finally) == 0 {
+		return bodyCode, nil
+	}
+
+	var finallyCode *goExpr
+	if len(finally) > 0 {
+		code, err := doExprToGo(finally, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		finallyCode = &code
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	if len(catches) > 0 {
+		fmt.Fprintf(&out, "\tvar __flag_try_result %s.Value\n", runtimeAlias)
+	}
+	if finallyCode != nil {
+		out.WriteString("\tdefer func() {\n")
+		fmt.Fprintf(&out, "\t\t_ = %s\n", finallyCode.code)
+		out.WriteString("\t}()\n")
+	}
+	if len(catches) == 0 {
+		fmt.Fprintf(&out, "\treturn %s\n", bodyCode.code)
+		out.WriteString("}()")
+		return goExpr{code: out.String(), kind: exprKindValue}, nil
+	}
+
+	out.WriteString("\tfunc() {\n")
+	out.WriteString("\t\tdefer func() {\n")
+	out.WriteString("\t\t\tr := recover()\n")
+	out.WriteString("\t\t\tif r == nil {\n")
+	out.WriteString("\t\t\t\treturn\n")
+	out.WriteString("\t\t\t}\n")
+	fmt.Fprintf(&out, "\t\t\t__flag_thrown := %s.PanicValue(r)\n", runtimeAlias)
+	for _, clause := range catches {
+		handler, err := compileCatchHandler(clause, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		fmt.Fprintf(&out, "\t\t\tif %s.CatchMatches(%q, __flag_thrown) {\n", runtimeAlias, clause.class)
+		fmt.Fprintf(&out, "\t\t\t\t__flag_try_result = %s\n", handler.code)
+		out.WriteString("\t\t\t\treturn\n")
+		out.WriteString("\t\t\t}\n")
+	}
+	out.WriteString("\t\t\tpanic(r)\n")
+	out.WriteString("\t\t}()\n")
+	fmt.Fprintf(&out, "\t\t__flag_try_result = %s\n", bodyCode.code)
+	out.WriteString("\t}()\n")
+	out.WriteString("\treturn __flag_try_result\n")
+	out.WriteString("}()")
+	return goExpr{code: out.String(), kind: exprKindValue}, nil
+}
+
+func compileCatchHandler(clause tryCatchClause, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	goName, err := toGoIdentifier(clause.name.Name)
+	if err != nil {
+		return goExpr{}, err
+	}
+	handlerLocals := map[string]exprKind{}
+	for name, kind := range locals {
+		handlerLocals[name] = kind
+	}
+	declared := map[string]struct{}{}
+	if err := declareNamedBinding(declared, handlerLocals, clause.name.Name, goName, exprKindValue); err != nil {
+		return goExpr{}, exprError(clause.name, err.Error())
+	}
+	bodyCode, err := compileExprsToValue(clause.body, ctx, handlerLocals, "catch body")
+	if err != nil {
+		return goExpr{}, err
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
+	if goName == "_" {
+		out.WriteString("\t_ = __flag_thrown\n")
+	} else {
+		fmt.Fprintf(&out, "\tvar %s = __flag_thrown\n", goName)
+		fmt.Fprintf(&out, "\t_ = %s\n", goName)
+	}
+	fmt.Fprintf(&out, "\treturn %s\n", bodyCode.code)
+	out.WriteString("}()")
+	return goExpr{code: out.String(), kind: exprKindValue}, nil
+}
+
+func compileExprsToValue(args []Expr, ctx compileContext, locals map[string]exprKind, label string) (goExpr, error) {
+	if len(args) == 0 {
+		return goExpr{code: runtimeAlias + ".NilValue()", kind: exprKindValue}, nil
+	}
+	compiled, err := doExprToGo(args, ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return coerceExprToValue(compiled, args[len(args)-1], label, ctx)
+}
+
+func parseTryArgs(args []Expr) (body []Expr, catches []tryCatchClause, finally []Expr, err error) {
+	i := 0
+	for i < len(args) {
+		name, ok := listHeadName(args[i])
+		if ok && (name == "catch" || name == "finally") {
+			break
+		}
+		body = append(body, args[i])
+		i++
+	}
+	for i < len(args) {
+		name, ok := listHeadName(args[i])
+		if !ok || name != "catch" {
+			break
+		}
+		clause, parseErr := parseCatchClause(args[i].(ListExpr))
+		if parseErr != nil {
+			return nil, nil, nil, parseErr
+		}
+		catches = append(catches, clause)
+		i++
+	}
+	if i < len(args) {
+		name, ok := listHeadName(args[i])
+		if !ok || name != "finally" {
+			return nil, nil, nil, fmt.Errorf("catch and finally clauses must come last in try")
+		}
+		finally = args[i].(ListExpr).Elements[1:]
+		i++
+	}
+	if i < len(args) {
+		return nil, nil, nil, fmt.Errorf("catch and finally clauses must come last in try")
+	}
+	return body, catches, finally, nil
+}
+
+func parseCatchClause(form ListExpr) (tryCatchClause, error) {
+	if len(form.Elements) < 3 {
+		return tryCatchClause{}, exprError(form, "catch expects type, name, and optional body")
+	}
+	class, err := catchTypeName(form.Elements[1])
+	if err != nil {
+		return tryCatchClause{}, exprError(form.Elements[1], err.Error())
+	}
+	name, ok := form.Elements[2].(SymbolExpr)
+	if !ok || name.Name == "" {
+		return tryCatchClause{}, exprError(form.Elements[2], "catch binding name must be a symbol")
+	}
+	return tryCatchClause{class: class, name: name, body: form.Elements[3:]}, nil
+}
+
+func catchTypeName(expr Expr) (string, error) {
+	switch value := expr.(type) {
+	case SymbolExpr:
+		switch value.Name {
+		case "ExceptionInfo", "Exception", "Throwable":
+			return value.Name, nil
+		default:
+			return "", fmt.Errorf("unknown catch type %s (expected ExceptionInfo, Exception, Throwable, or :default)", value.Name)
+		}
+	case KeywordExpr:
+		if value.Name == "default" {
+			return ":default", nil
+		}
+		return "", fmt.Errorf("unknown catch type :%s (expected :default)", value.Name)
+	default:
+		return "", fmt.Errorf("catch type must be Exception, ExceptionInfo, Throwable, or :default")
+	}
+}
+
+func listHeadName(expr Expr) (string, bool) {
+	list, ok := expr.(ListExpr)
+	if !ok || len(list.Elements) == 0 {
+		return "", false
+	}
+	sym, ok := list.Elements[0].(SymbolExpr)
+	if !ok {
+		return "", false
+	}
+	return sym.Name, true
+}
+
+func unaryValueRuntimeCall(flagName, goFn string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) != 1 {
+		return goExpr{}, fmt.Errorf("%s expects exactly one argument", flagName)
+	}
+	arg, err := exprToGo(args[0], ctx, locals)
+	if err != nil {
+		return goExpr{}, err
+	}
+	argCode, err := collectionArgToValueCode(arg)
+	if err != nil {
+		return goExpr{}, fmt.Errorf("%s expects an argument that evaluates to Value", flagName)
+	}
+	return goExpr{code: fmt.Sprintf("%s.%s(%s)", runtimeAlias, goFn, argCode), kind: exprKindValue}, nil
 }
 
 func forExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

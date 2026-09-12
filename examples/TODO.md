@@ -118,15 +118,15 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 
 ## Exceptions / `try`
 
-- [ ] Add **`try` / `catch` / `finally`**. Today: `throw`, `ex-info`, `defer`, tests-only `expect-exception`.
-- [ ] Add **`ex-message`**, **`ex-data`**.
+- [x] Add **`try` / `catch` / `finally`**. Today: `throw`, `ex-info`, `defer`, tests-only `expect-exception`.
+- [x] Add **`ex-message`**, **`ex-data`**.
 
 ## Unintended incompatibilities (fix or document loudly)
 
 These surprise Clojure programmers and are **not** intentional FLAG design (unlike `future` returning a 0-arg fn, atoms without watches, channels in `async.lib`, `| |` vectors vs `[ ]` arrays).
 
 - [ ] **`(range n)`** is infinite starting at `n`. Clojure’s `(range n)` is `0 .. n-1`. Either match Clojure or make `flag-lang.md` shout this; current wording is easy to misread.
-- [ ] **`inc` / `dec` are macros**, so they cannot be passed to `map`, `apply`, `swap!`, etc.
+- [x] **`inc` / `dec` are macros**, so they cannot be passed to `map`, `apply`, `swap!`, etc.
 - [ ] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
 - [ ] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
 - [ ] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.

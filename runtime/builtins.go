@@ -621,6 +621,27 @@ func BuiltinFunction(name string) Value {
 			}
 			return NewBool(RegexMatches(args[0], valueAsString(args[1])))
 		})
+	case "ex-message":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("ex-message expects exactly one argument")
+			}
+			return ExMessage(args[0])
+		})
+	case "ex-data":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("ex-data expects exactly one argument")
+			}
+			return ExData(args[0])
+		})
+	case "ex-cause":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("ex-cause expects exactly one argument")
+			}
+			return ExCause(args[0])
+		})
 	default:
 		panic("unknown builtin function: " + name)
 	}
