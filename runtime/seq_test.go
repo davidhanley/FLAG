@@ -141,6 +141,12 @@ func TestConsBuildsLists(t *testing.T) {
 	if got := ValueToString(Cons(NewLong(1), NewList(NewLong(2), NewLong(3)))); got != "(1 2 3)" {
 		t.Fatalf("unexpected cons onto list result: %q", got)
 	}
+	if got := ValueToString(Cons(NewLong(1), NewArray())); got != "(1)" {
+		t.Fatalf("unexpected cons onto empty array result: %q", got)
+	}
+	if got := ValueToString(Cons(NewLong(1), NewArray(NewLong(2), NewLong(3)))); got != "(1 2 3)" {
+		t.Fatalf("unexpected cons onto array result: %q", got)
+	}
 }
 
 func TestNextAcrossSequenceTypes(t *testing.T) {

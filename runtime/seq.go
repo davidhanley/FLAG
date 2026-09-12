@@ -1006,8 +1006,24 @@ func Cons(item Value, coll Value) Value {
 	case TagList:
 		return ListCons(coll, item)
 	default:
-		panic("cons expects nil or list Value as second argument")
+		return ListCons(seqToList(coll), item)
 	}
+}
+
+func seqToList(coll Value) Value {
+	cursor := newSeqCursor(coll)
+	items := make([]Value, 0)
+	if remaining, ok := cursor.remainingKnown(); ok && remaining > 0 {
+		items = make([]Value, 0, remaining)
+	}
+	for {
+		next, ok := cursor.nextOrDone()
+		if !ok {
+			break
+		}
+		items = append(items, next)
+	}
+	return NewList(items...)
 }
 
 func SeqFirst(coll Value) Value {

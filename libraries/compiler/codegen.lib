@@ -6,9 +6,9 @@
 
 (def binary-ops #{"+" "-" "*" "/"})
 
-(defn atom-node?
+(defn symbol-node?
   [expr]
-  (= :atom (:kind expr)))
+  (= :symbol (:kind expr)))
 
 (defn list-node?
   [expr]
@@ -17,20 +17,20 @@
 (defn emit-go-expr
   [expr]
   (cond
-    (atom-node? expr)
-    (:value expr)
+    (symbol-node? expr)
+    (:name expr)
 
     (list-node? expr)
-    (let [children (:children expr)]
+    (let [children (:elements expr)]
       (if (not (= 3 (count children)))
         (throw (ex-info "unsupported list shape for codegen"
                         {:expr expr}))
         (let [op (first children)
               lhs (second children)
               rhs (third children)]
-          (if (and (atom-node? op)
-                   (contains? binary-ops (:value op)))
-            (str "(" (emit-go-expr lhs) " " (:value op) " " (emit-go-expr rhs) ")")
+          (if (and (symbol-node? op)
+                   (contains? binary-ops (:name op)))
+            (str "(" (emit-go-expr lhs) " " (:name op) " " (emit-go-expr rhs) ")")
             (throw (ex-info "unsupported list operator for codegen"
                             {:expr expr}))))))
 

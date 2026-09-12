@@ -60,21 +60,21 @@
           e1 (nth-token exprs 1)
           e2 (nth-token exprs 2)
           e3 (nth-token exprs 3)
-          e0c0 (nth-token (:children e0) 0)
-          e0c1 (nth-token (:children e0) 1)
-          e0c2 (nth-token (:children e0) 2)
-          e3c0 (nth-token (:children e3) 0)]
-      (is (= :list (:kind e0))) (is (= 1 (:line e0))) (is (= 1 (:offset e0)))
-      (is (= 3 (count (:children e0))))
-      (is (= :atom (:kind e0c0))) (is (= "+" (:value e0c0))) (is (= 1 (:line e0c0))) (is (= 2 (:offset e0c0)))
-      (is (= :atom (:kind e0c1))) (is (= "x" (:value e0c1))) (is (= 1 (:line e0c1))) (is (= 4 (:offset e0c1)))
-      (is (= :atom (:kind e0c2))) (is (= "10" (:value e0c2))) (is (= 1 (:line e0c2))) (is (= 6 (:offset e0c2)))
+          e0c0 (nth-token (:elements e0) 0)
+          e0c1 (nth-token (:elements e0) 1)
+          e0c2 (nth-token (:elements e0) 2)
+          e3c0 (nth-token (:elements e3) 0)]
+      (is (= :list (:kind e0))) (is (= 1 (:line e0))) (is (= 1 (:col e0)))
+      (is (= 3 (count (:elements e0))))
+      (is (= :symbol (:kind e0c0))) (is (= "+" (:name e0c0))) (is (= 1 (:line e0c0))) (is (= 2 (:col e0c0)))
+      (is (= :symbol (:kind e0c1))) (is (= "x" (:name e0c1))) (is (= 1 (:line e0c1))) (is (= 4 (:col e0c1)))
+      (is (= :int (:kind e0c2))) (is (= 10 (:value e0c2))) (is (= 1 (:line e0c2))) (is (= 6 (:col e0c2)))
 
-      (is (= :atom (:kind e1))) (is (= "foo" (:value e1))) (is (= 2 (:line e1))) (is (= 1 (:offset e1)))
-      (is (= :atom (:kind e2))) (is (= "bar" (:value e2))) (is (= 2 (:line e2))) (is (= 5 (:offset e2)))
+      (is (= :symbol (:kind e1))) (is (= "foo" (:name e1))) (is (= 2 (:line e1))) (is (= 1 (:col e1)))
+      (is (= :symbol (:kind e2))) (is (= "bar" (:name e2))) (is (= 2 (:line e2))) (is (= 5 (:col e2)))
 
-      (is (= :vector (:kind e3))) (is (= 1 (count (:children e3)))) (is (= 3 (:line e3))) (is (= 1 (:offset e3)))
-      (is (= :atom (:kind e3c0))) (is (= "ab" (:value e3c0))) (is (= 3 (:line e3c0))) (is (= 2 (:offset e3c0))))))
+      (is (= :vector (:kind e3))) (is (= 1 (count (:elements e3)))) (is (= 3 (:line e3))) (is (= 1 (:col e3)))
+      (is (= :symbol (:kind e3c0))) (is (= "ab" (:name e3c0))) (is (= 3 (:line e3c0))) (is (= 2 (:col e3c0))))))
 
 (deftest build-ast-from-tokens-handles-empty-top-level-forms
   (let [exprs (build-ast-file-to-array "examples/compiler_tokenizer/ast_empty_forms.txt")
@@ -82,9 +82,9 @@
         e1 (nth-token exprs 1)
         e2 (nth-token exprs 2)]
     (is (= 3 (count exprs)))
-    (is (= :list (:kind e0))) (is (= 0 (count (:children e0)))) (is (= 1 (:line e0))) (is (= 1 (:offset e0)))
-    (is (= :vector (:kind e1))) (is (= 0 (count (:children e1)))) (is (= 2 (:line e1))) (is (= 1 (:offset e1)))
-    (is (= :map (:kind e2))) (is (= 0 (count (:children e2)))) (is (= 3 (:line e2))) (is (= 1 (:offset e2)))))
+    (is (= :list (:kind e0))) (is (= 0 (count (:elements e0)))) (is (= 1 (:line e0))) (is (= 1 (:col e0)))
+    (is (= :vector (:kind e1))) (is (= 0 (count (:elements e1)))) (is (= 2 (:line e1))) (is (= 1 (:col e1)))
+    (is (= :map (:kind e2))) (is (= 0 (count (:entries e2)))) (is (= 3 (:line e2))) (is (= 1 (:col e2)))))
 
 (deftest build-ast-from-tokens-preserves-nested-shape-and-positions
   (let [exprs (build-ast-file-to-array "examples/compiler_tokenizer/ast_nested_forms.txt")
@@ -106,26 +106,26 @@
         root2c3c0 (nth-child root2c3 0)
         root2c3c1 (nth-child root2c3 1)]
     (is (= 1 (count exprs)))
-    (is (= :list (:kind root))) (is (= 1 (:line root))) (is (= 1 (:offset root)))
-    (is (= 4 (count (:children root))))
-    (is (= :atom (:kind root0))) (is (= "outer" (:value root0))) (is (= 1 (:line root0))) (is (= 2 (:offset root0)))
-    (is (= :vector (:kind root1))) (is (= 2 (:line root1))) (is (= 3 (:offset root1)))
-    (is (= :atom (:kind root1c0))) (is (= "inner" (:value root1c0))) (is (= 2 (:line root1c0))) (is (= 4 (:offset root1c0)))
-    (is (= :map (:kind root1c1))) (is (= 2 (:line root1c1))) (is (= 10 (:offset root1c1)))
-    (is (= ":key" (:value root1c1c0))) (is (= 2 (:line root1c1c0))) (is (= 11 (:offset root1c1c0)))
-    (is (= "value" (:value root1c1c1))) (is (= 2 (:line root1c1c1))) (is (= 16 (:offset root1c1c1)))
+    (is (= :list (:kind root))) (is (= 1 (:line root))) (is (= 1 (:col root)))
+    (is (= 4 (count (:elements root))))
+    (is (= :symbol (:kind root0))) (is (= "outer" (:name root0))) (is (= 1 (:line root0))) (is (= 2 (:col root0)))
+    (is (= :vector (:kind root1))) (is (= 2 (:line root1))) (is (= 3 (:col root1)))
+    (is (= :symbol (:kind root1c0))) (is (= "inner" (:name root1c0))) (is (= 2 (:line root1c0))) (is (= 4 (:col root1c0)))
+    (is (= :map (:kind root1c1))) (is (= 2 (:line root1c1))) (is (= 10 (:col root1c1)))
+    (is (= "key" (:name root1c1c0))) (is (= 2 (:line root1c1c0))) (is (= 11 (:col root1c1c0)))
+    (is (= "value" (:name root1c1c1))) (is (= 2 (:line root1c1c1))) (is (= 16 (:col root1c1c1)))
 
-    (is (= :map (:kind root2))) (is (= 3 (:line root2))) (is (= 3 (:offset root2)))
-    (is (= ":pair" (:value root2c0))) (is (= 3 (:line root2c0))) (is (= 4 (:offset root2c0)))
-    (is (= :vector (:kind root2c1))) (is (= 3 (:line root2c1))) (is (= 10 (:offset root2c1)))
-    (is (= "left" (:value root2c1c0))) (is (= 3 (:line root2c1c0))) (is (= 11 (:offset root2c1c0)))
-    (is (= "right" (:value root2c1c1))) (is (= 3 (:line root2c1c1))) (is (= 16 (:offset root2c1c1)))
-    (is (= ":call" (:value root2c2))) (is (= 4 (:line root2c2))) (is (= 4 (:offset root2c2)))
-    (is (= :list (:kind root2c3))) (is (= 4 (:line root2c3))) (is (= 10 (:offset root2c3)))
-    (is (= "f" (:value root2c3c0))) (is (= 4 (:line root2c3c0))) (is (= 11 (:offset root2c3c0)))
-    (is (= "g" (:value root2c3c1))) (is (= 4 (:line root2c3c1))) (is (= 13 (:offset root2c3c1)))
+    (is (= :map (:kind root2))) (is (= 3 (:line root2))) (is (= 3 (:col root2)))
+    (is (= "pair" (:name root2c0))) (is (= 3 (:line root2c0))) (is (= 4 (:col root2c0)))
+    (is (= :vector (:kind root2c1))) (is (= 3 (:line root2c1))) (is (= 10 (:col root2c1)))
+    (is (= "left" (:name root2c1c0))) (is (= 3 (:line root2c1c0))) (is (= 11 (:col root2c1c0)))
+    (is (= "right" (:name root2c1c1))) (is (= 3 (:line root2c1c1))) (is (= 16 (:col root2c1c1)))
+    (is (= "call" (:name root2c2))) (is (= 4 (:line root2c2))) (is (= 4 (:col root2c2)))
+    (is (= :list (:kind root2c3))) (is (= 4 (:line root2c3))) (is (= 10 (:col root2c3)))
+    (is (= "f" (:name root2c3c0))) (is (= 4 (:line root2c3c0))) (is (= 11 (:col root2c3c0)))
+    (is (= "g" (:name root2c3c1))) (is (= 4 (:line root2c3c1))) (is (= 13 (:col root2c3c1)))
 
-    (is (= :atom (:kind root3))) (is (= "\"text\"" (:value root3))) (is (= 5 (:line root3))) (is (= 3 (:offset root3)))))
+    (is (= :string (:kind root3))) (is (= "text" (:value root3))) (is (= 5 (:line root3))) (is (= 3 (:col root3)))))
 
 (deftest ast-source-round-trips-empty-collections
   (let [source (ast-file-to-source "examples/compiler_tokenizer/ast_empty_forms.txt")]
@@ -137,26 +137,26 @@
 
 (deftest ast-source-preserves-multiline-triple-quoted-strings
   (let [source (ast-file-to-source "examples/compiler_tokenizer/multiline_string.txt")]
-    (is (= "(println \"\"\"hello\nworld\"\"\")" source))))
+    (is (= "(println \"hello\\nworld\")" source))))
 
 (deftest expand-file-accumulates-defmacros-and-repeatedly-expands-calls
   (let [exprs (expand-file-to-array "examples/compiler_tokenizer/macro_sample.txt")]
     (is (= 2 (count exprs)))
     (let [e0 (nth-token exprs 0)
           e1 (nth-token exprs 1)
-          e1c0 (nth-token (:children e1) 0)
-          e1c1 (nth-token (:children e1) 1)
-          e1c2 (nth-token (:children e1) 2)
-          e1c3 (nth-token (:children e1) 3)]
-      (is (= :atom (:kind e0)))
-      (is (= "foo" (:value e0)))
+          e1c0 (nth-token (:elements e1) 0)
+          e1c1 (nth-token (:elements e1) 1)
+          e1c2 (nth-token (:elements e1) 2)
+          e1c3 (nth-token (:elements e1) 3)]
+      (is (= :symbol (:kind e0)))
+      (is (= "foo" (:name e0)))
 
       (is (= :list (:kind e1)))
-      (is (= 4 (count (:children e1))))
-      (is (= :atom (:kind e1c0))) (is (= "list" (:value e1c0)))
-      (is (= :atom (:kind e1c1))) (is (= "a" (:value e1c1)))
-      (is (= :atom (:kind e1c2))) (is (= "b" (:value e1c2)))
-      (is (= :atom (:kind e1c3))) (is (= "c" (:value e1c3))))))
+      (is (= 4 (count (:elements e1))))
+      (is (= :symbol (:kind e1c0))) (is (= "list" (:name e1c0)))
+      (is (= :symbol (:kind e1c1))) (is (= "a" (:name e1c1)))
+      (is (= :symbol (:kind e1c2))) (is (= "b" (:name e1c2)))
+      (is (= :symbol (:kind e1c3))) (is (= "c" (:name e1c3))))))
 
 (deftest expand-file-expands-macros-recursively-inside-vectors-and-maps
   (let [exprs (expand-file-to-array "examples/compiler_tokenizer/macro_nested.txt")
@@ -176,25 +176,25 @@
         e1c5c1 (nth-child e1c5 1)]
     (is (= 2 (count exprs)))
     (is (= :vector (:kind e0)))
-    (is (= :atom (:kind e0c0))) (is (= "foo" (:value e0c0)))
+    (is (= :symbol (:kind e0c0))) (is (= "foo" (:name e0c0)))
     (is (= :map (:kind e0c1)))
-    (is (= ":value" (:value e0c1c0)))
-    (is (= "bar" (:value e0c1c1)))
+    (is (= "value" (:name e0c1c0)))
+    (is (= "bar" (:name e0c1c1)))
 
     (is (= :map (:kind e1)))
-    (is (= ":left" (:value e1c0))) (is (= "baz" (:value e1c1)))
-    (is (= ":right" (:value e1c2))) (is (= "qux" (:value e1c3)))
-    (is (= ":items" (:value e1c4)))
+    (is (= "left" (:name e1c0))) (is (= "baz" (:name e1c1)))
+    (is (= "right" (:name e1c2))) (is (= "qux" (:name e1c3)))
+    (is (= "items" (:name e1c4)))
     (is (= :vector (:kind e1c5)))
-    (is (= "a" (:value e1c5c0)))
-    (is (= "b" (:value e1c5c1)))))
+    (is (= "a" (:name e1c5c0)))
+    (is (= "b" (:name e1c5c1)))))
 
 (deftest expand-file-registers-macros-generated-by-other-macros
   (let [exprs (expand-file-to-array "examples/compiler_tokenizer/macro_generated.txt")
         e0 (nth-token exprs 0)]
     (is (= 1 (count exprs)))
-    (is (= :atom (:kind e0)))
-    (is (= "value" (:value e0)))))
+    (is (= :symbol (:kind e0)))
+    (is (= "value" (:name e0)))))
 
 (deftest expand-file-splices-rest-args-for-empty-and-nonempty-calls
   (let [exprs (expand-file-to-array "examples/compiler_tokenizer/macro_rest.txt")
@@ -205,12 +205,12 @@
         e1c2 (nth-child e1 2)]
     (is (= 2 (count exprs)))
     (is (= :vector (:kind e0)))
-    (is (= 0 (count (:children e0))))
+    (is (= 0 (count (:elements e0))))
     (is (= :vector (:kind e1)))
-    (is (= 3 (count (:children e1))))
-    (is (= "a" (:value e1c0)))
-    (is (= "b" (:value e1c1)))
-    (is (= "c" (:value e1c2)))))
+    (is (= 3 (count (:elements e1))))
+    (is (= "a" (:name e1c0)))
+    (is (= "b" (:name e1c1)))
+    (is (= "c" (:name e1c2)))))
 
 (deftest ast-node-source-emits-empty-collections-directly
   (let [exprs (build-ast-file-to-array "examples/compiler_tokenizer/ast_empty_forms.txt")]
@@ -222,3 +222,44 @@
   (let [exprs (compile-file-to-go-exprs "examples/compiler_tokenizer/square_expr.txt")]
     (is (= 1 (count exprs)))
     (is (= "(x * x)" (nth-token exprs 0)))))
+
+(deftest build-ast-from-tokens-types-quotes-sets-and-pipes
+  (let [exprs (build-ast-source-to-array "(println 'abc :xyz 5/6 10N 1.5 \\M #{1 2} #(* % 3) | 1 2 |)")
+        call (nth-token exprs 0)
+        quoted (nth-child call 1)
+        kw (nth-child call 2)
+        ratio (nth-child call 3)
+        bigint (nth-child call 4)
+        fl (nth-child call 5)
+        ch (nth-child call 6)
+        set-expr (nth-child call 7)
+        hash-fn (nth-child call 8)
+        pipe (nth-child call 9)]
+    (is (= 1 (count exprs)))
+    (is (= :quoted-symbol (:kind quoted))) (is (= "abc" (:name quoted)))
+    (is (= :keyword (:kind kw))) (is (= "xyz" (:name kw)))
+    (is (= :ratio (:kind ratio))) (is (= 5 (:numerator ratio))) (is (= 6 (:denominator ratio)))
+    (is (= :bigint (:kind bigint))) (is (= "10" (:value bigint)))
+    (is (= :float (:kind fl))) (is (= "1.5" (:raw fl)))
+    (is (= :char (:kind ch))) (is (= "M" (:value ch)))
+    (is (= :set (:kind set-expr))) (is (= 2 (count (:elements set-expr))))
+    (is (= :hash-fn (:kind hash-fn))) (is (= :list (:kind (:body hash-fn))))
+    (is (= :pipe-vector (:kind pipe))) (is (= 2 (count (:elements pipe))))))
+
+(deftest build-ast-from-tokens-skips-comment-forms
+  (let [exprs (build-ast-source-to-array "(println 1)\n(comment skipped)\n(println 2)")]
+    (is (= 2 (count exprs)))
+    (is (= "println" (:name (nth-child (nth-token exprs 0) 0))))
+    (is (= "println" (:name (nth-child (nth-token exprs 1) 0))))))
+
+(deftest build-ast-from-tokens-metadata-and-quoted-list
+  (let [exprs (build-ast-source-to-array "^long value\n'(1 2 3)")
+        meta (nth-token exprs 0)
+        quoted (nth-token exprs 1)]
+    (is (= 2 (count exprs)))
+    (is (= :meta (:kind meta)))
+    (is (= "long" (:name (:meta meta))))
+    (is (= "value" (:name (:target meta))))
+    (is (= :quoted-list (:kind quoted)))
+    (is (= 3 (count (:elements quoted))))))
+
