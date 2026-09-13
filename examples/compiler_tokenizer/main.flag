@@ -2,6 +2,7 @@
  :imports [["compiler/tokenizer.lib" :as "tokenizer"]
            ["compiler/build-ast.lib" :as "ast"]
            ["compiler/parser.lib" :as "parser"]
+           ["compiler/expand-macros.lib" :as "expand-macros"]
            ["compiler/lift.lib" :as "lift"]
            ["compiler/codegen.lib" :as "codegen"]
            ["compiler/ast-source.lib" :as "ast-source"]
@@ -39,6 +40,16 @@
 (defn expand-file-to-array
   [path]
   (drain-tokens (parser/parse-file path)))
+
+(defn expand-source-to-array
+  [source]
+  (drain-tokens (->> (tokenizer/tokenize-source source)
+                     (ast/build-ast-from-tokens)
+                     (expand-macros/expand-macros))))
+
+(defn expand-source
+  [source]
+  (ast-source/asts->source (expand-source-to-array source)))
 
 (defn lift-file-to-array
   [path]

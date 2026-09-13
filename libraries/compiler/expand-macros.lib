@@ -15,37 +15,74 @@
   [expr]
   (= :vector (:kind expr)))
 
-(defn node-children
+(defn pipe-vector-node?
   [expr]
-  (if (= :map (:kind expr))
-    (:entries expr)
-    (:elements expr)))
+  (= :pipe-vector (:kind expr)))
 
-(defn with-children
-  [expr children]
-  (if (= :map (:kind expr))
-    (assoc expr :entries children)
-    (assoc expr :elements children)))
-
-(defn branch-node?
+(defn map-node?
   [expr]
-  (or (= :list (:kind expr))
-      (= :vector (:kind expr))
-      (= :pipe-vector (:kind expr))
-      (= :quoted-list (:kind expr))
-      (= :set (:kind expr))
-      (= :map (:kind expr))))
+  (= :map (:kind expr)))
+
+(defn set-node?
+  [expr]
+  (= :set (:kind expr)))
+
+(defn hash-fn-node?
+  [expr]
+  (= :hash-fn (:kind expr)))
+
+(defn meta-node?
+  [expr]
+  (= :meta (:kind expr)))
 
 (defn string-node?
   [expr]
   (= :string (:kind expr)))
 
+(defn unwrap-meta
+  [expr]
+  (if (meta-node? expr)
+    (:target expr)
+    expr))
+
+(defn node-children
+  [expr]
+  (if (map-node? expr)
+    (:entries expr)
+    (:elements expr)))
+
+(defn with-children
+  [expr children]
+  (if (map-node? expr)
+    (assoc expr :entries children)
+    (assoc expr :elements children)))
+
+(defn splice-node?
+  [expr]
+  (or (list-node? expr)
+      (vector-node? expr)
+      (pipe-vector-node? expr)))
+
+(defn walk-node?
+  [expr]
+  (or (splice-node? expr)
+      (map-node? expr)
+      (set-node? expr)))
+
+(defn make-symbol
+  [name]
+  {:kind :symbol :name name})
+
+(defn make-list
+  [elements]
+  {:kind :list :elements elements})
+
 (defn macro-definition?
   [expr]
   (and (list-node? expr)
        (not (empty? (node-children expr)))
-       (symbol-node? (first (node-children expr)))
-       (= "defmacro" (:name (first (node-children expr))))))
+       (symbol-node? (unwrap-meta (first (node-children expr))))
+       (= "defmacro" (:name (unwrap-meta (first (node-children expr)))))))
 
 (defn append-all
   [target items]
@@ -53,6 +90,54 @@
     (if (empty? remaining)
       out
       (recur (rest remaining) (conj out (first remaining))))))
+
+(defn nth-node
+  [nodes n]
+  (first (drop n nodes)))
+
+(defn node-equal?
+  [a b]
+  (if (or (nil? a) (nil? b))
+    (and (nil? a) (nil? b))
+    (let [kind (:kind a)]
+      (if (not= kind (:kind b))
+        false
+        (cond
+          (or (= kind :symbol) (= kind :keyword) (= kind :quoted-symbol))
+          (= (:name a) (:name b))
+          (= kind :string) (= (:value a) (:value b))
+          (= kind :char) (= (:value a) (:value b))
+          (= kind :int) (= (:value a) (:value b))
+          (= kind :bigint) (= (:value a) (:value b))
+          (= kind :float) (and (= (:raw a) (:raw b)) (= (:value a) (:value b)))
+          (= kind :ratio) (and (= (:numerator a) (:numerator b))
+                               (= (:denominator a) (:denominator b)))
+          (= kind :hash-fn) (node-equal? (:body a) (:body b))
+          (= kind :meta) (and (node-equal? (:meta a) (:meta b))
+                              (node-equal? (:target a) (:target b)))
+          (walk-node? a)
+          (let [as (node-children a)
+                bs (node-children b)]
+            (if (not= (count as) (count bs))
+              false
+              (loop [left as right bs]
+                (if (empty? left)
+                  true
+                  (if (node-equal? (first left) (first right))
+                    (recur (rest left) (rest right))
+                    false)))))
+          (= kind :quoted-list)
+          (let [as (:elements a)
+                bs (:elements b)]
+            (if (not= (count as) (count bs))
+              false
+              (loop [left as right bs]
+                (if (empty? left)
+                  true
+                  (if (node-equal? (first left) (first right))
+                    (recur (rest left) (rest right))
+                    false)))))
+          true false)))))
 
 (defn parse-macro-params
   [params-node]
@@ -62,7 +147,7 @@
     (loop [remaining (node-children params-node) params []]
       (if (empty? remaining)
         {:params params :rest-param nil}
-        (let [param-node (first remaining)]
+        (let [param-node (unwrap-meta (first remaining))]
           (if (not (symbol-node? param-node))
             (throw (ex-info "defmacro parameters must be symbols"
                             {:form params-node}))
@@ -71,53 +156,110 @@
                 (if (not (= 1 (count tail)))
                   (throw (ex-info "defmacro varargs must use [& name] at end"
                                   {:form params-node}))
-                  (let [rest-node (first tail)]
-                    (if (not (symbol-node? rest-node))
+                  (let [rest-node (unwrap-meta (first tail))]
+                    (if (or (not (symbol-node? rest-node))
+                            (= "&" (:name rest-node)))
                       (throw (ex-info "defmacro varargs expects symbol after &"
                                       {:form params-node}))
                       {:params params :rest-param (:name rest-node)}))))
               (recur (rest remaining) (conj params (:name param-node))))))))))
 
+(defn compile-multi-arity
+  [name children start]
+  (let [arity-forms (drop start children)]
+    (if (empty? arity-forms)
+      (throw (ex-info "defmacro expects at least one arity"
+                      {:name name}))
+      (loop [remaining arity-forms
+             arities []
+             seen {}
+             max-fixed -1
+             rest-min -1]
+        (if (empty? remaining)
+          (if (and (>= rest-min 0) (> max-fixed rest-min))
+            (throw (ex-info "defmacro rest arity must have at least as many required parameters as the largest fixed arity"
+                            {:name name}))
+            {:name name :arities arities})
+          (let [raw (first remaining)]
+            (if (or (not (list-node? raw))
+                    (< (count (node-children raw)) 2))
+              (throw (ex-info "defmacro arity expects ([params] body...)"
+                              {:form raw}))
+              (let [arity-children (node-children raw)
+                    params-expr (first arity-children)]
+                (if (not (vector-node? params-expr))
+                  (throw (ex-info "defmacro arity expects a parameter vector"
+                                  {:form raw}))
+                  (let [param-spec (parse-macro-params params-expr)
+                        n (count (:params param-spec))
+                        rest-param (:rest-param param-spec)
+                        body-items (rest arity-children)
+                        body (if (= 1 (count body-items))
+                               (first body-items)
+                               (make-list (cons (make-symbol "do") body-items)))]
+                    (if rest-param
+                      (if (>= rest-min 0)
+                        (throw (ex-info "defmacro supports only one & rest arity"
+                                        {:name name}))
+                        (recur (rest remaining)
+                               (conj arities {:params (:params param-spec)
+                                              :rest-param rest-param
+                                              :body body})
+                               seen
+                               max-fixed
+                               n))
+                      (if (contains? seen n)
+                        (throw (ex-info (str "duplicate macro arity with " n " arguments")
+                                        {:name name}))
+                        (recur (rest remaining)
+                               (conj arities {:params (:params param-spec)
+                                              :rest-param nil
+                                              :body body})
+                               (assoc seen n true)
+                               (if (> n max-fixed) n max-fixed)
+                               rest-min)))))))))))))
+
 (defn compile-defmacro
   [expr]
   (let [children (node-children expr)]
-    (if (< (count children) 4)
+    (if (< (count children) 3)
       (throw (ex-info "defmacro expects name, optional docstring, vector params, and body"
                       {:form expr}))
-      (let [name-node (second children)
-            maybe-doc (third children)
-            has-docstring (string-node? maybe-doc)
-            params-node (if has-docstring
-                          (first (drop 3 children))
-                          maybe-doc)
-            body-items (if has-docstring
-                         (drop 4 children)
-                         (drop 3 children))]
+      (let [name-node (unwrap-meta (second children))]
         (if (not (symbol-node? name-node))
           (throw (ex-info "defmacro expects a macro name"
                           {:form expr}))
-          (if (not (= 1 (count body-items)))
-            (throw (ex-info "defmacro expects exactly one body form"
-                            {:form expr}))
-            (let [param-spec (parse-macro-params params-node)]
-              {:name (:name name-node)
-               :params (:params param-spec)
-               :rest-param (:rest-param param-spec)
-               :body (first body-items)})))))))
+          (let [maybe-doc (third children)
+                has-docstring (string-node? maybe-doc)
+                params-index (if has-docstring 3 2)
+                body-index (if has-docstring 4 3)]
+            (if (>= params-index (count children))
+              (throw (ex-info "defmacro expects name, optional docstring, vector params, and body"
+                              {:form expr}))
+              (if (list-node? (nth-node children params-index))
+                (compile-multi-arity (:name name-node) children params-index)
+                (if (>= body-index (count children))
+                  (throw (ex-info "defmacro expects name, optional docstring, vector params, and body"
+                                  {:form expr}))
+                  (let [params-node (nth-node children params-index)
+                        param-spec (parse-macro-params params-node)]
+                    {:name (:name name-node)
+                     :params (:params param-spec)
+                     :rest-param (:rest-param param-spec)
+                     :body (nth-node children body-index)
+                     :arities []}))))))))))
 
 (defn bind-macro-args
-  [macro args]
-  (let [params (:params macro)
-        rest-param (:rest-param macro)]
+  [arity args]
+  (let [params (:params arity)
+        rest-param (:rest-param arity)]
     (if (and (nil? rest-param) (not (= (count args) (count params))))
-      (throw (ex-info "macro expects exactly N arguments"
-                      {:macro (:name macro)
-                       :expected (count params)
+      (throw (ex-info (str "macro expects exactly " (count params) " arguments")
+                      {:expected (count params)
                        :got (count args)}))
       (if (and rest-param (< (count args) (count params)))
-        (throw (ex-info "macro expects at least N arguments"
-                        {:macro (:name macro)
-                         :expected (count params)
+        (throw (ex-info (str "macro expects at least " (count params) " arguments")
+                        {:expected (count params)
                          :got (count args)}))
         (loop [names params
                remaining-args args
@@ -131,30 +273,211 @@
                    (rest remaining-args)
                    (assoc values (first names) (first remaining-args)))))))))
 
+(defn literal-kind?
+  [kind]
+  (or (= kind :keyword)
+      (= kind :string)
+      (= kind :char)
+      (= kind :int)
+      (= kind :bigint)
+      (= kind :float)
+      (= kind :ratio)
+      (= kind :quoted-symbol)))
+
+(defn macro-case-clause
+  [expr]
+  (if (or (list-node? expr) (vector-node? expr))
+    (let [elems (node-children expr)]
+      (if (< (count elems) 2)
+        nil
+        (if (= 2 (count elems))
+          {:pattern (first elems) :body (second elems)}
+          {:pattern (first elems)
+           :body (make-list (cons (make-symbol "do") (rest elems)))})))
+    nil))
+
+(defn expand-defrecord-macro
+  [args]
+  (if (not (= 2 (count args)))
+    (throw (ex-info "macro-defrecord expects a record name and field vector" {}))
+    (make-list [(make-symbol "defrecord*") (first args) (second args)])))
+
+(defn macro-op
+  [op a b c d]
+  (cond
+    (= op :seq)
+    (loop [pats a remaining b bindings c rest-bindings d]
+      (if (empty? pats)
+        (if (empty? remaining)
+          {:matched true :bindings bindings :rest-bindings rest-bindings}
+          {:matched false})
+        (let [pat (first pats)]
+          (if (and (symbol-node? pat) (= "&" (:name pat)))
+            (let [tail (rest pats)]
+              (if (not (= 1 (count tail)))
+                (throw (ex-info "macro-case rest capture must be in the penultimate position" {}))
+                (let [name-node (first tail)]
+                  (if (or (not (symbol-node? name-node))
+                          (= "" (:name name-node))
+                          (= "&" (:name name-node)))
+                    (throw (ex-info "macro-case rest capture expects a symbol name" {}))
+                    {:matched true
+                     :bindings bindings
+                     :rest-bindings (assoc rest-bindings (:name name-node) remaining)}))))
+            (if (empty? remaining)
+              {:matched false}
+              (let [result (macro-op :pat pat [(first remaining)] bindings rest-bindings)]
+                (if (not (:matched result))
+                  {:matched false}
+                  (recur (rest pats)
+                         (rest remaining)
+                         (:bindings result)
+                         (:rest-bindings result)))))))))
+
+    (= op :pat)
+    (let [pat (unwrap-meta a)
+          items (if (empty? b)
+                  b
+                  (loop [remaining b out []]
+                    (if (empty? remaining)
+                      out
+                      (recur (rest remaining) (conj out (unwrap-meta (first remaining)))))))
+          bindings c
+          rest-bindings d]
+      (cond
+        (symbol-node? pat)
+        (cond
+          (= "_" (:name pat))
+          (if (= 1 (count items))
+            {:matched true :bindings bindings :rest-bindings rest-bindings}
+            {:matched false})
+          (= "&" (:name pat))
+          (throw (ex-info "macro-case pattern cannot use bare &" {}))
+          true
+          (if (not (= 1 (count items)))
+            {:matched false}
+            (if (contains? bindings (:name pat))
+              (if (node-equal? (get bindings (:name pat)) (first items))
+                {:matched true :bindings bindings :rest-bindings rest-bindings}
+                {:matched false})
+              {:matched true
+               :bindings (assoc bindings (:name pat) (first items))
+               :rest-bindings rest-bindings})))
+        (literal-kind? (:kind pat))
+        (if (and (= 1 (count items)) (node-equal? pat (first items)))
+          {:matched true :bindings bindings :rest-bindings rest-bindings}
+          {:matched false})
+        (list-node? pat)
+        (if (and (= 1 (count items)) (list-node? (unwrap-meta (first items))))
+          (macro-op :seq (node-children pat) (node-children (unwrap-meta (first items))) bindings rest-bindings)
+          (macro-op :seq (node-children pat) items bindings rest-bindings))
+        (vector-node? pat)
+        (if (and (= 1 (count items)) (vector-node? (unwrap-meta (first items))))
+          (macro-op :seq (node-children pat) (node-children (unwrap-meta (first items))) bindings rest-bindings)
+          (macro-op :seq (node-children pat) items bindings rest-bindings))
+        (pipe-vector-node? pat)
+        (if (and (= 1 (count items)) (pipe-vector-node? (unwrap-meta (first items))))
+          (macro-op :seq (node-children pat) (node-children (unwrap-meta (first items))) bindings rest-bindings)
+          (macro-op :seq (node-children pat) items bindings rest-bindings))
+        true
+        (if (and (= 1 (count items)) (node-equal? pat (first items)))
+          {:matched true :bindings bindings :rest-bindings rest-bindings}
+          {:matched false})))
+
+    (= op :case)
+    (if (< (count a) 2)
+      (throw (ex-info "macro-case expects a target form and at least one clause" {}))
+      (let [target-expr (first a)]
+        (if (not (list-node? target-expr))
+          (throw (ex-info "macro-case expects a list target form" {}))
+          (let [target-elems (node-children target-expr)
+                target (if (empty? target-elems) [] (rest target-elems))]
+            (loop [clauses (rest a)]
+              (if (empty? clauses)
+                (throw (ex-info "macro-case had no matching clause" {}))
+                (let [clause (macro-case-clause (first clauses))]
+                  (if (nil? clause)
+                    (throw (ex-info "macro-case clauses must be ([pattern] body) lists" {}))
+                    (let [result (macro-op :pat (:pattern clause) target {} {})]
+                      (if (:matched result)
+                        (macro-op :subst (:body clause) (:bindings result) (:rest-bindings result) nil)
+                        (recur (rest clauses))))))))))))
+
+    (= op :subst)
+    (let [expr a
+          values b
+          rest-bindings c]
+      (if (symbol-node? expr)
+        (let [replacement (get values (:name expr))]
+          (if (nil? replacement) expr replacement))
+        (if (splice-node? expr)
+          (let [out (loop [remaining (node-children expr) acc []]
+                      (if (empty? remaining)
+                        acc
+                        (let [child (first remaining)
+                              rest-items (if (symbol-node? child)
+                                           (get rest-bindings (:name child))
+                                           nil)]
+                          (if (not (nil? rest-items))
+                            (recur (rest remaining) (append-all acc rest-items))
+                            (recur (rest remaining)
+                                   (conj acc (macro-op :subst child values rest-bindings nil)))))))]
+            (if (and (list-node? expr) (not (empty? out)) (symbol-node? (first out)))
+              (cond
+                (= "macro-case" (:name (first out))) (macro-op :case (rest out) nil nil nil)
+                (= "macro-defrecord" (:name (first out))) (expand-defrecord-macro (rest out))
+                true (with-children expr out))
+              (with-children expr out)))
+          (if (or (map-node? expr) (set-node? expr))
+            (with-children expr
+              (loop [remaining (node-children expr) acc []]
+                (if (empty? remaining)
+                  acc
+                  (recur (rest remaining)
+                         (conj acc (macro-op :subst (first remaining) values rest-bindings nil))))))
+            (if (hash-fn-node? expr)
+              (assoc expr :body (macro-op :subst (:body expr) values rest-bindings nil))
+              (if (meta-node? expr)
+                (assoc expr
+                       :meta (macro-op :subst (:meta expr) values rest-bindings nil)
+                       :target (macro-op :subst (:target expr) values rest-bindings nil))
+                expr))))))
+
+    true (throw (ex-info "unknown macro-op" {:op op}))))
+
 (defn substitute-node
   [expr values rest-bindings]
-  (if (symbol-node? expr)
-    (let [replacement (get values (:name expr))]
-      (if (nil? replacement) expr replacement))
-    (if (branch-node? expr)
-      (with-children expr
-             (loop [remaining (node-children expr) out []]
-               (if (empty? remaining)
-                 out
-                 (let [child (first remaining)
-                       rest-items (if (symbol-node? child)
-                                    (get rest-bindings (:name child))
-                                    nil)]
-                   (if rest-items
-                     (recur (rest remaining) (append-all out rest-items))
-                     (recur (rest remaining)
-                            (conj out (substitute-node child values rest-bindings))))))))
-      expr)))
+  (macro-op :subst expr values rest-bindings nil))
+
+(defn apply-macro-arity
+  [arity args]
+  (let [bindings (bind-macro-args arity args)]
+    (substitute-node (:body arity) (:values bindings) (:rest-bindings bindings))))
+
+(defn apply-multi-arity
+  [macro args]
+  (loop [remaining (:arities macro)
+         rest-arity nil]
+    (if (empty? remaining)
+      (if (and rest-arity (>= (count args) (count (:params rest-arity))))
+        (apply-macro-arity rest-arity args)
+        (throw (ex-info "macro expects arguments"
+                        {:got (count args)})))
+      (let [arity (first remaining)]
+        (if (and (nil? (:rest-param arity))
+                 (= (count args) (count (:params arity))))
+          (apply-macro-arity arity args)
+          (recur (rest remaining)
+                 (if (:rest-param arity) arity rest-arity)))))))
 
 (defn apply-macro
   [macro args]
-  (let [bindings (bind-macro-args macro args)]
-    (substitute-node (:body macro) (:values bindings) (:rest-bindings bindings))))
+  (if (empty? (:arities macro))
+    (apply-macro-arity {:params (:params macro)
+                        :rest-param (:rest-param macro)
+                        :body (:body macro)}
+                       args)
+    (apply-multi-arity macro args)))
 
 (defn expand-node
   [expr macros depth]
@@ -170,19 +493,25 @@
             (if macro
               (expand-node (apply-macro macro (rest children)) macros (inc depth))
               (with-children expr
-                     (loop [remaining children out []]
-                       (if (empty? remaining)
-                         out
-                         (recur (rest remaining)
-                                (conj out (expand-node (first remaining) macros depth))))))))))
-      (if (branch-node? expr)
+                (loop [remaining children out []]
+                  (if (empty? remaining)
+                    out
+                    (recur (rest remaining)
+                           (conj out (expand-node (first remaining) macros depth))))))))))
+      (if (walk-node? expr)
         (with-children expr
-               (loop [remaining (node-children expr) out []]
-                 (if (empty? remaining)
-                   out
-                   (recur (rest remaining)
-                          (conj out (expand-node (first remaining) macros depth))))))
-        expr))))
+          (loop [remaining (node-children expr) out []]
+            (if (empty? remaining)
+              out
+              (recur (rest remaining)
+                     (conj out (expand-node (first remaining) macros depth))))))
+        (if (hash-fn-node? expr)
+          (assoc expr :body (expand-node (:body expr) macros depth))
+          (if (meta-node? expr)
+            (assoc expr
+                   :meta (expand-node (:meta expr) macros depth)
+                   :target (expand-node (:target expr) macros depth))
+            expr))))))
 
 (defn register-macro
   [macros expr]
