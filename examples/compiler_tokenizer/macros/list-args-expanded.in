@@ -1,0 +1,2 @@
+(defmacro id [x] x)
+(list (id a) (id b))

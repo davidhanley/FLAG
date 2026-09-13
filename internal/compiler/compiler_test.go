@@ -73,6 +73,23 @@ func TestCompileDocstringsArePreservedAsComments(t *testing.T) {
 	}
 }
 
+func TestCompileThreadLastEmptyCall(t *testing.T) {
+	output, err := Compile(`
+(defn drop-heads [groups]
+  (->> groups
+       (mapcat rest)
+       (map identity)
+       (vec)))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "Vec(") && !strings.Contains(got, "vec") {
+		t.Fatalf("generated Go did not contain vec expansion:\n%s", got)
+	}
+}
+
 func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	output, err := Compile(`
 (defmacro identity "Return the argument unchanged" [x] x)

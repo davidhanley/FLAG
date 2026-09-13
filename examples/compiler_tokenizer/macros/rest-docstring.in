@@ -1,0 +1,2 @@
+(defmacro pack "p" [& xs] [xs])
+(pack a b)

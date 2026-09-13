@@ -1,0 +1,3 @@
+(defmacro id [x] x)
+(defmacro when [test & body] (if test (do body)))
+(when true (id x))

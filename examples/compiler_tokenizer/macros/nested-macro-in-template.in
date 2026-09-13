@@ -1,0 +1,3 @@
+(defmacro id [x] x)
+(defmacro wrap [x] (id x))
+(wrap foo)

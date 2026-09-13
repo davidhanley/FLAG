@@ -1,0 +1,4 @@
+(defmacro a [x] (b x))
+(defmacro b [x] (c x))
+(defmacro c [x] x)
+(a foo)

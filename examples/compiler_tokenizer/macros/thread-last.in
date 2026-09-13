@@ -1,0 +1,8 @@
+(defmacro ->> [x & forms]
+  (macro-case (do forms)
+    ([] x)
+    ([(f & args) & rest]
+     (->> (f args x) rest))
+    ([f & rest]
+     (->> (f x) rest))))
+(->> a (+ 1) inc)

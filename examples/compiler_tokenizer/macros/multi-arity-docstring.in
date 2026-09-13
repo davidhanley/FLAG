@@ -1,0 +1,2 @@
+(defmacro pick "choose" ([x] x) ([_ y] y))
+(pick 1 2)

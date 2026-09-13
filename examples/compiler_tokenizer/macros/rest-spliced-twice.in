@@ -1,0 +1,2 @@
+(defmacro twice [& xs] [xs xs])
+(twice a b)

@@ -116,6 +116,40 @@ func TestGetFromMap(t *testing.T) {
 	}
 }
 
+func TestGetFromArrayVectorSetAndString(t *testing.T) {
+	arr := NewArray(NewLong(1), NewLong(2), NewLong(3))
+	if got := Get(arr, NewLong(1)); got.Long() != 2 {
+		t.Fatalf("expected array get 2, got %v", ValueToAny(got))
+	}
+	if got := Get(arr, NewLong(9)); got.tag != TagNil {
+		t.Fatalf("expected nil for out-of-range array index, got %v", ValueToAny(got))
+	}
+	if got := Get(arr, NewLong(9), NewKeyword("missing")); !Eq(got, NewKeyword("missing")) {
+		t.Fatalf("expected default for out-of-range array index, got %v", ValueToAny(got))
+	}
+	if got := Get(arr, NewKeyword("a")); got.tag != TagNil {
+		t.Fatalf("expected nil for non-index array key, got %v", ValueToAny(got))
+	}
+
+	vec := NewVector(NewLong(1), NewLong(9), NewLong(3))
+	if got := Get(vec, NewLong(1)); got.Long() != 9 {
+		t.Fatalf("expected vector get 9, got %v", ValueToAny(got))
+	}
+
+	s := NewSet(NewLong(1), NewLong(2))
+	if got := Get(s, NewLong(2)); got.Long() != 2 {
+		t.Fatalf("expected set get member, got %v", ValueToAny(got))
+	}
+	if got := Get(s, NewLong(3)); got.tag != TagNil {
+		t.Fatalf("expected nil for missing set member, got %v", ValueToAny(got))
+	}
+
+	if got := Get(NewString("hi"), NewLong(1)); got.StringValue() != "i" {
+		t.Fatalf("expected string get i, got %v", ValueToAny(got))
+	}
+	assertPanics(t, func() { Get(NewLong(1), NewLong(0)) })
+}
+
 func TestContainsOnMapAndSet(t *testing.T) {
 	m := NewMap(NewKeyword("a"), NewLong(1))
 	if !Contains(m, NewKeyword("a")) {

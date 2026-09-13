@@ -1,0 +1,6 @@
+(defmacro m [& xs]
+  (macro-case (do xs)
+    ([:else v] v)
+    ([v] v)))
+(m :else 9)
+(m 8)

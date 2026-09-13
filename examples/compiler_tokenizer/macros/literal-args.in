@@ -1,0 +1,7 @@
+(defmacro id [x] x)
+(id :k)
+(id "hi")
+(id 5/6)
+(id 10N)
+(id 1.5)
+(id \M)

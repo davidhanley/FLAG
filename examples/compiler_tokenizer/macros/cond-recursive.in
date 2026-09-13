@@ -1,0 +1,9 @@
+(defmacro cond [& clauses]
+  (macro-case (do clauses)
+    ([] nil)
+    ([:else expr] expr)
+    ([test expr & rest]
+     (if test
+       expr
+       (cond rest)))))
+(cond false 1 true 2)

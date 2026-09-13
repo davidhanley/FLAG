@@ -1,0 +1,3 @@
+(defmacro defrecord [name fields]
+  (macro-defrecord name fields))
+(defrecord Point [x y])

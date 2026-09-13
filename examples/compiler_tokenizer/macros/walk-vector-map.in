@@ -1,0 +1,2 @@
+(defmacro id [x] x)
+[(id foo) {:value (id bar)}]

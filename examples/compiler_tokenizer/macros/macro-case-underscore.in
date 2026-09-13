@@ -1,0 +1,4 @@
+(defmacro drop-one [x]
+  (macro-case (do x)
+    ([_] 1)))
+(drop-one foo)

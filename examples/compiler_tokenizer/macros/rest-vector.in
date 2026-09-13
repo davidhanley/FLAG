@@ -1,0 +1,3 @@
+(defmacro into-vec [& xs] [xs])
+(into-vec)
+(into-vec a b c)

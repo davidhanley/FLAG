@@ -207,7 +207,7 @@ type varDef struct {
 type compileContext struct {
 	functions         map[string]functionDef
 	globals           map[string]exprKind
-	macros            map[string]macroDef
+	macroForms        []Expr
 	prologueFns       []functionDef
 	prologueVars      []varDef
 	selfFunctionName  string // FLAG source name for self-recursion matching
@@ -273,7 +273,7 @@ func copyCompileContext(ctx compileContext) compileContext {
 	out := compileContext{
 		functions:         make(map[string]functionDef, len(ctx.functions)),
 		globals:           make(map[string]exprKind, len(ctx.globals)),
-		macros:            make(map[string]macroDef, len(ctx.macros)),
+		macroForms:        append([]Expr(nil), ctx.macroForms...),
 		prologueFns:       ctx.prologueFns,
 		prologueVars:      ctx.prologueVars,
 		constants:         ctx.constants,
@@ -299,9 +299,6 @@ func copyCompileContext(ctx compileContext) compileContext {
 	}
 	for k, v := range ctx.globals {
 		out.globals[k] = v
-	}
-	for k, v := range ctx.macros {
-		out.macros[k] = v
 	}
 	if ctx.moduleSymbols != nil {
 		out.moduleSymbols = make(map[string]string, len(ctx.moduleSymbols))
@@ -440,20 +437,6 @@ func allConstExprs(exprs []Expr) bool {
 	return true
 }
 
-type macroArity struct {
-	params    []string
-	restParam string
-	body      Expr
-}
-
-type macroDef struct {
-	params    []string
-	restParam string
-	doc       string
-	body      Expr
-	arities   []macroArity
-}
-
 //go:embed prologue.flag
 var standardPrologueSource string
 
@@ -461,7 +444,6 @@ func newCompileContext() (compileContext, error) {
 	ctx := compileContext{
 		functions:     make(map[string]functionDef),
 		globals:       make(map[string]exprKind),
-		macros:        make(map[string]macroDef),
 		moduleSymbols: make(map[string]string),
 		recordTypes:   make(map[string]string),
 	}
@@ -476,6 +458,8 @@ func loadStandardPrologue(ctx *compileContext) error {
 	if err != nil {
 		return fmt.Errorf("parse compiler prologue: %w", err)
 	}
+	var seed []Expr
+	var rest []Expr
 	for _, form := range prologueAST.Forms {
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
@@ -487,21 +471,30 @@ func loadStandardPrologue(ctx *compileContext) error {
 		}
 		switch head.Name {
 		case "defmacro":
-			name, def, err := compileDefmacro(list)
-			if err != nil {
-				return err
-			}
-			ctx.macros[name] = def
+			seed = append(seed, form)
+		case "defn", "def":
+			rest = append(rest, form)
+		default:
+			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
+		}
+	}
+	ctx.macroForms = seed
+	expanded, err := expandFLAGForms(seed, rest)
+	if err != nil {
+		return fmt.Errorf("compile compiler prologue: %w", err)
+	}
+	for _, form := range expanded {
+		list, ok := form.(ListExpr)
+		if !ok || len(list.Elements) == 0 {
+			return fmt.Errorf("invalid compiler prologue form")
+		}
+		head, ok := list.Elements[0].(SymbolExpr)
+		if !ok {
+			return fmt.Errorf("invalid compiler prologue form")
+		}
+		switch head.Name {
 		case "defn":
-			expanded, err := macroExpand(form, *ctx, 0)
-			if err != nil {
-				return fmt.Errorf("compile compiler prologue: %w", err)
-			}
-			defnForm, ok := expanded.(ListExpr)
-			if !ok {
-				return fmt.Errorf("compile compiler prologue: defn did not expand to a list")
-			}
-			def, err := compileDefn(defnForm, *ctx)
+			def, err := compileDefn(list, *ctx)
 			if err != nil {
 				return fmt.Errorf("compile compiler prologue: %w", err)
 			}
@@ -762,7 +755,7 @@ type ReplCompiler struct {
 	ctx           compileContext
 	loadedModules map[string]bool
 	moduleDefs    map[string]map[string]string
-	moduleMacros  map[string]map[string]macroDef
+	moduleMacros  map[string]map[string]Expr
 	modulesByPath map[string]*Module
 }
 
@@ -780,7 +773,7 @@ func NewReplCompiler() *ReplCompiler {
 		ctx:           ctx,
 		loadedModules: map[string]bool{},
 		moduleDefs:    map[string]map[string]string{},
-		moduleMacros:  map[string]map[string]macroDef{},
+		moduleMacros:  map[string]map[string]Expr{},
 		modulesByPath: map[string]*Module{},
 	}
 }
@@ -1073,7 +1066,7 @@ func (r *ReplCompiler) replCompileResultSetups(result compileResult, knownFns ma
 	return out
 }
 
-func replCompiledFromBody(result compileResult, definedMacros map[string]macroDef) ReplCompiled {
+func replCompiledFromBody(result compileResult, definedMacros map[string]Expr) ReplCompiled {
 	stmtParts := make([]string, 0, len(result.stmts)+len(result.tests))
 	var resultExpr string
 	for _, stmt := range result.stmts {
@@ -1205,7 +1198,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	// path -> bare local name -> go ident for all function/var defs in that module
 	moduleDefs := map[string]map[string]string{}
 	// path -> exported macros defined in that module
-	moduleMacros := map[string]map[string]macroDef{}
+	moduleMacros := map[string]map[string]Expr{}
 	byPath := prog.byPath
 
 	var allTypeDecls []string
@@ -1276,7 +1269,7 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 	}, shared), nil
 }
 
-func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]macroDef) error {
+func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]Expr) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
@@ -1309,7 +1302,7 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 		}
 		macros := moduleMacros[resolved]
 		if macros == nil {
-			macros = map[string]macroDef{}
+			macros = map[string]Expr{}
 		}
 
 		for exp := range exports {
@@ -1322,7 +1315,7 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 			}
 			if mac, ok := macros[exp]; ok {
 				// Qualified macro name so expansions can use async/go without :refer.
-				ctx.macros[prefix+"/"+exp] = mac
+				ctx.macroForms = append(ctx.macroForms, renameDefmacro(mac, prefix+"/"+exp))
 				continue
 			}
 			return fmt.Errorf("import %q: exported %q has no definition", spec.Path, exp)
@@ -1339,7 +1332,7 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 			}
 			if mac, ok := macros[ref]; ok {
 				// :refer installs bare macro name; ok to overwrite same-name macro.
-				ctx.macros[ref] = mac
+				ctx.macroForms = append(ctx.macroForms, renameDefmacro(mac, ref))
 				continue
 			}
 			return fmt.Errorf("import %q: referred %q has no definition", spec.Path, ref)
@@ -1348,7 +1341,7 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 	return nil
 }
 
-func validateExports(mod *Module, defined map[string]string, definedMacros map[string]macroDef) error {
+func validateExports(mod *Module, defined map[string]string, definedMacros map[string]Expr) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
@@ -1367,7 +1360,7 @@ func validateExports(mod *Module, defined map[string]string, definedMacros map[s
 // compileModuleBody compiles the body forms of a module into ctx.
 // defined maps bare FLAG local names defined in this module to Go idents.
 // definedMacros maps macro names defined in this module.
-func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, map[string]macroDef, error) {
+func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (compileResult, map[string]string, map[string]Expr, error) {
 	typeDecls := make([]string, 0)
 	functions := make([]functionDef, 0, len(mod.Forms))
 	vars := make([]varDef, 0, len(mod.Forms))
@@ -1375,7 +1368,16 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 	tests := make([]testCase, 0, len(mod.Forms))
 	needsFmt := false
 	defined := map[string]string{}
-	definedMacros := map[string]macroDef{}
+	definedMacros := collectDefmacros(mod.Forms)
+	expandedForms, err := expandFLAGForms(ctx.macroForms, mod.Forms)
+	if err != nil {
+		return compileResult{}, nil, nil, err
+	}
+	for _, form := range mod.Forms {
+		if _, ok := defmacroFormName(form); ok {
+			ctx.macroForms = append(ctx.macroForms, form)
+		}
+	}
 
 	// Native library re-exports (:go-exports) become package-level vars bound to
 	// generated flagrt.GoBind_* adapters.
@@ -1405,27 +1407,9 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
-	pendingForms := append([]Expr(nil), mod.Forms...)
+	pendingForms := append([]Expr(nil), expandedForms...)
 	for i := 0; i < len(pendingForms); i++ {
 		form := pendingForms[i]
-		if list, ok := form.(ListExpr); ok && len(list.Elements) > 0 {
-			if head, ok := list.Elements[0].(SymbolExpr); ok && head.Name == "defmacro" {
-				name, def, err := compileDefmacro(list)
-				if err != nil {
-					return compileResult{}, nil, nil, err
-				}
-				ctx.macros[name] = def
-				definedMacros[name] = def
-				continue
-			}
-		}
-
-		expanded, err := macroExpand(form, *ctx, 0)
-		if err != nil {
-			return compileResult{}, nil, nil, err
-		}
-
-		form = expanded
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
 			if err := appendTopLevelExpr(form, *ctx, allowTopLevel, &stmts); err != nil {
@@ -1504,12 +1488,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			defined[binding.flagName] = binding.goName
 			vars = append(vars, binding)
 		case "defmacro":
-			name, def, err := compileDefmacro(list)
-			if err != nil {
-				return compileResult{}, nil, nil, err
-			}
-			ctx.macros[name] = def
-			definedMacros[name] = def
+			continue
 		case "println":
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -1824,126 +1803,6 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 	return varDef{flagName: nameExpr.Name, goName: goName, doc: doc, expr: valueExpr.code}, valueExpr.kind, !exists, nil
 }
 
-func compileDefmacro(form ListExpr) (string, macroDef, error) {
-	if len(form.Elements) < 3 {
-		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
-	}
-	nameExpr, ok := unwrapMetaExpr(form.Elements[1]).(SymbolExpr)
-	if !ok || nameExpr.Name == "" {
-		return "", macroDef{}, fmt.Errorf("defmacro expects a macro name")
-	}
-	doc := ""
-	paramsIndex := 2
-	bodyIndex := 3
-	if len(form.Elements) > 2 {
-		if docExpr, ok := form.Elements[2].(StringExpr); ok {
-			doc = docExpr.Value
-			paramsIndex = 3
-			bodyIndex = 4
-		}
-	}
-	if paramsIndex >= len(form.Elements) {
-		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
-	}
-	if _, ok := form.Elements[paramsIndex].(ListExpr); ok {
-		return compileMultiArityDefmacro(form, nameExpr.Name, doc, paramsIndex)
-	}
-	if bodyIndex >= len(form.Elements) {
-		return "", macroDef{}, fmt.Errorf("defmacro expects name, optional docstring, vector params, and body")
-	}
-	paramsExpr, ok := form.Elements[paramsIndex].(VectorExpr)
-	if !ok {
-		return "", macroDef{}, fmt.Errorf("defmacro expects a parameter vector")
-	}
-	params, restParam, err := parseMacroParams(paramsExpr)
-	if err != nil {
-		return "", macroDef{}, err
-	}
-
-	return nameExpr.Name, macroDef{
-		params:    params,
-		restParam: restParam,
-		doc:       doc,
-		body:      form.Elements[bodyIndex],
-	}, nil
-}
-
-func compileMultiArityDefmacro(form ListExpr, name, doc string, start int) (string, macroDef, error) {
-	arityForms := form.Elements[start:]
-	if len(arityForms) == 0 {
-		return "", macroDef{}, fmt.Errorf("defmacro expects at least one arity")
-	}
-	arities := make([]macroArity, 0, len(arityForms))
-	seen := make(map[int]struct{}, len(arityForms))
-	maxFixed := -1
-	restMin := -1
-	for _, raw := range arityForms {
-		list, ok := raw.(ListExpr)
-		if !ok || len(list.Elements) < 2 {
-			return "", macroDef{}, fmt.Errorf("defmacro arity expects ([params] body...)")
-		}
-		paramsExpr, ok := list.Elements[0].(VectorExpr)
-		if !ok {
-			return "", macroDef{}, fmt.Errorf("defmacro arity expects a parameter vector")
-		}
-		params, restParam, err := parseMacroParams(paramsExpr)
-		if err != nil {
-			return "", macroDef{}, err
-		}
-		n := len(params)
-		if restParam == "" {
-			if _, dup := seen[n]; dup {
-				return "", macroDef{}, fmt.Errorf("duplicate macro arity with %d arguments", n)
-			}
-			seen[n] = struct{}{}
-			if n > maxFixed {
-				maxFixed = n
-			}
-		} else {
-			if restMin >= 0 {
-				return "", macroDef{}, fmt.Errorf("defmacro supports only one & rest arity")
-			}
-			restMin = n
-		}
-		body := list.Elements[1]
-		if len(list.Elements) > 2 {
-			bodyElems := make([]Expr, 0, 1+len(list.Elements)-1)
-			bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
-			bodyElems = append(bodyElems, list.Elements[1:]...)
-			body = ListExpr{Elements: bodyElems, Line: list.Line, Col: list.Col}
-		}
-		arities = append(arities, macroArity{params: params, restParam: restParam, body: body})
-	}
-	if restMin >= 0 && maxFixed > restMin {
-		return "", macroDef{}, fmt.Errorf("defmacro rest arity must have at least as many required parameters as the largest fixed arity")
-	}
-	return name, macroDef{doc: doc, arities: arities}, nil
-}
-
-func parseMacroParams(paramsExpr VectorExpr) ([]string, string, error) {
-	params := make([]string, 0, len(paramsExpr.Elements))
-	restParam := ""
-	for i := 0; i < len(paramsExpr.Elements); i++ {
-		sym, ok := unwrapMetaExpr(paramsExpr.Elements[i]).(SymbolExpr)
-		if !ok || sym.Name == "" {
-			return nil, "", fmt.Errorf("defmacro parameters must be symbols")
-		}
-		if sym.Name == "&" {
-			if restParam != "" || i != len(paramsExpr.Elements)-2 {
-				return nil, "", fmt.Errorf("defmacro varargs must use [& name] at end")
-			}
-			next, ok := unwrapMetaExpr(paramsExpr.Elements[i+1]).(SymbolExpr)
-			if !ok || next.Name == "" || next.Name == "&" {
-				return nil, "", fmt.Errorf("defmacro varargs expects symbol after &")
-			}
-			restParam = next.Name
-			break
-		}
-		params = append(params, sym.Name)
-	}
-	return params, restParam, nil
-}
-
 func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 	if len(form.Elements) < 3 {
 		return functionDef{}, fmt.Errorf("deftest expects a name and body")
@@ -1971,650 +1830,6 @@ func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 		arityName:    goName,
 		body:         body.code,
 	}, nil
-}
-
-func macroExpand(expr Expr, ctx compileContext, depth int) (Expr, error) {
-	if depth > 100 {
-		return nil, fmt.Errorf("macro expansion depth exceeded")
-	}
-
-	list, ok := expr.(ListExpr)
-	if ok && len(list.Elements) > 0 {
-		if head, ok := list.Elements[0].(SymbolExpr); ok {
-			if macro, ok := ctx.macros[head.Name]; ok {
-				expanded, err := applyMacro(macro, list.Elements[1:])
-				if err != nil {
-					return nil, err
-				}
-				return macroExpand(expanded, ctx, depth+1)
-			}
-		}
-	}
-
-	switch value := expr.(type) {
-	case ListExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			expanded, err := macroExpand(item, ctx, depth)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, expanded)
-		}
-		return ListExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
-	case VectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			expanded, err := macroExpand(item, ctx, depth)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, expanded)
-		}
-		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
-	case PipeVectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			expanded, err := macroExpand(item, ctx, depth)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, expanded)
-		}
-		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
-	case MapExpr:
-		out := make([]Expr, 0, len(value.Entries))
-		for _, item := range value.Entries {
-			expanded, err := macroExpand(item, ctx, depth)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, expanded)
-		}
-		return MapExpr{Entries: out, Line: value.Line, Col: value.Col}, nil
-	case SetExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			expanded, err := macroExpand(item, ctx, depth)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, expanded)
-		}
-		return SetExpr{Elements: out, Line: value.Line, Col: value.Col}, nil
-	case HashFnExpr:
-		expanded, err := macroExpand(value.Body, ctx, depth)
-		if err != nil {
-			return nil, err
-		}
-		return HashFnExpr{Body: expanded, Line: value.Line, Col: value.Col}, nil
-	case MetaExpr:
-		meta, err := macroExpand(value.Meta, ctx, depth)
-		if err != nil {
-			return nil, err
-		}
-		target, err := macroExpand(value.Target, ctx, depth)
-		if err != nil {
-			return nil, err
-		}
-		return MetaExpr{Meta: meta, Target: target, Line: value.Line, Col: value.Col}, nil
-	default:
-		return expr, nil
-	}
-}
-
-type macroLiteralExpr struct {
-	inner Expr
-}
-
-func (macroLiteralExpr) expr() {}
-
-func quoteMacro(expr Expr) Expr {
-	if _, ok := expr.(macroLiteralExpr); ok {
-		return expr
-	}
-	return macroLiteralExpr{inner: expr}
-}
-
-func unquoteMacro(expr Expr) Expr {
-	for {
-		quoted, ok := expr.(macroLiteralExpr)
-		if !ok {
-			return expr
-		}
-		expr = quoted.inner
-	}
-}
-
-func unquoteMacroTree(expr Expr) Expr {
-	switch value := unquoteMacro(expr).(type) {
-	case ListExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, unquoteMacroTree(item))
-		}
-		return ListExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case VectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, unquoteMacroTree(item))
-		}
-		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case PipeVectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, unquoteMacroTree(item))
-		}
-		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case MapExpr:
-		out := make([]Expr, 0, len(value.Entries))
-		for _, item := range value.Entries {
-			out = append(out, unquoteMacroTree(item))
-		}
-		return MapExpr{Entries: out, Line: value.Line, Col: value.Col}
-	case SetExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, unquoteMacroTree(item))
-		}
-		return SetExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case HashFnExpr:
-		return HashFnExpr{Body: unquoteMacroTree(value.Body), Line: value.Line, Col: value.Col}
-	case MetaExpr:
-		return MetaExpr{Meta: unquoteMacroTree(value.Meta), Target: unquoteMacroTree(value.Target), Line: value.Line, Col: value.Col}
-	default:
-		return value
-	}
-}
-
-func applyMacro(m macroDef, args []Expr) (Expr, error) {
-	if len(m.arities) > 0 {
-		var rest *macroArity
-		for i := range m.arities {
-			a := &m.arities[i]
-			if a.restParam == "" && len(args) == len(a.params) {
-				return applyMacroArity(*a, args)
-			}
-			if a.restParam != "" {
-				rest = a
-			}
-		}
-		if rest != nil && len(args) >= len(rest.params) {
-			return applyMacroArity(*rest, args)
-		}
-		counts := make([]int, 0, len(m.arities))
-		for _, a := range m.arities {
-			if a.restParam == "" {
-				counts = append(counts, len(a.params))
-			}
-		}
-		return nil, fmt.Errorf("%s", multiArityExpectsMessage("macro", counts))
-	}
-	return applyMacroArity(macroArity{params: m.params, restParam: m.restParam, body: m.body}, args)
-}
-
-func applyMacroArity(a macroArity, args []Expr) (Expr, error) {
-	if a.restParam == "" && len(args) != len(a.params) {
-		return nil, fmt.Errorf("macro expects exactly %d arguments", len(a.params))
-	}
-	if a.restParam != "" && len(args) < len(a.params) {
-		return nil, fmt.Errorf("macro expects at least %d arguments", len(a.params))
-	}
-
-	values := make(map[string]Expr, len(a.params))
-	for i, name := range a.params {
-		values[name] = copyExpr(args[i])
-	}
-	restBindings := map[string][]Expr{}
-	if a.restParam != "" {
-		restArgs := make([]Expr, 0, len(args)-len(a.params))
-		for _, arg := range args[len(a.params):] {
-			restArgs = append(restArgs, copyExpr(arg))
-		}
-		restBindings[a.restParam] = restArgs
-	}
-	expanded, err := substituteMacroExpr(a.body, values, restBindings)
-	if err != nil {
-		return nil, err
-	}
-	return unquoteMacroTree(expanded), nil
-}
-
-func substituteMacroExpr(expr Expr, values map[string]Expr, restBindings map[string][]Expr) (Expr, error) {
-	if _, ok := expr.(macroLiteralExpr); ok {
-		return expr, nil
-	}
-	switch value := expr.(type) {
-	case SymbolExpr:
-		if replacement, ok := values[value.Name]; ok {
-			return quoteMacro(copyExpr(replacement)), nil
-		}
-		return value, nil
-	case ListExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			sym, isSym := unquoteMacro(item).(SymbolExpr)
-			if isSym {
-				if restArgs, ok := restBindings[sym.Name]; ok {
-					for _, restArg := range restArgs {
-						out = append(out, quoteMacro(copyExpr(restArg)))
-					}
-					continue
-				}
-			}
-			sub, err := substituteMacroExpr(item, values, restBindings)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub)
-		}
-		if len(out) > 0 {
-			if head, ok := out[0].(SymbolExpr); ok {
-				if expanded, ok, err := applyMacroBuiltin(head.Name, out[1:]); ok || err != nil {
-					return expanded, err
-				}
-			}
-		}
-		return ListExpr{Elements: out}, nil
-	case VectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			sym, isSym := unquoteMacro(item).(SymbolExpr)
-			if isSym {
-				if restArgs, ok := restBindings[sym.Name]; ok {
-					for _, restArg := range restArgs {
-						out = append(out, quoteMacro(copyExpr(restArg)))
-					}
-					continue
-				}
-			}
-			sub, err := substituteMacroExpr(item, values, restBindings)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub)
-		}
-		return VectorExpr{Elements: out}, nil
-	case PipeVectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			sym, isSym := unquoteMacro(item).(SymbolExpr)
-			if isSym {
-				if restArgs, ok := restBindings[sym.Name]; ok {
-					for _, restArg := range restArgs {
-						out = append(out, quoteMacro(copyExpr(restArg)))
-					}
-					continue
-				}
-			}
-			sub, err := substituteMacroExpr(item, values, restBindings)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub)
-		}
-		return PipeVectorExpr{Elements: out}, nil
-	case MapExpr:
-		out := make([]Expr, 0, len(value.Entries))
-		for _, item := range value.Entries {
-			sub, err := substituteMacroExpr(item, values, restBindings)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub)
-		}
-		return MapExpr{Entries: out}, nil
-	case SetExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			sub, err := substituteMacroExpr(item, values, restBindings)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub)
-		}
-		return SetExpr{Elements: out}, nil
-	case HashFnExpr:
-		body, err := substituteMacroExpr(value.Body, values, restBindings)
-		if err != nil {
-			return nil, err
-		}
-		return HashFnExpr{Body: body}, nil
-	case MetaExpr:
-		meta, err := substituteMacroExpr(value.Meta, values, restBindings)
-		if err != nil {
-			return nil, err
-		}
-		target, err := substituteMacroExpr(value.Target, values, restBindings)
-		if err != nil {
-			return nil, err
-		}
-		return MetaExpr{Meta: meta, Target: target, Line: value.Line, Col: value.Col}, nil
-	default:
-		return expr, nil
-	}
-}
-
-func applyMacroBuiltin(name string, args []Expr) (Expr, bool, error) {
-	switch name {
-	case "macro-case":
-		expanded, err := expandMacroCase(args)
-		return expanded, true, err
-	case "macro-defrecord":
-		expanded, err := expandDefrecordMacro(args)
-		return expanded, true, err
-	default:
-		return nil, false, nil
-	}
-}
-
-func expandDefrecordMacro(args []Expr) (Expr, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("macro-defrecord expects a record name and field vector")
-	}
-	return ListExpr{
-		Elements: []Expr{
-			SymbolExpr{Name: "defrecord*"},
-			args[0],
-			args[1],
-		},
-	}, nil
-}
-
-func copyExpr(expr Expr) Expr {
-	switch value := expr.(type) {
-	case macroLiteralExpr:
-		return macroLiteralExpr{inner: copyExpr(value.inner)}
-	case ListExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, copyExpr(item))
-		}
-		return ListExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case VectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, copyExpr(item))
-		}
-		return VectorExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case PipeVectorExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, copyExpr(item))
-		}
-		return PipeVectorExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case MapExpr:
-		out := make([]Expr, 0, len(value.Entries))
-		for _, item := range value.Entries {
-			out = append(out, copyExpr(item))
-		}
-		return MapExpr{Entries: out, Line: value.Line, Col: value.Col}
-	case SetExpr:
-		out := make([]Expr, 0, len(value.Elements))
-		for _, item := range value.Elements {
-			out = append(out, copyExpr(item))
-		}
-		return SetExpr{Elements: out, Line: value.Line, Col: value.Col}
-	case HashFnExpr:
-		return HashFnExpr{Body: copyExpr(value.Body), Line: value.Line, Col: value.Col}
-	case MetaExpr:
-		return MetaExpr{Meta: copyExpr(value.Meta), Target: copyExpr(value.Target), Line: value.Line, Col: value.Col}
-	default:
-		return expr
-	}
-}
-
-func macroCaseClause(expr Expr) (pattern Expr, body Expr, ok bool) {
-	var elems []Expr
-	switch clause := expr.(type) {
-	case ListExpr:
-		elems = clause.Elements
-	case VectorExpr:
-		elems = clause.Elements
-	default:
-		return nil, nil, false
-	}
-	if len(elems) < 2 {
-		return nil, nil, false
-	}
-	pattern = elems[0]
-	if len(elems) == 2 {
-		return pattern, elems[1], true
-	}
-	bodyElems := make([]Expr, 0, 1+len(elems)-1)
-	bodyElems = append(bodyElems, SymbolExpr{Name: "do"})
-	bodyElems = append(bodyElems, elems[1:]...)
-	return pattern, ListExpr{Elements: bodyElems}, true
-}
-
-func expandMacroCase(args []Expr) (Expr, error) {
-	if len(args) < 2 {
-		return nil, fmt.Errorf("macro-case expects a target form and at least one clause")
-	}
-
-	targetList, ok := unquoteMacro(args[0]).(ListExpr)
-	if !ok {
-		return nil, fmt.Errorf("macro-case expects a list target form")
-	}
-	clauses := args[1:]
-	target := make([]Expr, 0, len(targetList.Elements))
-	if len(targetList.Elements) > 0 {
-		target = targetList.Elements[1:]
-	}
-
-	for _, clauseExpr := range clauses {
-		pattern, body, ok := macroCaseClause(clauseExpr)
-		if !ok {
-			return nil, fmt.Errorf("macro-case clauses must be ([pattern] body) lists")
-		}
-		bindings := map[string]Expr{}
-		restBindings := map[string][]Expr{}
-		matched, err := matchMacroPattern(pattern, target, bindings, restBindings)
-		if err != nil {
-			return nil, err
-		}
-		if !matched {
-			continue
-		}
-		return substituteMacroExpr(body, bindings, restBindings)
-	}
-
-	return nil, fmt.Errorf("macro-case had no matching clause")
-}
-
-func matchMacroPattern(pattern Expr, target []Expr, bindings map[string]Expr, restBindings map[string][]Expr) (bool, error) {
-	if len(target) > 0 {
-		unquoted := make([]Expr, len(target))
-		for i, item := range target {
-			unquoted[i] = unquoteMacro(item)
-		}
-		target = unquoted
-	}
-	pattern = unquoteMacro(pattern)
-	switch pat := pattern.(type) {
-	case SymbolExpr:
-		switch pat.Name {
-		case "_":
-			return len(target) == 1, nil
-		case "&":
-			return false, fmt.Errorf("macro-case pattern cannot use bare &")
-		default:
-			if len(target) != 1 {
-				return false, nil
-			}
-			if existing, ok := bindings[pat.Name]; ok {
-				return exprStructEqual(existing, target[0]), nil
-			}
-			bindings[pat.Name] = copyExpr(target[0])
-			return true, nil
-		}
-	case KeywordExpr, StringExpr, CharExpr, IntExpr, BigIntExpr, FloatExpr, RatioExpr, QuotedSymbolExpr:
-		if len(target) != 1 {
-			return false, nil
-		}
-		return exprStructEqual(pat, target[0]), nil
-	case ListExpr:
-		if len(target) == 1 {
-			if listTarget, ok := unwrapMetaExpr(target[0]).(ListExpr); ok {
-				return matchMacroSequence(pat.Elements, listTarget.Elements, bindings, restBindings)
-			}
-		}
-		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
-	case VectorExpr:
-		if len(target) == 1 {
-			if vectorTarget, ok := unwrapMetaExpr(target[0]).(VectorExpr); ok {
-				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
-			}
-		}
-		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
-	case PipeVectorExpr:
-		if len(target) == 1 {
-			if vectorTarget, ok := unwrapMetaExpr(target[0]).(PipeVectorExpr); ok {
-				return matchMacroSequence(pat.Elements, vectorTarget.Elements, bindings, restBindings)
-			}
-		}
-		return matchMacroSequence(pat.Elements, target, bindings, restBindings)
-	case MapExpr, SetExpr, HashFnExpr, MetaExpr:
-		if len(target) != 1 {
-			return false, nil
-		}
-		return exprStructEqual(pat, target[0]), nil
-	default:
-		if len(target) != 1 {
-			return false, nil
-		}
-		return exprStructEqual(pat, target[0]), nil
-	}
-}
-
-func exprStructEqual(a, b Expr) bool {
-	switch av := a.(type) {
-	case SymbolExpr:
-		bv, ok := b.(SymbolExpr)
-		return ok && av.Name == bv.Name
-	case KeywordExpr:
-		bv, ok := b.(KeywordExpr)
-		return ok && av.Name == bv.Name
-	case StringExpr:
-		bv, ok := b.(StringExpr)
-		return ok && av.Value == bv.Value
-	case CharExpr:
-		bv, ok := b.(CharExpr)
-		return ok && av.Value == bv.Value
-	case IntExpr:
-		bv, ok := b.(IntExpr)
-		return ok && av.Value == bv.Value
-	case BigIntExpr:
-		bv, ok := b.(BigIntExpr)
-		return ok && av.Value == bv.Value
-	case FloatExpr:
-		bv, ok := b.(FloatExpr)
-		return ok && av.Raw == bv.Raw && av.Value == bv.Value
-	case RatioExpr:
-		bv, ok := b.(RatioExpr)
-		return ok && av.Numerator == bv.Numerator && av.Denominator == bv.Denominator
-	case QuotedSymbolExpr:
-		bv, ok := b.(QuotedSymbolExpr)
-		return ok && av.Name == bv.Name
-	case ListExpr:
-		bv, ok := b.(ListExpr)
-		if !ok || len(av.Elements) != len(bv.Elements) {
-			return false
-		}
-		for i := range av.Elements {
-			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
-				return false
-			}
-		}
-		return true
-	case VectorExpr:
-		bv, ok := b.(VectorExpr)
-		if !ok || len(av.Elements) != len(bv.Elements) {
-			return false
-		}
-		for i := range av.Elements {
-			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
-				return false
-			}
-		}
-		return true
-	case PipeVectorExpr:
-		bv, ok := b.(PipeVectorExpr)
-		if !ok || len(av.Elements) != len(bv.Elements) {
-			return false
-		}
-		for i := range av.Elements {
-			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
-				return false
-			}
-		}
-		return true
-	case MapExpr:
-		bv, ok := b.(MapExpr)
-		if !ok || len(av.Entries) != len(bv.Entries) {
-			return false
-		}
-		for i := range av.Entries {
-			if !exprStructEqual(av.Entries[i], bv.Entries[i]) {
-				return false
-			}
-		}
-		return true
-	case SetExpr:
-		bv, ok := b.(SetExpr)
-		if !ok || len(av.Elements) != len(bv.Elements) {
-			return false
-		}
-		for i := range av.Elements {
-			if !exprStructEqual(av.Elements[i], bv.Elements[i]) {
-				return false
-			}
-		}
-		return true
-	case HashFnExpr:
-		bv, ok := b.(HashFnExpr)
-		return ok && exprStructEqual(av.Body, bv.Body)
-	case MetaExpr:
-		bv, ok := b.(MetaExpr)
-		return ok && exprStructEqual(av.Meta, bv.Meta) && exprStructEqual(av.Target, bv.Target)
-	default:
-		return false
-	}
-}
-
-func matchMacroSequence(patterns []Expr, target []Expr, bindings map[string]Expr, restBindings map[string][]Expr) (bool, error) {
-	j := 0
-	for i := 0; i < len(patterns); i++ {
-		sym, ok := patterns[i].(SymbolExpr)
-		if ok && sym.Name == "&" {
-			if i != len(patterns)-2 {
-				return false, fmt.Errorf("macro-case rest capture must be in the penultimate position")
-			}
-			name, ok := patterns[i+1].(SymbolExpr)
-			if !ok || name.Name == "" || name.Name == "&" {
-				return false, fmt.Errorf("macro-case rest capture expects a symbol name")
-			}
-			captured := make([]Expr, 0, len(target)-j)
-			for _, expr := range target[j:] {
-				captured = append(captured, copyExpr(expr))
-			}
-			restBindings[name.Name] = captured
-			return true, nil
-		}
-		if j >= len(target) {
-			return false, nil
-		}
-		pat := patterns[i]
-		matched, err := matchMacroPattern(pat, []Expr{target[j]}, bindings, restBindings)
-		if err != nil {
-			return false, err
-		}
-		if !matched {
-			return false, nil
-		}
-		j++
-	}
-	return j == len(target), nil
 }
 
 func argumentExprForGoCall(args []Expr, ctx compileContext, locals map[string]exprKind) (string, error) {

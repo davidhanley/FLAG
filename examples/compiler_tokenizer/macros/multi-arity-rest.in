@@ -1,0 +1,5 @@
+(defmacro m
+  ([x] x)
+  ([x & xs] [x xs]))
+(m a)
+(m a b c)

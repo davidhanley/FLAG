@@ -1,0 +1,2 @@
+(defmacro a [x] x)
+(defmacro b [x] x)

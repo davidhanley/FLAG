@@ -1,0 +1,2 @@
+(defmacro m [list] (list list))
+(m foo)

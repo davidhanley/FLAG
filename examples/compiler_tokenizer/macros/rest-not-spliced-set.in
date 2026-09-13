@@ -1,0 +1,2 @@
+(defmacro into-set [& xs] #{xs})
+(into-set a b)
