@@ -50,5 +50,8 @@ emit the same trees instead of concatenating Go source.
 
 `IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, and
 `IRRaw` for unmigrated snippets. `renderIRExpr` is the only Go-string printer.
-Literals (`7`, `"hi"`, `:kw`, `5/6`, `true`/`false`/`nil`, …) already lower
-through IR; other forms still build `goExpr.code` strings.
+Literals (`7`, `"hi"`, `:kw`, `5/6`, `true`/`false`/`nil`, …) and calls
+already lower through IR: user `flagrt.Call`, self-arity direct calls, nested
+numeric ops (`flagrt.Add(…)`), and runtime wrappers (`first`, `map`, `assoc`,
+…). Special forms (`if`, `let`, `loop`, `try`, `do`) still build `goExpr.code`
+strings.
