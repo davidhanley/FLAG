@@ -1,0 +1,2 @@
+(defmacro wrap [x] (list x bar))
+(wrap foo)

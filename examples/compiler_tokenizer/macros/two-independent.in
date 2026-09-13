@@ -1,0 +1,4 @@
+(defmacro left [x] x)
+(defmacro right [x] x)
+(left a)
+(right b)

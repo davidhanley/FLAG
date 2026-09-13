@@ -1,0 +1,2 @@
+(defmacro id "identity" [x] x)
+(id foo)

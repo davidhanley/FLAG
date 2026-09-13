@@ -51,6 +51,23 @@
   [source]
   (ast-source/asts->source (expand-source-to-array source)))
 
+(defn slurp-text
+  [path]
+  (loop [lines (file-to-strings path) acc nil]
+    (if (empty? lines)
+      (if (nil? acc) "" acc)
+      (recur (rest lines)
+             (let [line (str (first lines))]
+               (if (nil? acc) line (str acc "\n" line)))))))
+
+(defn expand-fixture
+  [name]
+  (expand-source (slurp-text (str "examples/compiler_tokenizer/macros/" name ".in"))))
+
+(defn expected-fixture
+  [name]
+  (slurp-text (str "examples/compiler_tokenizer/macros/" name ".expected")))
+
 (defn lift-file-to-array
   [path]
   (drain-tokens (lift/lift-file path)))

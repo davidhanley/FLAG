@@ -1,0 +1,2 @@
+(defmacro head-tail [h & t] (h t))
+(head-tail a)

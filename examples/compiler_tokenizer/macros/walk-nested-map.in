@@ -1,0 +1,3 @@
+(defmacro id [x] x)
+(defmacro wrap [x] (id x))
+{:left (id baz) :right (wrap qux) :items [(id a) (wrap b)]}

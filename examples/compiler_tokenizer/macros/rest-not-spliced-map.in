@@ -1,0 +1,2 @@
+(defmacro into-map [k & xs] {k xs})
+(into-map :k a b)

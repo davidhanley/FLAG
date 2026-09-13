@@ -1,0 +1,3 @@
+(defmacro define-pack [name] (defmacro name [& xs] [xs]))
+(define-pack pack)
+(pack a b)

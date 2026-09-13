@@ -77,6 +77,33 @@
   [elements]
   {:kind :list :elements elements})
 
+(defn wrap-literal
+  [expr]
+  {:kind :macro-literal :inner expr})
+
+(defn unwrap-literal
+  [expr]
+  (if (= :macro-literal (:kind expr))
+    (unwrap-literal (:inner expr))
+    expr))
+
+(defn unwrap-literal-tree
+  [expr]
+  (let [expr (unwrap-literal expr)]
+    (if (walk-node? expr)
+      (with-children expr
+        (loop [remaining (node-children expr) acc []]
+          (if (empty? remaining)
+            acc
+            (recur (rest remaining) (conj acc (unwrap-literal-tree (first remaining)))))))
+      (if (hash-fn-node? expr)
+        (assoc expr :body (unwrap-literal-tree (:body expr)))
+        (if (meta-node? expr)
+          (assoc expr
+                 :meta (unwrap-literal-tree (:meta expr))
+                 :target (unwrap-literal-tree (:target expr)))
+          expr)))))
+
 (defn macro-definition?
   [expr]
   (and (list-node? expr)
@@ -341,7 +368,8 @@
                   (loop [remaining b out []]
                     (if (empty? remaining)
                       out
-                      (recur (rest remaining) (conj out (unwrap-meta (first remaining)))))))
+                      (recur (rest remaining)
+                             (conj out (unwrap-meta (unwrap-literal (first remaining))))))))
           bindings c
           rest-bindings d]
       (cond
@@ -407,9 +435,11 @@
     (let [expr a
           values b
           rest-bindings c]
+      (if (= :macro-literal (:kind expr))
+        expr
       (if (symbol-node? expr)
         (let [replacement (get values (:name expr))]
-          (if (nil? replacement) expr replacement))
+          (if (nil? replacement) expr (wrap-literal replacement)))
         (if (splice-node? expr)
           (let [out (loop [remaining (node-children expr) acc []]
                       (if (empty? remaining)
@@ -419,7 +449,11 @@
                                            (get rest-bindings (:name child))
                                            nil)]
                           (if (not (nil? rest-items))
-                            (recur (rest remaining) (append-all acc rest-items))
+                            (recur (rest remaining)
+                                   (loop [items rest-items out acc]
+                                     (if (empty? items)
+                                       out
+                                       (recur (rest items) (conj out (wrap-literal (first items)))))))
                             (recur (rest remaining)
                                    (conj acc (macro-op :subst child values rest-bindings nil)))))))]
             (if (and (list-node? expr) (not (empty? out)) (symbol-node? (first out)))
@@ -441,7 +475,7 @@
                 (assoc expr
                        :meta (macro-op :subst (:meta expr) values rest-bindings nil)
                        :target (macro-op :subst (:target expr) values rest-bindings nil))
-                expr))))))
+                expr)))))))
 
     true (throw (ex-info "unknown macro-op" {:op op}))))
 
@@ -452,7 +486,7 @@
 (defn apply-macro-arity
   [arity args]
   (let [bindings (bind-macro-args arity args)]
-    (substitute-node (:body arity) (:values bindings) (:rest-bindings bindings))))
+    (unwrap-literal-tree (substitute-node (:body arity) (:values bindings) (:rest-bindings bindings)))))
 
 (defn apply-multi-arity
   [macro args]
@@ -491,7 +525,7 @@
           (let [head (first children)
                 macro (if (symbol-node? head) (get macros (:name head)) nil)]
             (if macro
-              (expand-node (apply-macro macro (rest children)) macros (inc depth))
+              (expand-node (apply-macro macro (rest children)) macros (+ depth 1))
               (with-children expr
                 (loop [remaining children out []]
                   (if (empty? remaining)
@@ -522,16 +556,21 @@
   [in]
   (let [out (make-channel 64)]
     (go
-      (loop [macros {}]
-        (let [expr (channel-receive in)]
-          (if (nil? expr)
-            (channel-close out)
-            (if (macro-definition? expr)
-              (recur (register-macro macros expr))
-              (let [expanded (expand-node expr macros 0)]
-                (if (macro-definition? expanded)
-                  (recur (register-macro macros expanded))
-                  (do
-                    (channel-send out expanded)
-                    (recur macros)))))))))
+      (try
+        (loop [macros {}]
+          (let [expr (channel-receive in)]
+            (if (nil? expr)
+              nil
+              (if (macro-definition? expr)
+                (recur (register-macro macros expr))
+                (let [expanded (expand-node expr macros 0)]
+                  (if (macro-definition? expanded)
+                    (recur (register-macro macros expanded))
+                    (do
+                      (channel-send out expanded)
+                      (recur macros))))))))
+        (catch Exception e
+          (channel-send out {:kind :error :message (ex-message e)}))
+        (finally
+          (channel-close out))))
     out))

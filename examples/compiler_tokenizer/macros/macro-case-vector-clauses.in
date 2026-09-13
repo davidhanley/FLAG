@@ -1,0 +1,8 @@
+(defmacro m [& xs]
+  (macro-case (do xs)
+    [[] nil]
+    [[1 v] v]
+    [[v] v]))
+(m)
+(m 8)
+(m 1 9)

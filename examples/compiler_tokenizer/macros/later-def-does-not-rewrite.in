@@ -1,0 +1,3 @@
+(id a)
+(defmacro id [x] x)
+(id foo)

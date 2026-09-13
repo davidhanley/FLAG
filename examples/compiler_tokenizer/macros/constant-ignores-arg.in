@@ -1,0 +1,2 @@
+(defmacro seven [x] 7)
+(seven foo)
