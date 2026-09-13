@@ -41,3 +41,14 @@ Canned fixture tests are `examples/compiler_tokenizer/macros/*.in` vs
 `*.expected`, driven by `expand_macros_test.flag`. Helpers `slurp-text`,
 `expand-fixture`, and `expected-fixture` live in
 `examples/compiler_tokenizer/main.flag`.
+
+## Go lowering IR
+
+After expansion, the Go compiler still lowers FLAG forms to Go. Expression
+nodes are moving onto a small IR (`internal/compiler/ir.go`) so FLAG can later
+emit the same trees instead of concatenating Go source.
+
+`IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, and
+`IRRaw` for unmigrated snippets. `renderIRExpr` is the only Go-string printer.
+Literals (`7`, `"hi"`, `:kw`, `5/6`, `true`/`false`/`nil`, …) already lower
+through IR; other forms still build `goExpr.code` strings.

@@ -28,6 +28,7 @@ const (
 type goExpr struct {
 	code string
 	kind exprKind
+	ir   IRExpr
 }
 
 func exprPos(expr Expr) (int, int, bool) {
@@ -380,7 +381,7 @@ func (ctx compileContext) constCode(hint, code string) string {
 // keywordCode returns the Go expression for a keyword literal, hoisting it when
 // interning is enabled. Keyword var names stay flagKw_<name> for readability.
 func (ctx compileContext) keywordCode(name string) string {
-	return ctx.constCode("Kw_"+sanitizeKeywordIdent(name), fmt.Sprintf("%s.NewKeyword(%q)", runtimeAlias, name))
+	return renderIRExpr(ctx.internIR("Kw_"+sanitizeKeywordIdent(name), rtCall("NewKeyword", IRString{Value: name})))
 }
 
 // stringLiteralValueCode returns the Value-constructing code for a string
@@ -1857,30 +1858,32 @@ func strArgExprForGoCall(args []Expr, ctx compileContext, locals map[string]expr
 func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	switch arg := expr.(type) {
 	case StringExpr:
-		return goExpr{code: fmt.Sprintf("%q", arg.Value), kind: exprKindString}, nil
+		return fromIR(IRString{Value: arg.Value}, exprKindString), nil
 	case CharExpr:
-		code := fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(arg.Value))
-		return goExpr{code: ctx.constCode("Char", code), kind: exprKindValue}, nil
+		ir := ctx.internIR("Char", rtCall("NewString", IRString{Value: string(arg.Value)}))
+		return fromIR(ir, exprKindValue), nil
 	case IntExpr:
 		// Longs are scalar Values (no heap allocation), so hoisting adds clutter
 		// without benefit; emit inline.
-		return goExpr{code: fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
+		return fromIR(rtCall("NewLong", IRInt{Value: arg.Value}), exprKindValue), nil
 	case BigIntExpr:
-		code := fmt.Sprintf("%s.NewBigIntFromString(%q)", runtimeAlias, arg.Value)
-		return goExpr{code: ctx.constCode("Big_"+sanitizeKeywordIdent(arg.Value), code), kind: exprKindValue}, nil
+		ir := ctx.internIR("Big_"+sanitizeKeywordIdent(arg.Value), rtCall("NewBigIntFromString", IRString{Value: arg.Value}))
+		return fromIR(ir, exprKindValue), nil
 	case RatioExpr:
-		code := fmt.Sprintf("%s.NewRatio(%d, %d)", runtimeAlias, arg.Numerator, arg.Denominator)
-		return goExpr{code: ctx.constCode(fmt.Sprintf("Ratio_%d_%d", arg.Numerator, arg.Denominator), code), kind: exprKindValue}, nil
+		ir := ctx.internIR(fmt.Sprintf("Ratio_%d_%d", arg.Numerator, arg.Denominator),
+			rtCall("NewRatio", IRInt{Value: arg.Numerator}, IRInt{Value: arg.Denominator}))
+		return fromIR(ir, exprKindValue), nil
 	case FloatExpr:
 		if arg.Raw != "" {
-			return goExpr{code: fmt.Sprintf("%s.NewDouble(%s)", runtimeAlias, arg.Raw), kind: exprKindValue}, nil
+			return fromIR(rtCall("NewDouble", IRRaw{Code: arg.Raw}), exprKindValue), nil
 		}
-		return goExpr{code: fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, arg.Value), kind: exprKindValue}, nil
+		return fromIR(rtCall("NewDouble", IRRaw{Code: fmt.Sprintf("%g", arg.Value)}), exprKindValue), nil
 	case KeywordExpr:
-		return goExpr{code: ctx.keywordCode(arg.Name), kind: exprKindValue}, nil
+		ir := ctx.internIR("Kw_"+sanitizeKeywordIdent(arg.Name), rtCall("NewKeyword", IRString{Value: arg.Name}))
+		return fromIR(ir, exprKindValue), nil
 	case QuotedSymbolExpr:
-		code := fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, arg.Name)
-		return goExpr{code: ctx.constCode("Sym_"+sanitizeKeywordIdent(arg.Name), code), kind: exprKindValue}, nil
+		ir := ctx.internIR("Sym_"+sanitizeKeywordIdent(arg.Name), rtCall("NewSymbol", IRString{Value: arg.Name}))
+		return fromIR(ir, exprKindValue), nil
 	case QuotedListExpr:
 		return quotedListExprToGo(arg, ctx)
 	case VectorExpr:
@@ -1897,13 +1900,13 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		return exprToGo(arg.Target, ctx, locals)
 	case SymbolExpr:
 		if arg.Name == "true" {
-			return goExpr{code: fmt.Sprintf("%s.NewBool(true)", runtimeAlias), kind: exprKindValue}, nil
+			return fromIR(rtCall("NewBool", IRRaw{Code: "true"}), exprKindValue), nil
 		}
 		if arg.Name == "false" {
-			return goExpr{code: fmt.Sprintf("%s.NewBool(false)", runtimeAlias), kind: exprKindValue}, nil
+			return fromIR(rtCall("NewBool", IRRaw{Code: "false"}), exprKindValue), nil
 		}
 		if arg.Name == "nil" {
-			return goExpr{code: fmt.Sprintf("%s.NilValue()", runtimeAlias), kind: exprKindValue}, nil
+			return fromIR(rtCall("NilValue"), exprKindValue), nil
 		}
 		// Locals are always bare (params/let); never qualified.
 		if !strings.Contains(arg.Name, "/") {
