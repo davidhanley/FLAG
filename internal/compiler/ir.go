@@ -44,8 +44,50 @@ type IRRaw struct{ Code string }
 
 func (IRRaw) irExpr() {}
 
-// IRFuncLit is an anonymous function. An IIFE is IRCall{Fun: lit} with no args.
+// IRIndex is X[Index], e.g. args[0].
+type IRIndex struct {
+	X     IRExpr
+	Index IRExpr
+}
+
+func (IRIndex) irExpr() {}
+
+// IRSlice is X[Low:High]; nil Low or High omits that bound.
+type IRSlice struct {
+	X    IRExpr
+	Low  IRExpr
+	High IRExpr
+}
+
+func (IRSlice) irExpr() {}
+
+// IRSpread is expr... in a call argument list.
+type IRSpread struct{ Expr IRExpr }
+
+func (IRSpread) irExpr() {}
+
+// IRUnary is a prefix operator, currently "!" which renders as !(X).
+type IRUnary struct {
+	Op string
+	X  IRExpr
+}
+
+func (IRUnary) irExpr() {}
+
+// IRBinary is Left Op Right, e.g. len(args) != 1.
+type IRBinary struct {
+	Op    string
+	Left  IRExpr
+	Right IRExpr
+}
+
+func (IRBinary) irExpr() {}
+
+// IRFuncLit is an anonymous function. Params is the inside of the
+// parentheses (empty means no parameters). An IIFE is IRCall{Fun: lit}
+// with no args.
 type IRFuncLit struct {
+	Params string
 	Result string
 	Body   []IRStmt
 }
@@ -189,16 +231,41 @@ func renderIRExpr(expr IRExpr) string {
 	case IRCall:
 		args := make([]string, 0, len(e.Args))
 		for _, arg := range e.Args {
+			if spread, ok := arg.(IRSpread); ok {
+				args = append(args, renderIRExpr(spread.Expr)+"...")
+				continue
+			}
 			args = append(args, renderIRExpr(arg))
 		}
 		return fmt.Sprintf("%s(%s)", renderIRExpr(e.Fun), strings.Join(args, ", "))
+	case IRIndex:
+		return renderIRExpr(e.X) + "[" + renderIRExpr(e.Index) + "]"
+	case IRSlice:
+		low, high := "", ""
+		if e.Low != nil {
+			low = renderIRExpr(e.Low)
+		}
+		if e.High != nil {
+			high = renderIRExpr(e.High)
+		}
+		return renderIRExpr(e.X) + "[" + low + ":" + high + "]"
+	case IRUnary:
+		if e.Op == "!" {
+			return "!(" + renderIRExpr(e.X) + ")"
+		}
+		return e.Op + renderIRExpr(e.X)
+	case IRBinary:
+		return renderIRExpr(e.Left) + " " + e.Op + " " + renderIRExpr(e.Right)
 	case IRFuncLit:
 		var b strings.Builder
-		if e.Result == "" {
-			b.WriteString("func() {\n")
-		} else {
-			fmt.Fprintf(&b, "func() %s {\n", e.Result)
+		b.WriteString("func(")
+		b.WriteString(e.Params)
+		b.WriteString(")")
+		if e.Result != "" {
+			b.WriteString(" ")
+			b.WriteString(e.Result)
 		}
+		b.WriteString(" {\n")
 		b.WriteString(renderIRStmts(e.Body, "\t"))
 		b.WriteString("}")
 		return b.String()

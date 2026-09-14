@@ -395,7 +395,7 @@ func (ctx compileContext) stringLiteralValueCode(source Expr, quotedCode string)
 		return "", false
 	}
 	hint := "Str_" + sanitizeKeywordIdent(truncateHint(str.Value))
-	return ctx.constCode(hint, fmt.Sprintf("%s.NewString(%s)", runtimeAlias, quotedCode)), true
+	return renderIRExpr(ctx.internIR(hint, rtCall("NewString", IRRaw{Code: quotedCode}))), true
 }
 
 func truncateHint(s string) string {
@@ -1914,9 +1914,9 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 			if ident, err := toGoIdentifier(arg.Name); err == nil && locals != nil {
 				if kind, ok := locals[ident]; ok {
 					if kind == exprKindMutableValue {
-						return goExpr{code: ident, kind: exprKindValue}, nil
+						return fromIR(IRIdent{Name: ident}, exprKindValue), nil
 					}
-					return goExpr{code: ident, kind: kind}, nil
+					return fromIR(IRIdent{Name: ident}, kind), nil
 				}
 			}
 		}
@@ -1926,17 +1926,17 @@ func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr
 		// Module table: bare locals, :refer names, and qualified imports.
 		if goIdent, ok := ctx.resolveModuleSymbol(arg.Name); ok {
 			if kind, ok := ctx.globals[goIdent]; ok {
-				return goExpr{code: goIdent, kind: kind}, nil
+				return fromIR(IRIdent{Name: goIdent}, kind), nil
 			}
 			if _, ok := ctx.functions[goIdent]; ok {
 				return fromIR(rtCall("NewFunction", IRIdent{Name: goIdent}), exprKindValue), nil
 			}
-			return goExpr{code: goIdent, kind: exprKindValue}, nil
+			return fromIR(IRIdent{Name: goIdent}, exprKindValue), nil
 		}
 		ident, err := toGoIdentifier(arg.Name)
 		if err == nil {
 			if kind, ok := ctx.globals[ident]; ok {
-				return goExpr{code: ident, kind: kind}, nil
+				return fromIR(IRIdent{Name: ident}, kind), nil
 			}
 			if _, ok := ctx.functions[ident]; ok {
 				return fromIR(rtCall("NewFunction", IRIdent{Name: ident}), exprKindValue), nil
@@ -2678,7 +2678,7 @@ func goFormExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind)
 			IRDefer{Expr: IRCall{Fun: IRFuncLit{Body: []IRStmt{
 				IRIfStmt{
 					Init: "r := recover()",
-					Cond: IRRaw{Code: "r != nil"},
+					Cond: IRBinary{Op: "!=", Left: IRIdent{Name: "r"}, Right: IRIdent{Name: "nil"}},
 					Then: []IRStmt{IRExprStmt{Expr: rtCall("ReportGoPanic", IRIdent{Name: "r"})}},
 				},
 			}}}},
@@ -2705,7 +2705,10 @@ func futureFormExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	if err != nil {
 		return goExpr{}, err
 	}
-	return fromIR(rtCall("NewFuture", IRRaw{Code: fmt.Sprintf("func() %s.Value { return %s }", runtimeAlias, body.code)}), exprKindValue), nil
+	return fromIR(rtCall("NewFuture", IRFuncLit{
+		Result: runtimeAlias + ".Value",
+		Body:   []IRStmt{IRReturn{Expr: irFromGoExpr(body)}},
+	}), exprKindValue), nil
 }
 
 func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -2717,7 +2720,7 @@ func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 	if err != nil {
 		return goExpr{}, err
 	}
-	condition, err := truthyExprToGo(condExpr)
+	condition, err := truthyIR(condExpr)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -2757,7 +2760,7 @@ func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 
 	return fromIR(iife(typeName,
 		IRIfStmt{
-			Cond: IRRaw{Code: condition},
+			Cond: condition,
 			Then: []IRStmt{IRReturn{Expr: irFromGoExpr(trueExpr)}},
 		},
 		IRReturn{Expr: irFromGoExpr(falseExpr)},
@@ -2974,7 +2977,7 @@ func tryExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 
 	recoverBody := []IRStmt{
 		IRDefine{Names: []string{"r"}, Expr: identCall("recover")},
-		IRIfStmt{Cond: IRRaw{Code: "r == nil"}, Then: []IRStmt{IRReturn{}}},
+		IRIfStmt{Cond: IRBinary{Op: "==", Left: IRIdent{Name: "r"}, Right: IRIdent{Name: "nil"}}, Then: []IRStmt{IRReturn{}}},
 		IRDefine{Names: []string{"__flag_thrown"}, Expr: rtCall("PanicValue", IRIdent{Name: "r"})},
 	}
 	for _, clause := range catches {
@@ -3195,7 +3198,7 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 		if err != nil {
 			return goExpr{}, err
 		}
-		return goExpr{code: fmt.Sprintf("%s.NewArray(%s)", runtimeAlias, body.code), kind: exprKindValue}, nil
+		return fromIR(rtCall("NewArray", irFromGoExpr(body)), exprKindValue), nil
 	}
 
 	if len(bindings) < 2 {
@@ -3215,7 +3218,7 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 	if err != nil {
 		return goExpr{}, err
 	}
-	collCode, err := collectionArgToValueCode(collExpr)
+	collIR, err := collectionArgToValueIR(collExpr)
 	if err != nil {
 		return goExpr{}, exprError(bindings[1], "for binding collection must evaluate to Value")
 	}
@@ -3233,25 +3236,7 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 		return goExpr{}, err
 	}
 
-	var out strings.Builder
-	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
-	fmt.Fprintf(&out, "\treturn %s.MapCat(%s.NewFunction(func(args ...%s.Value) %s.Value {\n", runtimeAlias, runtimeAlias, runtimeAlias, runtimeAlias)
-	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
-	fmt.Fprintf(&out, "\t\t\tpanic(\"for binding expects exactly one value\")\n")
-	fmt.Fprintf(&out, "\t\t}\n")
-	if ident == "_" {
-		out.WriteString("\t\t_ = args[0]\n")
-	} else {
-		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
-		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
-	}
-	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
-	out.WriteString("\t}), ")
-	out.WriteString(collCode)
-	out.WriteString(")\n")
-	out.WriteString("}()")
-
-	return goExpr{code: out.String(), kind: exprKindValue}, nil
+	return fromIR(mapCatBindingIR(ident, sym.Name, "for binding expects exactly one value", irFromGoExpr(rest), collIR), exprKindValue), nil
 }
 
 func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3290,7 +3275,7 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 	if err != nil {
 		return goExpr{}, err
 	}
-	collCode, err := collectionArgToValueCode(collExpr)
+	collIR, err := collectionArgToValueIR(collExpr)
 	if err != nil {
 		return goExpr{}, exprError(bindings[1], "doseq binding collection must evaluate to Value")
 	}
@@ -3308,25 +3293,7 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 		return goExpr{}, err
 	}
 
-	var out strings.Builder
-	fmt.Fprintf(&out, "func() %s.Value {\n", runtimeAlias)
-	fmt.Fprintf(&out, "\treturn %s.MapCat(%s.NewFunction(func(args ...%s.Value) %s.Value {\n", runtimeAlias, runtimeAlias, runtimeAlias, runtimeAlias)
-	fmt.Fprintf(&out, "\t\tif len(args) != 1 {\n")
-	fmt.Fprintf(&out, "\t\t\tpanic(\"doseq binding expects exactly one value\")\n")
-	fmt.Fprintf(&out, "\t\t}\n")
-	if ident == "_" {
-		out.WriteString("\t\t_ = args[0]\n")
-	} else {
-		fmt.Fprintf(&out, "\t\t%s := args[0]\n", ident)
-		out.WriteString(unusedUseStmt(sym.Name, ident, "\t\t"))
-	}
-	fmt.Fprintf(&out, "\t\treturn %s\n", rest.code)
-	out.WriteString("\t}), ")
-	out.WriteString(collCode)
-	out.WriteString(")\n")
-	out.WriteString("}()")
-
-	return goExpr{code: out.String(), kind: exprKindValue}, nil
+	return fromIR(mapCatBindingIR(ident, sym.Name, "doseq binding expects exactly one value", irFromGoExpr(rest), collIR), exprKindValue), nil
 }
 
 func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3347,7 +3314,7 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		localKinds[name] = kind
 	}
 
-	bindings := make([]string, 0, len(bindingsExpr.Elements)*2)
+	bindings := make([]IRStmt, 0, len(bindingsExpr.Elements)*2)
 	tempCounter := 0
 	declared := make(map[string]struct{}, len(bindingsExpr.Elements))
 	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
@@ -3378,17 +3345,15 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 			}
 			sourceName := fmt.Sprintf("__bind%d", tempCounter)
 			tempCounter++
-			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
-			bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", name, sourceName))
-			if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
-				bindings = append(bindings, line)
-			}
+			bindings = append(bindings, IRVar{Name: sourceName, Expr: irFromGoExpr(valueExpr)})
+			bindings = append(bindings, IRVar{Name: name, Expr: IRIdent{Name: sourceName}})
+			bindings = appendUnusedIR(bindings, sym.Name, name)
 			continue
 		}
 
 		if sym, ok := targetPattern.(SymbolExpr); ok {
 			emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
-			if err := emitter.bindSymbolWithKind(sym, valueExpr.code, valueExpr.kind); err != nil {
+			if err := emitter.bindSymbolWithKind(sym, irFromGoExpr(valueExpr), valueExpr.kind); err != nil {
 				return goExpr{}, exprError(bindingPattern, err.Error())
 			}
 			continue
@@ -3400,9 +3365,9 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 
 		sourceName := fmt.Sprintf("__bind%d", tempCounter)
 		tempCounter++
-		bindings = append(bindings, fmt.Sprintf("\tvar %s = %s\n", sourceName, valueExpr.code))
+		bindings = append(bindings, IRVar{Name: sourceName, Expr: irFromGoExpr(valueExpr)})
 		emitter := newDestructureEmitter(ctx, localKinds, &bindings, &tempCounter, declared)
-		if err := emitter.bind(targetPattern, sourceName); err != nil {
+		if err := emitter.bind(targetPattern, IRIdent{Name: sourceName}); err != nil {
 			return goExpr{}, err
 		}
 	}
@@ -3438,9 +3403,7 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 	}
 
 	body := make([]IRStmt, 0, len(bindings)+len(compiledBody)+1)
-	for _, binding := range bindings {
-		body = append(body, IRRawStmt{Code: binding})
-	}
+	body = append(body, bindings...)
 	body = append(body, sequentialStmts(compiledBody)...)
 	return fromIR(iife(typeName, body...), resultKind), nil
 }
@@ -3467,7 +3430,7 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 	}
 
 	bindingNames := make([]string, 0, len(bindingsExpr.Elements)/2)
-	initialValues := make([]string, 0, len(bindingsExpr.Elements)/2)
+	initialValues := make([]IRExpr, 0, len(bindingsExpr.Elements)/2)
 	declared := make(map[string]struct{}, len(bindingsExpr.Elements)/2)
 
 	for i := 0; i < len(bindingsExpr.Elements); i += 2 {
@@ -3494,7 +3457,7 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		}
 
 		bindingNames = append(bindingNames, goName)
-		initialValues = append(initialValues, valueExpr.code)
+		initialValues = append(initialValues, irFromGoExpr(valueExpr))
 	}
 
 	loopCtx := copyCompileContext(ctx)
@@ -3511,21 +3474,26 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 
 	body := make([]IRStmt, 0, len(bindingNames)*2+1)
 	for i := range bindingNames {
-		body = append(body, IRVar{Name: bindingNames[i], Expr: IRRaw{Code: initialValues[i]}})
+		body = append(body, IRVar{Name: bindingNames[i], Expr: initialValues[i]})
 		flagName := unwrapMetaExpr(bindingsExpr.Elements[i*2]).(SymbolExpr).Name
-		if line := unusedUseStmt(flagName, bindingNames[i], "\t"); line != "" {
-			body = append(body, IRRawStmt{Code: line})
-		}
+		body = appendUnusedIR(body, flagName, bindingNames[i])
 	}
 
 	recurThen := []IRStmt{
 		IRIfStmt{
-			Cond: IRRaw{Code: fmt.Sprintf("len(__recurValues) != %d", len(bindingNames))},
+			Cond: IRBinary{
+				Op:    "!=",
+				Left:  identCall("len", IRIdent{Name: "__recurValues"}),
+				Right: IRInt{Value: int64(len(bindingNames))},
+			},
 			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: "internal error: recur arity mismatch"})}},
 		},
 	}
 	for i, name := range bindingNames {
-		recurThen = append(recurThen, IRAssign{Name: name, Expr: IRRaw{Code: fmt.Sprintf("__recurValues[%d]", i)}})
+		recurThen = append(recurThen, IRAssign{
+			Name: name,
+			Expr: IRIndex{X: IRIdent{Name: "__recurValues"}, Index: IRInt{Value: int64(i)}},
+		})
 	}
 	recurThen = append(recurThen, IRExprStmt{Expr: IRIdent{Name: "continue"}})
 
@@ -3614,55 +3582,55 @@ func parseVolatileBindingPattern(expr Expr) (bool, Expr, error) {
 type destructureEmitter struct {
 	ctx         compileContext
 	locals      map[string]exprKind
-	lines       *[]string
+	stmts       *[]IRStmt
 	tempCounter *int
 	declared    map[string]struct{}
 }
 
 type destructureKeyBinding struct {
-	keyExpr     string
+	keyExpr     IRExpr
 	bindingExpr Expr
 }
 
 func newDestructureEmitter(
 	ctx compileContext,
 	locals map[string]exprKind,
-	lines *[]string,
+	stmts *[]IRStmt,
 	tempCounter *int,
 	declared map[string]struct{},
 ) destructureEmitter {
 	return destructureEmitter{
 		ctx:         ctx,
 		locals:      locals,
-		lines:       lines,
+		stmts:       stmts,
 		tempCounter: tempCounter,
 		declared:    declared,
 	}
 }
 
-func (e destructureEmitter) bind(pattern Expr, sourceCode string) error {
+func (e destructureEmitter) bind(pattern Expr, source IRExpr) error {
 	switch p := pattern.(type) {
 	case MetaExpr:
-		return e.bind(p.Target, sourceCode)
+		return e.bind(p.Target, source)
 	case SymbolExpr:
 		if p.Name == "&" {
 			return fmt.Errorf("unexpected & in binding")
 		}
-		return e.bindSymbol(p, sourceCode)
+		return e.bindSymbol(p, source)
 	case VectorExpr:
-		return e.bindVector(p, sourceCode)
+		return e.bindVector(p, source)
 	case MapExpr:
-		return e.bindMap(p, sourceCode)
+		return e.bindMap(p, source)
 	default:
 		return fmt.Errorf("unsupported binding form %T", pattern)
 	}
 }
 
-func (e destructureEmitter) bindSymbol(sym SymbolExpr, sourceCode string) error {
-	return e.bindSymbolWithKind(sym, sourceCode, exprKindValue)
+func (e destructureEmitter) bindSymbol(sym SymbolExpr, source IRExpr) error {
+	return e.bindSymbolWithKind(sym, source, exprKindValue)
 }
 
-func (e destructureEmitter) bindSymbolWithKind(sym SymbolExpr, sourceCode string, kind exprKind) error {
+func (e destructureEmitter) bindSymbolWithKind(sym SymbolExpr, source IRExpr, kind exprKind) error {
 	if sym.Name == "" {
 		return fmt.Errorf("binding symbol cannot be empty")
 	}
@@ -3673,14 +3641,12 @@ func (e destructureEmitter) bindSymbolWithKind(sym SymbolExpr, sourceCode string
 	if err := declareNamedBinding(e.declared, e.locals, sym.Name, name, kind); err != nil {
 		return err
 	}
-	*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s\n", name, sourceCode))
-	if line := unusedUseStmt(sym.Name, name, "\t"); line != "" {
-		*e.lines = append(*e.lines, line)
-	}
+	*e.stmts = append(*e.stmts, IRVar{Name: name, Expr: source})
+	*e.stmts = appendUnusedIR(*e.stmts, sym.Name, name)
 	return nil
 }
 
-func (e destructureEmitter) bindVector(pattern VectorExpr, sourceCode string) error {
+func (e destructureEmitter) bindVector(pattern VectorExpr, source IRExpr) error {
 	positionals := make([]Expr, 0, len(pattern.Elements))
 	var restPattern Expr
 	var asPattern Expr
@@ -3717,19 +3683,19 @@ func (e destructureEmitter) bindVector(pattern VectorExpr, sourceCode string) er
 	}
 
 	if asPattern != nil {
-		if err := e.bind(asPattern, sourceCode); err != nil {
+		if err := e.bind(asPattern, source); err != nil {
 			return err
 		}
 	}
 
-	current := sourceCode
+	current := source
 	for _, positional := range positionals {
 		nextName := e.freshTemp("__dseq")
-		*e.lines = append(*e.lines, fmt.Sprintf("\tvar %s = %s.SeqFirst(%s)\n", nextName, runtimeAlias, current))
-		if err := e.bind(positional, nextName); err != nil {
+		*e.stmts = append(*e.stmts, IRVar{Name: nextName, Expr: rtCall("SeqFirst", current)})
+		if err := e.bind(positional, IRIdent{Name: nextName}); err != nil {
 			return err
 		}
-		current = fmt.Sprintf("%s.SeqRest(%s)", runtimeAlias, current)
+		current = rtCall("SeqRest", current)
 	}
 
 	if restPattern != nil {
@@ -3740,7 +3706,7 @@ func (e destructureEmitter) bindVector(pattern VectorExpr, sourceCode string) er
 	return nil
 }
 
-func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
+func (e destructureEmitter) bindMap(pattern MapExpr, source IRExpr) error {
 	bindings := make([]destructureKeyBinding, 0, len(pattern.Entries)/2)
 	var asPattern Expr
 	defaults := make(map[string]Expr)
@@ -3794,7 +3760,7 @@ func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
 			}
 		}
 
-		keyExpr, err := compileDestructureMapKeyToValue(key, e.ctx)
+		keyExpr, err := compileDestructureMapKeyToIR(key, e.ctx)
 		if err != nil {
 			return err
 		}
@@ -3802,13 +3768,13 @@ func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
 	}
 
 	if asPattern != nil {
-		if err := e.bind(asPattern, sourceCode); err != nil {
+		if err := e.bind(asPattern, source); err != nil {
 			return err
 		}
 	}
 
 	for _, binding := range bindings {
-		valueExpr := fmt.Sprintf("%s.Get(%s, %s)", runtimeAlias, sourceCode, binding.keyExpr)
+		valueExpr := rtCall("Get", source, binding.keyExpr)
 		if sym, ok := binding.bindingExpr.(SymbolExpr); ok {
 			if defExpr, exists := defaults[sym.Name]; exists {
 				defaultCode, err := exprToGo(defExpr, e.ctx, e.locals)
@@ -3818,7 +3784,7 @@ func (e destructureEmitter) bindMap(pattern MapExpr, sourceCode string) error {
 				if defaultCode.kind != exprKindValue {
 					return fmt.Errorf("map destructuring default for %q must evaluate to Value", sym.Name)
 				}
-				valueExpr = fmt.Sprintf("%s.Get(%s, %s, %s)", runtimeAlias, sourceCode, binding.keyExpr, defaultCode.code)
+				valueExpr = rtCall("Get", source, binding.keyExpr, irFromGoExpr(defaultCode))
 			}
 		}
 		if err := e.bind(binding.bindingExpr, valueExpr); err != nil {
@@ -3879,7 +3845,7 @@ func expandMapDestructureKeys(expr Expr, ctx compileContext) ([]destructureKeyBi
 			return nil, fmt.Errorf("map destructuring :keys entries must be symbols")
 		}
 		out = append(out, destructureKeyBinding{
-			keyExpr:     ctx.keywordCode(sym.Name),
+			keyExpr:     IRIdent{Name: ctx.keywordCode(sym.Name)},
 			bindingExpr: sym,
 		})
 	}
@@ -3898,7 +3864,7 @@ func expandMapDestructureSyms(expr Expr) ([]destructureKeyBinding, error) {
 			return nil, fmt.Errorf("map destructuring :syms entries must be symbols")
 		}
 		out = append(out, destructureKeyBinding{
-			keyExpr:     fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, sym.Name),
+			keyExpr:     rtCall("NewSymbol", IRString{Value: sym.Name}),
 			bindingExpr: sym,
 		})
 	}
@@ -3922,36 +3888,36 @@ func expandMapDestructureStrs(expr Expr) ([]destructureKeyBinding, error) {
 		}
 		sym := SymbolExpr{Name: name}
 		out = append(out, destructureKeyBinding{
-			keyExpr:     fmt.Sprintf("%s.NewString(%q)", runtimeAlias, str.Value),
+			keyExpr:     rtCall("NewString", IRString{Value: str.Value}),
 			bindingExpr: sym,
 		})
 	}
 	return out, nil
 }
 
-func compileDestructureMapKeyToValue(expr Expr, ctx compileContext) (string, error) {
+func compileDestructureMapKeyToIR(expr Expr, ctx compileContext) (IRExpr, error) {
 	switch value := expr.(type) {
 	case KeywordExpr:
-		return ctx.keywordCode(value.Name), nil
+		return IRIdent{Name: ctx.keywordCode(value.Name)}, nil
 	case SymbolExpr:
-		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+		return rtCall("NewSymbol", IRString{Value: value.Name}), nil
 	case QuotedSymbolExpr:
-		return fmt.Sprintf("%s.NewSymbol(%q)", runtimeAlias, value.Name), nil
+		return rtCall("NewSymbol", IRString{Value: value.Name}), nil
 	case IntExpr:
-		return fmt.Sprintf("%s.NewLong(%d)", runtimeAlias, value.Value), nil
+		return rtCall("NewLong", IRInt{Value: value.Value}), nil
 	case BigIntExpr:
-		return fmt.Sprintf("%s.NewBigIntFromString(%q)", runtimeAlias, value.Value), nil
+		return rtCall("NewBigIntFromString", IRString{Value: value.Value}), nil
 	case FloatExpr:
 		if value.Raw != "" {
-			return fmt.Sprintf("%s.NewDouble(%s)", runtimeAlias, value.Raw), nil
+			return rtCall("NewDouble", IRRaw{Code: value.Raw}), nil
 		}
-		return fmt.Sprintf("%s.NewDouble(%g)", runtimeAlias, value.Value), nil
+		return rtCall("NewDouble", IRRaw{Code: strconv.FormatFloat(value.Value, 'g', -1, 64)}), nil
 	case StringExpr:
-		return fmt.Sprintf("%s.NewString(%q)", runtimeAlias, value.Value), nil
+		return rtCall("NewString", IRString{Value: value.Value}), nil
 	case CharExpr:
-		return fmt.Sprintf("%s.NewString(%q)", runtimeAlias, string(value.Value)), nil
+		return rtCall("NewString", IRString{Value: string(value.Value)}), nil
 	default:
-		return "", fmt.Errorf("unsupported map destructuring key %T", expr)
+		return nil, fmt.Errorf("unsupported map destructuring key %T", expr)
 	}
 }
 
@@ -4473,42 +4439,36 @@ func shortCircuitExprToGo(args []Expr, ctx compileContext, locals map[string]exp
 	}
 	result := compiled[len(compiled)-1]
 
-	var out strings.Builder
-	out.WriteString("func() ")
-	out.WriteString(runtimeAlias)
-	out.WriteString(".Value {\n")
+	stmts := make([]IRStmt, 0, len(compiled))
 	for i := 0; i < len(compiled)-1; i++ {
-		cond, err := truthyExprToGo(compiled[i])
+		cond, err := truthyIR(compiled[i])
 		if err != nil {
 			return goExpr{}, err
 		}
-		valueCode := compiled[i].code
+		value := irFromGoExpr(compiled[i])
 		if compiled[i].kind == exprKindBool {
-			valueCode = fmt.Sprintf("%s.NewBool(%s)", runtimeAlias, valueCode)
+			value = rtCall("NewBool", value)
 		}
-		if isOr {
-			fmt.Fprintf(&out, "\tif %s {\n", cond)
-			fmt.Fprintf(&out, "\t\treturn %s\n", valueCode)
-			out.WriteString("\t}\n")
-		} else {
-			fmt.Fprintf(&out, "\tif !(%s) {\n", cond)
-			fmt.Fprintf(&out, "\t\treturn %s\n", valueCode)
-			out.WriteString("\t}\n")
+		if !isOr {
+			cond = IRUnary{Op: "!", X: cond}
 		}
+		stmts = append(stmts, IRIfStmt{
+			Cond: cond,
+			Then: []IRStmt{IRReturn{Expr: value}},
+		})
 	}
 
 	switch result.kind {
 	case exprKindBool:
-		fmt.Fprintf(&out, "\treturn %s.NewBool(%s)\n", runtimeAlias, result.code)
+		stmts = append(stmts, IRReturn{Expr: rtCall("NewBool", irFromGoExpr(result))})
 	case exprKindValue:
-		fmt.Fprintf(&out, "\treturn %s\n", result.code)
+		stmts = append(stmts, IRReturn{Expr: irFromGoExpr(result)})
 	case exprKindString:
-		fmt.Fprintf(&out, "\treturn %s.NewString(%s)\n", runtimeAlias, result.code)
+		stmts = append(stmts, IRReturn{Expr: rtCall("NewString", irFromGoExpr(result))})
 	default:
 		return goExpr{}, fmt.Errorf("or/and expects comparable expressions")
 	}
-	out.WriteString("}()")
-	return goExpr{code: out.String(), kind: exprKindValue}, nil
+	return fromIR(valueIIFE(stmts...), exprKindValue), nil
 }
 
 func reduceCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4810,7 +4770,7 @@ func bindLambdaParams(
 		localKinds[name] = kind
 	}
 	declared := make(map[string]struct{}, len(paramsExpr.Elements))
-	localInits := make([]string, 0, len(paramsExpr.Elements))
+	localInitStmts := make([]IRStmt, 0, len(paramsExpr.Elements))
 	tempCounter := 0
 	hasRest := false
 
@@ -4827,15 +4787,16 @@ func bindLambdaParams(
 			restPattern := paramsExpr.Elements[idx+1]
 			restName := fmt.Sprintf("__rest%d", tempCounter)
 			tempCounter++
-			restSource := fmt.Sprintf("%s.NewArray(args[%d:]...)", runtimeAlias, len(params))
+			restSlice := IRSpread{Expr: IRSlice{X: IRIdent{Name: "args"}, Low: IRInt{Value: int64(len(params))}}}
+			restSource := rtCall("NewArray", restSlice)
 			if _, ok := restPattern.(MapExpr); ok {
-				restSource = fmt.Sprintf("%s.NewMap(args[%d:]...)", runtimeAlias, len(params))
+				restSource = rtCall("NewMap", restSlice)
 			}
 			localKinds[restName] = exprKindValue
-			localInits = append(localInits, fmt.Sprintf("\tvar %s = %s\n", restName, restSource))
-			localInits = append(localInits, fmt.Sprintf("\t_ = %s\n", restName))
-			emitter := newDestructureEmitter(ctx, localKinds, &localInits, &tempCounter, declared)
-			if err := emitter.bind(restPattern, restName); err != nil {
+			localInitStmts = append(localInitStmts, IRVar{Name: restName, Expr: restSource})
+			localInitStmts = append(localInitStmts, IRExprStmt{Expr: IRIdent{Name: restName}, Discard: true})
+			emitter := newDestructureEmitter(ctx, localKinds, &localInitStmts, &tempCounter, declared)
+			if err := emitter.bind(restPattern, IRIdent{Name: restName}); err != nil {
 				return nil, nil, nil, false, fmt.Errorf("%s parameter %d: %w", label, idx+2, err)
 			}
 			break
@@ -4854,21 +4815,19 @@ func bindLambdaParams(
 				localKinds[goParam] = exprKindValue
 			}
 			params = append(params, goParam)
-			if line := unusedUseStmt(sym.Name, goParam, "\t"); line != "" {
-				localInits = append(localInits, line)
-			}
+			localInitStmts = appendUnusedIR(localInitStmts, sym.Name, goParam)
 			continue
 		}
 
 		paramName := fmt.Sprintf("__arg%d", idx)
 		params = append(params, paramName)
-		emitter := newDestructureEmitter(ctx, localKinds, &localInits, &tempCounter, declared)
-		if err := emitter.bind(paramExpr, paramName); err != nil {
+		emitter := newDestructureEmitter(ctx, localKinds, &localInitStmts, &tempCounter, declared)
+		if err := emitter.bind(paramExpr, IRIdent{Name: paramName}); err != nil {
 			return nil, nil, nil, false, fmt.Errorf("%s parameter %d: %w", label, idx+1, err)
 		}
 	}
 
-	return params, localKinds, localInits, hasRest, nil
+	return params, localKinds, irStmtsToLines(localInitStmts), hasRest, nil
 }
 
 func collectionCtorExprToGo(ctor, hint, errLabel string, elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5021,7 +4980,7 @@ func expectExceptionExprToGo(form ListExpr, ctx compileContext, locals map[strin
 	recoverBody := []IRStmt{
 		IRDefine{Names: []string{"r"}, Expr: identCall("recover")},
 		IRIfStmt{
-			Cond: IRRaw{Code: "r == nil"},
+			Cond: IRBinary{Op: "==", Left: IRIdent{Name: "r"}, Right: IRIdent{Name: "nil"}},
 			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: noPanic})}},
 		},
 	}
@@ -5029,8 +4988,8 @@ func expectExceptionExprToGo(form ListExpr, ctx compileContext, locals map[strin
 		recoverBody = append(recoverBody,
 			IRDefine{Names: []string{"msg"}, Expr: selectorCall("fmt", "Sprint", IRIdent{Name: "r"})},
 			IRIfStmt{
-				Cond: IRRaw{Code: fmt.Sprintf("!strings.Contains(msg, %q)", expected)},
-				Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRRaw{Code: strconv.Quote(prefix+"expected exception matching "+strconv.Quote(expected)+", got ")+" + msg"})}},
+				Cond: IRUnary{Op: "!", X: selectorCall("strings", "Contains", IRIdent{Name: "msg"}, IRString{Value: expected})},
+				Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRRaw{Code: strconv.Quote(prefix+"expected exception matching "+strconv.Quote(expected)+", got ") + " + msg"})}},
 			},
 		)
 	}
@@ -5051,7 +5010,7 @@ func isExprToGo(form ListExpr, ctx compileContext, locals map[string]exprKind) (
 	if err != nil {
 		return goExpr{}, err
 	}
-	condition, err := truthyExprToGo(testExpr)
+	condition, err := truthyIR(testExpr)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -5070,7 +5029,7 @@ func isExprToGo(form ListExpr, ctx compileContext, locals map[string]exprKind) (
 
 	return fromIR(valueIIFE(
 		IRIfStmt{
-			Cond: IRRaw{Code: "!(" + condition + ")"},
+			Cond: IRUnary{Op: "!", X: condition},
 			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: message})}},
 		},
 		IRReturn{Expr: rtCall("NilValue")},
@@ -5101,17 +5060,67 @@ func strArgParts(args []Expr, ctx compileContext, locals map[string]exprKind) ([
 	return parts, nil
 }
 
-func truthyExprToGo(expr goExpr) (string, error) {
+func truthyIR(expr goExpr) (IRExpr, error) {
 	switch expr.kind {
 	case exprKindBool:
-		return expr.code, nil
+		return irFromGoExpr(expr), nil
 	case exprKindValue:
-		return fmt.Sprintf("%s.IsTruthy(%s)", runtimeAlias, expr.code), nil
+		return rtCall("IsTruthy", irFromGoExpr(expr)), nil
 	case exprKindString:
-		return "true", nil
+		return IRRaw{Code: "true"}, nil
 	default:
-		return "", fmt.Errorf("unsupported if test expression")
+		return nil, fmt.Errorf("unsupported if test expression")
 	}
+}
+
+func truthyExprToGo(expr goExpr) (string, error) {
+	ir, err := truthyIR(expr)
+	if err != nil {
+		return "", err
+	}
+	return renderIRExpr(ir), nil
+}
+
+func appendUnusedIR(stmts []IRStmt, flagName, goName string) []IRStmt {
+	if isUnusedBindingName(flagName) && goName != "_" {
+		return append(stmts, IRExprStmt{Expr: IRIdent{Name: goName}, Discard: true})
+	}
+	return stmts
+}
+
+func irStmtsToLines(stmts []IRStmt) []string {
+	lines := make([]string, 0, len(stmts))
+	for _, stmt := range stmts {
+		lines = append(lines, renderIRStmt(stmt, "\t"))
+	}
+	return lines
+}
+
+func mapCatBindingIR(ident, flagName, panicMsg string, rest, coll IRExpr) IRExpr {
+	args0 := IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}}
+	bindBody := []IRStmt{
+		IRIfStmt{
+			Cond: IRBinary{
+				Op:    "!=",
+				Left:  identCall("len", IRIdent{Name: "args"}),
+				Right: IRInt{Value: 1},
+			},
+			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: panicMsg})}},
+		},
+	}
+	if ident == "_" {
+		bindBody = append(bindBody, IRExprStmt{Expr: args0, Discard: true})
+	} else {
+		bindBody = append(bindBody, IRDefine{Names: []string{ident}, Expr: args0})
+		bindBody = appendUnusedIR(bindBody, flagName, ident)
+	}
+	bindBody = append(bindBody, IRReturn{Expr: rest})
+	fn := IRFuncLit{
+		Params: "args ..." + runtimeAlias + ".Value",
+		Result: runtimeAlias + ".Value",
+		Body:   bindBody,
+	}
+	return valueIIFE(IRReturn{Expr: rtCall("MapCat", rtCall("NewFunction", fn), coll)})
 }
 
 func goTypeForExprKind(kind exprKind) (string, error) {

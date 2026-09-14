@@ -48,14 +48,15 @@ After expansion, the Go compiler still lowers FLAG forms to Go. Expression
 nodes are moving onto a small IR (`internal/compiler/ir.go`) so FLAG can later
 emit the same trees instead of concatenating Go source.
 
-`IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, anonymous
-`func` literals, and `IRRaw`. An IIFE is a call of a func literal with no
-arguments. `IRStmt` covers `_ = expr`, `return`, `defer`, `go`, `var`/`:=`/`=`,
-`if`, `for`, and preformatted raw lines. `renderIRExpr` / `renderIRStmt` are
-the only Go-string printers.
+`IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, index,
+slice, spread (`expr...`), unary `!(x)`, binary `left op right`, anonymous
+`func` literals (optional parameter list), and `IRRaw`. An IIFE is a call of a
+func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
+`go`, `var`/`:=`/`=`, `if`, `for`, and preformatted raw lines.
+`renderIRExpr` / `renderIRStmt` are the only Go-string printers.
 
-Already on IR: literals, calls, collection constructors (`NewList` / `NewArray`
-/ `NewVector` / `NewMap` / `NewSet`, including quoted collections), and
-statement forms (`if`, `do`, `let`, `loop`, `try`, `throw`, `defer`, `go`,
-`doto`, `update!`). Remaining string concat is mostly `for`/`doseq` MapCat
-loops and destructure binding text.
+Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
+`loop`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
+IIFEs, destructure bindings, `or`/`and`, and `future`. Remaining string concat
+is the Go file printer (top-level `func`/`var` emission), not per-form
+lowering.

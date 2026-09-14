@@ -251,3 +251,73 @@ func TestParseGoFun(t *testing.T) {
 		t.Fatalf("ident %#v", parseGoFun("flagFoo_1"))
 	}
 }
+
+func TestRenderIndexSliceSpread(t *testing.T) {
+	got := renderIRExpr(IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}})
+	if got != "args[0]" {
+		t.Fatalf("index %q", got)
+	}
+	got = renderIRExpr(IRSlice{X: IRIdent{Name: "args"}, Low: IRInt{Value: 2}})
+	if got != "args[2:]" {
+		t.Fatalf("slice %q", got)
+	}
+	got = renderIRExpr(rtCall("NewArray", IRSpread{Expr: IRSlice{X: IRIdent{Name: "args"}, Low: IRInt{Value: 1}}}))
+	if got != "flagrt.NewArray(args[1:]...)" {
+		t.Fatalf("spread %q", got)
+	}
+}
+
+func TestRenderUnaryBinary(t *testing.T) {
+	got := renderIRExpr(IRUnary{Op: "!", X: rtCall("IsTruthy", IRIdent{Name: "x"})})
+	if got != "!(flagrt.IsTruthy(x))" {
+		t.Fatalf("unary %q", got)
+	}
+	got = renderIRExpr(IRBinary{
+		Op:    "!=",
+		Left:  identCall("len", IRIdent{Name: "args"}),
+		Right: IRInt{Value: 1},
+	})
+	if got != "len(args) != 1" {
+		t.Fatalf("binary %q", got)
+	}
+}
+
+func TestRenderFuncLitParams(t *testing.T) {
+	got := renderIRExpr(IRFuncLit{
+		Params: "args ...flagrt.Value",
+		Result: "flagrt.Value",
+		Body: []IRStmt{
+			IRDefine{Names: []string{"x"}, Expr: IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}}},
+			IRReturn{Expr: IRIdent{Name: "x"}},
+		},
+	})
+	want := "func(args ...flagrt.Value) flagrt.Value {\n\tx := args[0]\n\treturn x\n}"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderMapCatBinding(t *testing.T) {
+	got := renderIRExpr(mapCatBindingIR("x", "x", "for binding expects exactly one value", IRIdent{Name: "rest"}, IRIdent{Name: "coll"}))
+	want := "func() flagrt.Value {\n\treturn flagrt.MapCat(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 1 {\n\t\tpanic(\"for binding expects exactly one value\")\n\t}\n\tx := args[0]\n\treturn rest\n}), coll)\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestTruthyIR(t *testing.T) {
+	got, err := truthyIR(fromIR(IRIdent{Name: "ok"}, exprKindBool))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(got) != "ok" {
+		t.Fatalf("bool %q", renderIRExpr(got))
+	}
+	got, err = truthyIR(fromIR(IRIdent{Name: "v"}, exprKindValue))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(got) != "flagrt.IsTruthy(v)" {
+		t.Fatalf("value %q", renderIRExpr(got))
+	}
+}
