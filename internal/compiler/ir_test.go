@@ -144,6 +144,103 @@ func TestIRFromGoExprFallsBackToRaw(t *testing.T) {
 	}
 }
 
+func TestRenderCollectionCalls(t *testing.T) {
+	got := renderIRExpr(rtCall("NewArray", rtCall("NewLong", IRInt{Value: 1}), rtCall("NewLong", IRInt{Value: 2})))
+	want := "flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2))"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	got = renderIRExpr(rtCall("NewMap", rtCall("NewKeyword", IRString{Value: "a"}), rtCall("NewLong", IRInt{Value: 1})))
+	want = `flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewLong(1))`
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderIIFEAndStatements(t *testing.T) {
+	got := renderIRExpr(iife("bool",
+		IRIfStmt{
+			Cond: IRIdent{Name: "ok"},
+			Then: []IRStmt{IRReturn{Expr: IRRaw{Code: "true"}}},
+		},
+		IRReturn{Expr: IRRaw{Code: "false"}},
+	))
+	want := "func() bool {\n\tif ok {\n\t\treturn true\n\t}\n\treturn false\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderSequentialDo(t *testing.T) {
+	got := renderIRExpr(valueIIFE(
+		IRExprStmt{Expr: IRIdent{Name: "a"}, Discard: true},
+		IRReturn{Expr: IRIdent{Name: "b"}},
+	))
+	want := "func() flagrt.Value {\n\t_ = a\n\treturn b\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderDeferAndVar(t *testing.T) {
+	got := renderIRStmts([]IRStmt{
+		IRVar{Name: "x", Type: "flagrt.Value"},
+		IRDefer{Expr: rtCall("Call", IRIdent{Name: "f"})},
+		IRAssign{Name: "x", Expr: IRIdent{Name: "y"}},
+		IRReturn{Expr: IRIdent{Name: "x"}},
+	}, "\t")
+	want := "\tvar x flagrt.Value\n\tdefer flagrt.Call(f)\n\tx = y\n\treturn x\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFromStmtDefer(t *testing.T) {
+	got := fromStmt(IRDefer{Expr: rtCall("Call", IRIdent{Name: "f"})}, exprKindDefer)
+	if got.code != "defer flagrt.Call(f)" {
+		t.Fatalf("code %q", got.code)
+	}
+	if got.kind != exprKindDefer {
+		t.Fatalf("kind %v", got.kind)
+	}
+	if got.stmt == nil {
+		t.Fatal("expected stmt")
+	}
+}
+
+func TestQuotedLiteralToIR(t *testing.T) {
+	ir, err := quotedLiteralToIR(QuotedListExpr{Elements: []Expr{IntExpr{Value: 1}, KeywordExpr{Name: "a"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := `flagrt.NewList(flagrt.NewLong(1), flagrt.NewKeyword("a"))`
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestQuotedLiteralToIRNested(t *testing.T) {
+	ir, err := quotedLiteralToIR(VectorExpr{Elements: []Expr{
+		QuotedListExpr{Elements: []Expr{SymbolExpr{Name: "x"}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := `flagrt.NewArray(flagrt.NewList(flagrt.NewSymbol("x")))`
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestQuotedLiteralToIRUnsupported(t *testing.T) {
+	_, err := quotedLiteralToIR(HashFnExpr{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestParseGoFun(t *testing.T) {
 	sel, ok := parseGoFun("flagrt.Add").(IRSelector)
 	if !ok || sel.Pkg != "flagrt" || sel.Name != "Add" {
