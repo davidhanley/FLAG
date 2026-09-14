@@ -41,3 +41,22 @@ Canned fixture tests are `examples/compiler_tokenizer/macros/*.in` vs
 `*.expected`, driven by `expand_macros_test.flag`. Helpers `slurp-text`,
 `expand-fixture`, and `expected-fixture` live in
 `examples/compiler_tokenizer/main.flag`.
+
+## Go lowering IR
+
+After expansion, the Go compiler still lowers FLAG forms to Go. Expression
+nodes are moving onto a small IR (`internal/compiler/ir.go`) so FLAG can later
+emit the same trees instead of concatenating Go source.
+
+`IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, index,
+slice, spread (`expr...`), unary `!(x)`, binary `left op right`, anonymous
+`func` literals (optional parameter list), and `IRRaw`. An IIFE is a call of a
+func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
+`go`, `var`/`:=`/`=`, `if`, `for`, and preformatted raw lines.
+`renderIRExpr` / `renderIRStmt` are the only Go-string printers.
+
+Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
+`loop`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
+IIFEs, destructure bindings, `or`/`and`, and `future`. Remaining string concat
+is the Go file printer (top-level `func`/`var` emission), not per-form
+lowering.
