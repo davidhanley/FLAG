@@ -293,6 +293,116 @@ func adaptGoBind_runtime_Abs(args ...Value) Value {
 // GoBind_runtime_Abs dispatches math/abs.
 var GoBind_runtime_Abs = NewFunction(adaptGoBind_runtime_Abs)
 
+func adaptGoBind_runtime_Ceil(args ...Value) Value {
+	goArgArityExact("math/ceil", args, 1)
+	a0 := args[0]
+	return goRetValue(Ceil(a0))
+}
+
+// GoBind_runtime_Ceil dispatches math/ceil.
+var GoBind_runtime_Ceil = NewFunction(adaptGoBind_runtime_Ceil)
+
+func adaptGoBind_runtime_Cos(args ...Value) Value {
+	goArgArityExact("math/cos", args, 1)
+	a0 := args[0]
+	return goRetValue(Cos(a0))
+}
+
+// GoBind_runtime_Cos dispatches math/cos.
+var GoBind_runtime_Cos = NewFunction(adaptGoBind_runtime_Cos)
+
+func adaptGoBind_runtime_Exp(args ...Value) Value {
+	goArgArityExact("math/exp", args, 1)
+	a0 := args[0]
+	return goRetValue(Exp(a0))
+}
+
+// GoBind_runtime_Exp dispatches math/exp.
+var GoBind_runtime_Exp = NewFunction(adaptGoBind_runtime_Exp)
+
+func adaptGoBind_runtime_Floor(args ...Value) Value {
+	goArgArityExact("math/floor", args, 1)
+	a0 := args[0]
+	return goRetValue(Floor(a0))
+}
+
+// GoBind_runtime_Floor dispatches math/floor.
+var GoBind_runtime_Floor = NewFunction(adaptGoBind_runtime_Floor)
+
+func adaptGoBind_runtime_IEEERemainder(args ...Value) Value {
+	goArgArityExact("math/IEEE-remainder", args, 2)
+	a0 := args[0]
+	a1 := args[1]
+	return goRetValue(IEEERemainder(a0, a1))
+}
+
+// GoBind_runtime_IEEERemainder dispatches math/IEEE-remainder.
+var GoBind_runtime_IEEERemainder = NewFunction(adaptGoBind_runtime_IEEERemainder)
+
+func adaptGoBind_runtime_Log(args ...Value) Value {
+	goArgArityExact("math/log", args, 1)
+	a0 := args[0]
+	return goRetValue(Log(a0))
+}
+
+// GoBind_runtime_Log dispatches math/log.
+var GoBind_runtime_Log = NewFunction(adaptGoBind_runtime_Log)
+
+func adaptGoBind_runtime_Log10(args ...Value) Value {
+	goArgArityExact("math/log10", args, 1)
+	a0 := args[0]
+	return goRetValue(Log10(a0))
+}
+
+// GoBind_runtime_Log10 dispatches math/log10.
+var GoBind_runtime_Log10 = NewFunction(adaptGoBind_runtime_Log10)
+
+func adaptGoBind_runtime_Pow(args ...Value) Value {
+	goArgArityExact("math/pow", args, 2)
+	a0 := args[0]
+	a1 := args[1]
+	return goRetValue(Pow(a0, a1))
+}
+
+// GoBind_runtime_Pow dispatches math/pow.
+var GoBind_runtime_Pow = NewFunction(adaptGoBind_runtime_Pow)
+
+func adaptGoBind_runtime_Round(args ...Value) Value {
+	goArgArityExact("math/round", args, 1)
+	a0 := args[0]
+	return goRetValue(Round(a0))
+}
+
+// GoBind_runtime_Round dispatches math/round.
+var GoBind_runtime_Round = NewFunction(adaptGoBind_runtime_Round)
+
+func adaptGoBind_runtime_Sin(args ...Value) Value {
+	goArgArityExact("math/sin", args, 1)
+	a0 := args[0]
+	return goRetValue(Sin(a0))
+}
+
+// GoBind_runtime_Sin dispatches math/sin.
+var GoBind_runtime_Sin = NewFunction(adaptGoBind_runtime_Sin)
+
+func adaptGoBind_runtime_Sqrt(args ...Value) Value {
+	goArgArityExact("math/sqrt", args, 1)
+	a0 := args[0]
+	return goRetValue(Sqrt(a0))
+}
+
+// GoBind_runtime_Sqrt dispatches math/sqrt.
+var GoBind_runtime_Sqrt = NewFunction(adaptGoBind_runtime_Sqrt)
+
+func adaptGoBind_runtime_Tan(args ...Value) Value {
+	goArgArityExact("math/tan", args, 1)
+	a0 := args[0]
+	return goRetValue(Tan(a0))
+}
+
+// GoBind_runtime_Tan dispatches math/tan.
+var GoBind_runtime_Tan = NewFunction(adaptGoBind_runtime_Tan)
+
 func adaptGoBind_runtime_JSONRead(args ...Value) Value {
 	goArgArityAtLeast("json/read", args, 1)
 	a0 := args[0]
@@ -462,7 +572,19 @@ func GoBindSymbols() map[string]reflect.Value {
 		"GoBind_packages_StringUpperCase":    reflect.ValueOf(GoBind_packages_StringUpperCase),
 		"GoBind_packages_ToUppercase":        reflect.ValueOf(GoBind_packages_ToUppercase),
 		"GoBind_runtime_Abs":                 reflect.ValueOf(GoBind_runtime_Abs),
+		"GoBind_runtime_Ceil":                reflect.ValueOf(GoBind_runtime_Ceil),
+		"GoBind_runtime_Cos":                 reflect.ValueOf(GoBind_runtime_Cos),
+		"GoBind_runtime_Exp":                 reflect.ValueOf(GoBind_runtime_Exp),
+		"GoBind_runtime_Floor":               reflect.ValueOf(GoBind_runtime_Floor),
+		"GoBind_runtime_IEEERemainder":       reflect.ValueOf(GoBind_runtime_IEEERemainder),
 		"GoBind_runtime_JSONRead":            reflect.ValueOf(GoBind_runtime_JSONRead),
+		"GoBind_runtime_Log":                 reflect.ValueOf(GoBind_runtime_Log),
+		"GoBind_runtime_Log10":               reflect.ValueOf(GoBind_runtime_Log10),
+		"GoBind_runtime_Pow":                 reflect.ValueOf(GoBind_runtime_Pow),
+		"GoBind_runtime_Round":               reflect.ValueOf(GoBind_runtime_Round),
+		"GoBind_runtime_Sin":                 reflect.ValueOf(GoBind_runtime_Sin),
+		"GoBind_runtime_Sqrt":                reflect.ValueOf(GoBind_runtime_Sqrt),
+		"GoBind_runtime_Tan":                 reflect.ValueOf(GoBind_runtime_Tan),
 		"GoBind_runtime_JSONReadStr":         reflect.ValueOf(GoBind_runtime_JSONReadStr),
 		"GoBind_runtime_LineSeq":             reflect.ValueOf(GoBind_runtime_LineSeq),
 		"GoBind_runtime_OpenFile":            reflect.ValueOf(GoBind_runtime_OpenFile),

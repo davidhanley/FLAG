@@ -844,3 +844,33 @@
     (is (= :file (type-of (open-file "tests/language.flag"))))
     (is (= :lazy-list (type-of (range))))
     (is (= :record (type-of (->food 1 2))))))
+
+(deftest math-package
+  (testing "sqrt pow exp log log10"
+    (is (= 2.0 (math/sqrt 4)))
+    (is (= 1.5 (math/sqrt 9/4)))
+    (is (= 8.0 (math/pow 2 3)))
+    (is (= 1.0 (math/exp 0)))
+    (is (= 0.0 (math/log 1)))
+    (is (= 2.0 (math/log10 100))))
+  (testing "sin cos tan"
+    (is (= 0.0 (math/sin 0)))
+    (is (= 1.0 (math/cos 0)))
+    (is (= 0.0 (math/tan 0))))
+  (testing "floor ceil round"
+    (is (= 2.0 (math/floor 2.3)))
+    (is (= -3.0 (math/floor -2.3)))
+    (is (= 3.0 (math/ceil 2.3)))
+    (is (= -2.0 (math/ceil -2.3)))
+    (is (= 2 (math/round 1.5)))
+    (is (= 3 (math/round 2.5)))
+    (is (= -1 (math/round -1.5)))
+    (is (= :int (type-of (math/round 1.2))))
+    (is (= :float (type-of (math/floor 1)))))
+  (testing "IEEE-remainder"
+    (is (= -1.0 (math/IEEE-remainder 5.0 3.0)))
+    (is (= 1.0 (math/IEEE-remainder 4 3))))
+  (testing "non-numeric args"
+    (expect-exception (math/sqrt "x") "numeric")
+    (expect-exception (math/pow 1 "x") "numeric")
+    (expect-exception (math/round :nope) "numeric")))

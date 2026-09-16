@@ -431,7 +431,7 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 | `io/` | `reader`, `writer`, `readline`, `scan-directory` |
 | `vector/` | `vector`, `get`, `set`, `append`, `prepend`, `pop`, `insert`, `remove` (FLAG vectors only) |
 | `json/` | `read`, `read-str` |
-| `math/` | `abs` |
+| `math/` | `abs`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`, `cos`, `tan`, `floor`, `ceil`, `round`, `IEEE-remainder` |
 | `regex/` | `compile` (`re-pattern` wraps this) |
 | `date/` `dateTime/` `t/` | `from-string`, `formatter`, `now`, `unparse`, `after?`, `minus`, `years` |
 | `character/` | `toUpperCase` |
@@ -557,6 +557,19 @@ Identity: `(+ (* (quot n d) d) (rem n d))` equals `n` (when `d` is nonzero).
 (mod -10 3)       ;; 2
 (mod 10 -3)       ;; -2
 (mod -10 -3)      ;; -1
+```
+
+### `math/…` (clojure.math)
+
+See **[docs/math.md](docs/math.md)**. `abs` keeps the input type; the rest coerce
+to double. `round` returns a long and ties toward +∞ (Java `Math.round`).
+
+```clojure
+(math/sqrt 4)                 ;; 2.0
+(math/pow 2 3)                ;; 8.0
+(math/floor -2.3)             ;; -3.0
+(math/round 2.5)              ;; 3
+(math/IEEE-remainder 5 3)     ;; -1.0
 ```
 
 ### `==` and `compare`

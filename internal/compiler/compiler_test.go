@@ -661,6 +661,7 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 (println (character/toUppercase "hello"))
 (println (long/parse "42"))
 (println (math/abs -42))
+(println (math/sqrt 4))
 `)
 	if err != nil {
 		t.Fatalf("Compile returned error: %v", err)
@@ -675,6 +676,7 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 		`flagrt.Call(flagrt.GoBind_packages_ToUppercase, flagStr_hello)`,
 		`flagrt.Call(flagrt.GoBind_packages_LongParse, flagStr_42)`,
 		`flagrt.Call(flagrt.GoBind_runtime_Abs, flagrt.NewLong(-42))`,
+		`flagrt.Call(flagrt.GoBind_runtime_Sqrt, flagrt.NewLong(4))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
