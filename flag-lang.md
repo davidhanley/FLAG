@@ -330,6 +330,9 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - `shuffle` (random permutation as an array; does not mutate the input)
 - `double` (coerce to float)
 - `numerator` / `denominator` (ratios and integers; denominator is always positive; floats throw)
+- `bit-and` / `bit-or` / `bit-xor` (variadic, ≥2 args) / `bit-not`
+- `bit-shift-left` / `bit-shift-right` / `unsigned-bit-shift-right`
+- `bit-test` / `bit-set` / `bit-clear` / `bit-flip`
 
 ### Sequence operations
 
@@ -557,6 +560,27 @@ Identity: `(+ (* (quot n d) d) (rem n d))` equals `n` (when `d` is nonzero).
 (mod -10 3)       ;; 2
 (mod 10 -3)       ;; -2
 (mod -10 -3)      ;; -1
+```
+
+### Bitwise ops (clojure.core)
+
+64-bit two’s-complement longs, matching Clojure / Java `long` ops. Integers
+and in-range bigints are accepted; floats, ratios, and oversized bigints throw.
+Shift counts are taken mod 64 (`n & 63`). `bit-shift-right` is arithmetic
+(sign-extending); `unsigned-bit-shift-right` is logical.
+
+```clojure
+(bit-and 1 3 7)                      ;; 1
+(bit-or 1 2 4)                       ;; 7
+(bit-xor 5 3)                        ;; 6
+(bit-not 0)                          ;; -1
+(bit-shift-left 1 2)                 ;; 4
+(bit-shift-right -8 2)               ;; -2
+(unsigned-bit-shift-right -8 2)      ;; 4611686018427387902
+(bit-test 2 1)                       ;; true
+(bit-set 0 1)                        ;; 2
+(bit-clear 3 0)                      ;; 2
+(bit-flip 0 0)                       ;; 1
 ```
 
 ### `math/…` (clojure.math)

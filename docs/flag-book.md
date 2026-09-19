@@ -49,13 +49,13 @@ Themes that run through the rest of the book:
 What is implemented **today**: CLI commands, core syntax, special forms, data
 literals, destructuring, builtins, functional combinators (`comp`, `complement`,
 `fnil`, `every-pred`, `some-fn`, `iterate`, `repeatedly`), control macros
-(`as->`, `condp`, `dotimes`), numerics (`quot` / `rem` / `mod` / `compare` / `==` / `rand` / `numerator` / `denominator` / `math/…`), sequences,
+(`as->`, `condp`, `dotimes`), numerics (`quot` / `rem` / `mod` / `compare` / `==` / `rand` / `numerator` / `denominator` / `bit-*` / `math/…`), sequences,
 testing, strings (`subs`, `str/lower-case`, `str/index-of`, …), and pointers into modules / async / libraries.
 
 Read this for day-to-day “how do I write FLAG?”
 
 Companion: **[math.md](math.md)** — `math/sqrt`, `pow`, `exp`, `log`, `log10`,
-`sin`/`cos`/`tan`, `floor`, `ceil`, `round`, `IEEE-remainder`.
+`sin`/`cos`/`tan`, `floor`, `ceil`, `round`, `IEEE-remainder`, and core `bit-*`.
 
 ---
 

@@ -86,13 +86,13 @@ Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-som
 
 ## Math (`clojure.core` / `Math`)
 
-Have: `+` `-` `*` `/` `%` `quot` `rem` `mod` `max` `min` `rand-int` `rand` `rand-nth` `shuffle` `double` `numerator` `denominator` `math/abs` `math/sqrt` `math/pow` `math/exp` `math/log` `math/log10` `math/sin` `math/cos` `math/tan` `math/floor` `math/ceil` `math/round` `math/IEEE-remainder` `inc`/`dec` `zero?` `pos?` `neg?` `even?` `odd?` `compare` `==`.
+Have: `+` `-` `*` `/` `%` `quot` `rem` `mod` `max` `min` `rand-int` `rand` `rand-nth` `shuffle` `double` `numerator` `denominator` `bit-and` `bit-or` `bit-xor` `bit-not` `bit-shift-left` `bit-shift-right` `unsigned-bit-shift-right` `bit-test` `bit-set` `bit-clear` `bit-flip` `math/abs` `math/sqrt` `math/pow` `math/exp` `math/log` `math/log10` `math/sin` `math/cos` `math/tan` `math/floor` `math/ceil` `math/round` `math/IEEE-remainder` `inc`/`dec` `zero?` `pos?` `neg?` `even?` `odd?` `compare` `==`.
 
 - [x] Add **`quot`**, **`rem`**, **`mod`** (Clojure names; FLAG `%` is `mod`).
 - [x] Add **`compare`** and numeric **`==`**.
 - [x] Add **`rand`**, **`rand-nth`**, **`shuffle`**.
 - [x] Add **`numerator`** / **`denominator`** for ratios.
-- [ ] Add bit ops: **`bit-and`**, **`bit-or`**, **`bit-xor`**, **`bit-not`**, **`bit-shift-left`**, **`bit-shift-right`**, **`unsigned-bit-shift-right`**, **`bit-test`**, **`bit-set`**, **`bit-clear`**, **`bit-flip`**.
+- [x] Add bit ops: **`bit-and`**, **`bit-or`**, **`bit-xor`**, **`bit-not`**, **`bit-shift-left`**, **`bit-shift-right`**, **`unsigned-bit-shift-right`**, **`bit-test`**, **`bit-set`**, **`bit-clear`**, **`bit-flip`**.
 - [x] Add common `Math` surface as `math/…` (or core aliases): **`sqrt`**, **`pow`**, **`exp`**, **`log`**, **`log10`**, **`sin`/`cos`/`tan`**, **`floor`**, **`ceil`**, **`round`**, **`IEEE-remainder`**.
 - [x] Make **`inc` / `dec` first-class functions** (or add function variants) so `(map inc xs)` and `(swap! a inc)` work. Today they are macros.
 

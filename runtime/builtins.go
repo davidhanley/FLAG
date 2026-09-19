@@ -134,6 +134,74 @@ func BuiltinFunction(name string) Value {
 			}
 			return Min(args...)
 		})
+	case "bit-and":
+		return NewFunction(func(args ...Value) Value {
+			return BitAnd(args...)
+		})
+	case "bit-or":
+		return NewFunction(func(args ...Value) Value {
+			return BitOr(args...)
+		})
+	case "bit-xor":
+		return NewFunction(func(args ...Value) Value {
+			return BitXor(args...)
+		})
+	case "bit-not":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 1 {
+				panic("bit-not expects exactly one argument")
+			}
+			return BitNot(args[0])
+		})
+	case "bit-shift-left":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-shift-left expects exactly two arguments")
+			}
+			return BitShiftLeft(args[0], args[1])
+		})
+	case "bit-shift-right":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-shift-right expects exactly two arguments")
+			}
+			return BitShiftRight(args[0], args[1])
+		})
+	case "unsigned-bit-shift-right":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("unsigned-bit-shift-right expects exactly two arguments")
+			}
+			return UnsignedBitShiftRight(args[0], args[1])
+		})
+	case "bit-test":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-test expects exactly two arguments")
+			}
+			return BitTest(args[0], args[1])
+		})
+	case "bit-set":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-set expects exactly two arguments")
+			}
+			return BitSet(args[0], args[1])
+		})
+	case "bit-clear":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-clear expects exactly two arguments")
+			}
+			return BitClear(args[0], args[1])
+		})
+	case "bit-flip":
+		return NewFunction(func(args ...Value) Value {
+			if len(args) != 2 {
+				panic("bit-flip expects exactly two arguments")
+			}
+			return BitFlip(args[0], args[1])
+		})
 	case "rand-int":
 		return NewFunction(func(args ...Value) Value {
 			if len(args) != 1 {
