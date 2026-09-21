@@ -16,6 +16,7 @@ binaries—not a JVM image with an always-on evaluator.
 | Language reference | [Chapter 2 — Language manual](#2-language-manual) |
 | Math (`math/sqrt`, `round`, …) | [math.md](math.md) |
 | Sequences (`range`) | [range.md](range.md) |
+| Sequence extras (`take-while`, …) | [seq.md](seq.md) |
 | Write and run tests | [Testing guide](#testing-guide) |
 | Interactive workflow | [REPL guide](#repl-guide) |
 | Multi-file programs & imports | [Chapter 3 — Modules](#3-modules) |

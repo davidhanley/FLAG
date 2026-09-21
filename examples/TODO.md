@@ -109,7 +109,7 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 ## Sequence extras
 
 - [ ] Add **`mapv`** / **`filterv`** (still open above).
-- [ ] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
+- [x] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
 - [ ] Add **`split-at`**, **`split-with`**.
 - [ ] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
 - [ ] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.

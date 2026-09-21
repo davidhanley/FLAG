@@ -464,6 +464,50 @@
   ([n f]
    (take n (repeatedly f))))
 
+(defn take-while [pred coll]
+  (loop [xs coll acc []]
+    (if (or (nil? xs) (empty? xs))
+      acc
+      (let [x (first xs)]
+        (if (pred x)
+          (recur (rest xs) (conj acc x))
+          acc)))))
+
+(defn drop-while [pred coll]
+  (loop [xs coll]
+    (if (or (nil? xs) (empty? xs))
+      xs
+      (if (pred (first xs))
+        (recur (rest xs))
+        xs))))
+
+(defn take-last [n coll]
+  (if (or (nil? coll) (empty? coll) (not (pos? n)))
+    nil
+    (loop [s coll lead (drop n coll)]
+      (if (or (nil? lead) (empty? lead))
+        s
+        (recur (next s) (next lead))))))
+
+(defn drop-last
+  ([coll] (drop-last 1 coll))
+  ([n coll]
+   (if (nil? coll)
+     []
+     (if (not (pos? n))
+       coll
+       (map (fn [x _] x) coll (drop n coll))))))
+
+(defn take-nth [n coll]
+  (if (or (nil? coll) (empty? coll))
+    []
+    (if (not (pos? n))
+      (repeat (first coll))
+      (loop [xs coll acc []]
+        (if (or (nil? xs) (empty? xs))
+          acc
+          (recur (drop n xs) (conj acc (first xs))))))))
+
 (defn keep [f coll]
   (filter some? (map f coll)))
 
