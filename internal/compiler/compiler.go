@@ -2062,7 +2062,7 @@ func isBuiltinFunctionSymbol(name string) bool {
 		"bit-and", "bit-or", "bit-xor", "bit-not", "bit-shift-left", "bit-shift-right", "unsigned-bit-shift-right",
 		"bit-test", "bit-set", "bit-clear", "bit-flip",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
-		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
+		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "get", "keys", "vals", "find", "hash-map",
 		"list", "array",
 		"not-empty", "empty?", "nil?", "type-of", "count", "double", "numerator", "denominator", "format", "subs", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
@@ -2275,8 +2275,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return containsCallExprToGo(list.Elements[1:], ctx, locals)
 		case "line-seq":
 			return lineSeqExprToGo(list.Elements[1:], ctx, locals)
-		case "range":
-			return rangeCallExprToGo(list.Elements[1:], ctx, locals)
 		case "repeat":
 			return repeatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "rand-int":
@@ -4516,17 +4514,6 @@ func reduceCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 		return goExpr{}, err
 	}
 	return fromIR(rtCall("Reduce", irs...), exprKindValue), nil
-}
-
-func rangeCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 0 && len(args) != 1 && len(args) != 2 {
-		return goExpr{}, fmt.Errorf("range expects zero, one, or two arguments")
-	}
-	irs, err := compileValueIRs(args, ctx, locals, false, "range arguments must evaluate to Value")
-	if err != nil {
-		return goExpr{}, err
-	}
-	return fromIR(rtCall("Range", irs...), exprKindValue), nil
 }
 
 func repeatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

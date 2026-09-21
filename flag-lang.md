@@ -346,7 +346,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `pmap` (parallel map; workers = `NumCPU()*2`, capped by item count; eager array, order preserved)
 - **R** `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; array)
 - **P** `sort` (`(sort coll)` or `(sort comp coll)`; default `<`)
-- **R** `range` (0-arg infinite from 0; 1-arg infinite from *n*; 2-arg `[start, end)`; large 2-arg may be lazy)
+- **P** `range` (Clojure: `(range)` infinite from 0; `(range end)` is `0 .. end-1`; `(range start end)` / `(range start end step)`; empty when the interval is vacant; step `0` repeats `start`)
 - **R** `repeat` (`(repeat x)` infinite lazy; `(repeat n x)`)
 - **R** `some` (first truthy `(pred x)`, else `nil`)
 - **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)
@@ -455,7 +455,7 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 `go-fn` resolves a registered Go function by name and returns a FLAG-callable function value.
 `go-fn-args` returns argument/return metadata for a registered Go function.
 
-In REPL, standard-library Yaegi symbols are pre-registered for lookup (for example `fmt.Println`).
+In REPL, standard-library Yaegi symbols are pre-registered for lookup (for example `fmt.Println`). Runtime `flagrt` symbols are generated from exported `runtime` identifiers (`go generate ./internal/repl`) so the REPL can evaluate the same compiler output as `flag-lang build`.
 
 Example:
 
@@ -612,10 +612,10 @@ to double. `round` returns a long and ties toward +∞ (Java `Math.round`).
 
 ## Sequences and laziness
 
-- `range` with one arg returns a lazy sequence.
-- `range` with no args starts at 0 and returns a lazy sequence.
-- large two-arg ranges can be lazy.
-- `iterate` and `(repeatedly f)` are lazy (built on infinite `range`).
+- `(range)` is a lazy sequence `0, 1, 2, …`.
+- `(range n)` is `0 .. n-1` (Clojure), not an infinite sequence from `n`.
+- `(range start end)` / `(range start end step)` are exclusive of `end`; negative `step` counts down.
+- `iterate` and `(repeatedly f)` are lazy.
 - map/filter/reduce/take/drop work across list/array/vector/lazy-list values.
 - Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.

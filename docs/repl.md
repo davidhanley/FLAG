@@ -61,3 +61,21 @@ You can also load code from disk and call what it defines:
 :load "path/to/file.flag"
 (my-function)
 ```
+
+## Compiled code vs Yaegi
+
+The REPL compiles FLAG with the same lowering as `flag-lang build`, then evaluates
+the generated Go in [Yaegi](https://github.com/traefik/yaegi). Yaegi only sees
+runtime identifiers that are registered as `flagrt` symbols.
+
+Those symbols are generated from every exported `runtime` func, var, and type
+(`internal/repl/runtime_symbols_gen.go`), except generic functions that cannot
+be registered with `reflect.ValueOf`. After adding a runtime API that the
+compiler may emit as `flagrt.Name`, regenerate:
+
+```bash
+go generate ./internal/repl
+```
+
+That keeps forms such as `doseq` / `for` (`flagrt.MapCat`) and bit ops
+(`flagrt.BitAnd`, …) working in the REPL without a hand-maintained allowlist.

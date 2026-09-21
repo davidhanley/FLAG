@@ -613,7 +613,7 @@ func TestCountAcrossContainerTypes(t *testing.T) {
 }
 
 func TestMapConsumesLazyList(t *testing.T) {
-	lazy := Range(NewLong(1))
+	lazy := Range(NewLong(1), NewLong(2000))
 
 	double := NewFunction(func(args ...Value) Value { return Add(args[0], args[0]) })
 	mapped := Map(double, lazy)
@@ -827,17 +827,18 @@ func TestRangeTwoArgsShortReturnsArray(t *testing.T) {
 	}
 }
 
-func TestRangeOneArgReturnsInfiniteLazyList(t *testing.T) {
-	r := Range(NewLong(5))
-	if r.tag != TagLazyList {
-		t.Fatalf("expected lazy list for one-arg range, got %v", r.tag)
+func TestRangeOneArgIsExclusiveEndFromZero(t *testing.T) {
+	r := Range(NewLong(4))
+	if got := ValueToString(r); got != "[0 1 2 3]" {
+		t.Fatalf("expected (range 4) to be 0..3, got %q", got)
 	}
-	for i := int64(5); i < 10; i++ {
-		got := First(r)
-		if got.Long() != i {
-			t.Fatalf("expected %d from range, got %v", i, ValueToAny(got))
-		}
-		r = Rest(r)
+	empty := Range(NewLong(0))
+	if empty.tag != TagArray || empty.ArrayLen() != 0 {
+		t.Fatalf("expected empty (range 0), got %#v", empty)
+	}
+	neg := Range(NewLong(-3))
+	if neg.tag != TagArray || neg.ArrayLen() != 0 {
+		t.Fatalf("expected empty (range -3), got %#v", neg)
 	}
 }
 
@@ -872,8 +873,27 @@ func TestRangeLargeReturnsTerminatingLazyList(t *testing.T) {
 	}
 }
 
+func TestRangeThreeArgStep(t *testing.T) {
+	if got := ValueToString(Range(NewLong(0), NewLong(8), NewLong(2))); got != "[0 2 4 6]" {
+		t.Fatalf("unexpected positive step range: %q", got)
+	}
+	if got := ValueToString(Range(NewLong(5), NewLong(1), NewLong(-1))); got != "[5 4 3 2]" {
+		t.Fatalf("unexpected negative step range: %q", got)
+	}
+	if got := Range(NewLong(4), NewLong(1)); got.tag != TagArray || got.ArrayLen() != 0 {
+		t.Fatalf("expected empty inverted range, got %#v", got)
+	}
+	zeros := Range(NewLong(1), NewLong(10), NewLong(0))
+	if zeros.tag != TagLazyList {
+		t.Fatalf("expected infinite zero-step range, got %v", zeros.tag)
+	}
+	if got := First(zeros); got.Long() != 1 {
+		t.Fatalf("expected repeated start, got %v", ValueToAny(got))
+	}
+}
+
 func TestRangePanicsOnInvalidArgs(t *testing.T) {
-	assertPanics(t, func() { Range(NewLong(1), NewLong(2), NewLong(3)) })
+	assertPanics(t, func() { Range(NewLong(1), NewLong(2), NewLong(3), NewLong(4)) })
 	assertPanics(t, func() { Range(NewDouble(1.5)) })
 }
 
@@ -921,7 +941,7 @@ func TestTakeOnArrayListLazy(t *testing.T) {
 		t.Fatalf("unexpected take list values: %#v", got)
 	}
 
-	lazy := Range(NewLong(10))
+	lazy := Range(NewLong(10), NewLong(2000))
 	fromLazy := Take(NewLong(4), lazy)
 	if got := fromLazy.ArrayValues(); len(got) != 4 || got[0].Long() != 10 || got[3].Long() != 13 {
 		t.Fatalf("unexpected take lazy values: %#v", got)
@@ -948,7 +968,7 @@ func TestDropOnArrayListLazy(t *testing.T) {
 		t.Fatalf("unexpected drop list values: %#v", got)
 	}
 
-	lazy := Range(NewLong(20))
+	lazy := Range(NewLong(20), NewLong(2000))
 	lazyDropped := Drop(NewLong(3), lazy)
 	if lazyDropped.tag != TagLazyList {
 		t.Fatalf("expected lazy list from drop lazy, got %v", lazyDropped.tag)
@@ -983,7 +1003,7 @@ func TestNthAndSlowNth(t *testing.T) {
 	if got := SlowNth(NewList(NewLong(1), NewLong(2), NewLong(3)), NewLong(1)); got.Long() != 2 {
 		t.Fatalf("unexpected slow-nth list result: %v", ValueToAny(got))
 	}
-	if got := SlowNth(Range(NewLong(10)), NewLong(2)); got.Long() != 12 {
+	if got := SlowNth(Range(NewLong(10), NewLong(2000)), NewLong(2)); got.Long() != 12 {
 		t.Fatalf("unexpected slow-nth lazy result: %v", ValueToAny(got))
 	}
 	if got := SlowNth(NewList(NewLong(1)), NewLong(8), NewKeyword("missing")); got.tag != TagSymbol || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "missing" {
@@ -1047,7 +1067,7 @@ func TestLazyListConcurrentRealizationIsSafe(t *testing.T) {
 }
 
 func TestLazyListRestDoesNotMutateOriginal(t *testing.T) {
-	r := Range(NewLong(4))
+	r := Range(NewLong(4), NewLong(2000))
 	if got := First(r); got.Long() != 4 {
 		t.Fatalf("expected first r = 4, got %v", ValueToAny(got))
 	}

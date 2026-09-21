@@ -611,10 +611,6 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(func(args ...Value) Value {
 			return NewArray(args...)
 		})
-	case "range":
-		return NewFunction(func(args ...Value) Value {
-			return Range(args...)
-		})
 	case "repeat":
 		return NewFunction(func(args ...Value) Value {
 			return Repeat(args...)
