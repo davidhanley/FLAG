@@ -130,7 +130,7 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 - [ ] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
 - [x] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
 - [ ] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
-- [ ] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
+- [x] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
 - [ ] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
 - [ ] **No `@` deref reader**; must write `(deref a)`. Easy to add if atoms stay.
 - [ ] **`:strs` destructuring** looks up symbol keys, not string keys.

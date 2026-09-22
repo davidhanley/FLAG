@@ -124,8 +124,8 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 	if got.tag != TagLazyList {
 		t.Fatalf("expected lazy list from line-seq, got %#v", got)
 	}
-	if first := First(got); ValueToString(first) != "x" {
-		t.Fatalf("unexpected first line result: %#v", first)
+	if first := First(got); first.tag != TagString || first.StringValue() != "x" {
+		t.Fatalf("expected line-seq string %q, got %#v", "x", first)
 	}
 
 	subdir := filepath.Join(dir, "nested")

@@ -15,12 +15,14 @@ func TestFileToStringsReadsLinesLazily(t *testing.T) {
 
 	lines := FileToStringsPath(path)
 
-	if got := ValueToString(First(lines)); got != "alpha" {
-		t.Fatalf("expected first line alpha, got %q", got)
+	first := First(lines)
+	if first.tag != TagString || first.StringValue() != "alpha" {
+		t.Fatalf("expected first line string %q, got %#v", "alpha", first)
 	}
 	lines = Rest(lines)
-	if got := ValueToString(First(lines)); got != "beta" {
-		t.Fatalf("expected second line beta, got %q", got)
+	second := First(lines)
+	if second.tag != TagString || second.StringValue() != "beta" {
+		t.Fatalf("expected second line string %q, got %#v", "beta", second)
 	}
 	lines = Rest(lines)
 	if got := First(lines); got.tag != TagNil {
@@ -60,8 +62,8 @@ func TestOpenFileAndFileToStringsIntegration(t *testing.T) {
 	}()
 	lines := FileToStrings(file)
 
-	if got := ValueToString(First(lines)); got != "x" {
-		t.Fatalf("expected first line x, got %q", got)
+	if got := First(lines); got.tag != TagString || got.StringValue() != "x" {
+		t.Fatalf("expected first line string %q, got %#v", "x", got)
 	}
 }
 
@@ -109,8 +111,8 @@ func TestLineSeqReadsFileLines(t *testing.T) {
 	}
 
 	lines := LineSeq(OpenFile(path))
-	if got := ValueToString(First(lines)); got != "a" {
-		t.Fatalf("expected first line a, got %q", got)
+	if got := First(lines); got.tag != TagString || got.StringValue() != "a" {
+		t.Fatalf("expected first line string %q, got %#v", "a", got)
 	}
 }
 

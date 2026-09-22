@@ -839,8 +839,10 @@
       (is (= {:a 1} (:data e))))
     (expect-exception (throw (ex-info "nope" {})) "nope"))
   (testing "line-seq file-to-strings io reader readline scan-directory"
-    (is (= "(ns language.core)" (str (first (line-seq (open-file "tests/language.flag"))))))
-    (is (= "(ns language.core)" (str (first (file-to-strings "tests/language.flag")))))
+    (is (string? (first (line-seq (open-file "tests/language.flag")))))
+    (is (= "(ns language.core)" (first (line-seq (open-file "tests/language.flag")))))
+    (is (string? (first (file-to-strings "tests/language.flag"))))
+    (is (= "(ns language.core)" (first (file-to-strings "tests/language.flag"))))
     (let [r (io/reader "tests/language.flag")]
       (is (= "(ns language.core)" (io/readline r)))
       (close-file r))
@@ -850,7 +852,8 @@
           w (io/writer path)]
       (.write w "hello-flag")
       (close-file w)
-      (is (= "hello-flag" (str (first (file-to-strings path)))))))
+      (is (string? (first (file-to-strings path))))
+      (is (= "hello-flag" (first (file-to-strings path))))))
   (testing "json to-json json/read json/read-str"
     (is (= "{\"a\":1}" (to-json {:a 1})))
     (is (= 1 (get (json/read-str "{\"a\":1}") "a")))

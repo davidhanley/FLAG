@@ -350,7 +350,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `repeat` (`(repeat x)` infinite lazy; `(repeat n x)`)
 - **R** `some` (first truthy `(pred x)`, else `nil`)
 - **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)
-- **R** `line-seq` (lazy lines from a file)
+- **R** `line-seq` (lazy lines from a file; each line is a string)
 - **P** `take-while` / `drop-while` / `take-last` / `drop-last` / `take-nth` (Clojure collection arities; `take-nth` with `n <= 0` repeats the first item)
 - **P** `keep` / `mapcat` / `map-indexed` (`(map f (range) coll)`) / `keep-indexed`
 - **P** `reduce-kv` (maps: `f acc k v`; arrays/vectors: `f acc idx v`; `nil` → init)
@@ -420,7 +420,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### File I/O
 
-- **R** `open-file` / `close-file` (idempotent) / `close-channel` (idempotent) / `file-to-strings` (lazy)
+- **R** `open-file` / `close-file` (idempotent) / `close-channel` (idempotent) / `file-to-strings` (lazy lines as strings)
 - **P** `close` — `(type-of x)` then `close-file` or `close-channel`; throw otherwise
 - `(.write file content)` method
 - `with-open` / `with-channel` call `(close name)` from a `defer` thunk
