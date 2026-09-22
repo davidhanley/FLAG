@@ -2059,8 +2059,10 @@ func quotedLiteralToIR(expr Expr) (IRExpr, error) {
 func isBuiltinFunctionSymbol(name string) bool {
 	switch name {
 	case "+", "-", "*", "/", "%", "quot", "rem", "mod", "compare", "==", "=", "<", "<=", ">", ">=", "max", "min",
+		"bit-and", "bit-or", "bit-xor", "bit-not", "bit-shift-left", "bit-shift-right", "unsigned-bit-shift-right",
+		"bit-test", "bit-set", "bit-clear", "bit-flip",
 		"first", "fist", "rest", "next", "last", "reverse", "cons", "take", "drop", "nth", "slow-nth",
-		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "range", "get", "keys", "vals", "find", "hash-map",
+		"map", "concat", "sort-by", "apply", "pmap", "filter", "reduce", "get", "keys", "vals", "find", "hash-map",
 		"list", "array",
 		"not-empty", "empty?", "nil?", "type-of", "count", "double", "numerator", "denominator", "format", "subs", "keyword", "into",
 		"doall", "dorun", "line-seq", "some", "seq", "seq?", "set", "vec", "conj", "contains?",
@@ -2125,6 +2127,28 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return maxExprToGo(list.Elements[1:], ctx, locals)
 		case "min":
 			return minExprToGo(list.Elements[1:], ctx, locals)
+		case "bit-and":
+			return variadicBitCallExprToGo("bit-and", runtimeAlias+".BitAnd", list.Elements[1:], ctx, locals)
+		case "bit-or":
+			return variadicBitCallExprToGo("bit-or", runtimeAlias+".BitOr", list.Elements[1:], ctx, locals)
+		case "bit-xor":
+			return variadicBitCallExprToGo("bit-xor", runtimeAlias+".BitXor", list.Elements[1:], ctx, locals)
+		case "bit-not":
+			return unaryStrictValueCallExprToGo("bit-not", "BitNot", exprKindValue, list.Elements[1:], ctx, locals)
+		case "bit-shift-left":
+			return binaryNumericCallExprToGo("bit-shift-left", runtimeAlias+".BitShiftLeft", list.Elements[1:], ctx, locals)
+		case "bit-shift-right":
+			return binaryNumericCallExprToGo("bit-shift-right", runtimeAlias+".BitShiftRight", list.Elements[1:], ctx, locals)
+		case "unsigned-bit-shift-right":
+			return binaryNumericCallExprToGo("unsigned-bit-shift-right", runtimeAlias+".UnsignedBitShiftRight", list.Elements[1:], ctx, locals)
+		case "bit-test":
+			return binaryNumericCallExprToGo("bit-test", runtimeAlias+".BitTest", list.Elements[1:], ctx, locals)
+		case "bit-set":
+			return binaryNumericCallExprToGo("bit-set", runtimeAlias+".BitSet", list.Elements[1:], ctx, locals)
+		case "bit-clear":
+			return binaryNumericCallExprToGo("bit-clear", runtimeAlias+".BitClear", list.Elements[1:], ctx, locals)
+		case "bit-flip":
+			return binaryNumericCallExprToGo("bit-flip", runtimeAlias+".BitFlip", list.Elements[1:], ctx, locals)
 		case "str":
 			return strExprToGo(list.Elements[1:], ctx, locals)
 		case "println":
@@ -2251,8 +2275,6 @@ func listExprToGo(list ListExpr, ctx compileContext, locals map[string]exprKind)
 			return containsCallExprToGo(list.Elements[1:], ctx, locals)
 		case "line-seq":
 			return lineSeqExprToGo(list.Elements[1:], ctx, locals)
-		case "range":
-			return rangeCallExprToGo(list.Elements[1:], ctx, locals)
 		case "repeat":
 			return repeatCallExprToGo(list.Elements[1:], ctx, locals)
 		case "rand-int":
@@ -2531,6 +2553,17 @@ func maxExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 
 func minExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
 	return variadicNumericCallExprToGo("min", runtimeAlias+".Min", args, ctx, locals)
+}
+
+func variadicBitCallExprToGo(name, goName string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	if len(args) < 2 {
+		return goExpr{}, fmt.Errorf("%s expects at least two arguments", name)
+	}
+	irs, err := compileValueIRs(args, ctx, locals, false, name+" arguments must evaluate to Value")
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(IRCall{Fun: parseGoFun(goName), Args: irs}, exprKindValue), nil
 }
 
 func variadicNumericCallExprToGo(name, goName string, args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4481,17 +4514,6 @@ func reduceCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 		return goExpr{}, err
 	}
 	return fromIR(rtCall("Reduce", irs...), exprKindValue), nil
-}
-
-func rangeCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
-	if len(args) != 0 && len(args) != 1 && len(args) != 2 {
-		return goExpr{}, fmt.Errorf("range expects zero, one, or two arguments")
-	}
-	irs, err := compileValueIRs(args, ctx, locals, false, "range arguments must evaluate to Value")
-	if err != nil {
-		return goExpr{}, err
-	}
-	return fromIR(rtCall("Range", irs...), exprKindValue), nil
 }
 
 func repeatCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

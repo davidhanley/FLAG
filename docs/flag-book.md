@@ -14,6 +14,10 @@ binaries—not a JVM image with an always-on evaluator.
 |------|------------|
 | Install / run something | [Chapter 1 — Introduction](#1-introduction) |
 | Language reference | [Chapter 2 — Language manual](#2-language-manual) |
+| Math (`math/sqrt`, `round`, …) | [math.md](math.md) |
+| Sequences (`range`) | [range.md](range.md) |
+| Sequence extras (`take-while`, …) | [seq.md](seq.md) |
+| File lines (`line-seq`) | [io.md](io.md) |
 | Write and run tests | [Testing guide](#testing-guide) |
 | Interactive workflow | [REPL guide](#repl-guide) |
 | Multi-file programs & imports | [Chapter 3 — Modules](#3-modules) |
@@ -48,10 +52,13 @@ Themes that run through the rest of the book:
 What is implemented **today**: CLI commands, core syntax, special forms, data
 literals, destructuring, builtins, functional combinators (`comp`, `complement`,
 `fnil`, `every-pred`, `some-fn`, `iterate`, `repeatedly`), control macros
-(`as->`, `condp`, `dotimes`), numerics (`quot` / `rem` / `mod` / `compare` / `==` / `rand` / `numerator` / `denominator`), sequences,
+(`as->`, `condp`, `dotimes`), numerics (`quot` / `rem` / `mod` / `compare` / `==` / `rand` / `numerator` / `denominator` / `bit-*` / `math/…`), sequences,
 testing, strings (`subs`, `str/lower-case`, `str/index-of`, …), and pointers into modules / async / libraries.
 
 Read this for day-to-day “how do I write FLAG?”
+
+Companion: **[math.md](math.md)** — `math/sqrt`, `pow`, `exp`, `log`, `log10`,
+`sin`/`cos`/`tan`, `floor`, `ceil`, `round`, `IEEE-remainder`, and core `bit-*`.
 
 ---
 

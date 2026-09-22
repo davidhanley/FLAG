@@ -192,7 +192,7 @@ func FileToStringsPath(path string) Value {
 		}
 
 		if scanner.Scan() {
-			return NewSymbol(scanner.Text()), true
+			return NewString(scanner.Text()), true
 		}
 
 		closeFile()
@@ -226,7 +226,7 @@ func fileToStringsFile(file *FileObject) Value {
 		}
 
 		if scanner.Scan() {
-			return NewSymbol(scanner.Text()), true
+			return NewString(scanner.Text()), true
 		}
 
 		closeFile()

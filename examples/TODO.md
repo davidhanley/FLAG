@@ -86,14 +86,14 @@ Already in prologue: `when`, `when-not`, `when-let`, `if-let`, `if-not`, `if-som
 
 ## Math (`clojure.core` / `Math`)
 
-Have: `+` `-` `*` `/` `%` `quot` `rem` `mod` `max` `min` `rand-int` `rand` `rand-nth` `shuffle` `double` `numerator` `denominator` `math/abs` `inc`/`dec` `zero?` `pos?` `neg?` `even?` `odd?` `compare` `==`.
+Have: `+` `-` `*` `/` `%` `quot` `rem` `mod` `max` `min` `rand-int` `rand` `rand-nth` `shuffle` `double` `numerator` `denominator` `bit-and` `bit-or` `bit-xor` `bit-not` `bit-shift-left` `bit-shift-right` `unsigned-bit-shift-right` `bit-test` `bit-set` `bit-clear` `bit-flip` `math/abs` `math/sqrt` `math/pow` `math/exp` `math/log` `math/log10` `math/sin` `math/cos` `math/tan` `math/floor` `math/ceil` `math/round` `math/IEEE-remainder` `inc`/`dec` `zero?` `pos?` `neg?` `even?` `odd?` `compare` `==`.
 
 - [x] Add **`quot`**, **`rem`**, **`mod`** (Clojure names; FLAG `%` is `mod`).
 - [x] Add **`compare`** and numeric **`==`**.
 - [x] Add **`rand`**, **`rand-nth`**, **`shuffle`**.
 - [x] Add **`numerator`** / **`denominator`** for ratios.
-- [ ] Add bit ops: **`bit-and`**, **`bit-or`**, **`bit-xor`**, **`bit-not`**, **`bit-shift-left`**, **`bit-shift-right`**, **`unsigned-bit-shift-right`**, **`bit-test`**, **`bit-set`**, **`bit-clear`**, **`bit-flip`**.
-- [ ] Add common `Math` surface as `math/…` (or core aliases): **`sqrt`**, **`pow`**, **`exp`**, **`log`**, **`log10`**, **`sin`/`cos`/`tan`**, **`floor`**, **`ceil`**, **`round`**, **`IEEE-remainder`**.
+- [x] Add bit ops: **`bit-and`**, **`bit-or`**, **`bit-xor`**, **`bit-not`**, **`bit-shift-left`**, **`bit-shift-right`**, **`unsigned-bit-shift-right`**, **`bit-test`**, **`bit-set`**, **`bit-clear`**, **`bit-flip`**.
+- [x] Add common `Math` surface as `math/…` (or core aliases): **`sqrt`**, **`pow`**, **`exp`**, **`log`**, **`log10`**, **`sin`/`cos`/`tan`**, **`floor`**, **`ceil`**, **`round`**, **`IEEE-remainder`**.
 - [x] Make **`inc` / `dec` first-class functions** (or add function variants) so `(map inc xs)` and `(swap! a inc)` work. Today they are macros.
 
 ## Strings (`clojure.core` / `clojure.string`)
@@ -109,7 +109,7 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 ## Sequence extras
 
 - [ ] Add **`mapv`** / **`filterv`** (still open above).
-- [ ] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
+- [x] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
 - [ ] Add **`split-at`**, **`split-with`**.
 - [ ] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
 - [ ] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
@@ -125,19 +125,20 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 
 These surprise Clojure programmers and are **not** intentional FLAG design (unlike `future` returning a 0-arg fn, atoms without watches, channels in `async.lib`, `| |` vectors vs `[ ]` arrays).
 
-- [ ] **`(range n)`** is infinite starting at `n`. Clojure’s `(range n)` is `0 .. n-1`. Either match Clojure or make `flag-lang.md` shout this; current wording is easy to misread.
+- [x] **`(range n)`** is infinite starting at `n`. Clojure’s `(range n)` is `0 .. n-1`. Either match Clojure or make `flag-lang.md` shout this; current wording is easy to misread.
 - [x] **`inc` / `dec` are macros**, so they cannot be passed to `map`, `apply`, `swap!`, etc.
 - [ ] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
-- [ ] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
+- [x] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
 - [ ] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
-- [ ] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
+- [x] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
 - [ ] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
 - [ ] **No `@` deref reader**; must write `(deref a)`. Easy to add if atoms stay.
 - [ ] **`:strs` destructuring** looks up symbol keys, not string keys.
 - [ ] **`print` is not implemented** (only `println` / `str`).
+- [ ] ** Arrays supporting push to the end and having size in the box breaks immutability
+
 
 ## Intentionally different (do not “fix” to Clojure)
-
 - `future` returns a callable 0-arg function (or a channel when `:piped? true`), not a `deref`-able IDeref.
 - Atoms have no watches.
 - Concurrency lives in `async.lib`, not `clojure.core` / `core.async`.

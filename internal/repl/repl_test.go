@@ -3,6 +3,9 @@ package repl
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -352,4 +355,116 @@ func TestRunLoadFileWithImports(t *testing.T) {
 	if !strings.Contains(got, "42") {
 		t.Fatalf("expected loaded file function result in output, got:\n%s", got)
 	}
+}
+
+func TestRunDoseqForAndBitOps(t *testing.T) {
+	input := strings.NewReader("(def x (doseq [x [1 2 3 4]] (println x)))\nx\n:quit\n")
+	var output bytes.Buffer
+	if err := Run(input, &output); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	gotOut := output.String()
+	if strings.Contains(gotOut, "error:") {
+		t.Fatalf("expected doseq to eval in the REPL, got:\n%s", gotOut)
+	}
+
+	got := replEval(t,
+		`(vec (for [n [1 2 3]] n))`,
+		`(bit-and 6 3)`,
+		`(bit-or 1 2)`,
+		`(unsigned-bit-shift-right -1 1)`,
+	)
+	want := []string{"[1 2 3]", "2", "3", "9223372036854775807"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d printed results, got %d:\n%q", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("result %d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
+func TestGeneratedRuntimeSymbolsCoverRuntimeExports(t *testing.T) {
+	symbols := generatedRuntimeSymbols()
+	required := []string{
+		"MapCat", "DoAll", "BitAnd", "BitOr", "BitXor", "BitNot",
+		"BitShiftLeft", "BitShiftRight", "UnsignedBitShiftRight",
+		"BitTest", "BitSet", "BitClear", "BitFlip", "Value", "Println",
+	}
+	for _, name := range required {
+		if _, ok := symbols[name]; !ok {
+			t.Errorf("generated runtime symbols missing %s; run go generate ./internal/repl", name)
+		}
+	}
+
+	runtimeDir := filepath.Join("..", "..", "runtime")
+	exports, err := listExportedRuntimeNames(runtimeDir)
+	if err != nil {
+		t.Fatalf("list runtime exports: %v", err)
+	}
+	if len(exports) == 0 {
+		t.Fatal("expected exported runtime names")
+	}
+	for _, name := range exports {
+		if _, ok := symbols[name]; !ok {
+			t.Errorf("generated runtime symbols missing %s; run go generate ./internal/repl", name)
+		}
+	}
+	if len(symbols) != len(exports) {
+		t.Errorf("generated %d symbols, runtime exports %d; run go generate ./internal/repl", len(symbols), len(exports))
+	}
+}
+
+func listExportedRuntimeNames(runtimeDir string) ([]string, error) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, runtimeDir, func(info os.FileInfo) bool {
+		name := info.Name()
+		return strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go")
+	}, 0)
+	if err != nil {
+		return nil, err
+	}
+	pkg, ok := pkgs["runtime"]
+	if !ok {
+		return nil, fmt.Errorf("package runtime not found in %s", runtimeDir)
+	}
+	seen := map[string]struct{}{}
+	for _, file := range pkg.Files {
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				if d.Recv != nil || d.Name == nil || !d.Name.IsExported() {
+					continue
+				}
+				if d.Type != nil && d.Type.TypeParams != nil {
+					continue
+				}
+				seen[d.Name.Name] = struct{}{}
+			case *ast.GenDecl:
+				if d.Tok != token.TYPE && d.Tok != token.VAR {
+					continue
+				}
+				for _, spec := range d.Specs {
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
+						if s.Name != nil && s.Name.IsExported() {
+							seen[s.Name.Name] = struct{}{}
+						}
+					case *ast.ValueSpec:
+						for _, name := range s.Names {
+							if name.IsExported() {
+								seen[name.Name] = struct{}{}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	return out, nil
 }

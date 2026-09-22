@@ -1043,28 +1043,56 @@ func SeqRest(coll Value) Value {
 func Range(args ...Value) Value {
 	switch len(args) {
 	case 0:
-		return newLazyRange(0, 0, false)
+		return newLazyRange(0, 0, 1, false)
 	case 1:
-		start := rangeArgLong("range", args[0])
-		return newLazyRange(start, 0, false)
+		end := rangeArgLong("range", args[0])
+		return finiteRange(0, end, 1)
 	case 2:
 		start := rangeArgLong("range", args[0])
 		end := rangeArgLong("range", args[1])
-		if end <= start {
+		return finiteRange(start, end, 1)
+	case 3:
+		start := rangeArgLong("range", args[0])
+		end := rangeArgLong("range", args[1])
+		step := rangeArgLong("range", args[2])
+		return finiteRange(start, end, step)
+	default:
+		panic("range expects zero to three integer arguments")
+	}
+}
+
+func finiteRange(start, end, step int64) Value {
+	if step == 0 {
+		if start == end {
 			return NewArray()
 		}
-		count := end - start
-		if count < eagerRangeThreshold {
-			values := make([]Value, 0, count)
-			for i := start; i < end; i++ {
-				values = append(values, NewLong(i))
-			}
-			return NewArray(values...)
-		}
-		return newLazyRange(start, end, true)
-	default:
-		panic("range expects one or two integer arguments")
+		return newLazyRepeat(NewLong(start), 0, false)
 	}
+	count := rangeCount(start, end, step)
+	if count <= 0 {
+		return NewArray()
+	}
+	if count < eagerRangeThreshold {
+		values := make([]Value, 0, count)
+		for i := int64(0); i < count; i++ {
+			values = append(values, NewLong(start+i*step))
+		}
+		return NewArray(values...)
+	}
+	return newLazyRange(start, end, step, true)
+}
+
+func rangeCount(start, end, step int64) int64 {
+	if step > 0 {
+		if start >= end {
+			return 0
+		}
+		return (end - start + step - 1) / step
+	}
+	if start <= end {
+		return 0
+	}
+	return (start - end - step - 1) / (-step)
 }
 
 func Repeat(args ...Value) Value {
@@ -1079,21 +1107,26 @@ func Repeat(args ...Value) Value {
 	}
 }
 
-func newLazyRange(start, end int64, finite bool) Value {
+func newLazyRange(start, end, step int64, finite bool) Value {
 	current := start
 	state := &lazyListState{
 		next: func() (Value, bool) {
-			if finite && current >= end {
-				return Value{}, false
+			if finite {
+				if step > 0 && current >= end {
+					return Value{}, false
+				}
+				if step < 0 && current <= end {
+					return Value{}, false
+				}
 			}
 			value := NewLong(current)
-			current++
+			current += step
 			return value, true
 		},
 	}
 	remaining := int64(-1)
 	if finite {
-		remaining = end - start
+		remaining = rangeCount(start, end, step)
 	}
 	return newLazyListValue(state, remaining, 0)
 }
