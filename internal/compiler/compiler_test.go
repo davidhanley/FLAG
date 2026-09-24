@@ -418,11 +418,39 @@ func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, "return countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
+	if !strings.Contains(got, "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
 		t.Fatalf("expected direct variadic self-call lowering:\n%s", got)
 	}
 	if strings.Contains(got, "flagrt.Call(countdown,") {
 		t.Fatalf("expected no runtime self-call through value var:\n%s", got)
+	}
+}
+
+func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x]
+  (if x 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "var if_result_1 flagrt.Value") {
+		t.Fatalf("expected if result var:\n%s", got)
+	}
+	if !strings.Contains(got, "if flagrt.IsTruthy(x)") {
+		t.Fatalf("expected Go if:\n%s", got)
+	}
+	arityStart := strings.Index(got, "func choose_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("if still compiled as IIFE:\n%s", arity)
 	}
 }
 
@@ -444,6 +472,99 @@ func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "map literal entries must evaluate to Value at 1:") {
 		t.Fatalf("expected location in error, got: %v", err)
+	}
+}
+
+func TestCompileOrExpandsToLetIf(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x y]
+  (or x y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func choose_arity_2")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "or_tmp") {
+		t.Fatalf("expected or macro to bind or-tmp:\n%s", arity)
+	}
+	if !strings.Contains(arity, "if flagrt.IsTruthy(or_tmp)") {
+		t.Fatalf("expected or macro to expand to if:\n%s", arity)
+	}
+}
+
+func TestCompileAndExpandsToLetIf(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x y]
+  (and x y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func choose_arity_2")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "and_tmp") {
+		t.Fatalf("expected and macro to bind and-tmp:\n%s", arity)
+	}
+	if !strings.Contains(arity, "if flagrt.IsTruthy(and_tmp)") {
+		t.Fatalf("expected and macro to expand to if:\n%s", arity)
+	}
+}
+
+func TestCompileDoWithDeferStillIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn work []
+  (let [x (do (defer (fn [] 1)) 2)]
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "defer flagrt.Call(") {
+		t.Fatalf("expected defer in generated Go:\n%s", got)
+	}
+	if !strings.Contains(got, "func() flagrt.Value") {
+		t.Fatalf("do containing defer should still compile as IIFE so the thunk runs when do returns:\n%s", got)
+	}
+}
+
+func TestCompileIfInsideEqualityEmitsResultVar(t *testing.T) {
+	output, err := Compile(`
+(defn work [x]
+  (= (if x 1 2) 1))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func work_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing work arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "var if_result_") {
+		t.Fatalf("expected if result var before equality:\n%s", arity)
+	}
+	if !strings.Contains(arity, "flagrt.Eq(if_result_") {
+		t.Fatalf("expected equality to use if result var:\n%s", arity)
 	}
 }
 

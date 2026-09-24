@@ -263,3 +263,232 @@
     (is (= :quoted-list (:kind quoted)))
     (is (= 3 (count (:elements quoted))))))
 
+(deftest ir-renders-atoms-and-calls
+  (is (= "x" (ir/render-ir (ir/ir-ident "x"))))
+  (is (= "\"hi\"" (ir/render-ir (ir/ir-string "hi"))))
+  (is (= "\"a\\\"b\"" (ir/render-ir (ir/ir-string "a\"b"))))
+  (is (= "42" (ir/render-ir (ir/ir-int 42))))
+  (is (= "-7" (ir/render-ir (ir/ir-int -7))))
+  (is (= "flagrt.NewLong" (ir/render-ir (ir/ir-selector "flagrt" "NewLong"))))
+  (is (= "println" (ir/render-ir (ir/ir-selector "" "println"))))
+  (is (= "flagrt.NilValue()" (ir/render-ir (ir/rt-call "NilValue" []))))
+  (is (= "flagrt.NewLong(42)" (ir/render-ir (ir/rt-call "NewLong" [(ir/ir-int 42)]))))
+  (is (= "flagrt.NewBool(true)" (ir/render-ir (ir/rt-call "NewBool" [(ir/ir-raw "true")]))))
+  (is (= "flagrt.NewString(\"hi\")" (ir/render-ir (ir/rt-call "NewString" [(ir/ir-string "hi")]))))
+  (is (= "flagrt.NewRatio(5, 6)" (ir/render-ir (ir/rt-call "NewRatio" [(ir/ir-int 5) (ir/ir-int 6)]))))
+  (is (= "1e2" (ir/render-ir (ir/ir-raw "1e2"))))
+  (is (= "flagrt.NewDouble(1e2)" (ir/render-ir (ir/rt-call "NewDouble" [(ir/ir-raw "1e2")]))))
+  (is (= "flagrt.Add(flagrt.Add(a, b), c)"
+         (ir/render-ir (ir/ir-call (ir/parse-go-fun "flagrt.Add")
+                                  [(ir/rt-call "Add" [(ir/ir-ident "a") (ir/ir-ident "b")])
+                                   (ir/ir-ident "c")]))))
+  (is (= "flagrt.Call(f, x)" (ir/render-ir (ir/rt-call "Call" [(ir/ir-ident "f") (ir/ir-ident "x")]))))
+  (is (= "flagFoo_1(x)" (ir/render-ir (ir/ident-call "flagFoo_1" [(ir/ir-ident "x")]))))
+  (is (= "flagrt.NewBool(flagrt.IsEmpty(xs))"
+         (ir/render-ir (ir/rt-call "NewBool" [(ir/rt-call "IsEmpty" [(ir/ir-ident "xs")])]))))
+  (is (= "flagrt.NewLong(int64(flagrt.Count(xs)))"
+         (ir/render-ir (ir/rt-call "NewLong" [(ir/ident-call "int64" [(ir/rt-call "Count" [(ir/ir-ident "xs")])])]))))
+  (is (= "strings.HasSuffix(s, \".go\")"
+         (ir/render-ir (ir/selector-call "strings" "HasSuffix" [(ir/ir-ident "s") (ir/ir-string ".go")]))))
+  (is (= "flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2))"
+         (ir/render-ir (ir/rt-call "NewArray" [(ir/rt-call "NewLong" [(ir/ir-int 1)])
+                                              (ir/rt-call "NewLong" [(ir/ir-int 2)])]))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (ir/rt-call "NewMap" [(ir/rt-call "NewKeyword" [(ir/ir-string "a")])
+                                            (ir/rt-call "NewLong" [(ir/ir-int 1)])])))))
+
+(deftest ir-renders-index-slice-spread-ops
+  (is (= "args[0]" (ir/render-ir (ir/ir-index (ir/ir-ident "args") (ir/ir-int 0)))))
+  (is (= "args[2:]" (ir/render-ir (ir/ir-slice (ir/ir-ident "args") (ir/ir-int 2) nil))))
+  (is (= "flagrt.NewArray(args[1:]...)"
+         (ir/render-ir (ir/rt-call "NewArray" [(ir/ir-spread (ir/ir-slice (ir/ir-ident "args") (ir/ir-int 1) nil))]))))
+  (is (= "!(flagrt.IsTruthy(x))"
+         (ir/render-ir (ir/ir-unary "!" (ir/rt-call "IsTruthy" [(ir/ir-ident "x")])))))
+  (is (= "len(args) != 1"
+         (ir/render-ir (ir/ir-binary "!=" (ir/ident-call "len" [(ir/ir-ident "args")]) (ir/ir-int 1))))))
+
+(deftest ir-renders-func-lits-and-statements
+  (is (= "func() bool {\n\tif ok {\n\t\treturn true\n\t}\n\treturn false\n}()"
+         (ir/render-ir (ir/iife "bool"
+                               [(ir/ir-if (ir/ir-ident "ok")
+                                          [(ir/ir-return (ir/ir-raw "true"))]
+                                          [])
+                                (ir/ir-return (ir/ir-raw "false"))]))))
+  (is (= "func() flagrt.Value {\n\t_ = a\n\treturn b\n}()"
+         (ir/render-ir (ir/value-iife [(ir/ir-expr-stmt (ir/ir-ident "a") true)
+                                      (ir/ir-return (ir/ir-ident "b"))]))))
+  (is (= "\tvar x flagrt.Value\n\tdefer flagrt.Call(f)\n\tx = y\n\treturn x\n"
+         (ir/render-ir-stmts [(ir/ir-var "x" "flagrt.Value" nil)
+                             (ir/ir-defer (ir/rt-call "Call" [(ir/ir-ident "f")]))
+                             (ir/ir-assign "x" (ir/ir-ident "y"))
+                             (ir/ir-return (ir/ir-ident "x"))]
+                            "\t")))
+  (is (= "func(args ...flagrt.Value) flagrt.Value {\n\tx := args[0]\n\treturn x\n}"
+         (ir/render-ir (ir/ir-func-lit "args ...flagrt.Value" "flagrt.Value"
+                                      [(ir/ir-define ["x"] (ir/ir-index (ir/ir-ident "args") (ir/ir-int 0)))
+                                       (ir/ir-return (ir/ir-ident "x"))]))))
+  (is (= "\tif err := open(); err != nil {\n\t\treturn\n\t} else {\n\t\tuse()\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-if-init "err := open()"
+                                          (ir/ir-ident "err != nil")
+                                          [(ir/ir-return nil)]
+                                          [(ir/ir-expr-stmt (ir/ident-call "use" []) false)])
+                           "\t")))
+  (is (= "\tfor {\n\t\tbreak\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-for [(ir/ir-raw-stmt "\t\tbreak\n")]) "\t"))))
+
+(deftest ir-parse-go-fun
+  (let [sel (ir/parse-go-fun "flagrt.Add")
+        ident (ir/parse-go-fun "flagFoo_1")
+        dotted (ir/parse-go-fun "a.b.c")]
+    (is (= :selector (:kind sel)))
+    (is (= "flagrt" (:pkg sel)))
+    (is (= "Add" (:name sel)))
+    (is (= :ident (:kind ident)))
+    (is (= "flagFoo_1" (:name ident)))
+    (is (= :ident (:kind dotted)))
+    (is (= "a.b.c" (:name dotted)))))
+
+(deftest lower-literals-to-ir
+  (is (= "\"hi\"" (ir/render-ir (lower/ast-node-to-ir {:kind :string :value "hi"}))))
+  (is (= "flagrt.NewString(\"x\")" (ir/render-ir (lower/ast-node-to-ir {:kind :char :value "x"}))))
+  (is (= "flagrt.NewLong(42)" (ir/render-ir (lower/ast-node-to-ir {:kind :int :value 42}))))
+  (is (= "flagrt.NewLong(-7)" (ir/render-ir (lower/ast-node-to-ir {:kind :int :value -7}))))
+  (is (= "flagrt.NewBigIntFromString(\"10\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :bigint :value "10"}))))
+  (is (= "flagrt.NewRatio(5, 6)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :ratio :numerator 5 :denominator 6}))))
+  (is (= "flagrt.NewDouble(1.5)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :float :value 1.5 :raw "1.5"}))))
+  (is (= "flagrt.NewDouble(1e2)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :float :value 100.0 :raw "1e2"}))))
+  (is (= "flagrt.NewKeyword(\"xyz\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :keyword :name "xyz"}))))
+  (is (= "flagrt.NewSymbol(\"abc\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :quoted-symbol :name "abc"}))))
+  (is (= "flagrt.NewBool(true)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "true"}))))
+  (is (= "flagrt.NewBool(false)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "false"}))))
+  (is (= "flagrt.NilValue()"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "nil"})))))
+
+(deftest lower-quoted-ast-to-ir
+  (is (= "flagrt.NewList(flagrt.NewLong(1), flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :quoted-list
+                          :elements [{:kind :int :value 1}
+                                     {:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.NewList()"
+         (ir/render-ir (lower/quoted-ast-to-ir {:kind :quoted-list :elements []}))))
+  (is (= "flagrt.NewList(flagrt.NewSymbol(\"true\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :quoted-list
+                          :elements [{:kind :symbol :name "true"}]}))))
+  (is (= "flagrt.NewArray(flagrt.NewList(flagrt.NewSymbol(\"x\")))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :vector
+                          :elements [{:kind :quoted-list
+                                      :elements [{:kind :symbol :name "x"}]}]}))))
+  (is (= "flagrt.NewVector(flagrt.NewLong(1))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :pipe-vector
+                          :elements [{:kind :int :value 1}]}))))
+  (is (= "flagrt.NewSet(flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :set
+                          :elements [{:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :map
+                          :entries [{:kind :keyword :name "a"}
+                                    {:kind :int :value 1}]})))))
+
+(deftest lower-call-ast-to-ir
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :int :value 1}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.Call(f, flagrt.NewLong(1))"
+         (ir/render-ir (lower/call-to-ir
+                         (ir/ir-ident "f")
+                         [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.Call(flagrt.NewKeyword(\"b\"), flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :list
+                                      :elements [{:kind :keyword :name "b"}
+                                                 {:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewArray(flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :vector
+                                      :elements [{:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewList(flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :quoted-list
+                                      :elements [{:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewBool(true))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :symbol :name "true"}]})))))
+
+(deftest lower-ctor-runtime-and-symbols
+  (is (= "flagrt.NewArray(flagrt.NewLong(1))"
+         (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (is (= "flagrt.First(xs)"
+         (ir/render-ir (lower/runtime-call-to-ir "First" [(ir/ir-ident "xs")]))))
+  (is (= "flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewLong(3))"
+         (ir/render-ir (lower/fold-call-to-ir "Add"
+                         [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])
+                          (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)])
+                          (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 3)])]))))
+  (is (= "x" (ir/render-ir (:ir (lower/symbol-to-ir "x" "x" {:locals {"x" :value}})))))
+  (is (= "flagrt.BuiltinFunction(\"first\")"
+         (ir/render-ir (:ir (lower/symbol-to-ir "first" "first" {})))))
+  (is (= "flagrt.NewArray(x, flagrt.NewLong(1))"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :vector
+                          :elements [{:kind :symbol :name "x"}
+                                     {:kind :int :value 1}]}
+                         {:locals {"x" :value}}))))
+  (is (= "flagrt.First(x)"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :symbol :name "first"}
+                                     {:kind :symbol :name "x"}]}
+                         {:locals {"x" :value}}))))
+  (is (= "flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewLong(3))"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :symbol :name "+"}
+                                     {:kind :int :value 1}
+                                     {:kind :int :value 2}
+                                     {:kind :int :value 3}]}
+                         {}))))
+  (is (= "\tvar if_result_1 flagrt.Value\n\tif ok {\n\t\tif_result_1 = flagrt.NewLong(1)\n\t} else {\n\t\tif_result_1 = flagrt.NewLong(2)\n\t}\n"
+         (ir/render-ir-stmts (lower/if-to-ir "if_result_1" "flagrt.Value"
+                                            (ir/ir-ident "ok")
+                                            []
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])
+                                            []
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)]))
+                            "\t"))))
+
+(deftest codegen-emits-ir-binary-for-square
+  (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")
+        node (codegen/emit-ir-expr (nth-token exprs 0))]
+    (is (= :binary (:kind node)))
+    (is (= "*" (:op node)))
+    (is (= "x" (:name (:left node))))
+    (is (= "x" (:name (:right node))))))
+

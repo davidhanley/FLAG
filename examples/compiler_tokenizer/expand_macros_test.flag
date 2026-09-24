@@ -78,6 +78,8 @@
   (testing "macro-case"
     (is (= (expected-fixture "cond-empty-else") (expand-fixture "cond-empty-else")))
     (is (= (expected-fixture "cond-recursive") (expand-fixture "cond-recursive")))
+    (is (= (expected-fixture "or-recursive") (expand-fixture "or-recursive")))
+    (is (= (expected-fixture "and-recursive") (expand-fixture "and-recursive")))
     (is (= (expected-fixture "thread-first-identity") (expand-fixture "thread-first-identity")))
     (is (= (expected-fixture "thread-first-symbol") (expand-fixture "thread-first-symbol")))
     (is (= (expected-fixture "thread-first-forms") (expand-fixture "thread-first-forms")))
