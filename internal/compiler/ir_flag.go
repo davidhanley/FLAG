@@ -181,6 +181,12 @@ func flagValueToIRStmt(node flagrt.Value) (IRStmt, error) {
 			return nil, err
 		}
 		return IRForStmt{Body: body}, nil
+	case "block":
+		body, err := flagIRStmtSeq(flagMapGet(node, "body"))
+		if err != nil {
+			return nil, err
+		}
+		return IRBlock{Body: body}, nil
 	default:
 		return nil, fmt.Errorf("unsupported IR statement kind %q", kind)
 	}
@@ -326,6 +332,8 @@ func irStmtToFlagValue(stmt IRStmt) flagrt.Value {
 			flagrt.NewKeyword("else"), irStmtsToFlagVector(s.Else))
 	case IRForStmt:
 		return flagIRNode("for", flagrt.NewKeyword("body"), irStmtsToFlagVector(s.Body))
+	case IRBlock:
+		return flagIRNode("block", flagrt.NewKeyword("body"), irStmtsToFlagVector(s.Body))
 	default:
 		return flagrt.NilValue()
 	}

@@ -244,7 +244,7 @@ type compileContext struct {
 	recordTypes map[string]string
 	// allowRedefine lets the REPL overwrite functions already in ctx.
 	allowRedefine bool
-	// ifTemps is a shared counter for result temps (if_result_N, and_result_N, or_result_N).
+	// ifTemps is a shared counter for result temps (if_result_N, let_result_N).
 	ifTemps *int
 }
 
@@ -1515,11 +1515,17 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
 			}
 			needsFmt = true
-			arg, err := strArgExprForGoCall(list.Elements[1:], *ctx, nil)
+			argIRs, argStmts, err := strArgIRs(list.Elements[1:], *ctx, nil)
 			if err != nil {
 				return compileResult{}, nil, nil, err
 			}
-			stmts = append(stmts, mainStmt{code: fmt.Sprintf("fmt.Println(%s)", arg)})
+			argParts := make([]string, 0, len(argIRs))
+			for _, ir := range argIRs {
+				argParts = append(argParts, renderIRExpr(ir))
+			}
+			arg := fmt.Sprintf("%s.Str(%s)", runtimeAlias, strings.Join(argParts, ", "))
+			prelude := strings.TrimSuffix(renderIRStmts(argStmts, "\t"), "\n")
+			stmts = append(stmts, mainStmt{prelude: prelude, code: fmt.Sprintf("fmt.Println(%s)", arg)})
 		case "print":
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -2782,6 +2788,15 @@ func deferExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	return stmt, nil
 }
 
+func compiledHasDefer(compiled []goExpr) bool {
+	for _, part := range compiled {
+		if part.kind == exprKindDefer {
+			return true
+		}
+	}
+	return false
+}
+
 func sequentialResultKind(compiled []goExpr) exprKind {
 	last := compiled[len(compiled)-1]
 	if last.kind == exprKindDefer {
@@ -3390,16 +3405,31 @@ func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		compiledBody = append(compiledBody, compiled)
 	}
 
-	resultKind := sequentialResultKind(compiledBody)
-	typeName, err := goTypeForExprKind(resultKind)
+	if compiledHasDefer(compiledBody) {
+		resultKind := sequentialResultKind(compiledBody)
+		typeName, err := goTypeForExprKind(resultKind)
+		if err != nil {
+			return goExpr{}, err
+		}
+		body := make([]IRStmt, 0, len(bindings)+len(compiledBody)+1)
+		body = append(body, bindings...)
+		body = append(body, sequentialStmts(compiledBody)...)
+		return fromIR(iife(typeName, body...), resultKind), nil
+	}
+
+	last := compiledBody[len(compiledBody)-1]
+	typeName, err := goTypeForExprKind(last.kind)
 	if err != nil {
 		return goExpr{}, err
 	}
-
-	body := make([]IRStmt, 0, len(bindings)+len(compiledBody)+1)
-	body = append(body, bindings...)
-	body = append(body, sequentialStmts(compiledBody)...)
-	return fromIR(iife(typeName, body...), resultKind), nil
+	name := nextResultTemp(ctx, "let_result")
+	letStmts, err := flagLetToIR(name, typeName, bindings, sequentialPrelude(compiledBody), irFromGoExpr(last))
+	if err != nil {
+		return goExpr{}, err
+	}
+	result := fromIR(IRIdent{Name: name}, last.kind)
+	result.stmts = letStmts
+	return result, nil
 }
 
 func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {

@@ -498,6 +498,12 @@ func TestCompileOrExpandsToLetIf(t *testing.T) {
 	if !strings.Contains(arity, "if flagrt.IsTruthy(or_tmp)") {
 		t.Fatalf("expected or macro to expand to if:\n%s", arity)
 	}
+	if !strings.Contains(arity, "var let_result_") {
+		t.Fatalf("expected flattened let result var:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("or/let still compiled as IIFE:\n%s", arity)
+	}
 }
 
 func TestCompileAndExpandsToLetIf(t *testing.T) {
@@ -522,6 +528,88 @@ func TestCompileAndExpandsToLetIf(t *testing.T) {
 	}
 	if !strings.Contains(arity, "if flagrt.IsTruthy(and_tmp)") {
 		t.Fatalf("expected and macro to expand to if:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("and/let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileLetUsesResultVarNotIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn wrap [x]
+  (let [y x]
+    y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func wrap_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "var let_result_") {
+		t.Fatalf("expected let result var:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileLetShadowsParam(t *testing.T) {
+	output, err := Compile(`
+(defn shadow [x]
+  (let [x 1]
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func shadow_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "{\n") {
+		t.Fatalf("expected Go block so let can shadow the parameter:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("shadowing let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileLetWithDeferStillIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn work []
+  (let [x 1]
+    (defer (fn [] x))
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "defer flagrt.Call(") {
+		t.Fatalf("expected defer in generated Go:\n%s", got)
+	}
+	arityStart := strings.Index(got, "func work_arity_0")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("let containing defer should still compile as IIFE so the thunk runs when let returns:\n%s", arity)
 	}
 }
 

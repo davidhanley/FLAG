@@ -86,6 +86,7 @@ Implemented top-level forms:
 Every compiled program gets **`internal/compiler/prologue.flag`** (macros and FLAG functions). Unqualified **runtime builtins** live in `runtime/builtins.go`. Namespaced hosts (`str/…`, `io/…`, `vector/…`, …) are compile-time Go adapters (`goFnBindings`).
 
 Prologue macros include Clojure-style short-circuit `(or …)` and `(and …)`.
+They compile through flattened `let`/`if` (result variables, not IIFEs).
 They expand to `let` + `if` so the first clause is not evaluated twice:
 `(or)` is `nil`, `(and)` is `true`, `(or nil [])` is `[]`, and later
 clauses run only if needed. They are macros, so they cannot be passed to

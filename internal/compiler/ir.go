@@ -156,6 +156,11 @@ type IRForStmt struct{ Body []IRStmt }
 
 func (IRForStmt) irStmt() {}
 
+// IRBlock is a Go block { stmts } used to scope flattened let bindings.
+type IRBlock struct{ Body []IRStmt }
+
+func (IRBlock) irStmt() {}
+
 // IRRawStmt is preformatted Go, including indent and trailing newline.
 type IRRawStmt struct{ Code string }
 
@@ -383,6 +388,12 @@ func renderIRStmt(stmt IRStmt, indent string) string {
 	case IRForStmt:
 		var b strings.Builder
 		b.WriteString(indent + "for {\n")
+		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(indent + "}\n")
+		return b.String()
+	case IRBlock:
+		var b strings.Builder
+		b.WriteString(indent + "{\n")
 		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()

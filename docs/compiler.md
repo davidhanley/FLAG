@@ -55,12 +55,12 @@ Go can ingest them with `flagValueToIRExpr` / `flagValueToIRStmt`.
 Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `:slice`, `:spread`, `:unary`, `:binary`, `:func-lit`, `:raw`. Statement kinds:
 `:expr-stmt`, `:return`, `:defer`, `:go`, `:var`, `:assign`, `:define`, `:if`,
-`:for`, `:raw-stmt`. An IIFE is a `:call` of a `:func-lit` with no args.
+`:for`, `:block`, `:raw-stmt`. An IIFE is a `:call` of a `:func-lit` with no args.
 `:binary` does not add parentheses (same as Go).
 
 `compiler/lower.lib` exports `ast-node-to-ir`, `quoted-ast-to-ir`,
 `call-to-ir`, `call-ast-to-ir`, `ctor-to-ir`, `runtime-call-to-ir`,
-`fold-call-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, and `if-to-ir`.
+`fold-call-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, and `let-to-ir`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -107,13 +107,21 @@ before the use site (including `=`, `is`, and `expect-exception`). `do`
 flattens to prelude + last expression unless it contains `defer`, which
 still wraps in an IIFE so the thunk runs when `do` returns.
 
+`let-to-ir` emits a result variable plus a Go `{ }` block that holds
+bindings, body prelude statements, and `name = body-expr`. Production
+`letExprToGo` uses this instead of a value IIFE, so nested `let` (and
+`and`/`or`, which expand to `let`) no longer wrap in `func() T { ... }()`.
+The block scopes bindings so they can shadow parameters and outer lets
+without renaming. `let` still wraps in an IIFE when the body contains
+`defer` (Go `defer` is function-scoped; `with-open` relies on that).
+
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
 clauses short-circuit: `(or a b)` becomes `(let [or-tmp a] (if or-tmp
 or-tmp b))`. Empty `(or)` is `nil`; empty `(and)` is `true`. Two-argument
 clauses are explicit so `(or nil [])` keeps `[]` (a lone `& rest` splice
-would turn the empty vector into `(or)` → `nil`). Because `let` is still
-an IIFE, nested `and`/`or` still wrap in `func() T { ... }()`.
+would turn the empty vector into `(or)` → `nil`). Flattened `let` means
+those expansions are also result-var / block, not IIFEs.
 
 `compiler/codegen.lib` already lowers its toy `+ - * /` subset to IR maps, then
 renders (wrapping binaries in `()` because FLAG arithmetic needs grouping).
@@ -132,7 +140,7 @@ source.
 slice, spread (`expr...`), unary `!(x)`, binary `left op right`, anonymous
 `func` literals (optional parameter list), and `IRRaw`. An IIFE is a call of a
 func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
-`go`, `var`/`:=`/`=`, `if`, `for`, and preformatted raw lines.
+`go`, `var`/`:=`/`=`, `if`, `for`, `{ }` blocks, and preformatted raw lines.
 `renderIRExpr` / `renderIRStmt` are the only Go-string printers.
 
 Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/

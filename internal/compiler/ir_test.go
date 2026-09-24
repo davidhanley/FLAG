@@ -171,6 +171,20 @@ func TestRenderIIFEAndStatements(t *testing.T) {
 	}
 }
 
+func TestRenderIRBlock(t *testing.T) {
+	got := renderIRStmts([]IRStmt{
+		IRVar{Name: "let_result_1", Type: "flagrt.Value"},
+		IRBlock{Body: []IRStmt{
+			IRVar{Name: "x", Expr: IRIdent{Name: "y"}},
+			IRAssign{Name: "let_result_1", Expr: IRIdent{Name: "x"}},
+		}},
+	}, "\t")
+	want := "\tvar let_result_1 flagrt.Value\n\t{\n\t\tvar x = y\n\t\tlet_result_1 = x\n\t}\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
 func TestRenderSequentialDo(t *testing.T) {
 	got := renderIRExpr(valueIIFE(
 		IRExprStmt{Expr: IRIdent{Name: "a"}, Discard: true},

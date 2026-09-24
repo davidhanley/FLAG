@@ -334,7 +334,9 @@
                                           [(ir/ir-expr-stmt (ir/ident-call "use" []) false)])
                            "\t")))
   (is (= "\tfor {\n\t\tbreak\n\t}\n"
-         (ir/render-ir-stmt (ir/ir-for [(ir/ir-raw-stmt "\t\tbreak\n")]) "\t"))))
+         (ir/render-ir-stmt (ir/ir-for [(ir/ir-raw-stmt "\t\tbreak\n")]) "\t")))
+  (is (= "\t{\n\t\tvar x = y\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-block [(ir/ir-var "x" "" (ir/ir-ident "y"))]) "\t"))))
 
 (deftest ir-parse-go-fun
   (let [sel (ir/parse-go-fun "flagrt.Add")
@@ -482,7 +484,19 @@
                                             (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])
                                             []
                                             (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)]))
-                            "\t"))))
+                           "\t")))
+  (is (= "\tvar let_result_1 flagrt.Value\n\t{\n\t\tvar x = flagrt.NewLong(1)\n\t\t_ = x\n\t\tlet_result_1 = x\n\t}\n"
+         (ir/render-ir-stmts (lower/let-to-ir "let_result_1" "flagrt.Value"
+                                            [(ir/ir-var "x" "" (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)]))]
+                                            [(ir/ir-expr-stmt (ir/ir-ident "x") true)]
+                                            (ir/ir-ident "x"))
+                           "\t")))
+  (is (= "\tvar let_result_1 flagrt.Value\n\t{\n\t\tlet_result_1 = flagrt.NewLong(1)\n\t}\n"
+         (ir/render-ir-stmts (lower/let-to-ir "let_result_1" "flagrt.Value"
+                                            []
+                                            nil
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)]))
+                           "\t"))))
 
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")
