@@ -561,6 +561,192 @@ func TestLoopExprToGoUsesFLAG(t *testing.T) {
 	}
 }
 
+func TestFLAGDeferToIR(t *testing.T) {
+	stmt, err := flagDeferToIR(IRIdent{Name: "f"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRStmt(stmt, "\t")
+	want := "\tdefer flagrt.Call(f)\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFLAGThrowToIR(t *testing.T) {
+	ir, err := flagThrowToIR(nil, IRIdent{Name: "err"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue()\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFLAGFutureToIR(t *testing.T) {
+	ir, err := flagFutureToIR(nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "flagrt.NewFuture(func() flagrt.Value {\n\treturn x\n})"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestThrowExprToGoUsesFLAG(t *testing.T) {
+	ctx := compileContext{}
+	locals := map[string]exprKind{"err": exprKindValue}
+	got, err := exprToGo(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "throw"},
+		SymbolExpr{Name: "err"},
+	}}, ctx, locals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got.code, "flagrt.Throw(err)") {
+		t.Fatalf("missing throw:\n%s", got.code)
+	}
+}
+
+func TestFLAGDotoToIR(t *testing.T) {
+	ir, err := flagDotoToIR(nil, IRIdent{Name: "obj"}, []goExpr{fromIR(IRIdent{Name: "step"}, exprKindValue)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"__doto := obj",
+		"flagrt.Call(step, __doto)",
+		"return __doto",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFLAGUpdateBangToIR(t *testing.T) {
+	ir, err := flagUpdateBangToIR("n", nil, rtCall("NewLong", IRInt{Value: 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "func() flagrt.Value {\n\tn = flagrt.NewLong(1)\n\treturn n\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFLAGCatchHandlerToIR(t *testing.T) {
+	ir, err := flagCatchHandlerToIR("e", nil, IRIdent{Name: "e"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"var e = __flag_thrown",
+		"_ = e",
+		"return e",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFLAGTryToIRFinallyOnly(t *testing.T) {
+	finally := fromIR(IRIdent{Name: "cleanup"}, exprKindValue)
+	ir, err := flagTryToIR(nil, IRIdent{Name: "body"}, nil, &finally)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"defer func() {",
+		"_ = cleanup",
+		"return body",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "__flag_try_result") {
+		t.Fatalf("finally-only try should not use result var:\n%s", got)
+	}
+}
+
+func TestFLAGTryToIRWithCatch(t *testing.T) {
+	handler, err := flagCatchHandlerToIR("e", nil, IRIdent{Name: "e"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ir, err := flagTryToIR(nil, IRIdent{Name: "body"}, []tryCatchIR{{
+		Class:   "Exception",
+		Handler: handler,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"var __flag_try_result flagrt.Value",
+		"r := recover()",
+		"flagrt.CatchMatches(\"Exception\", __flag_thrown)",
+		"__flag_try_result = body",
+		"return __flag_try_result",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFLAGDoseqBodyToIR(t *testing.T) {
+	ir, err := flagDoseqBodyToIR(nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "func() flagrt.Value {\n\t_ = x\n\treturn flagrt.NewArray()\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFLAGDoseqToIR(t *testing.T) {
+	ir, err := flagDoseqToIR(IRIdent{Name: "loop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue()\n}()"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFLAGMapCatBindingToIR(t *testing.T) {
+	ir, err := flagMapCatBindingToIR("x", false, "for binding expects exactly one value", IRIdent{Name: "rest"}, nil, IRIdent{Name: "xs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"flagrt.MapCat",
+		"x := args[0]",
+		"return rest",
+		"flagrt.NewFunction",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestLetExprToGoUsesResultVar(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n}

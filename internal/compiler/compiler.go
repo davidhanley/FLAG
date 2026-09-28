@@ -2810,11 +2810,11 @@ func futureFormExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	if err != nil {
 		return goExpr{}, err
 	}
-	futureBody := append(cloneIRStmts(body.stmts), IRReturn{Expr: irFromGoExpr(body)})
-	return fromIR(rtCall("NewFuture", IRFuncLit{
-		Result: runtimeAlias + ".Value",
-		Body:   futureBody,
-	}), exprKindValue), nil
+	ir, err := flagFutureToIR(body.stmts, irFromGoExpr(body))
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 func ifExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -2933,7 +2933,11 @@ func deferExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-	stmt := fromStmt(IRDefer{Expr: rtCall("Call", irFromGoExpr(fn))}, exprKindDefer)
+	irStmt, err := flagDeferToIR(irFromGoExpr(fn))
+	if err != nil {
+		return goExpr{}, err
+	}
+	stmt := fromStmt(irStmt, exprKindDefer)
 	stmt.stmts = fn.stmts
 	return stmt, nil
 }
@@ -3009,8 +3013,7 @@ func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		return goExpr{}, err
 	}
 
-	body := cloneIRStmts(target.stmts)
-	body = append(body, IRDefine{Names: []string{"__doto"}, Expr: irFromGoExpr(target)})
+	steps := make([]goExpr, 0, len(args)-1)
 	for _, form := range args[1:] {
 		step, err := exprToGo(form, ctx, locals)
 		if err != nil {
@@ -3020,11 +3023,13 @@ func dotoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		if err != nil {
 			return goExpr{}, err
 		}
-		body = append(body, stepCode.stmts...)
-		body = append(body, IRExprStmt{Expr: rtCall("Call", irFromGoExpr(stepCode), IRIdent{Name: "__doto"}), Discard: true})
+		steps = append(steps, stepCode)
 	}
-	body = append(body, IRReturn{Expr: IRIdent{Name: "__doto"}})
-	return fromIR(valueIIFE(body...), exprKindValue), nil
+	ir, err := flagDotoToIR(target.stmts, irFromGoExpr(target), steps)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 func exInfoExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3083,11 +3088,11 @@ func throwExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-	throwStmts := append(cloneIRStmts(valueCode.stmts),
-		IRExprStmt{Expr: rtCall("Throw", irFromGoExpr(valueCode))},
-		IRReturn{Expr: rtCall("NilValue")},
-	)
-	return fromIR(valueIIFE(throwStmts...), exprKindValue), nil
+	ir, err := flagThrowToIR(valueCode.stmts, irFromGoExpr(valueCode))
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 type tryCatchClause struct {
@@ -3110,53 +3115,31 @@ func tryExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (g
 		return bodyCode, nil
 	}
 
-	var bodyStmts []IRStmt
-	if len(catches) > 0 {
-		bodyStmts = append(bodyStmts, IRVar{Name: "__flag_try_result", Type: runtimeAlias + ".Value"})
-	}
-	if len(finally) > 0 {
-		code, err := doExprToGo(finally, ctx, locals)
-		if err != nil {
-			return goExpr{}, err
-		}
-		finallyBody := append(cloneIRStmts(code.stmts), IRExprStmt{Expr: irFromGoExpr(code), Discard: true})
-		bodyStmts = append(bodyStmts, IRDefer{Expr: IRCall{Fun: IRFuncLit{Body: finallyBody}}})
-	}
-	if len(catches) == 0 {
-		bodyStmts = append(bodyStmts, bodyCode.stmts...)
-		bodyStmts = append(bodyStmts, IRReturn{Expr: irFromGoExpr(bodyCode)})
-		return fromIR(valueIIFE(bodyStmts...), exprKindValue), nil
-	}
-
-	recoverBody := []IRStmt{
-		IRDefine{Names: []string{"r"}, Expr: identCall("recover")},
-		IRIfStmt{Cond: IRBinary{Op: "==", Left: IRIdent{Name: "r"}, Right: IRIdent{Name: "nil"}}, Then: []IRStmt{IRReturn{}}},
-		IRDefine{Names: []string{"__flag_thrown"}, Expr: rtCall("PanicValue", IRIdent{Name: "r"})},
-	}
+	catchIRs := make([]tryCatchIR, 0, len(catches))
 	for _, clause := range catches {
 		handler, err := compileCatchHandler(clause, ctx, locals)
 		if err != nil {
 			return goExpr{}, err
 		}
-		handlerThen := append(cloneIRStmts(handler.stmts),
-			IRAssign{Name: "__flag_try_result", Expr: irFromGoExpr(handler)},
-			IRReturn{},
-		)
-		recoverBody = append(recoverBody, IRIfStmt{
-			Cond: rtCall("CatchMatches", IRString{Value: clause.class}, IRIdent{Name: "__flag_thrown"}),
-			Then: handlerThen,
+		catchIRs = append(catchIRs, tryCatchIR{
+			Class:   clause.class,
+			Stmts:   handler.stmts,
+			Handler: irFromGoExpr(handler),
 		})
 	}
-	recoverBody = append(recoverBody, IRExprStmt{Expr: identCall("panic", IRIdent{Name: "r"})})
-
-	tryInner := []IRStmt{IRDefer{Expr: IRCall{Fun: IRFuncLit{Body: recoverBody}}}}
-	tryInner = append(tryInner, bodyCode.stmts...)
-	tryInner = append(tryInner, IRAssign{Name: "__flag_try_result", Expr: irFromGoExpr(bodyCode)})
-	bodyStmts = append(bodyStmts,
-		IRExprStmt{Expr: IRCall{Fun: IRFuncLit{Body: tryInner}}},
-		IRReturn{Expr: IRIdent{Name: "__flag_try_result"}},
-	)
-	return fromIR(valueIIFE(bodyStmts...), exprKindValue), nil
+	var finallyExpr *goExpr
+	if len(finally) > 0 {
+		code, err := doExprToGo(finally, ctx, locals)
+		if err != nil {
+			return goExpr{}, err
+		}
+		finallyExpr = &code
+	}
+	ir, err := flagTryToIR(bodyCode.stmts, irFromGoExpr(bodyCode), catchIRs, finallyExpr)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 func compileCatchHandler(clause tryCatchClause, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3177,18 +3160,11 @@ func compileCatchHandler(clause tryCatchClause, ctx compileContext, locals map[s
 		return goExpr{}, err
 	}
 
-	var body []IRStmt
-	if goName == "_" {
-		body = append(body, IRExprStmt{Expr: IRIdent{Name: "__flag_thrown"}, Discard: true})
-	} else {
-		body = append(body,
-			IRVar{Name: goName, Expr: IRIdent{Name: "__flag_thrown"}},
-			IRExprStmt{Expr: IRIdent{Name: goName}, Discard: true},
-		)
+	ir, err := flagCatchHandlerToIR(goName, bodyCode.stmts, irFromGoExpr(bodyCode))
+	if err != nil {
+		return goExpr{}, err
 	}
-	body = append(body, bodyCode.stmts...)
-	body = append(body, IRReturn{Expr: irFromGoExpr(bodyCode)})
-	return fromIR(valueIIFE(body...), exprKindValue), nil
+	return fromIR(ir, exprKindValue), nil
 }
 
 func compileExprsToValue(args []Expr, ctx compileContext, locals map[string]exprKind, label string) (goExpr, error) {
@@ -3332,11 +3308,11 @@ func doseqExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 	if err != nil {
 		return goExpr{}, err
 	}
-
-	return fromIR(valueIIFE(
-		IRExprStmt{Expr: rtCall("DoAll", irFromGoExpr(loop)), Discard: true},
-		IRReturn{Expr: rtCall("NilValue")},
-	), exprKindValue), nil
+	ir, err := flagDoseqToIR(irFromGoExpr(loop))
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3391,7 +3367,11 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 		return goExpr{}, err
 	}
 
-	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "for binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR), exprKindValue), collExpr.stmts), nil
+	ir, err := flagMapCatBindingToIR(ident, isUnusedBindingName(sym.Name) && ident != "_", "for binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return withStmts(fromIR(ir, exprKindValue), collExpr.stmts), nil
 }
 
 func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3407,11 +3387,11 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 		if _, err := coerceExprToValue(body, bodyExprs[len(bodyExprs)-1], "doseq body", ctx); err != nil {
 			return goExpr{}, err
 		}
-		doseqBody := append(cloneIRStmts(body.stmts),
-			IRExprStmt{Expr: irFromGoExpr(body), Discard: true},
-			IRReturn{Expr: rtCall("NewArray")},
-		)
-		return fromIR(valueIIFE(doseqBody...), exprKindValue), nil
+		ir, err := flagDoseqBodyToIR(body.stmts, irFromGoExpr(body))
+		if err != nil {
+			return goExpr{}, err
+		}
+		return fromIR(ir, exprKindValue), nil
 	}
 
 	if len(bindings) < 2 {
@@ -3449,7 +3429,11 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 		return goExpr{}, err
 	}
 
-	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "doseq binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR), exprKindValue), collExpr.stmts), nil
+	ir, err := flagMapCatBindingToIR(ident, isUnusedBindingName(sym.Name) && ident != "_", "doseq binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return withStmts(fromIR(ir, exprKindValue), collExpr.stmts), nil
 }
 
 func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -4544,11 +4528,11 @@ func updateBangExprToGo(args []Expr, ctx compileContext, locals map[string]exprK
 	if err != nil {
 		return goExpr{}, err
 	}
-	updateBody := append(cloneIRStmts(replacement.stmts),
-		IRAssign{Name: ident, Expr: irFromGoExpr(replacement)},
-		IRReturn{Expr: IRIdent{Name: ident}},
-	)
-	return fromIR(valueIIFE(updateBody...), exprKindValue), nil
+	ir, err := flagUpdateBangToIR(ident, replacement.stmts, irFromGoExpr(replacement))
+	if err != nil {
+		return goExpr{}, err
+	}
+	return fromIR(ir, exprKindValue), nil
 }
 
 func containsCallExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5201,34 +5185,6 @@ func irStmtsToLines(stmts []IRStmt) []string {
 		lines = append(lines, renderIRStmt(stmt, "\t"))
 	}
 	return lines
-}
-
-func mapCatBindingIR(ident, flagName, panicMsg string, rest IRExpr, restStmts []IRStmt, coll IRExpr) IRExpr {
-	args0 := IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}}
-	bindBody := []IRStmt{
-		IRIfStmt{
-			Cond: IRBinary{
-				Op:    "!=",
-				Left:  identCall("len", IRIdent{Name: "args"}),
-				Right: IRInt{Value: 1},
-			},
-			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: panicMsg})}},
-		},
-	}
-	if ident == "_" {
-		bindBody = append(bindBody, IRExprStmt{Expr: args0, Discard: true})
-	} else {
-		bindBody = append(bindBody, IRDefine{Names: []string{ident}, Expr: args0})
-		bindBody = appendUnusedIR(bindBody, flagName, ident)
-	}
-	bindBody = append(bindBody, cloneIRStmts(restStmts)...)
-	bindBody = append(bindBody, IRReturn{Expr: rest})
-	fn := IRFuncLit{
-		Params: "args ..." + runtimeAlias + ".Value",
-		Result: runtimeAlias + ".Value",
-		Body:   bindBody,
-	}
-	return valueIIFE(IRReturn{Expr: rtCall("MapCat", rtCall("NewFunction", fn), coll)})
 }
 
 func goTypeForExprKind(kind exprKind) (string, error) {

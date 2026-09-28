@@ -526,7 +526,41 @@
     (is (not (nil? (str/index-of loop-src "var n = flagrt.NewLong(1)"))))
     (is (not (nil? (str/index-of loop-src "UnwrapRecur(__loopResult)"))))
     (is (not (nil? (str/index-of loop-src "n = __recurValues[0]"))))
-    (is (not (nil? (str/index-of loop-src "continue"))))))
+    (is (not (nil? (str/index-of loop-src "continue")))))
+  (is (= "\tdefer flagrt.Call(f)\n"
+         (ir/render-ir-stmt (lower/defer-to-ir (ir/ir-ident "f")) "\t")))
+  (is (= "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue()\n}()"
+         (ir/render-ir (lower/throw-to-ir [] (ir/ir-ident "err")))))
+  (is (= "flagrt.NewFuture(func() flagrt.Value {\n\treturn x\n})"
+         (ir/render-ir (lower/future-to-ir [] (ir/ir-ident "x")))))
+  (is (= "func() flagrt.Value {\n\tn = flagrt.NewLong(1)\n\treturn n\n}()"
+         (ir/render-ir (lower/update-bang-to-ir "n" [] (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])))))
+  (is (= "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue()\n}()"
+         (ir/render-ir (lower/doseq-to-ir (ir/ir-ident "loop")))))
+  (is (= "func() flagrt.Value {\n\t_ = x\n\treturn flagrt.NewArray()\n}()"
+         (ir/render-ir (lower/doseq-body-to-ir [] (ir/ir-ident "x")))))
+  (is (= "func() flagrt.Value {\n\tvar e = __flag_thrown\n\t_ = e\n\treturn e\n}()"
+         (ir/render-ir (lower/catch-handler-to-ir "e" [] (ir/ir-ident "e")))))
+  (let [doto-src (ir/render-ir (lower/doto-to-ir [] (ir/ir-ident "obj")
+                                                [{:stmts [] :expr (ir/ir-ident "step")}]))]
+    (is (not (nil? (str/index-of doto-src "__doto := obj"))))
+    (is (not (nil? (str/index-of doto-src "flagrt.Call(step, __doto)")))))
+  (let [try-src (ir/render-ir (lower/try-to-ir [] (ir/ir-ident "body")
+                                              [{:class "Exception"
+                                                :handler (ir/ir-ident "handler")}]
+                                              nil))]
+    (is (not (nil? (str/index-of try-src "var __flag_try_result flagrt.Value"))))
+    (is (not (nil? (str/index-of try-src "CatchMatches(\"Exception\", __flag_thrown)"))))
+    (is (not (nil? (str/index-of try-src "return __flag_try_result"))))
+  )
+  (let [mapcat-src (ir/render-ir (lower/mapcat-binding-to-ir "x" false
+                                                            "for binding expects exactly one value"
+                                                            (ir/ir-ident "rest")
+                                                            []
+                                                            (ir/ir-ident "xs")))]
+    (is (not (nil? (str/index-of mapcat-src "flagrt.MapCat"))))
+    (is (not (nil? (str/index-of mapcat-src "x := args[0]"))))
+    (is (not (nil? (str/index-of mapcat-src "return rest"))))))
 
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")

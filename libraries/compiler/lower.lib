@@ -2,7 +2,10 @@
  :exports   [ast-node-to-ir quoted-ast-to-ir call-to-ir call-ast-to-ir
              ctor-to-ir runtime-call-to-ir fold-call-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
-             do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir]}
+             do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
+             defer-to-ir throw-to-ir future-to-ir
+             doto-to-ir update-bang-to-ir catch-handler-to-ir try-to-ir
+             doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -536,3 +539,186 @@
 
 (defn recur-to-ir [values]
   (literal-rt-call "NewRecur" (stmt-list values)))
+
+(defn defer-to-ir [thunk]
+  {:kind :defer :expr (literal-rt-call "Call" [thunk])})
+
+(defn throw-to-ir [stmts value]
+  {:kind :call
+   :fun {:kind :func-lit
+         :params ""
+         :result "flagrt.Value"
+         :body (append-stmt
+                 (append-stmt stmts {:kind :expr-stmt
+                                     :expr (literal-rt-call "Throw" [value])
+                                     :discard false})
+                 {:kind :return :expr (literal-rt-call "NilValue" [])})}
+   :args []})
+
+(defn future-to-ir [body-stmts body-expr]
+  (literal-rt-call "NewFuture"
+                   [{:kind :func-lit
+                     :params ""
+                     :result "flagrt.Value"
+                     :body (append-stmt body-stmts {:kind :return :expr body-expr})}]))
+
+(defn value-iife-ir [body]
+  {:kind :call
+   :fun {:kind :func-lit :params "" :result "flagrt.Value" :body body}
+   :args []})
+
+(defn ident-call-ir [name args]
+  {:kind :call :fun {:kind :ident :name name} :args args})
+
+(defn doto-to-ir [target-stmts target-expr steps]
+  (value-iife-ir
+    (concat-stmts
+      target-stmts
+      (append-stmt
+        (loop [remaining (stmt-list steps)
+               out [{:kind :define :names ["__doto"] :expr target-expr}]]
+          (if (or (nil? remaining) (empty? remaining))
+            out
+            (let [step (first remaining)
+                  with-stmts (concat-stmts out (:stmts step))]
+              (recur (rest remaining)
+                     (append-stmt with-stmts
+                                  {:kind :expr-stmt
+                                   :expr (literal-rt-call "Call"
+                                                          [(:expr step)
+                                                           {:kind :ident :name "__doto"}])
+                                   :discard true})))))
+        {:kind :return :expr {:kind :ident :name "__doto"}}))))
+
+(defn update-bang-to-ir [name stmts value]
+  (value-iife-ir
+    (append-stmt
+      (append-stmt stmts {:kind :assign :name name :expr value})
+      {:kind :return :expr {:kind :ident :name name}})))
+
+(defn catch-handler-to-ir [name body-stmts body-expr]
+  (let [bind (if (= name "_")
+               [{:kind :expr-stmt
+                 :expr {:kind :ident :name "__flag_thrown"}
+                 :discard true}]
+               [{:kind :var :name name :type "" :expr {:kind :ident :name "__flag_thrown"}}
+                {:kind :expr-stmt :expr {:kind :ident :name name} :discard true}])]
+    (value-iife-ir
+      (append-stmt (concat-stmts bind body-stmts)
+                   {:kind :return :expr body-expr}))))
+
+(defn try-finally-stmt [finally]
+  {:kind :defer
+   :expr {:kind :call
+          :fun {:kind :func-lit
+                :params ""
+                :result ""
+                :body (append-stmt (:stmts finally)
+                                   {:kind :expr-stmt :expr (:expr finally) :discard true})}
+          :args []}})
+
+(defn try-recover-body [catches]
+  (loop [remaining (stmt-list catches)
+         out [{:kind :define :names ["r"] :expr (ident-call-ir "recover" [])}
+              {:kind :if
+               :init ""
+               :cond {:kind :binary
+                      :op "=="
+                      :left {:kind :ident :name "r"}
+                      :right {:kind :ident :name "nil"}}
+               :then [{:kind :return :expr nil}]
+               :else []}
+              {:kind :define
+               :names ["__flag_thrown"]
+               :expr (literal-rt-call "PanicValue" [{:kind :ident :name "r"}])}]]
+    (if (or (nil? remaining) (empty? remaining))
+      (append-stmt out {:kind :expr-stmt
+                        :expr (ident-call-ir "panic" [{:kind :ident :name "r"}])
+                        :discard false})
+      (let [c (first remaining)
+            then (append-stmt
+                   (append-stmt (:stmts c)
+                                {:kind :assign :name "__flag_try_result" :expr (:handler c)})
+                   {:kind :return :expr nil})]
+        (recur (rest remaining)
+               (append-stmt out {:kind :if
+                                 :init ""
+                                 :cond (literal-rt-call "CatchMatches"
+                                                        [{:kind :string :value (:class c)}
+                                                         {:kind :ident :name "__flag_thrown"}])
+                                 :then then
+                                 :else []}))))))
+
+(defn try-to-ir [body-stmts body-expr catches finally]
+  (let [has-catch (not (or (nil? catches) (empty? (stmt-list catches))))]
+    (let [start (if has-catch
+                  [{:kind :var :name "__flag_try_result" :type "flagrt.Value" :expr nil}]
+                  [])]
+      (let [start (if (nil? finally)
+                    start
+                    (append-stmt start (try-finally-stmt finally)))]
+        (if (not has-catch)
+          (value-iife-ir
+            (append-stmt (concat-stmts start body-stmts)
+                         {:kind :return :expr body-expr}))
+          (let [inner (append-stmt
+                        (concat-stmts
+                          [{:kind :defer
+                            :expr {:kind :call
+                                   :fun {:kind :func-lit
+                                         :params ""
+                                         :result ""
+                                         :body (try-recover-body catches)}
+                                   :args []}}]
+                          body-stmts)
+                        {:kind :assign :name "__flag_try_result" :expr body-expr})]
+            (value-iife-ir
+              (append-stmt
+                (append-stmt start
+                             {:kind :expr-stmt
+                              :expr {:kind :call
+                                     :fun {:kind :func-lit :params "" :result "" :body inner}
+                                     :args []}
+                              :discard false})
+                {:kind :return :expr {:kind :ident :name "__flag_try_result"}}))))))))
+
+(defn doseq-to-ir [loop-expr]
+  (value-iife-ir
+    [{:kind :expr-stmt :expr (literal-rt-call "DoAll" [loop-expr]) :discard true}
+     {:kind :return :expr (literal-rt-call "NilValue" [])}]))
+
+(defn doseq-body-to-ir [body-stmts body-expr]
+  (value-iife-ir
+    (append-stmt
+      (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true})
+      {:kind :return :expr (literal-rt-call "NewArray" [])})))
+
+(defn mapcat-binding-to-ir [ident unused panic-msg rest-expr rest-stmts coll]
+  (let [args0 {:kind :index :x {:kind :ident :name "args"} :index {:kind :int :value 0}}
+        arity {:kind :if
+               :init ""
+               :cond {:kind :binary
+                      :op "!="
+                      :left (ident-call-ir "len" [{:kind :ident :name "args"}])
+                      :right {:kind :int :value 1}}
+               :then [{:kind :expr-stmt
+                       :expr (ident-call-ir "panic" [{:kind :string :value panic-msg}])
+                       :discard false}]
+               :else []}
+        bind (if (= ident "_")
+               [{:kind :expr-stmt :expr args0 :discard true}]
+               (if unused
+                 [{:kind :define :names [ident] :expr args0}
+                  {:kind :expr-stmt :expr {:kind :ident :name ident} :discard true}]
+                 [{:kind :define :names [ident] :expr args0}]))
+        fn {:kind :func-lit
+            :params "args ...flagrt.Value"
+            :result "flagrt.Value"
+            :body (append-stmt
+                    (concat-stmts (concat-stmts [arity] bind) rest-stmts)
+                    {:kind :return :expr rest-expr})}]
+    (value-iife-ir
+      [{:kind :return
+        :expr (literal-rt-call "MapCat"
+                               [(literal-rt-call "NewFunction" [fn])
+                                coll])}])))

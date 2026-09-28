@@ -205,6 +205,89 @@ func flagRecurToIR(values []IRExpr) (IRExpr, error) {
 	return flagIRCall(compiler__recur_to_ir, irExprsToFlagVector(values))
 }
 
+func flagDeferToIR(thunk IRExpr) (stmt IRStmt, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	return flagValueToIRStmt(flagrt.Call(compiler__defer_to_ir, irExprToFlagValue(thunk)))
+}
+
+func flagThrowToIR(stmts []IRStmt, value IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__throw_to_ir, irStmtsToFlagVector(stmts), irExprToFlagValue(value))
+}
+
+func flagFutureToIR(bodyStmts []IRStmt, bodyExpr IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__future_to_ir, irStmtsToFlagVector(bodyStmts), irExprToFlagValue(bodyExpr))
+}
+
+func flagDotoToIR(targetStmts []IRStmt, target IRExpr, steps []goExpr) (IRExpr, error) {
+	stepVals := make([]flagrt.Value, 0, len(steps))
+	for _, step := range steps {
+		stepVals = append(stepVals, flagrt.NewMap(
+			flagrt.NewKeyword("stmts"), irStmtsToFlagVector(step.stmts),
+			flagrt.NewKeyword("expr"), irExprToFlagValue(irFromGoExpr(step)),
+		))
+	}
+	return flagIRCall(compiler__doto_to_ir, irStmtsToFlagVector(targetStmts), irExprToFlagValue(target), flagrt.NewArray(stepVals...))
+}
+
+func flagUpdateBangToIR(name string, stmts []IRStmt, value IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__update_bang_to_ir, flagrt.NewString(name), irStmtsToFlagVector(stmts), irExprToFlagValue(value))
+}
+
+func flagCatchHandlerToIR(name string, bodyStmts []IRStmt, bodyExpr IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__catch_handler_to_ir, flagrt.NewString(name), irStmtsToFlagVector(bodyStmts), irExprToFlagValue(bodyExpr))
+}
+
+func flagTryToIR(bodyStmts []IRStmt, bodyExpr IRExpr, catches []tryCatchIR, finally *goExpr) (IRExpr, error) {
+	catchVals := make([]flagrt.Value, 0, len(catches))
+	for _, c := range catches {
+		catchVals = append(catchVals, flagrt.NewMap(
+			flagrt.NewKeyword("class"), flagrt.NewString(c.Class),
+			flagrt.NewKeyword("stmts"), irStmtsToFlagVector(c.Stmts),
+			flagrt.NewKeyword("handler"), irExprToFlagValue(c.Handler),
+		))
+	}
+	var finallyVal flagrt.Value
+	if finally != nil {
+		finallyVal = flagrt.NewMap(
+			flagrt.NewKeyword("stmts"), irStmtsToFlagVector(finally.stmts),
+			flagrt.NewKeyword("expr"), irExprToFlagValue(irFromGoExpr(*finally)),
+		)
+	} else {
+		finallyVal = flagrt.NilValue()
+	}
+	return flagIRCall(compiler__try_to_ir, irStmtsToFlagVector(bodyStmts), irExprToFlagValue(bodyExpr), flagrt.NewArray(catchVals...), finallyVal)
+}
+
+func flagDoseqToIR(loopExpr IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__doseq_to_ir, irExprToFlagValue(loopExpr))
+}
+
+func flagDoseqBodyToIR(bodyStmts []IRStmt, bodyExpr IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__doseq_body_to_ir, irStmtsToFlagVector(bodyStmts), irExprToFlagValue(bodyExpr))
+}
+
+func flagMapCatBindingToIR(ident string, unused bool, panicMsg string, rest IRExpr, restStmts []IRStmt, coll IRExpr) (IRExpr, error) {
+	return flagIRCall(
+		compiler__mapcat_binding_to_ir,
+		flagrt.NewString(ident),
+		flagrt.NewBool(unused),
+		flagrt.NewString(panicMsg),
+		irExprToFlagValue(rest),
+		irStmtsToFlagVector(restStmts),
+		irExprToFlagValue(coll),
+	)
+}
+
+type tryCatchIR struct {
+	Class   string
+	Stmts   []IRStmt
+	Handler IRExpr
+}
+
 type loopBindingIR struct {
 	Name   string
 	Init   IRExpr

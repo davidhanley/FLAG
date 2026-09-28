@@ -315,7 +315,11 @@ func TestRenderFuncLitParams(t *testing.T) {
 }
 
 func TestRenderMapCatBinding(t *testing.T) {
-	got := renderIRExpr(mapCatBindingIR("x", "x", "for binding expects exactly one value", IRIdent{Name: "rest"}, nil, IRIdent{Name: "coll"}))
+	ir, err := flagMapCatBindingToIR("x", false, "for binding expects exactly one value", IRIdent{Name: "rest"}, nil, IRIdent{Name: "coll"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
 	want := "func() flagrt.Value {\n\treturn flagrt.MapCat(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 1 {\n\t\tpanic(\"for binding expects exactly one value\")\n\t}\n\tx := args[0]\n\treturn rest\n}), coll)\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -323,9 +327,9 @@ func TestRenderMapCatBinding(t *testing.T) {
 }
 
 func TestRenderMapCatBindingIncludesBodyStmts(t *testing.T) {
-	got := renderIRExpr(mapCatBindingIR(
+	ir, err := flagMapCatBindingToIR(
 		"cell",
-		"cell",
+		false,
 		"for binding expects exactly one value",
 		IRIdent{Name: "let_result_1"},
 		[]IRStmt{
@@ -333,7 +337,11 @@ func TestRenderMapCatBindingIncludesBodyStmts(t *testing.T) {
 			IRAssign{Name: "let_result_1", Expr: IRIdent{Name: "cell"}},
 		},
 		IRIdent{Name: "coll"},
-	))
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
 	if !strings.Contains(got, "cell := args[0]") {
 		t.Fatalf("missing binding:\n%s", got)
 	}

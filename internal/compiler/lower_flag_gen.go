@@ -1920,6 +1920,328 @@ func compiler__recur_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
 	return compiler__recur_to_ir_arity_1(args[0])
 }
 
+func compiler__defer_to_ir_arity_1(thunk flagrt.Value) flagrt.Value {
+	return flagrt.NewMap(lowflagKw_kind, lowflagKw_defer, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_Call, flagrt.NewArray(thunk)))
+}
+
+func compiler__defer_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__defer_to_ir expects exactly 1 arguments")
+	}
+	return compiler__defer_to_ir_arity_1(args[0])
+}
+
+func compiler__throw_to_ir_arity_2(stmts flagrt.Value, value flagrt.Value) flagrt.Value {
+	return flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString("flagrt.Value"), lowflagKw_body, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__append_stmt, stmts, flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_Throw, flagrt.NewArray(value)), lowflagKw_discard, flagrt.NewBool(false))), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_NilValue, lowflagVec_2)))), lowflagKw_args, lowflagVec_2)
+}
+
+func compiler__throw_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__throw_to_ir expects exactly 2 arguments")
+	}
+	return compiler__throw_to_ir_arity_2(args[0], args[1])
+}
+
+func compiler__future_to_ir_arity_2(body_stmts flagrt.Value, body_expr flagrt.Value) flagrt.Value {
+	return flagrt.Call(compiler__literal_rt_call, lowflagStr_NewFuture, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString("flagrt.Value"), lowflagKw_body, flagrt.Call(compiler__append_stmt, body_stmts, flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, body_expr)))))
+}
+
+func compiler__future_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__future_to_ir expects exactly 2 arguments")
+	}
+	return compiler__future_to_ir_arity_2(args[0], args[1])
+}
+
+func compiler__value_iife_ir_arity_1(body flagrt.Value) flagrt.Value {
+	return flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString("flagrt.Value"), lowflagKw_body, body), lowflagKw_args, lowflagVec_2)
+}
+
+func compiler__value_iife_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__value_iife_ir expects exactly 1 arguments")
+	}
+	return compiler__value_iife_ir_arity_1(args[0])
+}
+
+func compiler__ident_call_ir_arity_2(name flagrt.Value, args flagrt.Value) flagrt.Value {
+	return flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, name), lowflagKw_args, args)
+}
+
+func compiler__ident_call_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__ident_call_ir expects exactly 2 arguments")
+	}
+	return compiler__ident_call_ir_arity_2(args[0], args[1])
+}
+
+func compiler__doto_to_ir_arity_3(target_stmts flagrt.Value, target_expr flagrt.Value, steps flagrt.Value) flagrt.Value {
+	return flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__concat_stmts, target_stmts, flagrt.Call(compiler__append_stmt, func() flagrt.Value {
+		var remaining = flagrt.Call(compiler__stmt_list, steps)
+		var out = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_define, lowflagKw_names, lowflagVec_7, lowflagKw_expr, target_expr))
+		for {
+			var let_result_412 flagrt.Value
+			{
+				var or_tmp = flagrt.NewBool(flagrt.IsNil(remaining))
+				var if_result_411 flagrt.Value
+				if flagrt.IsTruthy(or_tmp) {
+					if_result_411 = or_tmp
+				} else {
+					if_result_411 = flagrt.NewBool(flagrt.IsEmpty(remaining))
+				}
+				let_result_412 = if_result_411
+			}
+			var if_result_414 flagrt.Value
+			if flagrt.IsTruthy(let_result_412) {
+				if_result_414 = out
+			} else {
+				var let_result_413 flagrt.Value
+				{
+					var step = flagrt.First(remaining)
+					var with_stmts = flagrt.Call(compiler__concat_stmts, out, flagrt.Call(lowflagKw_stmts, step))
+					let_result_413 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Call(compiler__append_stmt, with_stmts, flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_Call, flagrt.NewArray(flagrt.Call(lowflagKw_expr, step), lowflagMap_18)), lowflagKw_discard, flagrt.NewBool(true))))
+				}
+				if_result_414 = let_result_413
+			}
+			__loopResult := if_result_414
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				remaining = __recurValues[0]
+				out = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
+	}(), lowflagMap_19)))
+}
+
+func compiler__doto_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 3 {
+		panic("compiler__doto_to_ir expects exactly 3 arguments")
+	}
+	return compiler__doto_to_ir_arity_3(args[0], args[1], args[2])
+}
+
+func compiler__update_bang_to_ir_arity_3(name flagrt.Value, stmts flagrt.Value, value flagrt.Value) flagrt.Value {
+	return flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__append_stmt, stmts, flagrt.NewMap(lowflagKw_kind, lowflagKw_assign, lowflagKw_name, name, lowflagKw_expr, value)), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, name))))
+}
+
+func compiler__update_bang_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 3 {
+		panic("compiler__update_bang_to_ir expects exactly 3 arguments")
+	}
+	return compiler__update_bang_to_ir_arity_3(args[0], args[1], args[2])
+}
+
+func compiler__catch_handler_to_ir_arity_3(name flagrt.Value, body_stmts flagrt.Value, body_expr flagrt.Value) flagrt.Value {
+	var let_result_416 flagrt.Value
+	{
+		var if_result_415 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(name, flagrt.NewString("_")))) {
+			if_result_415 = lowflagVec_8
+		} else {
+			if_result_415 = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_var, lowflagKw_name, name, lowflagKw_type, flagrt.NewString(""), lowflagKw_expr, lowflagMap_20), flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, name), lowflagKw_discard, flagrt.NewBool(true)))
+		}
+		var bind = if_result_415
+		let_result_416 = flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, bind, body_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, body_expr)))
+	}
+	return let_result_416
+}
+
+func compiler__catch_handler_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 3 {
+		panic("compiler__catch_handler_to_ir expects exactly 3 arguments")
+	}
+	return compiler__catch_handler_to_ir_arity_3(args[0], args[1], args[2])
+}
+
+func compiler__try_finally_stmt_arity_1(finally flagrt.Value) flagrt.Value {
+	return flagrt.NewMap(lowflagKw_kind, lowflagKw_defer, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString(""), lowflagKw_body, flagrt.Call(compiler__append_stmt, flagrt.Call(lowflagKw_stmts, finally), flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(lowflagKw_expr, finally), lowflagKw_discard, flagrt.NewBool(true)))), lowflagKw_args, lowflagVec_2))
+}
+
+func compiler__try_finally_stmt_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__try_finally_stmt expects exactly 1 arguments")
+	}
+	return compiler__try_finally_stmt_arity_1(args[0])
+}
+
+func compiler__try_recover_body_arity_1(catches flagrt.Value) flagrt.Value {
+	return func() flagrt.Value {
+		var remaining = flagrt.Call(compiler__stmt_list, catches)
+		var out = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_define, lowflagKw_names, lowflagVec_9, lowflagKw_expr, flagrt.Call(compiler__ident_call_ir, lowflagStr_recover, lowflagVec_2)), lowflagMap_26, flagrt.NewMap(lowflagKw_kind, lowflagKw_define, lowflagKw_names, lowflagVec_11, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_PanicValue, lowflagVec_12)))
+		for {
+			var let_result_418 flagrt.Value
+			{
+				var or_tmp = flagrt.NewBool(flagrt.IsNil(remaining))
+				var if_result_417 flagrt.Value
+				if flagrt.IsTruthy(or_tmp) {
+					if_result_417 = or_tmp
+				} else {
+					if_result_417 = flagrt.NewBool(flagrt.IsEmpty(remaining))
+				}
+				let_result_418 = if_result_417
+			}
+			var if_result_420 flagrt.Value
+			if flagrt.IsTruthy(let_result_418) {
+				if_result_420 = flagrt.Call(compiler__append_stmt, out, flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(compiler__ident_call_ir, lowflagStr_panic, lowflagVec_12), lowflagKw_discard, flagrt.NewBool(false)))
+			} else {
+				var let_result_419 flagrt.Value
+				{
+					var c = flagrt.First(remaining)
+					var then = flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__append_stmt, flagrt.Call(lowflagKw_stmts, c), flagrt.NewMap(lowflagKw_kind, lowflagKw_assign, lowflagKw_name, flagrt.NewString("__flag_try_result"), lowflagKw_expr, flagrt.Call(lowflagKw_handler, c))), lowflagMap_25)
+					let_result_419 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Call(compiler__append_stmt, out, flagrt.NewMap(lowflagKw_kind, lowflagKw_if, lowflagKw_init, flagrt.NewString(""), lowflagKw_cond, flagrt.Call(compiler__literal_rt_call, lowflagStr_CatchMatches, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_string, lowflagKw_value, flagrt.Call(lowflagKw_class, c)), lowflagMap_20)), lowflagKw_then, then, lowflagKw_else, lowflagVec_2)))
+				}
+				if_result_420 = let_result_419
+			}
+			__loopResult := if_result_420
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				remaining = __recurValues[0]
+				out = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
+	}()
+}
+
+func compiler__try_recover_body_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__try_recover_body expects exactly 1 arguments")
+	}
+	return compiler__try_recover_body_arity_1(args[0])
+}
+
+func compiler__try_to_ir_arity_4(body_stmts flagrt.Value, body_expr flagrt.Value, catches flagrt.Value, finally flagrt.Value) flagrt.Value {
+	var let_result_431 flagrt.Value
+	{
+		var let_result_422 flagrt.Value
+		{
+			var or_tmp = flagrt.NewBool(flagrt.IsNil(catches))
+			var if_result_421 flagrt.Value
+			if flagrt.IsTruthy(or_tmp) {
+				if_result_421 = or_tmp
+			} else {
+				if_result_421 = flagrt.NewBool(flagrt.IsEmpty(flagrt.Call(compiler__stmt_list, catches)))
+			}
+			let_result_422 = if_result_421
+		}
+		var if_result_423 flagrt.Value
+		if flagrt.IsTruthy(let_result_422) {
+			if_result_423 = flagrt.NewBool(false)
+		} else {
+			if_result_423 = flagrt.NewBool(true)
+		}
+		var has_catch = if_result_423
+		var let_result_430 flagrt.Value
+		{
+			var if_result_424 flagrt.Value
+			if flagrt.IsTruthy(has_catch) {
+				if_result_424 = lowflagVec_13
+			} else {
+				if_result_424 = lowflagVec_2
+			}
+			var start = if_result_424
+			var let_result_429 flagrt.Value
+			{
+				var if_result_425 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(finally))) {
+					if_result_425 = start
+				} else {
+					if_result_425 = flagrt.Call(compiler__append_stmt, start, flagrt.Call(compiler__try_finally_stmt, finally))
+				}
+				var start = if_result_425
+				var if_result_426 flagrt.Value
+				if flagrt.IsTruthy(has_catch) {
+					if_result_426 = flagrt.NewBool(false)
+				} else {
+					if_result_426 = flagrt.NewBool(true)
+				}
+				var if_result_428 flagrt.Value
+				if flagrt.IsTruthy(if_result_426) {
+					if_result_428 = flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, start, body_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, body_expr)))
+				} else {
+					var let_result_427 flagrt.Value
+					{
+						var inner = flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_defer, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString(""), lowflagKw_body, flagrt.Call(compiler__try_recover_body, catches)), lowflagKw_args, lowflagVec_2))), body_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_assign, lowflagKw_name, flagrt.NewString("__flag_try_result"), lowflagKw_expr, body_expr))
+						let_result_427 = flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__append_stmt, start, flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString(""), lowflagKw_result, flagrt.NewString(""), lowflagKw_body, inner), lowflagKw_args, lowflagVec_2), lowflagKw_discard, flagrt.NewBool(false))), lowflagMap_29))
+					}
+					if_result_428 = let_result_427
+				}
+				let_result_429 = if_result_428
+			}
+			let_result_430 = let_result_429
+		}
+		let_result_431 = let_result_430
+	}
+	return let_result_431
+}
+
+func compiler__try_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 4 {
+		panic("compiler__try_to_ir expects exactly 4 arguments")
+	}
+	return compiler__try_to_ir_arity_4(args[0], args[1], args[2], args[3])
+}
+
+func compiler__doseq_to_ir_arity_1(loop_expr flagrt.Value) flagrt.Value {
+	return flagrt.Call(compiler__value_iife_ir, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_DoAll, flagrt.NewArray(loop_expr)), lowflagKw_discard, flagrt.NewBool(true)), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_NilValue, lowflagVec_2))))
+}
+
+func compiler__doseq_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__doseq_to_ir expects exactly 1 arguments")
+	}
+	return compiler__doseq_to_ir_arity_1(args[0])
+}
+
+func compiler__doseq_body_to_ir_arity_2(body_stmts flagrt.Value, body_expr flagrt.Value) flagrt.Value {
+	return flagrt.Call(compiler__value_iife_ir, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__append_stmt, body_stmts, flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, body_expr, lowflagKw_discard, flagrt.NewBool(true))), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_NewArray, lowflagVec_2))))
+}
+
+func compiler__doseq_body_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__doseq_body_to_ir expects exactly 2 arguments")
+	}
+	return compiler__doseq_body_to_ir_arity_2(args[0], args[1])
+}
+
+func compiler__mapcat_binding_to_ir_arity_6(ident flagrt.Value, unused flagrt.Value, panic_msg flagrt.Value, rest_expr flagrt.Value, rest_stmts flagrt.Value, coll flagrt.Value) flagrt.Value {
+	var let_result_434 flagrt.Value
+	{
+		var args0 = lowflagMap_32
+		var arity = flagrt.NewMap(lowflagKw_kind, lowflagKw_if, lowflagKw_init, flagrt.NewString(""), lowflagKw_cond, flagrt.NewMap(lowflagKw_kind, lowflagKw_binary, lowflagKw_op, flagrt.NewString("!="), lowflagKw_left, flagrt.Call(compiler__ident_call_ir, lowflagStr_len, lowflagVec_14), lowflagKw_right, lowflagMap_33), lowflagKw_then, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.Call(compiler__ident_call_ir, lowflagStr_panic, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_string, lowflagKw_value, panic_msg))), lowflagKw_discard, flagrt.NewBool(false))), lowflagKw_else, lowflagVec_2)
+		var if_result_433 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ident, flagrt.NewString("_")))) {
+			if_result_433 = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, args0, lowflagKw_discard, flagrt.NewBool(true)))
+		} else {
+			var if_result_432 flagrt.Value
+			if flagrt.IsTruthy(unused) {
+				if_result_432 = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_define, lowflagKw_names, flagrt.NewArray(ident), lowflagKw_expr, args0), flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, ident), lowflagKw_discard, flagrt.NewBool(true)))
+			} else {
+				if_result_432 = flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_define, lowflagKw_names, flagrt.NewArray(ident), lowflagKw_expr, args0))
+			}
+			if_result_433 = if_result_432
+		}
+		var bind = if_result_433
+		var fn = flagrt.NewMap(lowflagKw_kind, lowflagKw_func_lit, lowflagKw_params, flagrt.NewString("args ...flagrt.Value"), lowflagKw_result, flagrt.NewString("flagrt.Value"), lowflagKw_body, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, flagrt.Call(compiler__concat_stmts, flagrt.NewArray(arity), bind), rest_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, rest_expr)))
+		let_result_434 = flagrt.Call(compiler__value_iife_ir, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.Call(compiler__literal_rt_call, lowflagStr_MapCat, flagrt.NewArray(flagrt.Call(compiler__literal_rt_call, lowflagStr_NewFunction, flagrt.NewArray(fn)), coll)))))
+	}
+	return let_result_434
+}
+
+func compiler__mapcat_binding_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 6 {
+		panic("compiler__mapcat_binding_to_ir expects exactly 6 arguments")
+	}
+	return compiler__mapcat_binding_to_ir_arity_6(args[0], args[1], args[2], args[3], args[4], args[5])
+}
+
 var compiler__literal_rt_call = flagrt.NewFunction(compiler__literal_rt_call_variadic)
 var compiler__ast_node_to_ir = flagrt.NewFunction(compiler__ast_node_to_ir_variadic)
 var compiler__quoted_ast_to_ir_node = flagrt.NewFunction(compiler__quoted_ast_to_ir_node_variadic)
@@ -1956,6 +2278,20 @@ var compiler__loop_recur_then = flagrt.NewFunction(compiler__loop_recur_then_var
 var compiler__loop_iter_body = flagrt.NewFunction(compiler__loop_iter_body_variadic)
 var compiler__loop_to_ir = flagrt.NewFunction(compiler__loop_to_ir_variadic)
 var compiler__recur_to_ir = flagrt.NewFunction(compiler__recur_to_ir_variadic)
+var compiler__defer_to_ir = flagrt.NewFunction(compiler__defer_to_ir_variadic)
+var compiler__throw_to_ir = flagrt.NewFunction(compiler__throw_to_ir_variadic)
+var compiler__future_to_ir = flagrt.NewFunction(compiler__future_to_ir_variadic)
+var compiler__value_iife_ir = flagrt.NewFunction(compiler__value_iife_ir_variadic)
+var compiler__ident_call_ir = flagrt.NewFunction(compiler__ident_call_ir_variadic)
+var compiler__doto_to_ir = flagrt.NewFunction(compiler__doto_to_ir_variadic)
+var compiler__update_bang_to_ir = flagrt.NewFunction(compiler__update_bang_to_ir_variadic)
+var compiler__catch_handler_to_ir = flagrt.NewFunction(compiler__catch_handler_to_ir_variadic)
+var compiler__try_finally_stmt = flagrt.NewFunction(compiler__try_finally_stmt_variadic)
+var compiler__try_recover_body = flagrt.NewFunction(compiler__try_recover_body_variadic)
+var compiler__try_to_ir = flagrt.NewFunction(compiler__try_to_ir_variadic)
+var compiler__doseq_to_ir = flagrt.NewFunction(compiler__doseq_to_ir_variadic)
+var compiler__doseq_body_to_ir = flagrt.NewFunction(compiler__doseq_body_to_ir_variadic)
+var compiler__mapcat_binding_to_ir = flagrt.NewFunction(compiler__mapcat_binding_to_ir_variadic)
 var lowflagKw_kind = flagrt.NewKeyword("kind")
 var lowflagKw_call = flagrt.NewKeyword("call")
 var lowflagKw_fun = flagrt.NewKeyword("fun")
@@ -2077,3 +2413,39 @@ var lowflagMap_16 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_nam
 var lowflagMap_17 = flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, lowflagMap_16)
 var lowflagKw_for = flagrt.NewKeyword("for")
 var lowflagStr_NewRecur = flagrt.NewString("NewRecur")
+var lowflagKw_defer = flagrt.NewKeyword("defer")
+var lowflagStr_Throw = flagrt.NewString("Throw")
+var lowflagStr_NewFuture = flagrt.NewString("NewFuture")
+var lowflagVec_7 = flagrt.NewArray(flagrt.NewString("__doto"))
+var lowflagMap_18 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("__doto"))
+var lowflagMap_19 = flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, lowflagMap_18)
+var lowflagMap_20 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("__flag_thrown"))
+var lowflagMap_21 = flagrt.NewMap(lowflagKw_kind, lowflagKw_expr_stmt, lowflagKw_expr, lowflagMap_20, lowflagKw_discard, flagrt.NewBool(true))
+var lowflagVec_8 = flagrt.NewArray(lowflagMap_21)
+var lowflagVec_9 = flagrt.NewArray(flagrt.NewString("r"))
+var lowflagStr_recover = flagrt.NewString("recover")
+var lowflagMap_22 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("r"))
+var lowflagMap_23 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("nil"))
+var lowflagMap_24 = flagrt.NewMap(lowflagKw_kind, lowflagKw_binary, lowflagKw_op, flagrt.NewString("=="), lowflagKw_left, lowflagMap_22, lowflagKw_right, lowflagMap_23)
+var lowflagMap_25 = flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.NilValue())
+var lowflagVec_10 = flagrt.NewArray(lowflagMap_25)
+var lowflagMap_26 = flagrt.NewMap(lowflagKw_kind, lowflagKw_if, lowflagKw_init, flagrt.NewString(""), lowflagKw_cond, lowflagMap_24, lowflagKw_then, lowflagVec_10, lowflagKw_else, lowflagVec_2)
+var lowflagVec_11 = flagrt.NewArray(flagrt.NewString("__flag_thrown"))
+var lowflagStr_PanicValue = flagrt.NewString("PanicValue")
+var lowflagVec_12 = flagrt.NewArray(lowflagMap_22)
+var lowflagStr_panic = flagrt.NewString("panic")
+var lowflagKw_handler = flagrt.NewKeyword("handler")
+var lowflagStr_CatchMatches = flagrt.NewString("CatchMatches")
+var lowflagKw_class = flagrt.NewKeyword("class")
+var lowflagMap_27 = flagrt.NewMap(lowflagKw_kind, lowflagKw_var, lowflagKw_name, flagrt.NewString("__flag_try_result"), lowflagKw_type, flagrt.NewString("flagrt.Value"), lowflagKw_expr, flagrt.NilValue())
+var lowflagVec_13 = flagrt.NewArray(lowflagMap_27)
+var lowflagMap_28 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("__flag_try_result"))
+var lowflagMap_29 = flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, lowflagMap_28)
+var lowflagStr_DoAll = flagrt.NewString("DoAll")
+var lowflagMap_30 = flagrt.NewMap(lowflagKw_kind, lowflagKw_ident, lowflagKw_name, flagrt.NewString("args"))
+var lowflagMap_31 = flagrt.NewMap(lowflagKw_kind, lowflagKw_int, lowflagKw_value, flagrt.NewLong(0))
+var lowflagMap_32 = flagrt.NewMap(lowflagKw_kind, lowflagKw_index, lowflagKw_x, lowflagMap_30, lowflagKw_index, lowflagMap_31)
+var lowflagStr_len = flagrt.NewString("len")
+var lowflagVec_14 = flagrt.NewArray(lowflagMap_30)
+var lowflagMap_33 = flagrt.NewMap(lowflagKw_kind, lowflagKw_int, lowflagKw_value, flagrt.NewLong(1))
+var lowflagStr_MapCat = flagrt.NewString("MapCat")
