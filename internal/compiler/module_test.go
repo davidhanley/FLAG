@@ -566,3 +566,37 @@ func TestCompileProgramPackagesPreludeIsSeparatePackage(t *testing.T) {
 		}
 	}
 }
+
+func TestCompileProgramPackagesReferKeepsStdlibOverPrologue(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "main"
+ :imports [["stdlib.lib" :refer [second third]]]}
+(println (second [1 2 3]))
+(println (third [1 2 3]))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var entry CompiledPackage
+	for _, p := range pkgs {
+		if p.IsMain {
+			entry = p
+		}
+	}
+	got := string(entry.Source)
+	for _, want := range []string{"stdlib.Second", "stdlib.Third", "flagbuild/stdlib"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("main missing %q in:\n%s", want, got)
+		}
+	}
+	for _, refuse := range []string{"prologue.Second", "prologue.Third"} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("refer lost to prologue %q:\n%s", refuse, got)
+		}
+	}
+}

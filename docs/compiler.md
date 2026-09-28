@@ -6,6 +6,24 @@ The self-hosted compiler lives in `libraries/compiler/`. `parse-file` is:
 
 `tokenize-file` → `build-ast-from-tokens` → `expand-macros`.
 
+The Go compiler embeds those libraries as `*_flag_gen.go`. Regenerate in order
+after lowering changes (flattening `if`/`let`, etc.):
+
+```
+go run flag-lang/internal/compiler/tokengen
+go run flag-lang/internal/compiler/astgen
+go run flag-lang/internal/compiler/expandmacrosgen
+go run flag-lang/internal/compiler/lowergen
+```
+
+`CompileProgram` (inlined imports) is what the generators run; they do not use
+package-mode emit. Interned constants are prefixed per file (`flag*`,
+`astflag*`, `macflag*`, `lowflag*`) so the four packages can share one Go
+package. Tokenizer keeps referenced helpers (`inc`, `stdlib__second` /
+`stdlib__third`), the `SourceToken` / `TokenState` / `ParseToken` records, and
+renames Go-predeclared prelude names (`close` → `prologue_close`) so they do
+not shadow builtins.
+
 ## `expand-macros`
 
 `compiler/expand-macros.lib` exports `expand-macros`, which takes a channel of AST

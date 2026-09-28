@@ -67,6 +67,9 @@ Each `:imports` entry is either a string or a vector:
 ["chess.flag" :as "c" :refer [move]]
 ```
 
+`:refer` keeps those bindings even when the prelude defines the same name
+(`second`, `third`). Package emit must not rewrite them to `prologue.Second`.
+
 ### Path resolution
 
 - Relative paths resolve against the **importing file’s directory** first
