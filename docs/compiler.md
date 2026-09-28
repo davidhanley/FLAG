@@ -114,6 +114,9 @@ bindings, body prelude statements, and `name = body-expr`. Production
 The block scopes bindings so they can shadow parameters and outer lets
 without renaming. `let` still wraps in an IIFE when the body contains
 `defer` (Go `defer` is function-scoped; `with-open` relies on that).
+`for` / `doseq` MapCat callbacks now run the rest expression's statements
+inside the binding function, so a body like `(or cell "")` (a flattened
+`let`) cannot mention `cell` before it is bound.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
@@ -148,3 +151,14 @@ Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
 IIFEs, destructure bindings, and `future`. Remaining string concat
 is the Go file printer (top-level `func`/`var` emission), not per-form
 lowering.
+
+## Package emit (`flag-lang build`)
+
+`CompileProgram` still inlines the import graph into one `package main` (used
+by `compile`, `test`, REPL, and code generators). `flag-lang build` uses
+`CompileProgramPackages` / `WriteProgramPackages`: one Go package per FLAG
+module, entry as `package main`, libraries imported as `flagbuild/<pkg>`.
+Exported names are capitalized (`add` → `math.Add`). The prelude is
+`flagbuild/prologue` (`inc` → `prologue.Inc`), not copied into importers.
+Each library package also emits a `.flagi` (header, exported macros,
+`(declare …)`). See [modules.md](modules.md).

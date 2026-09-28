@@ -246,6 +246,18 @@ type compileContext struct {
 	allowRedefine bool
 	// ifTemps is a shared counter for result temps (if_result_N, let_result_N).
 	ifTemps *int
+	// packageMode emits each FLAG module as its own Go package. Exported
+	// names are capitalized; imports bind to pkg.Name selectors.
+	packageMode bool
+	// exportedNames is the current module :exports set (packageMode only).
+	exportedNames map[string]bool
+	// goImports are FLAG-module packages this file must import (packageMode).
+	goImports []goImport
+}
+
+type goImport struct {
+	Name string
+	Path string
 }
 
 // bindModuleName records a FLAG name -> Go ident mapping for this module.
@@ -254,17 +266,45 @@ func (ctx *compileContext) bindModuleName(flagName, goName string) error {
 		return nil
 	}
 	if prev, ok := ctx.moduleSymbols[flagName]; ok && prev != goName {
-		return fmt.Errorf("symbol %q already bound to %s", flagName, prev)
+		if !localDefReplacesImport(ctx, prev, goName) {
+			return fmt.Errorf("symbol %q already bound to %s", flagName, prev)
+		}
 	}
 	ctx.moduleSymbols[flagName] = goName
 	if ctx.namespace != "" && !strings.Contains(flagName, "/") {
 		qualified := ctx.namespace + "/" + flagName
 		if prev, ok := ctx.moduleSymbols[qualified]; ok && prev != goName {
-			return fmt.Errorf("symbol %q already bound to %s", qualified, prev)
+			if !localDefReplacesImport(ctx, prev, goName) {
+				return fmt.Errorf("symbol %q already bound to %s", qualified, prev)
+			}
 		}
 		ctx.moduleSymbols[qualified] = goName
 	}
 	return nil
+}
+
+func localDefReplacesImport(ctx *compileContext, prev, goName string) bool {
+	return ctx.packageMode && strings.Contains(prev, ".") && !strings.Contains(goName, ".")
+}
+
+func (ctx compileContext) defGoIdent(localName string) (string, error) {
+	if ctx.packageMode {
+		if ctx.exportedNames[localName] {
+			return exportedGoIdent(localName)
+		}
+		return toGoIdentifier(localName)
+	}
+	return moduleGoIdent(ctx.namespace, localName)
+}
+
+func (ctx *compileContext) addGoImport(pkgName string) {
+	path := GeneratedModulePath + "/" + pkgName
+	for _, existing := range ctx.goImports {
+		if existing.Path == path {
+			return
+		}
+	}
+	ctx.goImports = append(ctx.goImports, goImport{Name: pkgName, Path: path})
 }
 
 // resolveModuleSymbol returns the Go identifier for a FLAG symbol name when
@@ -293,6 +333,8 @@ func copyCompileContext(ctx compileContext) compileContext {
 		selfFunctionRest:  ctx.selfFunctionRest,
 		allowRedefine:     ctx.allowRedefine,
 		ifTemps:           ctx.ifTemps,
+		packageMode:       ctx.packageMode,
+		exportedNames:     ctx.exportedNames,
 	}
 	if ctx.selfArityNames != nil {
 		out.selfArityNames = make(map[int]string, len(ctx.selfArityNames))
@@ -494,6 +536,16 @@ func loadStandardPrologue(ctx *compileContext) error {
 	if err != nil {
 		return fmt.Errorf("compile compiler prologue: %w", err)
 	}
+	if ctx.packageMode {
+		if ctx.exportedNames == nil {
+			ctx.exportedNames = map[string]bool{}
+		}
+		for _, form := range expanded {
+			if name := topLevelDefName(form); name != "" {
+				ctx.exportedNames[name] = true
+			}
+		}
+	}
 	for _, form := range expanded {
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
@@ -511,6 +563,11 @@ func loadStandardPrologue(ctx *compileContext) error {
 			}
 			ctx.functions[def.goName] = def
 			ctx.globals[def.goName] = exprKindValue
+			if ctx.packageMode {
+				if err := ctx.bindModuleName(def.flagName, def.goName); err != nil {
+					return fmt.Errorf("compile compiler prologue: %w", err)
+				}
+			}
 			ctx.prologueFns = append(ctx.prologueFns, def)
 			ctx.prologueVars = append(ctx.prologueVars, varDef{
 				flagName: def.flagName,
@@ -523,12 +580,55 @@ func loadStandardPrologue(ctx *compileContext) error {
 				return fmt.Errorf("compile compiler prologue: %w", err)
 			}
 			ctx.globals[binding.goName] = kind
+			if ctx.packageMode {
+				if err := ctx.bindModuleName(binding.flagName, binding.goName); err != nil {
+					return fmt.Errorf("compile compiler prologue: %w", err)
+				}
+			}
 			ctx.prologueVars = append(ctx.prologueVars, binding)
 		default:
 			return fmt.Errorf("invalid compiler prologue form %q", head.Name)
 		}
 	}
 	return nil
+}
+
+func compileDeclare(form ListExpr, ctx *compileContext) (map[string]string, error) {
+	if len(form.Elements) < 2 {
+		return nil, exprError(form, "declare expects one or more names")
+	}
+	out := map[string]string{}
+	for _, el := range form.Elements[1:] {
+		sym, ok := unwrapMetaExpr(el).(SymbolExpr)
+		if !ok || sym.Name == "" {
+			return nil, exprError(el, "declare expects symbols")
+		}
+		goName, err := ctx.defGoIdent(sym.Name)
+		if err != nil {
+			return nil, err
+		}
+		if err := ctx.bindModuleName(sym.Name, goName); err != nil {
+			return nil, err
+		}
+		out[sym.Name] = goName
+	}
+	return out, nil
+}
+
+func topLevelDefName(form Expr) string {
+	list, ok := form.(ListExpr)
+	if !ok || len(list.Elements) < 2 {
+		return ""
+	}
+	head, ok := list.Elements[0].(SymbolExpr)
+	if !ok || (head.Name != "defn" && head.Name != "def") {
+		return ""
+	}
+	name, ok := unwrapMetaExpr(list.Elements[1]).(SymbolExpr)
+	if !ok {
+		return ""
+	}
+	return name.Name
 }
 
 func withPrologue(result compileResult, ctx compileContext) compileResult {
@@ -580,47 +680,57 @@ func CompileProgramWithTests(entryPath string, testPaths []string) ([]byte, erro
 }
 
 type compileResult struct {
-	namespace string
-	typeDecls []string
-	functions []functionDef
-	vars      []varDef
-	stmts     []mainStmt
-	tests     []testCase
-	needsFmt  bool
+	namespace    string
+	typeDecls    []string
+	functions    []functionDef
+	vars         []varDef
+	stmts        []mainStmt
+	tests        []testCase
+	needsFmt     bool
+	extraImports []goImport
 }
 
 func emitGoProgram(result compileResult) ([]byte, error) {
+	return emitGoFile("main", result, true)
+}
+
+func emitGoFile(pkgName string, result compileResult, includeMain bool) ([]byte, error) {
 	namespace, functions, vars, stmts, tests, needsFmt := result.namespace, result.functions, result.vars, result.stmts, result.tests, result.needsFmt
 	if len(tests) > 0 {
 		needsFmt = true
 	}
-	// Program entry: prefer flag_main, then main (common Clojure/Go style).
-	// Match on FLAG names so module-mangled go names (e.g. c_frs_core__main) work.
 	var entryFunction *functionDef
-	for i := range functions {
-		if functions[i].flagName == "flag_main" {
-			entryFunction = &functions[i]
-			break
-		}
-	}
-	if entryFunction == nil {
+	if includeMain {
 		for i := range functions {
-			if functions[i].flagName == "main" || functions[i].goName == "flag_main" || functions[i].goName == "main" {
+			if functions[i].flagName == "flag_main" {
 				entryFunction = &functions[i]
 				break
+			}
+		}
+		if entryFunction == nil {
+			for i := range functions {
+				if functions[i].flagName == "main" || functions[i].goName == "flag_main" || functions[i].goName == "main" {
+					entryFunction = &functions[i]
+					break
+				}
 			}
 		}
 	}
 
 	var out bytes.Buffer
-	out.WriteString("package main\n\n")
+	fmt.Fprintf(&out, "package %s\n\n", pkgName)
 	out.WriteString("import (\n")
 	if needsFmt {
 		out.WriteString("\t\"fmt\"\n")
 	}
-	out.WriteString("\t\"strings\"\n")
-	if len(tests) > 0 || entryFunction != nil {
-		out.WriteString("\t\"os\"\n")
+	if includeMain {
+		out.WriteString("\t\"strings\"\n")
+		if len(tests) > 0 || entryFunction != nil {
+			out.WriteString("\t\"os\"\n")
+		}
+	}
+	for _, imp := range result.extraImports {
+		fmt.Fprintf(&out, "\t%s %q\n", imp.Name, imp.Path)
 	}
 	out.WriteString("\tflagrt \"flag-lang/runtime\"\n")
 	out.WriteString(")\n\n")
@@ -655,7 +765,7 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 		out.WriteString("\n")
 	}
 
-	if len(tests) > 0 {
+	if includeMain && len(tests) > 0 {
 		out.WriteString("type flagTestCase struct {\n")
 		out.WriteString("\tname string\n")
 		out.WriteString("\tline int\n")
@@ -674,6 +784,14 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 		out.WriteString("\ttc.fn()\n")
 		out.WriteString("\treturn passed\n")
 		out.WriteString("}\n\n")
+	}
+
+	if !includeMain {
+		formatted, err := format.Source(out.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("format generated Go: %w", err)
+		}
+		return formatted, nil
 	}
 
 	out.WriteString("func main() {\n")
@@ -1326,10 +1444,29 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 			macros = map[string]Expr{}
 		}
 
+		pkgName := ""
+		if ctx.packageMode {
+			var err error
+			pkgName, err = goPackageName(provider.Header.Namespace)
+			if err != nil {
+				return err
+			}
+			for exp := range exports {
+				if _, ok := defs[exp]; ok {
+					ctx.addGoImport(pkgName)
+					break
+				}
+			}
+		}
+
 		for exp := range exports {
 			if goName, ok := defs[exp]; ok {
 				qual := prefix + "/" + exp
-				if err := ctx.bindModuleName(qual, goName); err != nil {
+				ref := goName
+				if ctx.packageMode {
+					ref = pkgName + "." + goName
+				}
+				if err := ctx.bindModuleName(qual, ref); err != nil {
 					return err
 				}
 				continue
@@ -1346,7 +1483,11 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 				return fmt.Errorf("import %q: cannot :refer %q (not in :exports)", spec.Path, ref)
 			}
 			if goName, ok := defs[ref]; ok {
-				if err := ctx.bindModuleName(ref, goName); err != nil {
+				referName := goName
+				if ctx.packageMode {
+					referName = pkgName + "." + goName
+				}
+				if err := ctx.bindModuleName(ref, referName); err != nil {
 					return fmt.Errorf("import %q: :refer %q: %w", spec.Path, ref, err)
 				}
 				continue
@@ -1408,7 +1549,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			if !ok {
 				return compileResult{}, nil, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
 			}
-			goName, err := moduleGoIdent(ctx.namespace, localName)
+			goName, err := ctx.defGoIdent(localName)
 			if err != nil {
 				return compileResult{}, nil, nil, err
 			}
@@ -1510,6 +1651,14 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			vars = append(vars, binding)
 		case "defmacro":
 			continue
+		case "declare":
+			names, err := compileDeclare(list, ctx)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
+			for flagName, goName := range names {
+				defined[flagName] = goName
+			}
 		case "println":
 			if !allowTopLevel {
 				return compileResult{}, nil, nil, exprError(list, "top-level expressions are only allowed in the entry module")
@@ -1617,7 +1766,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		}
 	}
 
-	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
+	goName, err := ctx.defGoIdent(nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -1815,7 +1964,7 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 		doc = docExpr.Value
 		valueIndex = 3
 	}
-	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
+	goName, err := ctx.defGoIdent(nameExpr.Name)
 	if err != nil {
 		return varDef{}, 0, false, err
 	}
@@ -1844,7 +1993,7 @@ func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, fmt.Errorf("deftest expects a test name")
 	}
 
-	goName, err := moduleGoIdent(ctx.namespace, nameExpr.Name)
+	goName, err := ctx.defGoIdent(nameExpr.Name)
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -3241,7 +3390,7 @@ func forBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, loca
 		return goExpr{}, err
 	}
 
-	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "for binding expects exactly one value", irFromGoExpr(rest), collIR), exprKindValue), append(cloneIRStmts(collExpr.stmts), rest.stmts...)), nil
+	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "for binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR), exprKindValue), collExpr.stmts), nil
 }
 
 func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3299,7 +3448,7 @@ func doseqBindingsToGo(bindings []Expr, bodyExprs []Expr, ctx compileContext, lo
 		return goExpr{}, err
 	}
 
-	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "doseq binding expects exactly one value", irFromGoExpr(rest), collIR), exprKindValue), append(cloneIRStmts(collExpr.stmts), rest.stmts...)), nil
+	return withStmts(fromIR(mapCatBindingIR(ident, sym.Name, "doseq binding expects exactly one value", irFromGoExpr(rest), rest.stmts, collIR), exprKindValue), collExpr.stmts), nil
 }
 
 func letExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5078,7 +5227,7 @@ func irStmtsToLines(stmts []IRStmt) []string {
 	return lines
 }
 
-func mapCatBindingIR(ident, flagName, panicMsg string, rest, coll IRExpr) IRExpr {
+func mapCatBindingIR(ident, flagName, panicMsg string, rest IRExpr, restStmts []IRStmt, coll IRExpr) IRExpr {
 	args0 := IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}}
 	bindBody := []IRStmt{
 		IRIfStmt{
@@ -5096,6 +5245,7 @@ func mapCatBindingIR(ident, flagName, panicMsg string, rest, coll IRExpr) IRExpr
 		bindBody = append(bindBody, IRDefine{Names: []string{ident}, Expr: args0})
 		bindBody = appendUnusedIR(bindBody, flagName, ident)
 	}
+	bindBody = append(bindBody, cloneIRStmts(restStmts)...)
 	bindBody = append(bindBody, IRReturn{Expr: rest})
 	fn := IRFuncLit{
 		Params: "args ..." + runtimeAlias + ".Value",

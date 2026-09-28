@@ -270,6 +270,35 @@ func TestCompileDefnDashRejected(t *testing.T) {
 	}
 }
 
+func TestCompileDeclareThenDefn(t *testing.T) {
+	out, err := Compile(`
+(declare later)
+(defn later [] 7)
+(println (later))
+`)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "func later_arity_0") {
+		t.Fatalf("missing later fn:\n%s", got)
+	}
+}
+
+func TestCompileDeclareRejectsNonSymbol(t *testing.T) {
+	_, err := Compile(`(declare 1)`)
+	if err == nil || !strings.Contains(err.Error(), "declare expects symbols") {
+		t.Fatalf("expected symbol error, got %v", err)
+	}
+}
+
+func TestCompileDeclareRejectsEmpty(t *testing.T) {
+	_, err := Compile(`(declare)`)
+	if err == nil || !strings.Contains(err.Error(), "declare expects one or more names") {
+		t.Fatalf("expected empty declare error, got %v", err)
+	}
+}
+
 func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	output, err := Compile(`
 		(ns   hello.core)
@@ -583,6 +612,32 @@ func TestCompileLetShadowsParam(t *testing.T) {
 	}
 	if strings.Contains(arity, "func() flagrt.Value") {
 		t.Fatalf("shadowing let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileForBodyLetStmtsStayInCallback(t *testing.T) {
+	output, err := Compile(`
+(defn cells [xs]
+  (for [cell xs]
+    (or cell "")))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	bindAt := strings.Index(got, "cell := args[0]")
+	if bindAt < 0 {
+		t.Fatalf("missing for binding:\n%s", got)
+	}
+	useAt := strings.Index(got[bindAt:], "or_tmp = cell")
+	if useAt < 0 {
+		useAt = strings.Index(got[bindAt:], "var or_tmp = cell")
+	}
+	if useAt < 0 {
+		t.Fatalf("expected or/let to use cell inside the for callback:\n%s", got)
+	}
+	if strings.Contains(got[:bindAt], "or_tmp = cell") || strings.Contains(got[:bindAt], "var or_tmp = cell") {
+		t.Fatalf("for body let stmts leaked out of the MapCat callback:\n%s", got)
 	}
 }
 

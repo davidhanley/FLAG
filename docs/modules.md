@@ -218,8 +218,19 @@ flag-lang build path/to/main.flag
 1. Read the entry file header
 2. Load each import (DFS), detect cycles
 3. Compile each module once with its import environment
-4. Emit one Go program (unique Go identifiers per `namespace` + local name)
-5. `go build`
+4. Emit **one Go package per FLAG module** (entry is `package main`; libraries are `flagbuild/<namespace>`)
+5. Write a generated `go.mod` (`module flagbuild`, `replace flag-lang => <repo>`)
+6. `go build`
+
+Generated Go is left next to the source in **`.flag-build/`** (entry `main.go` plus one subdirectory per library package) and as **`<name>.go`** beside the entry file. `go test ./...` skips the dotted directory.
+
+Each library package also gets a **`.flagi`** FLAG interface file: the module header, full exported `defmacro` forms, and `(declare name …)` for exported functions and vars (no bodies). Importers use that interface at FLAG compile time; calls go to the other Go package. Small functions may be inlined via `.flagi` later; they are not inlined today.
+
+Imported functions are not copied into the entry file. If `B` and `C` both import `A`, `A`’s functions live only in `A`’s package; `B` and `C` call `a.Export`. Exported FLAG names are capitalized as Go identifiers (`add` → `Add`).
+
+The language prelude is a normal FLAG module compiled once to `flagbuild/prologue`. Unqualified names such as `inc` resolve to `prologue.Inc`. Macros expand at FLAG compile time and are not emitted as Go. Imported modules are never copied into the importer.
+
+`flag-lang compile`, `flag-lang test`, and the REPL still inline the import graph into a single `package main` (unique Go identifiers per `namespace` + local name, e.g. `math__add`).
 
 Directory builds should use an entry file (or a designated main module). Concatenating every file in a directory without regard to imports is the old model and will be phased out for modular projects.
 

@@ -355,3 +355,214 @@ func TestLegacyNsStillWorks(t *testing.T) {
 		t.Fatalf("legacy ns should not mangle names:\n%s", out)
 	}
 }
+
+func TestGoPackageName(t *testing.T) {
+	got, err := goPackageName("math")
+	if err != nil || got != "math" {
+		t.Fatalf("math: got %q err %v", got, err)
+	}
+	got, err = goPackageName("type")
+	if err != nil || got != "type_" {
+		t.Fatalf("type: got %q err %v", got, err)
+	}
+	got, err = goPackageName("c.frs.core")
+	if err != nil || got != "c_frs_core" {
+		t.Fatalf("dotted: got %q err %v", got, err)
+	}
+}
+
+func TestExportedGoIdent(t *testing.T) {
+	got, err := exportedGoIdent("add")
+	if err != nil || got != "Add" {
+		t.Fatalf("add: got %q err %v", got, err)
+	}
+	got, err = exportedGoIdent("empty-board")
+	if err != nil || got != "Empty_board" {
+		t.Fatalf("empty-board: got %q err %v", got, err)
+	}
+	got, err = exportedGoIdent("Add")
+	if err != nil || got != "Add" {
+		t.Fatalf("Add: got %q err %v", got, err)
+	}
+}
+
+func TestCompileProgramPackagesNoInline(t *testing.T) {
+	main := filepath.Join("..", "..", "examples", "modules", "main.flag")
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var greeter, mathPkg, entry CompiledPackage
+	for _, p := range pkgs {
+		switch {
+		case p.Name == "greeter":
+			greeter = p
+		case p.Name == "math":
+			mathPkg = p
+		case p.IsMain:
+			entry = p
+		}
+	}
+	var prologue CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+	}
+	if greeter.Source == nil || mathPkg.Source == nil || entry.Source == nil || prologue.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	if !strings.Contains(string(prologue.Source), "package prologue") || !strings.Contains(string(prologue.Source), "var Inc =") {
+		t.Fatalf("prologue package missing Inc:\n%s", prologue.Source)
+	}
+	if !strings.Contains(string(prologue.FlagI), "(declare ") || !strings.Contains(string(prologue.FlagI), "(defmacro when") {
+		t.Fatalf("prologue.flagi:\n%s", prologue.FlagI)
+	}
+	if !strings.Contains(string(greeter.FlagI), "(declare greet shout)") && !strings.Contains(string(greeter.FlagI), "(declare shout greet)") {
+		if !strings.Contains(string(greeter.FlagI), "(declare") {
+			t.Fatalf("greeter.flagi missing declare:\n%s", greeter.FlagI)
+		}
+	}
+
+	g := string(greeter.Source)
+	for _, want := range []string{
+		"package greeter",
+		"math.Double",
+		"\tmath \"flagbuild/math\"",
+		"var Greet =",
+		"var Shout =",
+	} {
+		if !strings.Contains(g, want) {
+			t.Fatalf("greeter missing %q in:\n%s", want, g)
+		}
+	}
+	for _, refuse := range []string{"math__double", "func add_arity", "func math__add", "func inc_arity", "var identity ="} {
+		if strings.Contains(g, refuse) {
+			t.Fatalf("greeter should not contain %q in:\n%s", refuse, g)
+		}
+	}
+
+	m := string(mathPkg.Source)
+	for _, want := range []string{
+		"package math",
+		"var Add =",
+		"var Double =",
+		"func secret_square",
+	} {
+		if !strings.Contains(m, want) {
+			t.Fatalf("math missing %q in:\n%s", want, m)
+		}
+	}
+	if strings.Contains(m, "func main(") {
+		t.Fatalf("library math should not emit main:\n%s", m)
+	}
+
+	e := string(entry.Source)
+	for _, want := range []string{
+		"package main",
+		"math.Add",
+		"greeter.Greet",
+		"greeter.Shout",
+	} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"func math__add", "func greeter__greet", "math__double", "func inc_arity", "var identity ="} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("main should not inline %q in:\n%s", refuse, e)
+		}
+	}
+}
+
+func TestWriteProgramPackages(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join("..", "..", "examples", "modules", "main.flag")
+	if err := WriteProgramPackages(dir, main); err != nil {
+		t.Fatalf("WriteProgramPackages: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "go.mod"),
+		filepath.Join(dir, "main.go"),
+		filepath.Join(dir, "math", "math.go"),
+		filepath.Join(dir, "greeter", "greeter.go"),
+		filepath.Join(dir, "prologue", "prologue.go"),
+		filepath.Join(dir, "math", "math.flagi"),
+		filepath.Join(dir, "greeter", "greeter.flagi"),
+		filepath.Join(dir, "prologue", "prologue.flagi"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s: %v", path, err)
+		}
+	}
+	mod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(mod)
+	if !strings.Contains(text, "module flagbuild") || !strings.Contains(text, "replace flag-lang =>") {
+		t.Fatalf("go.mod:\n%s", text)
+	}
+	flagi, err := os.ReadFile(filepath.Join(dir, "math", "math.flagi"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(flagi)
+	for _, want := range []string{
+		`{:namespace "math"`,
+		":exports",
+		"add",
+		"double",
+		"(declare ",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("math.flagi missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "secret-square") || strings.Contains(got, "(defn add") {
+		t.Fatalf("math.flagi should not include private defs or function bodies:\n%s", got)
+	}
+}
+
+func TestCompileProgramPackagesPreludeIsSeparatePackage(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "main"}
+(println (inc 41))
+(println (identity 1))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var prologue, entry CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+		if p.IsMain {
+			entry = p
+		}
+	}
+	if prologue.Source == nil || entry.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	p := string(prologue.Source)
+	if !strings.Contains(p, "package prologue") || !strings.Contains(p, "var Inc =") || !strings.Contains(p, "var Identity =") {
+		t.Fatalf("prologue:\n%s", p)
+	}
+	e := string(entry.Source)
+	for _, want := range []string{"prologue.Inc", "prologue.Identity", "flagbuild/prologue"} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"func inc_arity", "func identity_arity", "var identity =", "var inc ="} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("main inlined prologue %q:\n%s", refuse, e)
+		}
+	}
+}

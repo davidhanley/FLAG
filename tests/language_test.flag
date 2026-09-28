@@ -1,5 +1,9 @@
 (ns language.core-test)
 
+(declare declared-answer)
+
+(defn declared-answer [] 42)
+
 (deftest arithmetic
   (testing "add sub div mod"
     (is (= 5 (+ 1 2 2)))
@@ -423,6 +427,8 @@
     (is (= [] (vec (map-indexed (fn [i x] [i x]) []))))
     (is (= [[:li 1] [:li 2]] (vec (for [x [1 2]] [:li x]))))
     (is (= [[1 10] [1 20] [2 10] [2 20]] (vec (for [x [1 2] y [10 20]] [x y]))))
+    (is (= ["" 1] (vec (for [cell [nil 1]] (or cell "")))))
+    (is (= [1 2] (vec (for [x [1 2]] (let [y x] y)))))
     (is (= {1 1 2 2} (into {} (map (fn [x] [x x]) [1 2]))))
     (is (sequential? [1]))
     (is (sequential? '(1)))
@@ -679,7 +685,9 @@
     (is (= "xyz" (name :xyz)))
     (is (= "abc" (name (symbol "abc"))))
     (is (= 'xyz (symbol :xyz)))
-    (is (= :abc (keyword "abc")))))
+    (is (= :abc (keyword "abc"))))
+  (testing "declare then defn"
+    (is (= 42 (declared-answer)))))
 
 (deftest strings-and-numbers
   (testing "str format double go-fn json"

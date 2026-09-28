@@ -79,6 +79,7 @@ Implemented top-level forms:
 - `(defn fname ([args] body) ([args2] body) ...)` multiple fixed arities
 - `(defmacro name "doc" [args] body)` optional docstring
 - `(defmacro name ([args] body) ([args2] body) ...)` multiple arities, same `()` style as `defn`
+- `(declare name ...)` — forward-declare symbols (no body). Compiled module interfaces (`.flagi`) use this for exported fns/vars
 - `(deftest name body...)` runs during build/repl compilation
 - `(defrecord Name [fields])` — Go struct + `->Name` / `map->Name` constructors
 - expression forms at top level (evaluated in `main`; entry module only when using imports)

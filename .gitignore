@@ -5,3 +5,4 @@ dist/
 *.out
 hello.go
 tests/*.go
+.flag-build/
