@@ -1,0 +1,538 @@
+{:namespace "compiler"
+ :exports   [ast-node-to-ir quoted-ast-to-ir call-to-ir call-ast-to-ir
+             ctor-to-ir runtime-call-to-ir fold-call-to-ir
+             symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
+             do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir]}
+
+(defn literal-rt-call [name args]
+  {:kind :call
+   :fun {:kind :selector :pkg "flagrt" :name name}
+   :args args})
+
+(defn ast-node-to-ir [node]
+  (let [kind (:kind node)]
+    (cond
+      (= kind :string)
+      {:kind :string :value (:value node)}
+
+      (= kind :char)
+      (literal-rt-call "NewString" [{:kind :string :value (:value node)}])
+
+      (= kind :int)
+      (literal-rt-call "NewLong" [{:kind :int :value (:value node)}])
+
+      (= kind :bigint)
+      (literal-rt-call "NewBigIntFromString" [{:kind :string :value (:value node)}])
+
+      (= kind :ratio)
+      (literal-rt-call "NewRatio" [{:kind :int :value (:numerator node)}
+                                   {:kind :int :value (:denominator node)}])
+
+      (= kind :float)
+      (let [raw (:raw node)
+            code (if (or (nil? raw) (= "" raw))
+                   (format "%g" (:value node))
+                   raw)]
+        (literal-rt-call "NewDouble" [{:kind :raw :code code}]))
+
+      (= kind :keyword)
+      (literal-rt-call "NewKeyword" [{:kind :string :value (:name node)}])
+
+      (= kind :quoted-symbol)
+      (literal-rt-call "NewSymbol" [{:kind :string :value (:name node)}])
+
+      (= kind :symbol)
+      (let [name (:name node)]
+        (cond
+          (= name "true") (literal-rt-call "NewBool" [{:kind :raw :code "true"}])
+          (= name "false") (literal-rt-call "NewBool" [{:kind :raw :code "false"}])
+          (= name "nil") (literal-rt-call "NilValue" [])
+          :else (throw (ex-info "unsupported symbol for literal lowering"
+                                {:node node}))))
+
+      :else (throw (ex-info "unsupported AST node for literal lowering"
+                            {:node node})))))
+
+(defn quoted-ast-to-ir-node [mode node]
+  (cond
+    (= mode :seq)
+    (loop [remaining node out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (recur (rest remaining)
+               (conj out (quoted-ast-to-ir-node :node (first remaining))))))
+
+    (= mode :node)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :int) (ast-node-to-ir node)
+        (= kind :bigint) (ast-node-to-ir node)
+        (= kind :ratio) (ast-node-to-ir node)
+        (= kind :float) (ast-node-to-ir node)
+        (= kind :keyword) (ast-node-to-ir node)
+        (= kind :quoted-symbol) (ast-node-to-ir node)
+
+        (= kind :symbol)
+        (literal-rt-call "NewSymbol" [{:kind :string :value (:name node)}])
+
+        (= kind :quoted-list)
+        (literal-rt-call "NewList" (quoted-ast-to-ir-node :seq (:elements node)))
+
+        (= kind :list)
+        (literal-rt-call "NewList" (quoted-ast-to-ir-node :seq (:elements node)))
+
+        (= kind :vector)
+        (literal-rt-call "NewArray" (quoted-ast-to-ir-node :seq (:elements node)))
+
+        (= kind :pipe-vector)
+        (literal-rt-call "NewVector" (quoted-ast-to-ir-node :seq (:elements node)))
+
+        (= kind :map)
+        (let [entries (:entries node)
+              n (if (nil? entries) 0 (count entries))]
+          (if (not (= 0 (% n 2)))
+            (throw (ex-info "quoted map literal expects an even number of forms"
+                            {:node node}))
+            (literal-rt-call "NewMap" (quoted-ast-to-ir-node :seq entries))))
+
+        (= kind :set)
+        (literal-rt-call "NewSet" (quoted-ast-to-ir-node :seq (:elements node)))
+
+        :else
+        (throw (ex-info "unsupported quoted literal" {:node node}))))
+
+    :else (throw (ex-info "unsupported quoted lowering mode" {:mode mode}))))
+
+(defn quoted-ast-to-ir [node]
+  (quoted-ast-to-ir-node :node node))
+
+(def special-form-names
+  #{"+" "*" "-" "/" "%" "mod" "quot" "rem" "compare" "==" "=" "<" "<=" ">" ">="
+    "max" "min"
+    "bit-and" "bit-or" "bit-xor" "bit-not" "bit-shift-left" "bit-shift-right"
+    "unsigned-bit-shift-right" "bit-test" "bit-set" "bit-clear" "bit-flip"
+    "str" "println" "testing" "ex-info" "ex-message" "ex-data" "ex-cause"
+    "throw" "try" "catch" "finally" "is" "expect-exception"
+    "if" "do" "doto" "for" "doseq" "let" "loop" "recur" "defer" "update!"
+    "symbol" "name" "keyword" "first" "fist" "rest" "next" "last"
+    "reverse" "cons" "take" "drop" "not-empty" "seq" "empty?" "nil?" "type-of"
+    "count" "double" "into" "format" "hash-map" "list" "array" "map" "concat"
+    "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "seq?" "set"
+    "vec" "conj" "contains?" "line-seq" "repeat" "rand-int" "assoc" "dissoc"
+    "to-json" "from-json" "open-file" "file-to-strings" "go-fn" "go-fn-args"
+    "fn"})
+
+(defn call-to-ir [callee args]
+  (loop [remaining args out [callee]]
+    (if (or (nil? remaining) (empty? remaining))
+      (literal-rt-call "Call" out)
+      (recur (rest remaining) (conj out (first remaining))))))
+
+(defn call-ast-to-ir-node [mode node]
+  (cond
+    (= mode :seq)
+    (loop [remaining node out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (recur (rest remaining)
+               (conj out (call-ast-to-ir-node :eval (first remaining))))))
+
+    (= mode :eval)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :string) (ast-node-to-ir node)
+        (= kind :char) (ast-node-to-ir node)
+        (= kind :int) (ast-node-to-ir node)
+        (= kind :bigint) (ast-node-to-ir node)
+        (= kind :ratio) (ast-node-to-ir node)
+        (= kind :float) (ast-node-to-ir node)
+        (= kind :keyword) (ast-node-to-ir node)
+        (= kind :quoted-symbol) (ast-node-to-ir node)
+
+        (= kind :symbol)
+        (let [name (:name node)]
+          (if (or (= name "true") (= name "false") (= name "nil"))
+            (ast-node-to-ir node)
+            (throw (ex-info "unresolved symbol for call lowering"
+                            {:node node}))))
+
+        (= kind :quoted-list) (quoted-ast-to-ir node)
+        (= kind :vector) (quoted-ast-to-ir node)
+        (= kind :pipe-vector) (quoted-ast-to-ir node)
+        (= kind :map) (quoted-ast-to-ir node)
+        (= kind :set) (quoted-ast-to-ir node)
+
+        (= kind :list) (call-ast-to-ir-node :call node)
+
+        :else (throw (ex-info "unsupported AST node for call lowering"
+                              {:node node}))))
+
+    (= mode :call)
+    (let [elements (:elements node)]
+      (if (or (nil? elements) (empty? elements))
+        (throw (ex-info "unsupported form" {:node node}))
+        (let [head (first elements)]
+          (if (and (= :symbol (:kind head))
+                   (contains? special-form-names (:name head)))
+            (throw (ex-info "special form not handled by call lowering"
+                            {:node node}))
+            (call-to-ir (call-ast-to-ir-node :eval head)
+                        (call-ast-to-ir-node :seq (rest elements)))))))
+
+    :else (throw (ex-info "unsupported call lowering mode" {:mode mode}))))
+
+(defn call-ast-to-ir [node]
+  (call-ast-to-ir-node :call node))
+
+(defn ctor-to-ir [name args]
+  (literal-rt-call name args))
+
+(defn runtime-call-to-ir [name args]
+  (literal-rt-call name args))
+
+(defn fold-call-to-ir [name args]
+  (if (or (nil? args) (empty? args) (empty? (rest args)))
+    (throw (ex-info "fold expects at least two arguments" {:name name}))
+    (loop [acc (first args) remaining (rest args)]
+      (if (or (nil? remaining) (empty? remaining))
+        acc
+        (recur (literal-rt-call name [acc (first remaining)])
+               (rest remaining))))))
+
+(def builtin-function-names
+  #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
+    "max" "min"
+    "bit-and" "bit-or" "bit-xor" "bit-not" "bit-shift-left" "bit-shift-right"
+    "unsigned-bit-shift-right" "bit-test" "bit-set" "bit-clear" "bit-flip"
+    "first" "fist" "rest" "next" "last" "reverse" "cons" "take" "drop" "nth"
+    "slow-nth" "map" "concat" "sort-by" "apply" "pmap" "filter" "reduce" "get"
+    "keys" "vals" "find" "hash-map" "list" "array" "not-empty" "empty?" "nil?"
+    "type-of" "count" "double" "numerator" "denominator" "format" "subs"
+    "keyword" "into" "doall" "dorun" "line-seq" "some" "seq" "seq?" "set" "vec"
+    "conj" "contains?" "assoc" "dissoc" "open-file" "close-file" "close-channel"
+    "file-to-strings" "rand-int" "rand" "rand-nth" "shuffle" "repeat"
+    "union" "intersection" "difference" "subset?" "superset?" "disjoint?"
+    "rename-keys" "map-invert" "select" "project" "rename"
+    "go-fn" "go-fn-args" "re-pattern" "re-matches"
+    "ex-message" "ex-data" "ex-cause"})
+
+(def unary-runtime-ops
+  {"first" "First" "fist" "First" "rest" "Rest" "next" "Next" "last" "Last"
+   "reverse" "Reverse" "seq?" "SeqPredicate" "double" "Double" "bit-not" "BitNot"})
+
+(def fold-runtime-ops
+  {"+" "Add" "*" "Mul" "-" "Sub" "/" "Div"})
+
+(def binary-runtime-ops
+  {"%" "Mod" "mod" "Mod" "quot" "Quot" "rem" "Rem"
+   "bit-shift-left" "BitShiftLeft" "bit-shift-right" "BitShiftRight"
+   "unsigned-bit-shift-right" "UnsignedBitShiftRight"
+   "bit-test" "BitTest" "bit-set" "BitSet" "bit-clear" "BitClear"
+   "bit-flip" "BitFlip"})
+
+(def variadic-runtime-ops
+  {"bit-and" "BitAnd" "bit-or" "BitOr" "bit-xor" "BitXor"
+   "max" "Max" "min" "Min"})
+
+(defn qualified-name? [name]
+  (loop [s name]
+    (if (or (nil? s) (= 0 (count s)))
+      false
+      (if (= "/" (subs s 0 1))
+        true
+        (recur (subs s 1))))))
+
+(defn ident-ir [ident k]
+  (let [ir {:kind :ident :name ident}]
+    (if (= k :string)
+      {:ir ir :expr-kind :string}
+      (if (= k :bool)
+        {:ir ir :expr-kind :bool}
+        {:ir ir :expr-kind :value}))))
+
+(defn symbol-to-ir [name ident ctx]
+  (let [locals (:locals ctx)
+        globals (:globals ctx)
+        functions (:functions ctx)
+        module (:module ctx)
+        go-fns (:go-fns ctx)
+        self-name (:self-function-name ctx)
+        self-var (:self-variadic-name ctx)
+        slash? (qualified-name? name)]
+    (cond
+      (and (not slash?)
+           ident
+           (not (= "" ident))
+           (not (nil? locals))
+           (contains? locals ident))
+      (ident-ir ident (get locals ident))
+
+      (and (= name self-name)
+           self-var
+           (not (= "" self-var)))
+      {:ir (literal-rt-call "NewFunction" [{:kind :ident :name self-var}])
+       :expr-kind :value}
+
+      (and (not (nil? module)) (contains? module name))
+      (let [go-ident (get module name)]
+        (if (and (not (nil? globals)) (contains? globals go-ident))
+          (ident-ir go-ident (get globals go-ident))
+          (if (and (not (nil? functions)) (contains? functions go-ident))
+            {:ir (literal-rt-call "NewFunction" [{:kind :ident :name go-ident}])
+             :expr-kind :value}
+            {:ir {:kind :ident :name go-ident} :expr-kind :value})))
+
+      (and ident
+           (not (= "" ident))
+           (not (nil? globals))
+           (contains? globals ident))
+      (ident-ir ident (get globals ident))
+
+      (and ident
+           (not (= "" ident))
+           (not (nil? functions))
+           (contains? functions ident))
+      {:ir (literal-rt-call "NewFunction" [{:kind :ident :name ident}])
+       :expr-kind :value}
+
+      (contains? builtin-function-names name)
+      {:ir (literal-rt-call "BuiltinFunction" [{:kind :string :value name}])
+       :expr-kind :value}
+
+      (and (not (nil? go-fns)) (contains? go-fns name))
+      {:ir {:kind :selector :pkg "flagrt" :name (get go-fns name)}
+       :expr-kind :value}
+
+      :else
+      (throw (ex-info (str "unknown symbol \"" name "\"") {:name name})))))
+
+(defn eval-ast-to-ir-node [mode node ctx]
+  (cond
+    (= mode :seq)
+    (loop [remaining node out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (recur (rest remaining)
+               (conj out (eval-ast-to-ir-node :eval (first remaining) ctx)))))
+
+    (= mode :eval)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :string) (ast-node-to-ir node)
+        (= kind :char) (ast-node-to-ir node)
+        (= kind :int) (ast-node-to-ir node)
+        (= kind :bigint) (ast-node-to-ir node)
+        (= kind :ratio) (ast-node-to-ir node)
+        (= kind :float) (ast-node-to-ir node)
+        (= kind :keyword) (ast-node-to-ir node)
+        (= kind :quoted-symbol) (ast-node-to-ir node)
+
+        (= kind :symbol)
+        (let [name (:name node)]
+          (if (or (= name "true") (= name "false") (= name "nil"))
+            (ast-node-to-ir node)
+            (:ir (symbol-to-ir name name ctx))))
+
+        (= kind :quoted-list) (quoted-ast-to-ir node)
+
+        (= kind :vector)
+        (ctor-to-ir "NewArray" (eval-ast-to-ir-node :seq (:elements node) ctx))
+
+        (= kind :pipe-vector)
+        (ctor-to-ir "NewVector" (eval-ast-to-ir-node :seq (:elements node) ctx))
+
+        (= kind :set)
+        (ctor-to-ir "NewSet" (eval-ast-to-ir-node :seq (:elements node) ctx))
+
+        (= kind :map)
+        (let [entries (:entries node)
+              n (if (nil? entries) 0 (count entries))]
+          (if (not (= 0 (% n 2)))
+            (throw (ex-info "map literal expects key/value pairs" {:node node}))
+            (ctor-to-ir "NewMap" (eval-ast-to-ir-node :seq entries ctx))))
+
+        (= kind :list) (eval-ast-to-ir-node :call node ctx)
+
+        :else (throw (ex-info "unsupported AST node for eval lowering"
+                              {:node node}))))
+
+    (= mode :call)
+    (let [elements (:elements node)]
+      (if (or (nil? elements) (empty? elements))
+        (throw (ex-info "unsupported form" {:node node}))
+        (let [head (first elements)
+              args (rest elements)]
+          (if (= :symbol (:kind head))
+            (let [op (:name head)
+                  unary (get unary-runtime-ops op)
+                  fold (get fold-runtime-ops op)
+                  binary (get binary-runtime-ops op)
+                  variadic (get variadic-runtime-ops op)]
+              (cond
+                unary
+                (if (not (= 1 (count args)))
+                  (throw (ex-info (str op " expects exactly one argument") {:node node}))
+                  (runtime-call-to-ir unary (eval-ast-to-ir-node :seq args ctx)))
+
+                fold
+                (fold-call-to-ir fold (eval-ast-to-ir-node :seq args ctx))
+
+                binary
+                (if (not (= 2 (count args)))
+                  (throw (ex-info (str op " expects exactly two arguments") {:node node}))
+                  (runtime-call-to-ir binary (eval-ast-to-ir-node :seq args ctx)))
+
+                variadic
+                (runtime-call-to-ir variadic (eval-ast-to-ir-node :seq args ctx))
+
+                (contains? special-form-names op)
+                (throw (ex-info "special form not handled by eval lowering"
+                                {:node node}))
+
+                :else
+                (call-to-ir (eval-ast-to-ir-node :eval head ctx)
+                            (eval-ast-to-ir-node :seq args ctx))))
+            (call-to-ir (eval-ast-to-ir-node :eval head ctx)
+                        (eval-ast-to-ir-node :seq args ctx))))))
+
+    :else (throw (ex-info "unsupported eval lowering mode" {:mode mode}))))
+
+(defn eval-ast-to-ir [node ctx]
+  (eval-ast-to-ir-node :eval node ctx))
+
+(defn stmt-list [stmts]
+  (if (or (nil? stmts) (empty? stmts))
+    []
+    stmts))
+
+(defn append-stmt [stmts stmt]
+  (conj (stmt-list stmts) stmt))
+
+(defn if-to-ir [name type cond then-stmts then-expr else-stmts else-expr]
+  [{:kind :var :name name :type type :expr nil}
+   {:kind :if
+    :init ""
+    :cond cond
+    :then (append-stmt then-stmts {:kind :assign :name name :expr then-expr})
+    :else (append-stmt else-stmts {:kind :assign :name name :expr else-expr})}])
+
+(defn concat-stmts [left right]
+  (loop [out (stmt-list left) remaining (stmt-list right)]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (conj out (first remaining)) (rest remaining)))))
+
+(defn let-to-ir [name type binding-stmts body-stmts body-expr]
+  [{:kind :var :name name :type type :expr nil}
+   {:kind :block
+    :body (append-stmt (concat-stmts binding-stmts body-stmts)
+                       {:kind :assign :name name :expr body-expr})}])
+
+(defn last-item [xs]
+  (loop [remaining (stmt-list xs)]
+    (let [more (rest remaining)]
+      (if (or (nil? more) (empty? more))
+        (first remaining)
+        (recur more)))))
+
+(defn do-form-stmt [form]
+  (let [stmt (:stmt form)]
+    (if (nil? stmt)
+      {:kind :expr-stmt :expr (:expr form) :discard true}
+      stmt)))
+
+(defn do-prelude-stmts [forms]
+  (loop [remaining (stmt-list forms) out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [form (first remaining)
+            more (rest remaining)
+            with-stmts (concat-stmts out (:stmts form))]
+        (if (or (nil? more) (empty? more))
+          with-stmts
+          (recur more (append-stmt with-stmts (do-form-stmt form))))))))
+
+(defn do-iife-body [forms]
+  (let [last (last-item forms)
+        prelude (do-prelude-stmts forms)]
+    (if (:defer? last)
+      (append-stmt (append-stmt prelude (do-form-stmt last))
+                   {:kind :return :expr (literal-rt-call "NilValue" [])})
+      (append-stmt prelude {:kind :return :expr (:expr last)}))))
+
+(defn do-defer-to-ir [type forms]
+  {:kind :call
+   :fun {:kind :func-lit :params "" :result type :body (do-iife-body forms)}
+   :args []})
+
+(defn loop-binding-stmts [bindings]
+  (loop [remaining (stmt-list bindings) out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [b (first remaining)
+            with-var (append-stmt out {:kind :var :name (:name b) :type "" :expr (:init b)})
+            with-unused (if (:unused b)
+                          (append-stmt with-var {:kind :expr-stmt
+                                                 :expr {:kind :ident :name (:name b)}
+                                                 :discard true})
+                          with-var)]
+        (recur (rest remaining) with-unused)))))
+
+(defn loop-recur-then [names]
+  (let [n (count names)
+        arity-check {:kind :if
+                     :init ""
+                     :cond {:kind :binary
+                            :op "!="
+                            :left {:kind :call
+                                   :fun {:kind :ident :name "len"}
+                                   :args [{:kind :ident :name "__recurValues"}]}
+                            :right {:kind :int :value n}}
+                     :then [{:kind :expr-stmt
+                             :expr {:kind :call
+                                    :fun {:kind :ident :name "panic"}
+                                    :args [{:kind :string :value "internal error: recur arity mismatch"}]}
+                             :discard false}]
+                     :else []}]
+    (loop [remaining (stmt-list names) i 0 out [arity-check]]
+      (if (or (nil? remaining) (empty? remaining))
+        (append-stmt out {:kind :expr-stmt
+                          :expr {:kind :ident :name "continue"}
+                          :discard false})
+        (recur (rest remaining)
+               (inc i)
+               (conj out {:kind :assign
+                          :name (first remaining)
+                          :expr {:kind :index
+                                 :x {:kind :ident :name "__recurValues"}
+                                 :index {:kind :int :value i}}}))))))
+
+(defn loop-iter-body [binding-names body-stmts body-expr]
+  (concat-stmts
+    body-stmts
+    [{:kind :define :names ["__loopResult"] :expr body-expr}
+     {:kind :if
+      :init "__recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult)"
+      :cond {:kind :ident :name "__isRecur"}
+      :then (loop-recur-then binding-names)
+      :else []}
+     {:kind :return :expr {:kind :ident :name "__loopResult"}}]))
+
+(defn loop-to-ir [init-stmts bindings body-stmts body-expr]
+  (let [names (loop [remaining (stmt-list bindings) out []]
+                (if (or (nil? remaining) (empty? remaining))
+                  out
+                  (recur (rest remaining) (conj out (:name (first remaining))))))]
+    {:kind :call
+     :fun {:kind :func-lit
+           :params ""
+           :result "flagrt.Value"
+           :body (concat-stmts
+                   init-stmts
+                   (concat-stmts
+                     (loop-binding-stmts bindings)
+                     [{:kind :for :body (loop-iter-body names body-stmts body-expr)}]))}
+     :args []}))
+
+(defn recur-to-ir [values]
+  (literal-rt-call "NewRecur" (stmt-list values)))

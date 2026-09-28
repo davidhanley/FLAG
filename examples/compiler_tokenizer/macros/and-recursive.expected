@@ -1,0 +1,4 @@
+true
+a
+(let [and-tmp a] (if and-tmp [] and-tmp))
+(let [and-tmp a] (if and-tmp (let [and-tmp b] (if and-tmp c and-tmp)) and-tmp))

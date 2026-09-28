@@ -1,0 +1,14 @@
+(defmacro and [& exprs]
+  (macro-case (do exprs)
+    ([] true)
+    ([x] x)
+    ([x y]
+     (let [and-tmp x]
+       (if and-tmp y and-tmp)))
+    ([x y & rest]
+     (let [and-tmp x]
+       (if and-tmp (and y rest) and-tmp)))))
+(and)
+(and a)
+(and a [])
+(and a b c)

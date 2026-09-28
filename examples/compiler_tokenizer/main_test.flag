@@ -498,6 +498,36 @@
                                             (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)]))
                            "\t"))))
 
+(deftest lower-do-loop-to-ir
+  (is (= "\t_ = a\n"
+         (ir/render-ir-stmts (lower/do-prelude-stmts
+                               [{:stmts [] :expr (ir/ir-ident "a")}
+                                {:stmts [] :expr (ir/ir-ident "b")}])
+                             "\t")))
+  (is (= "flagrt.NewRecur(x, flagrt.NewLong(1))"
+         (ir/render-ir (lower/recur-to-ir [(ir/ir-ident "x")
+                                           (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (let [defer-src (ir/render-ir (lower/do-defer-to-ir "flagrt.Value"
+                               [{:stmts [] :expr (ir/ir-ident "a")}
+                                {:stmts []
+                                 :expr nil
+                                 :defer? true
+                                 :stmt (ir/ir-defer (ir/rt-call "Call" [(ir/ir-ident "f")]))}]))]
+    (is (not (nil? (str/index-of defer-src "func() flagrt.Value"))))
+    (is (not (nil? (str/index-of defer-src "_ = a"))))
+    (is (not (nil? (str/index-of defer-src "defer flagrt.Call(f)"))))
+    (is (not (nil? (str/index-of defer-src "return flagrt.NilValue()"))))
+  )
+  (let [loop-src (ir/render-ir (lower/loop-to-ir
+                                 []
+                                 [{:name "n" :init (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])}]
+                                 []
+                                 (ir/ir-ident "n")))]
+    (is (not (nil? (str/index-of loop-src "var n = flagrt.NewLong(1)"))))
+    (is (not (nil? (str/index-of loop-src "UnwrapRecur(__loopResult)"))))
+    (is (not (nil? (str/index-of loop-src "n = __recurValues[0]"))))
+    (is (not (nil? (str/index-of loop-src "continue"))))))
+
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")
         node (codegen/emit-ir-expr (nth-token exprs 0))]

@@ -2896,24 +2896,25 @@ func doExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (go
 		compiled = append(compiled, part)
 	}
 
-	hasDefer := false
-	for _, part := range compiled {
-		if part.kind == exprKindDefer {
-			hasDefer = true
-			break
-		}
-	}
-	if hasDefer {
+	if compiledHasDefer(compiled) {
 		resultKind := sequentialResultKind(compiled)
 		typeName, err := goTypeForExprKind(resultKind)
 		if err != nil {
 			return goExpr{}, err
 		}
-		return fromIR(iife(typeName, sequentialStmts(compiled)...), resultKind), nil
+		ir, err := flagDoDeferToIR(typeName, compiled)
+		if err != nil {
+			return goExpr{}, err
+		}
+		return fromIR(ir, resultKind), nil
 	}
 	last := compiled[len(compiled)-1]
 	result := last
-	result.stmts = sequentialPrelude(compiled)
+	prelude, err := flagDoPreludeStmts(compiled)
+	if err != nil {
+		return goExpr{}, err
+	}
+	result.stmts = prelude
 	return result, nil
 }
 
@@ -3602,8 +3603,8 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		localKinds[name] = kind
 	}
 
+	bindings := make([]loopBindingIR, 0, len(bindingsExpr.Elements)/2)
 	bindingNames := make([]string, 0, len(bindingsExpr.Elements)/2)
-	initialValues := make([]IRExpr, 0, len(bindingsExpr.Elements)/2)
 	var initStmts []IRStmt
 	declared := make(map[string]struct{}, len(bindingsExpr.Elements)/2)
 
@@ -3631,7 +3632,11 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		}
 
 		bindingNames = append(bindingNames, goName)
-		initialValues = append(initialValues, irFromGoExpr(valueExpr))
+		bindings = append(bindings, loopBindingIR{
+			Name:   goName,
+			Init:   irFromGoExpr(valueExpr),
+			Unused: isUnusedBindingName(bindingSymbol.Name) && goName != "_",
+		})
 		initStmts = append(initStmts, valueExpr.stmts...)
 	}
 
@@ -3647,44 +3652,11 @@ func loopExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (
 		return goExpr{}, err
 	}
 
-	body := make([]IRStmt, 0, len(initStmts)+len(bindingNames)*2+1)
-	body = append(body, initStmts...)
-	for i := range bindingNames {
-		body = append(body, IRVar{Name: bindingNames[i], Expr: initialValues[i]})
-		flagName := unwrapMetaExpr(bindingsExpr.Elements[i*2]).(SymbolExpr).Name
-		body = appendUnusedIR(body, flagName, bindingNames[i])
+	ir, err := flagLoopToIR(initStmts, bindings, bodyExpr.stmts, irFromGoExpr(bodyExpr))
+	if err != nil {
+		return goExpr{}, err
 	}
-
-	recurThen := []IRStmt{
-		IRIfStmt{
-			Cond: IRBinary{
-				Op:    "!=",
-				Left:  identCall("len", IRIdent{Name: "__recurValues"}),
-				Right: IRInt{Value: int64(len(bindingNames))},
-			},
-			Then: []IRStmt{IRExprStmt{Expr: identCall("panic", IRString{Value: "internal error: recur arity mismatch"})}},
-		},
-	}
-	for i, name := range bindingNames {
-		recurThen = append(recurThen, IRAssign{
-			Name: name,
-			Expr: IRIndex{X: IRIdent{Name: "__recurValues"}, Index: IRInt{Value: int64(i)}},
-		})
-	}
-	recurThen = append(recurThen, IRExprStmt{Expr: IRIdent{Name: "continue"}})
-
-	loopIter := cloneIRStmts(bodyExpr.stmts)
-	loopIter = append(loopIter, IRDefine{Names: []string{"__loopResult"}, Expr: irFromGoExpr(bodyExpr)})
-	loopIter = append(loopIter,
-		IRIfStmt{
-			Init: fmt.Sprintf("__recurValues, __isRecur := %s.UnwrapRecur(__loopResult)", runtimeAlias),
-			Cond: IRIdent{Name: "__isRecur"},
-			Then: recurThen,
-		},
-		IRReturn{Expr: IRIdent{Name: "__loopResult"}},
-	)
-	body = append(body, IRForStmt{Body: loopIter})
-	return fromIR(valueIIFE(body...), exprKindValue), nil
+	return fromIR(ir, exprKindValue), nil
 }
 
 func recurExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -3710,7 +3682,11 @@ func recurExprToGo(args []Expr, ctx compileContext, locals map[string]exprKind) 
 		values = append(values, irFromGoExpr(valueExpr))
 	}
 
-	return withStmts(fromIR(rtCall("NewRecur", values...), exprKindValue), stmts), nil
+	ir, err := flagRecurToIR(values)
+	if err != nil {
+		return goExpr{}, err
+	}
+	return withStmts(fromIR(ir, exprKindValue), stmts), nil
 }
 
 func unwrapMetaExpr(expr Expr) Expr {

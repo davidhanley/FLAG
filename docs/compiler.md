@@ -78,7 +78,8 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 
 `compiler/lower.lib` exports `ast-node-to-ir`, `quoted-ast-to-ir`,
 `call-to-ir`, `call-ast-to-ir`, `ctor-to-ir`, `runtime-call-to-ir`,
-`fold-call-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, and `let-to-ir`.
+`fold-call-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
+`do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, and `recur-to-ir`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -136,6 +137,19 @@ without renaming. `let` still wraps in an IIFE when the body contains
 inside the binding function, so a body like `(or cell "")` (a flattened
 `let`) cannot mention `cell` before it is bound.
 
+`do-prelude-stmts` turns compiled `do` forms into flatten prelude: earlier
+forms become discarded statements, the last form's statements stay with the
+result expression. Production `doExprToGo` uses this unless a form is
+`defer`. `do-defer-to-ir` wraps the same forms in an IIFE so Go `defer`
+runs when that thunk returns (`with-open`). Empty `(do)` is still
+`NilValue` in Go.
+
+`loop-to-ir` emits a value IIFE: init statements, `var` bindings, then
+`for { body; __loopResult := body-expr; if unwrap-recur { assign; continue }; return }`.
+Production `loopExprToGo` still compiles bindings (symbols only) and the
+body via `do`, then calls this. `recur-to-ir` is `flagrt.NewRecur(args...)`;
+Go still checks `recur` is inside `loop` and arity matches.
+
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
 clauses short-circuit: `(or a b)` becomes `(let [or-tmp a] (if or-tmp
@@ -165,8 +179,10 @@ func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
 `renderIRExpr` / `renderIRStmt` are the only Go-string printers.
 
 Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
-`loop`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
-IIFEs, destructure bindings, and `future`. Remaining string concat
+`loop`/`recur`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
+IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`
+assembly is FLAG (`if-to-ir`, `let-to-ir`, `do-prelude-stmts` /
+`do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`). Remaining string concat
 is the Go file printer (top-level `func`/`var` emission), not per-form
 lowering.
 
