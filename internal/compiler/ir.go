@@ -161,6 +161,16 @@ type IRBlock struct{ Body []IRStmt }
 
 func (IRBlock) irStmt() {}
 
+// IRFuncDecl is a named top-level function.
+type IRFuncDecl struct {
+	Name   string
+	Params string
+	Result string
+	Body   []IRStmt
+}
+
+func (IRFuncDecl) irStmt() {}
+
 // IRRawStmt is preformatted Go, including indent and trailing newline.
 type IRRawStmt struct{ Code string }
 
@@ -394,6 +404,17 @@ func renderIRStmt(stmt IRStmt, indent string) string {
 	case IRBlock:
 		var b strings.Builder
 		b.WriteString(indent + "{\n")
+		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(indent + "}\n")
+		return b.String()
+	case IRFuncDecl:
+		var b strings.Builder
+		b.WriteString(indent + "func " + s.Name + "(" + s.Params + ")")
+		if s.Result != "" {
+			b.WriteString(" ")
+			b.WriteString(s.Result)
+		}
+		b.WriteString(" {\n")
 		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()

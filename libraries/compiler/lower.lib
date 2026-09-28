@@ -5,7 +5,9 @@
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
              doto-to-ir update-bang-to-ir catch-handler-to-ir try-to-ir
-             doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir]}
+             doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir
+             fn-to-ir ns-to-ir def-to-ir defn-binding-to-ir
+             defn-to-ir defn-multi-to-ir]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -722,3 +724,156 @@
         :expr (literal-rt-call "MapCat"
                                [(literal-rt-call "NewFunction" [fn])
                                 coll])}])))
+
+(defn fn-arity-check [name n has-rest]
+  (let [op (if has-rest "<" "!=")
+        msg (if has-rest
+              (str name " expects at least " n " arguments")
+              (str name " expects exactly " n " arguments"))]
+    {:kind :if
+     :init ""
+     :cond {:kind :binary
+            :op op
+            :left (ident-call-ir "len" [{:kind :ident :name "args"}])
+            :right {:kind :int :value n}}
+     :then [{:kind :expr-stmt
+             :expr (ident-call-ir "panic" [{:kind :string :value msg}])
+             :discard false}]
+     :else []}))
+
+(defn fn-param-stmts [params]
+  (loop [remaining (stmt-list params) i 0 out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [p (first remaining)
+            arg {:kind :index :x {:kind :ident :name "args"} :index {:kind :int :value i}}
+            stmt (if (= p "_")
+                   {:kind :expr-stmt :expr arg :discard true}
+                   {:kind :define :names [p] :expr arg})]
+        (recur (rest remaining) (inc i) (conj out stmt))))))
+
+(defn fn-to-ir [name params has-rest init-stmts body-stmts body-expr]
+  (literal-rt-call
+    "NewFunction"
+    [{:kind :func-lit
+      :params "args ...flagrt.Value"
+      :result "flagrt.Value"
+      :body (append-stmt
+              (concat-stmts
+                (concat-stmts
+                  (concat-stmts [(fn-arity-check name (count (stmt-list params)) has-rest)]
+                                (fn-param-stmts params))
+                  init-stmts)
+                body-stmts)
+              {:kind :return :expr body-expr})}]))
+
+(defn ns-to-ir [namespace]
+  {:kind :raw-stmt :code (str "// Source namespace: " namespace "\n")})
+
+(defn def-to-ir [name expr]
+  {:kind :var :name name :type "" :expr expr})
+
+(defn defn-binding-to-ir [name variadic-name]
+  (def-to-ir name (literal-rt-call "NewFunction" [{:kind :ident :name variadic-name}])))
+
+(defn defn-param-list [params]
+  (loop [remaining (stmt-list params) out "" first? true]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [p (first remaining)
+            piece (str p " flagrt.Value")]
+        (if first?
+          (recur (rest remaining) piece false)
+          (recur (rest remaining) (str out ", " piece) false))))))
+
+(defn defn-body [init-stmts body-stmts body-expr]
+  (append-stmt (concat-stmts init-stmts body-stmts)
+               {:kind :return :expr body-expr}))
+
+(defn defn-func-decl [name params result body]
+  {:kind :func-decl :name name :params params :result result :body body})
+
+(defn defn-arity-to-ir [name params init-stmts body-stmts body-expr]
+  (defn-func-decl name
+                  (defn-param-list params)
+                  "flagrt.Value"
+                  (defn-body init-stmts body-stmts body-expr)))
+
+(defn defn-call-args [n]
+  (loop [i 0 out []]
+    (if (= i n)
+      out
+      (recur (inc i)
+             (conj out {:kind :index
+                        :x {:kind :ident :name "args"}
+                        :index {:kind :int :value i}})))))
+
+(defn defn-variadic-to-ir [name arity-name panic-name n]
+  (defn-func-decl name
+                  "args ...flagrt.Value"
+                  "flagrt.Value"
+                  [(fn-arity-check panic-name n false)
+                   {:kind :return
+                    :expr {:kind :call
+                           :fun {:kind :ident :name arity-name}
+                           :args (defn-call-args n)}}]))
+
+(defn defn-rest-to-ir [name panic-name params init-stmts body-stmts body-expr]
+  (defn-func-decl name
+                  "args ...flagrt.Value"
+                  "flagrt.Value"
+                  (append-stmt
+                    (concat-stmts
+                      (concat-stmts
+                        (concat-stmts [(fn-arity-check panic-name (count (stmt-list params)) true)]
+                                      (fn-param-stmts params))
+                        init-stmts)
+                      body-stmts)
+                    {:kind :return :expr body-expr})))
+
+(defn defn-to-ir [arity-name variadic-name panic-name params has-rest init-stmts body-stmts body-expr]
+  (if has-rest
+    [(defn-rest-to-ir variadic-name panic-name params init-stmts body-stmts body-expr)]
+    [(defn-arity-to-ir arity-name params init-stmts body-stmts body-expr)
+     (defn-variadic-to-ir variadic-name arity-name panic-name (count (stmt-list params)))]))
+
+(defn defn-multi-dispatch-to-ir [name panic-msg arities]
+  (defn-func-decl name
+                  "args ...flagrt.Value"
+                  "flagrt.Value"
+                  (append-stmt
+                    (loop [remaining (stmt-list arities) out []]
+                      (if (or (nil? remaining) (empty? remaining))
+                        out
+                        (let [a (first remaining)
+                              n (:n a)
+                              aname (:name a)]
+                          (recur (rest remaining)
+                                 (conj out {:kind :if
+                                            :init ""
+                                            :cond {:kind :binary
+                                                   :op "=="
+                                                   :left (ident-call-ir "len" [{:kind :ident :name "args"}])
+                                                   :right {:kind :int :value n}}
+                                            :then [{:kind :return
+                                                    :expr {:kind :call
+                                                           :fun {:kind :ident :name aname}
+                                                           :args (defn-call-args n)}}]
+                                            :else []})))))
+                    {:kind :expr-stmt
+                     :expr (ident-call-ir "panic" [{:kind :string :value panic-msg}])
+                     :discard false})))
+
+(defn defn-multi-to-ir [variadic-name panic-msg arities]
+  (concat-stmts
+    (loop [remaining (stmt-list arities) out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (let [a (first remaining)]
+          (recur (rest remaining)
+                 (conj out (defn-arity-to-ir (:name a)
+                                             (:params a)
+                                             (:init-stmts a)
+                                             (:body-stmts a)
+                                             (:body-expr a)))))))
+    [(defn-multi-dispatch-to-ir variadic-name panic-msg arities)]))

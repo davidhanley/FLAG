@@ -336,7 +336,10 @@
   (is (= "\tfor {\n\t\tbreak\n\t}\n"
          (ir/render-ir-stmt (ir/ir-for [(ir/ir-raw-stmt "\t\tbreak\n")]) "\t")))
   (is (= "\t{\n\t\tvar x = y\n\t}\n"
-         (ir/render-ir-stmt (ir/ir-block [(ir/ir-var "x" "" (ir/ir-ident "y"))]) "\t"))))
+         (ir/render-ir-stmt (ir/ir-block [(ir/ir-var "x" "" (ir/ir-ident "y"))]) "\t")))
+  (is (= "func foo_arity_1(x flagrt.Value) flagrt.Value {\n\treturn x\n}\n"
+         (ir/render-ir-stmt (ir/ir-func-decl "foo_arity_1" "x flagrt.Value" "flagrt.Value"
+                                            [(ir/ir-return (ir/ir-ident "x"))]) ""))))
 
 (deftest ir-parse-go-fun
   (let [sel (ir/parse-go-fun "flagrt.Add")
@@ -560,7 +563,31 @@
                                                             (ir/ir-ident "xs")))]
     (is (not (nil? (str/index-of mapcat-src "flagrt.MapCat"))))
     (is (not (nil? (str/index-of mapcat-src "x := args[0]"))))
-    (is (not (nil? (str/index-of mapcat-src "return rest"))))))
+    (is (not (nil? (str/index-of mapcat-src "return rest")))))
+  (let [fn-src (ir/render-ir (lower/fn-to-ir "fn" ["x"] false [] [] (ir/ir-ident "x")))]
+    (is (not (nil? (str/index-of fn-src "flagrt.NewFunction"))))
+    (is (not (nil? (str/index-of fn-src "x := args[0]"))))
+    (is (not (nil? (str/index-of fn-src "fn expects exactly 1 arguments"))))
+    (is (not (nil? (str/index-of fn-src "return x")))))
+  (let [rest-src (ir/render-ir (lower/fn-to-ir "fn" ["_"] true [] [] (ir/ir-ident "xs")))]
+    (is (not (nil? (str/index-of rest-src "fn expects at least 1 arguments"))))
+    (is (not (nil? (str/index-of rest-src "_ = args[0]"))))
+    (is (not (nil? (str/index-of rest-src "return xs")))))
+  (is (= "// Source namespace: hello.core\n"
+         (ir/render-ir-stmt (lower/ns-to-ir "hello.core") "")))
+  (is (= "var x = flagrt.NewLong(1)\n"
+         (ir/render-ir-stmt (lower/def-to-ir "x" (ir/rt-call "NewLong" [(ir/ir-int 1)])) "")))
+  (let [defn-src (ir/render-ir-stmts (lower/defn-to-ir "foo_arity_1" "foo_variadic" "foo"
+                                                      ["x"] false [] [] (ir/ir-ident "x"))
+                                    "")]
+    (is (not (nil? (str/index-of defn-src "func foo_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of defn-src "func foo_variadic(args ...flagrt.Value)"))))
+    (is (not (nil? (str/index-of defn-src "return foo_arity_1(args[0])")))))
+  (let [rest-defn (ir/render-ir-stmts (lower/defn-to-ir "ignored" "foo_variadic" "foo"
+                                                       ["x"] true [] [] (ir/ir-ident "x"))
+                                     "")]
+    (is (not (nil? (str/index-of rest-defn "foo expects at least 1 arguments"))))
+    (is (not (nil? (str/index-of rest-defn "x := args[0]"))))))
 
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")

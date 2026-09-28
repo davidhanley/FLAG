@@ -85,6 +85,24 @@ func flagIRCall(fn flagrt.Value, args ...flagrt.Value) (ir IRExpr, err error) {
 	return flagValueToIRExpr(flagrt.Call(fn, args...))
 }
 
+func flagIRStmtCall(fn flagrt.Value, args ...flagrt.Value) (stmt IRStmt, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	return flagValueToIRStmt(flagrt.Call(fn, args...))
+}
+
+func flagIRStmtsCall(fn flagrt.Value, args ...flagrt.Value) (stmts []IRStmt, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	return flagIRStmtSeq(flagrt.Call(fn, args...))
+}
+
 func flagCtorToIR(ctor string, args []IRExpr) (IRExpr, error) {
 	return flagIRCall(compiler__ctor_to_ir, flagrt.NewString(ctor), irExprsToFlagVector(args))
 }
@@ -279,6 +297,71 @@ func flagMapCatBindingToIR(ident string, unused bool, panicMsg string, rest IREx
 		irExprToFlagValue(rest),
 		irStmtsToFlagVector(restStmts),
 		irExprToFlagValue(coll),
+	)
+}
+
+func flagNsToIR(namespace string) (IRStmt, error) {
+	return flagIRStmtCall(compiler__ns_to_ir, flagrt.NewString(namespace))
+}
+
+func flagDefToIR(name string, expr IRExpr) (IRStmt, error) {
+	return flagIRStmtCall(compiler__def_to_ir, flagrt.NewString(name), irExprToFlagValue(expr))
+}
+
+func flagDefnBindingToIR(name, variadicName string) (IRStmt, error) {
+	return flagIRStmtCall(compiler__defn_binding_to_ir, flagrt.NewString(name), flagrt.NewString(variadicName))
+}
+
+func flagDefnToIR(arityName, variadicName, panicName string, params []string, hasRest bool, initStmts, bodyStmts []IRStmt, bodyExpr IRExpr) ([]IRStmt, error) {
+	return flagIRStmtsCall(
+		compiler__defn_to_ir,
+		flagrt.NewString(arityName),
+		flagrt.NewString(variadicName),
+		flagrt.NewString(panicName),
+		stringsToFlagVector(params),
+		flagrt.NewBool(hasRest),
+		irStmtsToFlagVector(initStmts),
+		irStmtsToFlagVector(bodyStmts),
+		irExprToFlagValue(bodyExpr),
+	)
+}
+
+type defnArityIR struct {
+	Name      string
+	Params    []string
+	InitStmts []IRStmt
+	BodyStmts []IRStmt
+	BodyExpr  IRExpr
+}
+
+func flagDefnMultiToIR(variadicName, panicMsg string, arities []defnArityIR) ([]IRStmt, error) {
+	vals := make([]flagrt.Value, 0, len(arities))
+	for _, a := range arities {
+		vals = append(vals, flagrt.NewMap(
+			flagrt.NewKeyword("name"), flagrt.NewString(a.Name),
+			flagrt.NewKeyword("params"), stringsToFlagVector(a.Params),
+			flagrt.NewKeyword("init-stmts"), irStmtsToFlagVector(a.InitStmts),
+			flagrt.NewKeyword("body-stmts"), irStmtsToFlagVector(a.BodyStmts),
+			flagrt.NewKeyword("body-expr"), irExprToFlagValue(a.BodyExpr),
+			flagrt.NewKeyword("n"), flagrt.NewLong(int64(len(a.Params))),
+		))
+	}
+	return flagIRStmtsCall(compiler__defn_multi_to_ir, flagrt.NewString(variadicName), flagrt.NewString(panicMsg), flagrt.NewArray(vals...))
+}
+
+func flagFnToIR(name string, params []string, hasRest bool, initStmts, bodyStmts []IRStmt, bodyExpr IRExpr) (IRExpr, error) {
+	vals := make([]flagrt.Value, 0, len(params))
+	for _, p := range params {
+		vals = append(vals, flagrt.NewString(p))
+	}
+	return flagIRCall(
+		compiler__fn_to_ir,
+		flagrt.NewString(name),
+		flagrt.NewArray(vals...),
+		flagrt.NewBool(hasRest),
+		irStmtsToFlagVector(initStmts),
+		irStmtsToFlagVector(bodyStmts),
+		irExprToFlagValue(bodyExpr),
 	)
 }
 

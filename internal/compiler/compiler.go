@@ -201,6 +201,7 @@ type functionDef struct {
 	bodyPrelude  string
 	goSignature  string // custom Go signature for interop wrappers (empty = use standard)
 	arities      []arityDef
+	irDecls      []IRStmt // FLAG-assembled top-level func decls; when set, renderFunctionDef uses these
 }
 
 type varDef struct {
@@ -569,10 +570,14 @@ func loadStandardPrologue(ctx *compileContext) error {
 				}
 			}
 			ctx.prologueFns = append(ctx.prologueFns, def)
+			bindExpr, err := defnBindingExpr(def.goName, def.variadicName)
+			if err != nil {
+				return fmt.Errorf("compile compiler prologue: %w", err)
+			}
 			ctx.prologueVars = append(ctx.prologueVars, varDef{
 				flagName: def.flagName,
 				goName:   def.goName,
-				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+				expr:     bindExpr,
 			})
 		case "def":
 			binding, kind, err := compileDef(list, *ctx)
@@ -736,7 +741,11 @@ func emitGoFile(pkgName string, result compileResult, includeMain bool) ([]byte,
 	out.WriteString(")\n\n")
 
 	if namespace != "" {
-		fmt.Fprintf(&out, "// Source namespace: %s\n", namespace)
+		nsStmt, err := flagNsToIR(namespace)
+		if err != nil {
+			return nil, err
+		}
+		out.WriteString(renderIRStmt(nsStmt, ""))
 	}
 
 	for _, decl := range result.typeDecls {
@@ -920,10 +929,14 @@ func (r *ReplCompiler) PrologueSetup() ReplCompiled {
 	for _, def := range r.ctx.prologueFns {
 		// Emit full function declarations (arity + variadic wrappers) so
 		// self-recursive prologue fns can resolve their direct arity symbol.
+		bindExpr, bindErr := defnBindingExpr(def.goName, def.variadicName)
+		if bindErr != nil {
+			bindExpr = fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName)
+		}
 		parts = append(parts,
 			strings.TrimSpace(renderFunctionDef(def)),
 			fmt.Sprintf("var %s flagrt.Value", def.goName),
-			fmt.Sprintf("%s = flagrt.NewFunction(%s)", def.goName, def.variadicName),
+			fmt.Sprintf("%s = %s", def.goName, bindExpr),
 		)
 		emitted[def.goName] = true
 	}
@@ -1608,10 +1621,14 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			ctx.globals[def.goName] = exprKindValue
 			defined[def.flagName] = def.goName
 			functions = append(functions, def)
+			bindExpr, err := defnBindingExpr(def.goName, def.variadicName)
+			if err != nil {
+				return compileResult{}, nil, nil, err
+			}
 			vars = append(vars, varDef{
 				flagName: def.flagName,
 				goName:   def.goName,
-				expr:     fmt.Sprintf("%s.NewFunction(%s)", runtimeAlias, def.variadicName),
+				expr:     bindExpr,
 			})
 		case "deftest":
 			def, err := compileDeftest(list, *ctx)
@@ -1782,7 +1799,7 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	if !ok {
 		return functionDef{}, exprError(form.Elements[paramsIndex], "defn expects a parameter vector")
 	}
-	params, localSymbols, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, nil, "defn")
+	params, localSymbols, initStmts, hasRest, err := bindLambdaParamStmts(paramsExpr, ctx, nil, "defn")
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -1823,6 +1840,10 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		return functionDef{}, err
 	}
 
+	decls, err := flagDefnToIR(fnCtx.selfArityName, fnCtx.selfVariadicName, goName, params, hasRest, initStmts, body.stmts, irFromGoExpr(body))
+	if err != nil {
+		return functionDef{}, err
+	}
 	return functionDef{
 		flagName:     nameExpr.Name,
 		goName:       goName,
@@ -1831,9 +1852,10 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 		hasRest:      hasRest,
 		doc:          doc,
 		params:       params,
-		localInits:   localInits,
+		localInits:   irStmtsToLines(initStmts),
 		body:         body.code,
 		bodyPrelude:  goExprPrelude(body),
+		irDecls:      decls,
 	}, nil
 }
 
@@ -1846,7 +1868,7 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 	type pendingArity struct {
 		form       ListExpr
 		params     []string
-		localInits []string
+		initStmts  []IRStmt
 		localKinds map[string]exprKind
 		arityName  string
 	}
@@ -1863,7 +1885,7 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 		if !ok {
 			return functionDef{}, exprError(list.Elements[0], "defn arity expects a parameter vector")
 		}
-		params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, ctx, nil, "defn")
+		params, localKinds, initStmts, hasRest, err := bindLambdaParamStmts(paramsExpr, ctx, nil, "defn")
 		if err != nil {
 			return functionDef{}, err
 		}
@@ -1880,7 +1902,7 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 		pending = append(pending, pendingArity{
 			form:       list,
 			params:     params,
-			localInits: localInits,
+			initStmts:  initStmts,
 			localKinds: localKinds,
 			arityName:  arityName,
 		})
@@ -1901,7 +1923,9 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 	}
 	_ = fnBase.bindModuleName(nameExpr.Name, goName)
 
+	flagArities := make([]defnArityIR, 0, len(pending))
 	arities := make([]arityDef, 0, len(pending))
+	counts := make([]int, 0, len(pending))
 	for _, item := range pending {
 		fnCtx := copyCompileContext(fnBase)
 		fnCtx.selfFunctionArity = len(item.params)
@@ -1916,21 +1940,34 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 		if err != nil {
 			return functionDef{}, err
 		}
+		flagArities = append(flagArities, defnArityIR{
+			Name:      item.arityName,
+			Params:    item.params,
+			InitStmts: item.initStmts,
+			BodyStmts: body.stmts,
+			BodyExpr:  irFromGoExpr(body),
+		})
 		arities = append(arities, arityDef{
 			params:      item.params,
-			localInits:  item.localInits,
+			localInits:  irStmtsToLines(item.initStmts),
 			body:        body.code,
 			bodyPrelude: goExprPrelude(body),
 			arityName:   item.arityName,
 		})
+		counts = append(counts, len(item.params))
 	}
 
+	decls, err := flagDefnMultiToIR(variadicName, multiArityExpectsMessage(nameExpr.Name, counts), flagArities)
+	if err != nil {
+		return functionDef{}, err
+	}
 	return functionDef{
 		flagName:     nameExpr.Name,
 		goName:       goName,
 		variadicName: variadicName,
 		doc:          doc,
 		arities:      arities,
+		irDecls:      decls,
 	}, nil
 }
 
@@ -1979,8 +2016,33 @@ func compileDefForRepl(form ListExpr, ctx compileContext) (varDef, exprKind, boo
 	}
 	valueExpr = flattenToExpr(valueExpr)
 
+	defIR, err := flagDefToIR(goName, irFromGoExpr(valueExpr))
+	if err != nil {
+		return varDef{}, 0, false, err
+	}
+	exprCode, err := irVarRHS(defIR)
+	if err != nil {
+		return varDef{}, 0, false, err
+	}
+
 	_, exists := ctx.globals[goName]
-	return varDef{flagName: nameExpr.Name, goName: goName, doc: doc, expr: valueExpr.code}, valueExpr.kind, !exists, nil
+	return varDef{flagName: nameExpr.Name, goName: goName, doc: doc, expr: exprCode}, valueExpr.kind, !exists, nil
+}
+
+func irVarRHS(stmt IRStmt) (string, error) {
+	v, ok := stmt.(IRVar)
+	if !ok || v.Expr == nil {
+		return "", fmt.Errorf("expected IR var declaration")
+	}
+	return renderIRExpr(v.Expr), nil
+}
+
+func defnBindingExpr(goName, variadicName string) (string, error) {
+	stmt, err := flagDefnBindingToIR(goName, variadicName)
+	if err != nil {
+		return "", err
+	}
+	return irVarRHS(stmt)
 }
 
 func compileDeftest(form ListExpr, ctx compileContext) (functionDef, error) {
@@ -4787,7 +4849,7 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 	lambdaCtx := copyCompileContext(ctx)
 	lambdaCtx.loopBindingNames = nil
 
-	params, localKinds, localInits, hasRest, err := bindLambdaParams(paramsExpr, lambdaCtx, locals, label)
+	params, localKinds, initStmts, hasRest, err := bindLambdaParamStmts(paramsExpr, lambdaCtx, locals, label)
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -4804,19 +4866,11 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 		return goExpr{}, err
 	}
 
-	def := functionDef{
-		goName:      label,
-		params:      params,
-		localInits:  localInits,
-		body:        body.code,
-		bodyPrelude: goExprPrelude(body),
+	ir, err := flagFnToIR(label, params, hasRest, initStmts, body.stmts, irFromGoExpr(body))
+	if err != nil {
+		return goExpr{}, err
 	}
-	if hasRest {
-		def.arityName = label
-		def.variadicName = label
-		def.hasRest = true
-	}
-	return fromIR(rtCall("NewFunction", IRRaw{Code: renderFunctionLiteral(def)}), exprKindValue), nil
+	return fromIR(ir, exprKindValue), nil
 }
 
 func coerceExprToValue(expr goExpr, source Expr, label string, ctx compileContext) (goExpr, error) {
@@ -4843,6 +4897,19 @@ func bindLambdaParams(
 	locals map[string]exprKind,
 	label string,
 ) ([]string, map[string]exprKind, []string, bool, error) {
+	params, kinds, stmts, hasRest, err := bindLambdaParamStmts(paramsExpr, ctx, locals, label)
+	if err != nil {
+		return nil, nil, nil, false, err
+	}
+	return params, kinds, irStmtsToLines(stmts), hasRest, nil
+}
+
+func bindLambdaParamStmts(
+	paramsExpr VectorExpr,
+	ctx compileContext,
+	locals map[string]exprKind,
+	label string,
+) ([]string, map[string]exprKind, []IRStmt, bool, error) {
 	params := make([]string, 0, len(paramsExpr.Elements))
 	localKinds := make(map[string]exprKind, len(locals)+len(paramsExpr.Elements))
 	for name, kind := range locals {
@@ -4906,7 +4973,7 @@ func bindLambdaParams(
 		}
 	}
 
-	return params, localKinds, irStmtsToLines(localInitStmts), hasRest, nil
+	return params, localKinds, localInitStmts, hasRest, nil
 }
 
 func collectionCtorExprToGo(ctor, hint, errLabel string, elements []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
@@ -5283,6 +5350,9 @@ func renderFunctionDef(fn functionDef) string {
 	// Handle go-interface wrappers with custom Go signatures
 	if fn.goSignature != "" {
 		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
+	}
+	if len(fn.irDecls) > 0 {
+		return renderIRStmts(fn.irDecls, "")
 	}
 	if len(fn.arities) > 0 {
 		var out strings.Builder

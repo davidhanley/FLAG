@@ -73,7 +73,7 @@ Go can ingest them with `flagValueToIRExpr` / `flagValueToIRStmt`.
 Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `:slice`, `:spread`, `:unary`, `:binary`, `:func-lit`, `:raw`. Statement kinds:
 `:expr-stmt`, `:return`, `:defer`, `:go`, `:var`, `:assign`, `:define`, `:if`,
-`:for`, `:block`, `:raw-stmt`. An IIFE is a `:call` of a `:func-lit` with no args.
+`:for`, `:block`, `:func-decl`, `:raw-stmt`. An IIFE is a `:call` of a `:func-lit` with no args.
 `:binary` does not add parentheses (same as Go).
 
 `compiler/lower.lib` exports `ast-node-to-ir`, `quoted-ast-to-ir`,
@@ -82,7 +82,8 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
-`doseq-body-to-ir`, and `mapcat-binding-to-ir`.
+`doseq-body-to-ir`, `mapcat-binding-to-ir`, `fn-to-ir`, `ns-to-ir`,
+`def-to-ir`, `defn-binding-to-ir`, `defn-to-ir`, and `defn-multi-to-ir`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -162,8 +163,22 @@ expression. `future-to-ir` is `flagrt.NewFuture(func() flagrt.Value { body })`.
 assigns then returns the mutable binding. `try-to-ir` / `catch-handler-to-ir`
 emit the recover/`CatchMatches` IIFE; Go still parses `catch` types and
 compiles bodies. `doseq-to-ir` wraps `DoAll`; `mapcat-binding-to-ir` is the
-`for`/`doseq` MapCat callback. Go still compiles subforms (`exprToGo`); FLAG
-assembles the trees.
+`for`/`doseq` MapCat callback. `fn-to-ir` wraps `NewFunction` around a
+variadic `func(args ...flagrt.Value)`: arity panic (`exactly` vs rest
+`at least`), `p := args[i]` or `_ = args[i]`, init/body statements, then
+`return`. Production `compileLambda` still binds parameters (including `&`
+and destructure) and compiles the body; `#()` still rewrites placeholders
+in Go, then calls `compileLambda`.
+
+`ns-to-ir` is the `// Source namespace:` comment. `def-to-ir` is a
+top-level `var name = expr`. `defn-to-ir` emits named `:func-decl`s: the
+typed `goName_arity_N` function plus a variadic wrapper, or one rest
+variadic. `defn-multi-to-ir` emits each arity function and a `len(args)`
+dispatch. `defn-binding-to-ir` is `var name = NewFunction(variadic)`.
+Production still parses names, docs, `&`/destructure, and compiles bodies;
+FLAG assembles the declarations. `deftest` and `go-interface` still use
+the Go printer. Go still compiles subforms (`exprToGo`); FLAG assembles
+the trees.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later

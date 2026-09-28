@@ -3,7 +3,7 @@
              ir-ident ir-string ir-int ir-selector ir-call ir-raw
              ir-index ir-slice ir-spread ir-unary ir-binary ir-func-lit
              ir-expr-stmt ir-return ir-defer ir-go ir-var ir-assign ir-define
-             ir-if ir-if-init ir-for ir-block ir-raw-stmt
+             ir-if ir-if-init ir-for ir-block ir-func-decl ir-raw-stmt
              rt-call ident-call selector-call parse-go-fun iife value-iife]}
 
 (def runtime-alias "flagrt")
@@ -76,6 +76,9 @@
 
 (defn ir-block [body]
   {:kind :block :body body})
+
+(defn ir-func-decl [name params result body]
+  {:kind :func-decl :name name :params params :result result :body body})
 
 (defn ir-raw-stmt [code]
   {:kind :raw-stmt :code code})
@@ -223,6 +226,14 @@
         (str indent "{\n"
              (render-ir-node :stmts (:body node) (str indent "\t"))
              indent "}\n")
+        (= kind :func-decl)
+        (let [result (:result node)
+              head (if (blank? result)
+                     (str indent "func " (:name node) "(" (:params node) ")")
+                     (str indent "func " (:name node) "(" (:params node) ") " result))]
+          (str head " {\n"
+               (render-ir-node :stmts (:body node) (str indent "\t"))
+               indent "}\n"))
         :else (throw (ex-info "unsupported IR statement" {:node node}))))
 
     :else (throw (ex-info "unsupported IR render mode" {:mode mode}))))

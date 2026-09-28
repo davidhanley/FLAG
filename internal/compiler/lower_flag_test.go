@@ -747,6 +747,194 @@ func TestFLAGMapCatBindingToIR(t *testing.T) {
 	}
 }
 
+func TestFLAGFnToIR(t *testing.T) {
+	ir, err := flagFnToIR("fn", []string{"x"}, false, nil, nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"flagrt.NewFunction",
+		"func(args ...flagrt.Value) flagrt.Value",
+		"if len(args) != 1",
+		`panic("fn expects exactly 1 arguments")`,
+		"x := args[0]",
+		"return x",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFLAGFnToIRRestAndDiscard(t *testing.T) {
+	ir, err := flagFnToIR("fn", []string{"_"}, true, []IRStmt{
+		IRVar{Name: "__rest0", Expr: rtCall("NewArray", IRSpread{Expr: IRSlice{X: IRIdent{Name: "args"}, Low: IRInt{Value: 1}}})},
+		IRExprStmt{Expr: IRIdent{Name: "__rest0"}, Discard: true},
+	}, nil, IRIdent{Name: "__rest0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"if len(args) < 1",
+		`panic("fn expects at least 1 arguments")`,
+		"_ = args[0]",
+		"var __rest0 = flagrt.NewArray(args[1:]...)",
+		"_ = __rest0",
+		"return __rest0",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFLAGFnToIRZeroArityWithBodyStmts(t *testing.T) {
+	ir, err := flagFnToIR("#()", nil, false, nil, []IRStmt{
+		IRVar{Name: "let_result_1", Type: "flagrt.Value"},
+		IRAssign{Name: "let_result_1", Expr: IRIdent{Name: "flagrt.NewLong(1)"}},
+	}, IRIdent{Name: "let_result_1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	for _, want := range []string{
+		"if len(args) != 0",
+		`panic("#() expects exactly 0 arguments")`,
+		"var let_result_1 flagrt.Value",
+		"return let_result_1",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFnExprToGoUsesFLAGNewFunction(t *testing.T) {
+	got, err := exprToGo(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "fn"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}}},
+		SymbolExpr{Name: "x"},
+	}}, compileContext{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"flagrt.NewFunction",
+		"x := args[0]",
+		`panic("fn expects exactly 1 arguments")`,
+		"return x",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in:\n%s", want, src)
+		}
+	}
+}
+
+func TestFLAGNsDefDefnToIR(t *testing.T) {
+	ns, err := flagNsToIR("hello.core")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := renderIRStmt(ns, ""); got != "// Source namespace: hello.core\n" {
+		t.Fatalf("ns %q", got)
+	}
+
+	defStmt, err := flagDefToIR("x", rtCall("NewLong", IRInt{Value: 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := renderIRStmt(defStmt, ""); got != "var x = flagrt.NewLong(1)\n" {
+		t.Fatalf("def %q", got)
+	}
+
+	bind, err := flagDefnBindingToIR("foo", "foo_variadic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := renderIRStmt(bind, ""); got != "var foo = flagrt.NewFunction(foo_variadic)\n" {
+		t.Fatalf("binding %q", got)
+	}
+
+	decls, err := flagDefnToIR("foo_arity_1", "foo_variadic", "foo", []string{"x"}, false, nil, nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRStmts(decls, "")
+	for _, want := range []string{
+		"func foo_arity_1(x flagrt.Value) flagrt.Value",
+		"return x",
+		"func foo_variadic(args ...flagrt.Value) flagrt.Value",
+		`panic("foo expects exactly 1 arguments")`,
+		"return foo_arity_1(args[0])",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+
+	rest, err := flagDefnToIR("ignored", "foo_variadic", "foo", []string{"x"}, true, nil, nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restSrc := renderIRStmts(rest, "")
+	for _, want := range []string{
+		"func foo_variadic(args ...flagrt.Value) flagrt.Value",
+		`panic("foo expects at least 1 arguments")`,
+		"x := args[0]",
+		"return x",
+	} {
+		if !strings.Contains(restSrc, want) {
+			t.Fatalf("missing %q in rest:\n%s", want, restSrc)
+		}
+	}
+	if strings.Contains(restSrc, "foo_arity_1") {
+		t.Fatalf("rest defn should not emit arity func:\n%s", restSrc)
+	}
+
+	multi, err := flagDefnMultiToIR("add_variadic", "add expects 1 or 2 arguments", []defnArityIR{
+		{Name: "add_arity_1", Params: []string{"x"}, BodyExpr: IRIdent{Name: "x"}},
+		{Name: "add_arity_2", Params: []string{"x", "y"}, BodyExpr: IRIdent{Name: "x"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	multiSrc := renderIRStmts(multi, "")
+	for _, want := range []string{
+		"func add_arity_1(x flagrt.Value) flagrt.Value",
+		"func add_arity_2(x flagrt.Value, y flagrt.Value) flagrt.Value",
+		"len(args) == 1",
+		"return add_arity_1(args[0])",
+		"len(args) == 2",
+		"return add_arity_2(args[0], args[1])",
+		`panic("add expects 1 or 2 arguments")`,
+	} {
+		if !strings.Contains(multiSrc, want) {
+			t.Fatalf("missing %q in multi:\n%s", want, multiSrc)
+		}
+	}
+}
+
+func TestHashFnExprToGoUsesFLAGNewFunction(t *testing.T) {
+	got, err := exprToGo(HashFnExpr{Body: SymbolExpr{Name: "%"}}, compileContext{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"flagrt.NewFunction",
+		"__p1 := args[0]",
+		`panic("#() expects exactly 1 arguments")`,
+		"return __p1",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in:\n%s", want, src)
+		}
+	}
+}
+
 func TestLetExprToGoUsesResultVar(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n}

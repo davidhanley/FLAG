@@ -145,9 +145,8 @@ func TestCompileMultiArityDefn(t *testing.T) {
 		"func add_m_arity_1(",
 		"func add_m_arity_2(",
 		"func add_m_variadic(args ...flagrt.Value)",
-		"switch len(args)",
-		"case 1:",
-		"case 2:",
+		"len(args) == 1",
+		"len(args) == 2",
 		"add-m expects 1 or 2 arguments",
 	} {
 		if !strings.Contains(got, want) {
