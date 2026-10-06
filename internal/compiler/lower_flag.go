@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	flagrt "flag-lang/runtime"
@@ -120,6 +121,104 @@ func flagEvalAstToIR(expr Expr, ctx flagrt.Value) (IRExpr, error) {
 		ctx = flagrt.NewMap()
 	}
 	return flagIRCall(compiler__eval_ast_to_ir, exprToFlagValue(expr), ctx)
+}
+
+func flagUnhandled(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "not handled by FLAG") ||
+		strings.Contains(msg, "unsupported symbol")
+}
+
+func flagGoIdent(name string) (ident string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	return flagString(flagrt.Call(compiler__go_ident, flagrt.NewString(name))), nil
+}
+
+func flagBindParams(paramsExpr VectorExpr, label string, locals map[string]exprKind) (params []string, kinds map[string]exprKind, initStmts []IRStmt, hasRest bool, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	node := flagrt.Call(compiler__bind_params_to_ir, exprToFlagValue(paramsExpr), flagrt.NewString(label), kindMapToFLAG(locals))
+	params, err = flagIRStringSeq(flagMapGet(node, "params"))
+	if err != nil {
+		return nil, nil, nil, false, err
+	}
+	initStmts, err = flagIRStmtSeq(flagMapGet(node, "init-stmts"))
+	if err != nil {
+		return nil, nil, nil, false, err
+	}
+	kinds, err = flagStringKindMap(flagMapGet(node, "locals"))
+	if err != nil {
+		return nil, nil, nil, false, err
+	}
+	return params, kinds, initStmts, flagrt.IsTruthy(flagMapGet(node, "has-rest")), nil
+}
+
+func flagCompileForm(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	return flagCompileNode(compiler__compile_form_to_ir, exprToFlagValue(expr), ctx, locals)
+}
+
+func flagCompileForms(forms []Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	return flagCompileNode(compiler__compile_forms_to_ir, exprsToFlagVector(forms), ctx, locals)
+}
+
+func flagCompileNode(fn, node flagrt.Value, ctx compileContext, locals map[string]exprKind) (result goExpr, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	out := flagrt.Call(fn, node, formCompileContext(ctx, locals))
+	ir, err := flagValueToIRExpr(flagMapGet(out, "expr"))
+	if err != nil {
+		return goExpr{}, err
+	}
+	stmts, err := flagIRStmtSeq(flagMapGet(out, "stmts"))
+	if err != nil {
+		return goExpr{}, err
+	}
+	if inner := flagMapGet(out, "ctx"); !flagrt.IsNil(inner) && ctx.ifTemps != nil {
+		n := flagMapGet(inner, "if-temps")
+		if !flagrt.IsNil(n) {
+			*ctx.ifTemps = int(n.Long())
+		}
+	}
+	got := fromIR(ir, exprKindFromFLAG(flagMapGet(out, "expr-kind")))
+	got.stmts = stmts
+	return got, nil
+}
+
+func flagStringKindMap(m flagrt.Value) (map[string]exprKind, error) {
+	if flagrt.IsNil(m) {
+		return map[string]exprKind{}, nil
+	}
+	keys := flagrt.Keys(m)
+	if flagrt.IsNil(keys) {
+		return map[string]exprKind{}, nil
+	}
+	out := map[string]exprKind{}
+	for _, key := range flagrt.Vec(keys).ArrayValues() {
+		out[flagString(key)] = exprKindFromFLAG(flagrt.Get(m, key))
+	}
+	return out, nil
+}
+
+func formCompileContext(ctx compileContext, locals map[string]exprKind) flagrt.Value {
+	base := loweringContext(ctx, locals)
+	n := 0
+	if ctx.ifTemps != nil {
+		n = *ctx.ifTemps
+	}
+	return flagrt.Assoc(base, flagrt.NewKeyword("if-temps"), flagrt.NewLong(int64(n)))
 }
 
 func flagIfToIR(name, typeName string, cond IRExpr, thenStmts []IRStmt, thenExpr IRExpr, elseStmts []IRStmt, elseExpr IRExpr) (stmts []IRStmt, err error) {
@@ -461,6 +560,8 @@ func exprKindFromFLAG(v flagrt.Value) exprKind {
 		return exprKindString
 	case "bool":
 		return exprKindBool
+	case "mutable-value":
+		return exprKindMutableValue
 	default:
 		return exprKindValue
 	}

@@ -1830,7 +1830,10 @@ func compileDefn(form ListExpr, ctx compileContext) (functionDef, error) {
 	_ = fnCtx.bindModuleName(nameExpr.Name, goName)
 
 	bodyExprs := form.Elements[bodyStartIndex:]
-	body, err := doExprToGo(bodyExprs, fnCtx, localSymbols)
+	body, err := flagCompileForms(bodyExprs, fnCtx, localSymbols)
+	if flagUnhandled(err) {
+		body, err = doExprToGo(bodyExprs, fnCtx, localSymbols)
+	}
 	if err != nil {
 		return functionDef{}, err
 	}
@@ -1932,7 +1935,10 @@ func compileMultiArityDefn(form ListExpr, nameExpr SymbolExpr, goName, doc strin
 		fnCtx.selfArityName = item.arityName
 		fnCtx.selfFunctionRest = false
 		bodyExprs := item.form.Elements[1:]
-		body, err := doExprToGo(bodyExprs, fnCtx, item.localKinds)
+		body, err := flagCompileForms(bodyExprs, fnCtx, item.localKinds)
+		if flagUnhandled(err) {
+			body, err = doExprToGo(bodyExprs, fnCtx, item.localKinds)
+		}
 		if err != nil {
 			return functionDef{}, err
 		}
@@ -4854,7 +4860,10 @@ func compileLambda(paramsExpr VectorExpr, bodyExpr Expr, ctx compileContext, loc
 		return goExpr{}, err
 	}
 
-	body, err := exprToGo(bodyExpr, lambdaCtx, localKinds)
+	body, err := flagCompileForm(bodyExpr, lambdaCtx, localKinds)
+	if flagUnhandled(err) {
+		body, err = exprToGo(bodyExpr, lambdaCtx, localKinds)
+	}
 	if err != nil {
 		return goExpr{}, err
 	}
@@ -4910,15 +4919,22 @@ func bindLambdaParamStmts(
 	locals map[string]exprKind,
 	label string,
 ) ([]string, map[string]exprKind, []IRStmt, bool, error) {
-	params := make([]string, 0, len(paramsExpr.Elements))
-	localKinds := make(map[string]exprKind, len(locals)+len(paramsExpr.Elements))
+	params, localKinds, localInitStmts, hasRest, err := flagBindParams(paramsExpr, label, locals)
+	if err == nil {
+		return params, localKinds, localInitStmts, hasRest, nil
+	}
+	if !flagUnhandled(err) {
+		return nil, nil, nil, false, err
+	}
+	params = make([]string, 0, len(paramsExpr.Elements))
+	localKinds = make(map[string]exprKind, len(locals)+len(paramsExpr.Elements))
 	for name, kind := range locals {
 		localKinds[name] = kind
 	}
 	declared := make(map[string]struct{}, len(paramsExpr.Elements))
-	localInitStmts := make([]IRStmt, 0, len(paramsExpr.Elements))
+	localInitStmts = make([]IRStmt, 0, len(paramsExpr.Elements))
 	tempCounter := 0
-	hasRest := false
+	hasRest = false
 
 	for idx := 0; idx < len(paramsExpr.Elements); idx++ {
 		paramExpr := unwrapMetaExpr(paramsExpr.Elements[idx])

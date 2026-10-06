@@ -7,7 +7,8 @@
              doto-to-ir update-bang-to-ir catch-handler-to-ir try-to-ir
              doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir
              fn-to-ir ns-to-ir def-to-ir defn-binding-to-ir
-             defn-to-ir defn-multi-to-ir]}
+             defn-to-ir defn-multi-to-ir
+             go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -877,3 +878,640 @@
                                              (:body-stmts a)
                                              (:body-expr a)))))))
     [(defn-multi-dispatch-to-ir variadic-name panic-msg arities)]))
+
+(def go-ident-letters "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+(def go-ident-digits "0123456789")
+(def go-keywords
+  #{"break" "case" "chan" "const" "continue" "default" "defer" "else"
+    "fallthrough" "for" "func" "go" "goto" "if" "import" "interface"
+    "map" "package" "range" "return" "select" "struct" "switch" "type" "var"})
+
+(defn str-has-char? [s ch]
+  (loop [remaining s]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      false
+      (if (= ch (subs remaining 0 1))
+        true
+        (recur (subs remaining 1))))))
+
+(defn ident-letter? [ch]
+  (str-has-char? go-ident-letters ch))
+
+(defn ident-digit? [ch]
+  (str-has-char? go-ident-digits ch))
+
+(defn go-ident-char [ch first?]
+  (cond
+    (= ch "-") "_"
+    (and first? (or (= ch "_") (ident-letter? ch))) ch
+    (and (not first?) (= ch "?")) "_q"
+    (and (not first?) (= ch "!")) "_bang"
+    (and (not first?) (= ch ">")) "_gt"
+    (and (not first?) (= ch "<")) "_lt"
+    (and (not first?) (or (= ch "_") (ident-letter? ch) (ident-digit? ch))) ch
+    :else nil))
+
+(defn go-ident [name]
+  (if (or (nil? name) (= "" name))
+    (throw (ex-info "empty symbol" {:name name}))
+    (loop [i 0 n (count name) out ""]
+      (if (= i n)
+        (let [ident (if (= out "main") "flag_main" out)]
+          (if (contains? go-keywords ident)
+            (str ident "_")
+            ident))
+        (let [ch (subs name i (inc i))
+              piece (go-ident-char ch (= i 0))]
+          (if (nil? piece)
+            (throw (ex-info (str "unsupported symbol \"" name "\"") {:name name}))
+            (recur (inc i) n (str out piece))))))))
+
+(defn go-ident-or-empty [name]
+  (if (or (nil? name) (= "" name))
+    ""
+    (loop [i 0 n (count name) out ""]
+      (if (= i n)
+        (let [ident (if (= out "main") "flag_main" out)]
+          (if (contains? go-keywords ident)
+            (str ident "_")
+            ident))
+        (let [ch (subs name i (inc i))
+              piece (go-ident-char ch (= i 0))]
+          (if (nil? piece)
+            ""
+            (recur (inc i) n (str out piece))))))))
+
+(defn parse-volatile [pattern]
+  (if (not (= :meta (:kind pattern)))
+    {:volatile? false :target pattern}
+    (let [m (:meta pattern)
+          target (:target pattern)]
+      (if (not (= :map (:kind m)))
+        {:volatile? false :target target}
+        (let [entries (:entries m)]
+          (if (not (= 0 (% (count entries) 2)))
+            (throw (ex-info "metadata map expects key/value pairs" {:node m}))
+            (loop [remaining entries volatile? false]
+              (if (or (nil? remaining) (empty? remaining))
+                {:volatile? volatile? :target target}
+                (let [k (first remaining)
+                      v (first (rest remaining))]
+                  (if (and (= :keyword (:kind k)) (= "volatile" (:name k)))
+                    (if (and (= :symbol (:kind v)) (= "true" (:name v)))
+                      (recur (rest (rest remaining)) true)
+                      (if (and (= :symbol (:kind v)) (= "false" (:name v)))
+                        (recur (rest (rest remaining)) false)
+                        (throw (ex-info "metadata :volatile must be true or false" {:node v}))))
+                    (recur (rest (rest remaining)) volatile?)))))))))))
+
+(defn unwrap-ast [node]
+  (if (= :meta (:kind node))
+    (unwrap-ast (:target node))
+    node))
+
+(defn ast-seq [node]
+  (if (nil? node)
+    []
+    (let [els (:elements node)]
+      (if (nil? els)
+        node
+        els))))
+
+(defn unused-binding? [name]
+  (and (not (nil? name))
+       (not (= 0 (count name)))
+       (= "_" (subs name 0 1))))
+
+(defn append-unused [stmts flag-name go-name]
+  (if (and (unused-binding? flag-name) (not (= go-name "_")))
+    (conj stmts {:kind :expr-stmt :expr {:kind :ident :name go-name} :discard true})
+    stmts))
+
+(defn fresh-temp [state prefix]
+  (let [n (:temp state)]
+    {:name (str prefix n)
+     :state (assoc state :temp (inc n))}))
+
+(defn declare-param [state flag-name go-name]
+  (if (= go-name "_")
+    state
+    (if (contains? (:declared state) go-name)
+      (throw (ex-info (str "duplicate parameter \"" flag-name "\"") {:name flag-name}))
+      (assoc (assoc state
+                    :declared (assoc (:declared state) go-name true))
+             :locals (assoc (:locals state) go-name :value)))))
+
+(defn declare-binding [state flag-name go-name kind]
+  (if (= go-name "_")
+    state
+    (if (contains? (:declared state) go-name)
+      (throw (ex-info (str "duplicate binding \"" flag-name "\"") {:name flag-name}))
+      (assoc (assoc state
+                    :declared (assoc (:declared state) go-name true))
+             :locals (assoc (:locals state) go-name kind)))))
+
+(defn rest-source-ir [n ctor]
+  (literal-rt-call ctor
+                   [{:kind :spread
+                     :expr {:kind :slice
+                            :x {:kind :ident :name "args"}
+                            :low {:kind :int :value n}
+                            :high nil}}]))
+
+(defn bind-symbol-param [state flag-name]
+  (let [go-name (go-ident flag-name)
+        with-decl (declare-param state flag-name go-name)]
+    (assoc (assoc with-decl :params (conj (:params with-decl) go-name))
+           :init-stmts (append-unused (:init-stmts with-decl) flag-name go-name))))
+
+(defn bind-symbol-to [state flag-name source kind]
+  (let [go-name (go-ident flag-name)
+        with-decl (declare-binding state flag-name go-name kind)
+        with-var (conj (:init-stmts with-decl)
+                       {:kind :var :name go-name :type "" :expr source})]
+    (assoc with-decl :init-stmts (append-unused with-var flag-name go-name))))
+
+(defn unhandled-param [node]
+  (throw (ex-info "not handled by FLAG param lowering" {:node node})))
+
+(defn bind-pattern-node [mode state pattern source]
+  (cond
+    (= mode :pattern)
+    (let [node (unwrap-ast pattern)
+          kind (:kind node)]
+      (cond
+        (= kind :symbol)
+        (if (= "&" (:name node))
+          (throw (ex-info "unexpected & in binding" {:node node}))
+          (if (= "" (:name node))
+            (throw (ex-info "binding symbol cannot be empty" {:node node}))
+            (bind-symbol-to state (:name node) source :value)))
+
+        (= kind :vector)
+        (bind-pattern-node :vector state node source)
+
+        :else (unhandled-param node)))
+
+    (= mode :vector)
+  (loop [remaining (ast-seq pattern)
+         positionals []
+         rest-pat nil
+         as-pat nil
+         seen-rest false]
+    (if (or (nil? remaining) (empty? remaining))
+      (let [with-as (if (nil? as-pat)
+                      state
+                      (bind-pattern-node :pattern state as-pat source))]
+        (loop [remaining positionals
+               current source
+               st with-as]
+          (if (or (nil? remaining) (empty? remaining))
+            (if (nil? rest-pat)
+              st
+              (bind-pattern-node :pattern st rest-pat current))
+            (let [t (fresh-temp st "__dseq")
+                  next-name (:name t)
+                  st1 (:state t)
+                  st2 (assoc st1 :init-stmts
+                             (conj (:init-stmts st1)
+                                   {:kind :var
+                                    :name next-name
+                                    :type ""
+                                    :expr (literal-rt-call "SeqFirst" [current])}))
+                  st3 (bind-pattern-node :pattern st2 (first remaining) {:kind :ident :name next-name})]
+              (recur (rest remaining)
+                     (literal-rt-call "SeqRest" [current])
+                     st3)))))
+      (let [item (first remaining)
+            node (unwrap-ast item)]
+        (cond
+          (and (= :keyword (:kind node)) (= "as" (:name node)))
+          (if (or (nil? (rest remaining)) (empty? (rest remaining)))
+            (throw (ex-info "vector destructuring :as expects a binding form" {:node pattern}))
+            (if (not (nil? as-pat))
+              (throw (ex-info "vector destructuring supports only one :as" {:node pattern}))
+              (recur (rest (rest remaining)) positionals rest-pat (first (rest remaining)) seen-rest)))
+
+          (and (= :symbol (:kind node)) (= "&" (:name node)))
+          (if seen-rest
+            (throw (ex-info "vector destructuring supports only one & binding" {:node pattern}))
+            (if (or (nil? (rest remaining)) (empty? (rest remaining)))
+              (throw (ex-info "vector destructuring & expects a binding form" {:node pattern}))
+              (recur (rest (rest remaining)) positionals (first (rest remaining)) as-pat true)))
+
+          seen-rest
+          (throw (ex-info "vector destructuring only allows :as after & binding" {:node pattern}))
+
+          :else
+          (recur (rest remaining) (conj positionals item) rest-pat as-pat seen-rest)))))
+
+    :else (throw (ex-info "unsupported bind-pattern mode" {:mode mode}))))
+
+(defn bind-pattern [state pattern source]
+  (bind-pattern-node :pattern state pattern source))
+
+(defn bind-params-to-ir [params-ast label locals]
+  (loop [remaining (ast-seq params-ast)
+         idx 0
+         state {:params []
+                :init-stmts []
+                :locals (if (or (nil? locals) (empty? locals)) {} locals)
+                :declared {}
+                :temp 0
+                :has-rest false}]
+    (if (or (nil? remaining) (empty? remaining))
+      {:params (:params state)
+       :init-stmts (:init-stmts state)
+       :locals (:locals state)
+       :has-rest (:has-rest state)}
+      (let [node (unwrap-ast (first remaining))]
+        (if (and (= :symbol (:kind node)) (= "&" (:name node)))
+          (if (:has-rest state)
+            (throw (ex-info (str label " parameters support only one & binding") {:label label}))
+            (if (or (nil? (rest remaining)) (empty? (rest remaining)))
+              (throw (ex-info (str label " & expects a binding form") {:label label}))
+              (let [rest-pat (first (rest remaining))
+                    rest-node (unwrap-ast rest-pat)
+                    t (fresh-temp state "__rest")
+                    rest-name (:name t)
+                    st1 (:state t)
+                    ctor (if (= :map (:kind rest-node))
+                           (unhandled-param rest-node)
+                           "NewArray")
+                    source (rest-source-ir (count (:params st1)) ctor)
+                    st2 (assoc st1 :has-rest true)
+                    st3 (assoc st2 :locals (assoc (:locals st2) rest-name :value))
+                    st4 (assoc st3 :init-stmts
+                               (conj (conj (:init-stmts st3)
+                                           {:kind :var :name rest-name :type "" :expr source})
+                                     {:kind :expr-stmt
+                                      :expr {:kind :ident :name rest-name}
+                                      :discard true}))
+                    st5 (bind-pattern st4 rest-pat {:kind :ident :name rest-name})]
+                {:params (:params st5)
+                 :init-stmts (:init-stmts st5)
+                 :locals (:locals st5)
+                 :has-rest true})))
+          (if (and (= :symbol (:kind node)) (not (= "" (:name node))))
+            (recur (rest remaining) (inc idx) (bind-symbol-param state (:name node)))
+            (if (or (= :vector (:kind node)) (= :map (:kind node)))
+              (if (= :map (:kind node))
+                (unhandled-param node)
+                (let [param-name (str "__arg" idx)
+                      st1 (assoc state :params (conj (:params state) param-name))
+                      st2 (bind-pattern st1 node {:kind :ident :name param-name})]
+                  (recur (rest remaining) (inc idx) st2)))
+              (unhandled-param node))))))))
+
+(defn form-result [stmts expr kind ctx]
+  {:stmts (stmt-list stmts)
+   :expr expr
+   :expr-kind kind
+   :defer? false
+   :ctx ctx})
+
+(defn next-form-temp [ctx prefix]
+  (let [cur (if (nil? (:if-temps ctx)) 0 (:if-temps ctx))
+        n (inc cur)]
+    {:name (str prefix "_" n)
+     :ctx (assoc ctx :if-temps n)}))
+
+(defn coerce-form-value [part]
+  (let [k (:expr-kind part)]
+    (cond
+      (= k :string)
+      (form-result (:stmts part)
+                   (literal-rt-call "NewString" [(:expr part)])
+                   :value
+                   (:ctx part))
+      (= k :bool)
+      (form-result (:stmts part)
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   :value
+                   (:ctx part))
+      :else part)))
+
+(defn form-value-ir [part]
+  (:expr (coerce-form-value part)))
+
+(defn truthy-form-ir [part]
+  (let [k (:expr-kind part)]
+    (cond
+      (= k :bool) (:expr part)
+      (= k :value) (literal-rt-call "IsTruthy" [(:expr part)])
+      (= k :string) {:kind :raw :code "true"}
+      :else (throw (ex-info "unsupported if test expression" {:part part})))))
+
+(defn go-type-for-kind [k]
+  (cond
+    (= k :string) "string"
+    (= k :bool) "bool"
+    :else "flagrt.Value"))
+
+(defn compile-form-node [mode node ctx]
+  (cond
+    (= mode :seq)
+    (loop [remaining node ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        {:stmts stmts :irs irs :ctx ctx}
+        (let [part (compile-form-node :form (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (form-value-ir part))))))
+
+    (= mode :if)
+    (let [args node
+          n (count (stmt-list args))]
+      (if (and (not (= n 2)) (not (= n 3)))
+        (throw (ex-info "if expects test, true branch, and optional false branch" {:args args}))
+        (let [cond-part (compile-form-node :form (first args) ctx)
+              then0 (compile-form-node :form (first (rest args)) (:ctx cond-part))
+              else0 (if (= n 3)
+                      (compile-form-node :form (first (rest (rest args))) (:ctx then0))
+                      (form-result [] (literal-rt-call "NilValue" []) :value (:ctx then0)))
+              then1 (if (and (= n 3) (not (= (:expr-kind then0) (:expr-kind else0))))
+                      (coerce-form-value then0)
+                      then0)
+              else1 (if (and (= n 3) (not (= (:expr-kind then1) (:expr-kind else0))))
+                      (coerce-form-value else0)
+                      else0)
+              then2 (if (and (= n 2) (not (= :value (:expr-kind then1))))
+                      (throw (ex-info "if without false branch currently requires a Value result" {}))
+                      then1)
+              tmp (next-form-temp (:ctx else1) "if_result")
+              if-stmts (if-to-ir (:name tmp)
+                                 (go-type-for-kind (:expr-kind then2))
+                                 (truthy-form-ir cond-part)
+                                 (:stmts then2)
+                                 (:expr then2)
+                                 (:stmts else1)
+                                 (:expr else1))]
+          (form-result (concat-stmts (:stmts cond-part) if-stmts)
+                       {:kind :ident :name (:name tmp)}
+                       (:expr-kind then2)
+                       (:ctx tmp)))))
+
+    (= mode :let)
+    (let [args node]
+  (if (or (nil? args) (empty? args))
+    (throw (ex-info "let expects a binding vector" {}))
+    (let [bindings-node (unwrap-ast (first args))
+          body (rest args)]
+      (if (not (= :vector (:kind bindings-node)))
+        (throw (ex-info "let expects a binding vector" {:node bindings-node}))
+        (let [entries (ast-seq bindings-node)]
+          (if (not (= 0 (% (count entries) 2)))
+            (throw (ex-info "let binding vector expects name/value pairs" {}))
+            (loop [remaining entries
+                   ctx ctx
+                   bind-stmts []
+                   declared {}
+                   bind-temp 0]
+              (if (or (nil? remaining) (empty? remaining))
+                (let [compiled (compile-form-node :forms body ctx)
+                      tmp (next-form-temp (:ctx compiled) "let_result")
+                      let-stmts (let-to-ir (:name tmp)
+                                           (go-type-for-kind (:expr-kind compiled))
+                                           bind-stmts
+                                           (:stmts compiled)
+                                           (:expr compiled))]
+                  (form-result let-stmts
+                               {:kind :ident :name (:name tmp)}
+                               (:expr-kind compiled)
+                               (:ctx tmp)))
+                (let [parsed (parse-volatile (first remaining))
+                      pat (:target parsed)
+                      val-node (first (rest remaining))]
+                  (if (not (= :symbol (:kind pat)))
+                    (if (:volatile? parsed)
+                      (throw (ex-info "volatile let binding currently supports symbol bindings only" {:node pat}))
+                      (throw (ex-info "not handled by FLAG form lowering" {:node pat})))
+                    (if (= "" (:name pat))
+                      (throw (ex-info "binding symbol cannot be empty" {:node pat}))
+                      (let [part (compile-form-node :form val-node ctx)
+                            go-name (go-ident (:name pat))]
+                        (if (contains? declared go-name)
+                          (throw (ex-info (str "duplicate binding \"" (:name pat) "\"") {:name (:name pat)}))
+                          (if (:volatile? parsed)
+                            (if (not (= :value (:expr-kind part)))
+                              (throw (ex-info "volatile let binding value must evaluate to Value" {}))
+                              (let [source-name (str "__bind" bind-temp)
+                                    next-ctx (assoc (:ctx part) :locals
+                                                    (if (= go-name "_")
+                                                      (:locals (:ctx part))
+                                                      (assoc (:locals (:ctx part)) go-name :mutable-value)))
+                                    stmts0 (concat-stmts bind-stmts (:stmts part))
+                                    stmts1 (conj stmts0 {:kind :var :name source-name :type "" :expr (:expr part)})
+                                    stmts2 (conj stmts1 {:kind :var :name go-name :type "" :expr {:kind :ident :name source-name}})
+                                    stmts3 (append-unused stmts2 (:name pat) go-name)]
+                                (recur (rest (rest remaining))
+                                       next-ctx
+                                       stmts3
+                                       (if (= go-name "_") declared (assoc declared go-name true))
+                                       (inc bind-temp))))
+                            (let [next-ctx (assoc (:ctx part) :locals
+                                                  (if (= go-name "_")
+                                                    (:locals (:ctx part))
+                                                    (assoc (:locals (:ctx part)) go-name (:expr-kind part))))
+                                  stmts0 (concat-stmts bind-stmts (:stmts part))
+                                  stmts1 (conj stmts0 {:kind :var
+                                                       :name go-name
+                                                       :type ""
+                                                       :expr (:expr part)})
+                                  stmts2 (append-unused stmts1 (:name pat) go-name)]
+                              (recur (rest (rest remaining))
+                                     next-ctx
+                                     stmts2
+                                     (if (= go-name "_")
+                                       declared
+                                       (assoc declared go-name true))
+                                     bind-temp))))))))))))))))
+
+    (= mode :fn)
+    (let [args node]
+      (if (not (= 2 (count (stmt-list args))))
+        (throw (ex-info "fn expects parameter vector and body expression" {}))
+        (let [params (first args)
+              body (first (rest args))]
+          (if (not (= :vector (:kind params)))
+            (throw (ex-info "fn expects a parameter vector" {:node params}))
+            (let [bound (bind-params-to-ir params "fn" (:locals ctx))
+                  inner (assoc ctx :locals (:locals bound))
+                  compiled (coerce-form-value (compile-form-node :form body inner))
+                  ir (fn-to-ir "fn"
+                               (:params bound)
+                               (:has-rest bound)
+                               (:init-stmts bound)
+                               (:stmts compiled)
+                               (:expr compiled))]
+              (form-result [] ir :value (:ctx compiled)))))))
+
+    (= mode :update)
+    (let [args node]
+      (if (not (= 2 (count (stmt-list args))))
+        (throw (ex-info "update! expects a mutable symbol and replacement value" {}))
+        (let [target (unwrap-ast (first args))
+              val-node (first (rest args))]
+          (if (not (= :symbol (:kind target)))
+            (throw (ex-info "update! first argument must be a mutable symbol" {:node target}))
+            (let [ident (go-ident (:name target))
+                 locals (:locals ctx)]
+              (if (not (= :mutable-value (get locals ident)))
+               (throw (ex-info "update! first argument must be a mutable let binding" {:name ident}))
+               (let [part (coerce-form-value (compile-form-node :form val-node ctx))
+                     ir (update-bang-to-ir ident (:stmts part) (:expr part))]
+                 (form-result [] ir :value (:ctx part)))))))))
+
+    (= mode :call)
+    (let [elements (:elements node)]
+      (if (or (nil? elements) (empty? elements))
+        (throw (ex-info "unsupported form" {:node node}))
+        (let [head (first elements)
+              args (rest elements)]
+          (if (and (= :symbol (:kind head))
+                  (not (= 0 (count (:name head))))
+                  (= "." (subs (:name head) 0 1)))
+            (throw (ex-info "not handled by FLAG form lowering" {:node node}))
+          (if (= :symbol (:kind head))
+            (let [op (:name head)
+                  unary (get unary-runtime-ops op)
+                  fold (get fold-runtime-ops op)
+                  binary (get binary-runtime-ops op)
+                  variadic (get variadic-runtime-ops op)]
+              (cond
+                (= op "if") (compile-form-node :if args ctx)
+                (= op "do") (compile-form-node :forms args ctx)
+                (= op "let") (compile-form-node :let args ctx)
+                (= op "fn") (compile-form-node :fn args ctx)
+                (= op "update!") (compile-form-node :update args ctx)
+
+                unary
+                (if (not (= 1 (count args)))
+                  (throw (ex-info (str op " expects exactly one argument") {:node node}))
+                  (let [compiled (compile-form-node :seq args ctx)]
+                    (form-result (:stmts compiled)
+                                 (runtime-call-to-ir unary (:irs compiled))
+                                 :value
+                                 (:ctx compiled))))
+
+                fold
+                (let [compiled (compile-form-node :seq args ctx)]
+                  (form-result (:stmts compiled)
+                               (fold-call-to-ir fold (:irs compiled))
+                               :value
+                               (:ctx compiled)))
+
+                binary
+                (if (not (= 2 (count args)))
+                  (throw (ex-info (str op " expects exactly two arguments") {:node node}))
+                  (let [compiled (compile-form-node :seq args ctx)]
+                    (form-result (:stmts compiled)
+                                 (runtime-call-to-ir binary (:irs compiled))
+                                 :value
+                                 (:ctx compiled))))
+
+                variadic
+                (let [compiled (compile-form-node :seq args ctx)]
+                  (form-result (:stmts compiled)
+                               (runtime-call-to-ir variadic (:irs compiled))
+                               :value
+                               (:ctx compiled)))
+
+                (contains? special-form-names op)
+                (throw (ex-info "not handled by FLAG form lowering" {:node node}))
+
+                :else
+                (let [callee (compile-form-node :form head ctx)
+                      compiled (compile-form-node :seq args (:ctx callee))]
+                  (form-result (concat-stmts (:stmts callee) (:stmts compiled))
+                               (call-to-ir (form-value-ir callee) (:irs compiled))
+                               :value
+                               (:ctx compiled)))))
+            (let [callee (compile-form-node :form head ctx)
+                  compiled (compile-form-node :seq args (:ctx callee))]
+              (form-result (concat-stmts (:stmts callee) (:stmts compiled))
+                           (call-to-ir (form-value-ir callee) (:irs compiled))
+                           :value
+                           (:ctx compiled))))))))
+
+    (= mode :form)
+    (let [form (unwrap-ast node)
+          kind (:kind form)]
+      (cond
+        (= kind :string) (form-result [] (ast-node-to-ir form) :string ctx)
+        (= kind :char) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :int) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :bigint) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :ratio) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :float) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :keyword) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :quoted-symbol) (form-result [] (ast-node-to-ir form) :value ctx)
+
+        (= kind :symbol)
+        (let [name (:name form)]
+          (if (or (= name "true") (= name "false") (= name "nil"))
+            (form-result [] (ast-node-to-ir form) :value ctx)
+            (let [ident (go-ident-or-empty name)
+                  resolved (symbol-to-ir name ident ctx)]
+              (form-result [] (:ir resolved) (:expr-kind resolved) ctx))))
+
+        (= kind :quoted-list) (form-result [] (quoted-ast-to-ir form) :value ctx)
+
+        (= kind :vector)
+        (let [compiled (compile-form-node :seq (:elements form) ctx)]
+          (form-result (:stmts compiled)
+                       (ctor-to-ir "NewArray" (:irs compiled))
+                       :value
+                       (:ctx compiled)))
+
+        (= kind :pipe-vector)
+        (let [compiled (compile-form-node :seq (:elements form) ctx)]
+          (form-result (:stmts compiled)
+                       (ctor-to-ir "NewVector" (:irs compiled))
+                       :value
+                       (:ctx compiled)))
+
+        (= kind :set)
+        (let [compiled (compile-form-node :seq (:elements form) ctx)]
+          (form-result (:stmts compiled)
+                       (ctor-to-ir "NewSet" (:irs compiled))
+                       :value
+                       (:ctx compiled)))
+
+        (= kind :map)
+        (let [entries (:entries form)
+              n (if (nil? entries) 0 (count entries))]
+          (if (not (= 0 (% n 2)))
+            (throw (ex-info "map literal expects key/value pairs" {:node form}))
+            (let [compiled (compile-form-node :seq entries ctx)]
+              (form-result (:stmts compiled)
+                           (ctor-to-ir "NewMap" (:irs compiled))
+                           :value
+                           (:ctx compiled)))))
+
+        (= kind :list) (compile-form-node :call form ctx)
+
+        :else (throw (ex-info "not handled by FLAG form lowering" {:node form}))))
+
+    (= mode :forms)
+    (if (or (nil? node) (empty? node))
+      (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+      (loop [remaining (stmt-list node) ctx ctx compiled []]
+        (let [part (compile-form-node :form (first remaining) ctx)
+              more (rest remaining)
+              next-compiled (conj compiled part)]
+          (if (or (nil? more) (empty? more))
+            (form-result (do-prelude-stmts next-compiled)
+                         (:expr part)
+                         (:expr-kind part)
+                         (:ctx part))
+            (recur more (:ctx part) next-compiled)))))
+
+    :else (throw (ex-info "unsupported compile-form mode" {:mode mode}))))
+
+(defn compile-form-to-ir [node ctx]
+  (compile-form-node :form node ctx))
+
+(defn compile-forms-to-ir [forms ctx]
+  (compile-form-node :forms forms ctx))

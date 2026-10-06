@@ -83,7 +83,9 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
 `doseq-body-to-ir`, `mapcat-binding-to-ir`, `fn-to-ir`, `ns-to-ir`,
-`def-to-ir`, `defn-binding-to-ir`, `defn-to-ir`, and `defn-multi-to-ir`.
+`def-to-ir`, `defn-binding-to-ir`, `defn-to-ir`, `defn-multi-to-ir`,
+`go-ident`, `bind-params-to-ir`, `compile-form-to-ir`, and
+`compile-forms-to-ir`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -166,19 +168,33 @@ compiles bodies. `doseq-to-ir` wraps `DoAll`; `mapcat-binding-to-ir` is the
 `for`/`doseq` MapCat callback. `fn-to-ir` wraps `NewFunction` around a
 variadic `func(args ...flagrt.Value)`: arity panic (`exactly` vs rest
 `at least`), `p := args[i]` or `_ = args[i]`, init/body statements, then
-`return`. Production `compileLambda` still binds parameters (including `&`
-and destructure) and compiles the body; `#()` still rewrites placeholders
-in Go, then calls `compileLambda`.
+`return`. `#()` still rewrites placeholders in Go, then calls
+`compileLambda`.
+
+`go-ident` maps FLAG names to Go identifiers (`-` → `_`, `?` → `_q`,
+`!` → `_bang`, `>` → `_gt`, `<` → `_lt`, `main` → `flag_main`, keywords
+get a trailing `_`). `bind-params-to-ir` binds `fn`/`defn` parameter
+vectors: symbols, unused `_`, `& rest`, and vector destructure (`SeqFirst`
+/ `SeqRest`). Map destructure throws `not handled by FLAG` so Go can
+finish it.
+
+`compile-form-to-ir` / `compile-forms-to-ir` lower a form or `do` body:
+literals, collections, symbols (including `pkg/name` via the module
+table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, folded
+`+ - * /`, and other runtime ops already in FLAG. Other special forms
+(`.method`, `loop`, `defer`, `map`, …) throw `not handled by FLAG`.
+Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
+FLAG first and fall back to Go on those errors. FLAG preserves
+`:mutable-value` locals across nested `fn` parameter binding so `update!`
+still sees volatile lets.
 
 `ns-to-ir` is the `// Source namespace:` comment. `def-to-ir` is a
 top-level `var name = expr`. `defn-to-ir` emits named `:func-decl`s: the
 typed `goName_arity_N` function plus a variadic wrapper, or one rest
 variadic. `defn-multi-to-ir` emits each arity function and a `len(args)`
 dispatch. `defn-binding-to-ir` is `var name = NewFunction(variadic)`.
-Production still parses names, docs, `&`/destructure, and compiles bodies;
-FLAG assembles the declarations. `deftest` and `go-interface` still use
-the Go printer. Go still compiles subforms (`exprToGo`); FLAG assembles
-the trees.
+Production still parses names, docs, and `&`/destructure. `deftest` and
+`go-interface` still use the Go printer.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later

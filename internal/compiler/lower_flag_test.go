@@ -935,6 +935,332 @@ func TestHashFnExprToGoUsesFLAGNewFunction(t *testing.T) {
 	}
 }
 
+func TestFLAGGoIdent(t *testing.T) {
+	cases := []struct {
+		name string
+		want string
+	}{
+		{"foo", "foo"},
+		{"foo-bar", "foo_bar"},
+		{"foo?", "foo_q"},
+		{"set!", "set_bang"},
+		{"pred>", "pred_gt"},
+		{"pred<", "pred_lt"},
+		{"main", "flag_main"},
+		{"var", "var_"},
+		{"type", "type_"},
+		{"_x", "_x"},
+		{"a1", "a1"},
+		{"->", "__gt"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := flagGoIdent(tc.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %q want %q", got, tc.want)
+			}
+		})
+	}
+
+	if _, err := flagGoIdent(""); err == nil {
+		t.Fatal("expected empty symbol error")
+	}
+	if _, err := flagGoIdent("1abc"); err == nil {
+		t.Fatal("expected unsupported symbol error")
+	}
+	if _, err := flagGoIdent("foo.bar"); err == nil {
+		t.Fatal("expected unsupported symbol error")
+	}
+}
+
+func TestFLAGBindParams(t *testing.T) {
+	params, kinds, stmts, hasRest, err := flagBindParams(
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}, SymbolExpr{Name: "y?"}}},
+		"fn",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRest {
+		t.Fatal("expected no rest")
+	}
+	if len(params) != 2 || params[0] != "x" || params[1] != "y_q" {
+		t.Fatalf("params %v", params)
+	}
+	if kinds["x"] != exprKindValue || kinds["y_q"] != exprKindValue {
+		t.Fatalf("kinds %v", kinds)
+	}
+	if len(stmts) != 0 {
+		t.Fatalf("unexpected init stmts %#v", stmts)
+	}
+
+	params, kinds, stmts, hasRest, err = flagBindParams(
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "_"}}},
+		"fn",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(params) != 1 || params[0] != "_" || hasRest {
+		t.Fatalf("unused params %v hasRest %v", params, hasRest)
+	}
+	if _, ok := kinds["_"]; ok {
+		t.Fatalf("underscore should not be a local: %v", kinds)
+	}
+
+	params, kinds, stmts, hasRest, err = flagBindParams(
+		VectorExpr{Elements: []Expr{
+			SymbolExpr{Name: "x"},
+			SymbolExpr{Name: "&"},
+			SymbolExpr{Name: "more"},
+		}},
+		"fn",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRest || len(params) != 1 || params[0] != "x" {
+		t.Fatalf("rest params %v hasRest %v", params, hasRest)
+	}
+	if kinds["more"] != exprKindValue || kinds["x"] != exprKindValue {
+		t.Fatalf("rest kinds %v", kinds)
+	}
+	src := renderIRStmts(stmts, "")
+	for _, want := range []string{
+		"__rest0",
+		"flagrt.NewArray(args[1:]...)",
+		"var more = __rest0",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in rest stmts:\n%s", want, src)
+		}
+	}
+
+	_, _, _, _, err = flagBindParams(
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}, SymbolExpr{Name: "x"}}},
+		"fn",
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected duplicate parameter error")
+	}
+
+	_, _, _, _, err = flagBindParams(
+		VectorExpr{Elements: []Expr{MapExpr{Entries: []Expr{KeywordExpr{Name: "a"}, SymbolExpr{Name: "a"}}}}},
+		"fn",
+		nil,
+	)
+	if !flagUnhandled(err) {
+		t.Fatalf("expected unhandled map param, got %v", err)
+	}
+
+	vec, kinds, stmts, hasRest, err := flagBindParams(
+		VectorExpr{Elements: []Expr{
+			VectorExpr{Elements: []Expr{SymbolExpr{Name: "a"}, SymbolExpr{Name: "b"}}},
+		}},
+		"fn",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRest || len(vec) != 1 || vec[0] != "__arg0" {
+		t.Fatalf("vector params %v hasRest %v", vec, hasRest)
+	}
+	if kinds["a"] != exprKindValue || kinds["b"] != exprKindValue {
+		t.Fatalf("vector kinds %v", kinds)
+	}
+	src = renderIRStmts(stmts, "")
+	for _, want := range []string{
+		"__dseq0",
+		"flagrt.SeqFirst(__arg0)",
+		"var a = __dseq0",
+		"flagrt.SeqRest(__arg0)",
+		"var b = __dseq1",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in vector stmts:\n%s", want, src)
+		}
+	}
+}
+
+func TestFLAGBindParamsPreservesMutableLocal(t *testing.T) {
+	_, kinds, _, _, err := flagBindParams(
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "_n"}}},
+		"fn",
+		map[string]exprKind{"v": exprKindMutableValue},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kinds["v"] != exprKindMutableValue {
+		t.Fatalf("lost mutable local: %v", kinds)
+	}
+	if kinds["_n"] != exprKindValue {
+		t.Fatalf("param kinds %v", kinds)
+	}
+}
+
+func TestFLAGCompileFormLet(t *testing.T) {
+	n := 0
+	ctx := compileContext{
+		globals:        map[string]exprKind{},
+		functions:      map[string]functionDef{},
+		moduleSymbols:  map[string]string{},
+		ifTemps:        &n,
+	}
+	form := ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "let"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}, IntExpr{Value: 1}}},
+		SymbolExpr{Name: "x"},
+	}}
+	got, err := flagCompileForm(form, ctx, nil)
+	if err != nil {
+		t.Fatalf("flagCompileForm let: %v\nnode=%s", err, flagrt.ValueToString(exprToFlagValue(form)))
+	}
+	if got.code != "let_result_1" {
+		t.Fatalf("code %q", got.code)
+	}
+}
+
+func TestFLAGCompileFormIf(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "if"},
+		SymbolExpr{Name: "true"},
+		IntExpr{Value: 1},
+		IntExpr{Value: 2},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "if_result_1" {
+		t.Fatalf("code %q", got.code)
+	}
+	rendered := renderIRStmts(got.stmts, "")
+	for _, want := range []string{
+		"var if_result_1 flagrt.Value",
+		"if flagrt.IsTruthy(flagrt.NewBool(true))",
+		"if_result_1 = flagrt.NewLong(1)",
+		"if_result_1 = flagrt.NewLong(2)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("missing %q in:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestFLAGCompileFormUnhandled(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		VectorExpr{},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if !flagUnhandled(err) {
+		t.Fatalf("expected unhandled loop, got %v", err)
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: ".Foo"},
+		SymbolExpr{Name: "x"},
+	}}, ctx, map[string]exprKind{"x": exprKindValue})
+	if !flagUnhandled(err) {
+		t.Fatalf("expected unhandled method call, got %v", err)
+	}
+}
+
+func TestFLAGCompileFormQualifiedSymbol(t *testing.T) {
+	n := 0
+	ctx := compileContext{
+		globals:       map[string]exprKind{},
+		functions:     map[string]functionDef{},
+		moduleSymbols: map[string]string{"str/upper-case": "string__upper_case"},
+		ifTemps:       &n,
+	}
+	got, err := flagCompileForm(SymbolExpr{Name: "str/upper-case"}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "string__upper_case" {
+		t.Fatalf("code %q", got.code)
+	}
+}
+
+func TestFLAGCompileFormVolatileUpdate(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	form := ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "let"},
+		VectorExpr{Elements: []Expr{
+			MetaExpr{
+				Meta:   MapExpr{Entries: []Expr{KeywordExpr{Name: "volatile"}, SymbolExpr{Name: "true"}}},
+				Target: SymbolExpr{Name: "v"},
+			},
+			IntExpr{Value: 1},
+		}},
+		ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "update!"},
+			SymbolExpr{Name: "v"},
+			IntExpr{Value: 2},
+		}},
+		SymbolExpr{Name: "v"},
+	}}
+	got, err := flagCompileForm(form, ctx, nil)
+	if err != nil {
+		t.Fatalf("flagCompileForm volatile update!: %v", err)
+	}
+	if got.code != "let_result_1" {
+		t.Fatalf("code %q", got.code)
+	}
+	rendered := renderIRStmts(got.stmts, "")
+	for _, want := range []string{
+		"var __bind0 = flagrt.NewLong(1)",
+		"var v = __bind0",
+		"v = flagrt.NewLong(2)",
+		"return v",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "update!"},
+		SymbolExpr{Name: "v"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected update! mutability error")
+	}
+}
+
+func TestFLAGCompileFormsDo(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForms([]Expr{
+		IntExpr{Value: 1},
+		IntExpr{Value: 2},
+	}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewLong(2)" {
+		t.Fatalf("expr %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	if !strings.Contains(renderIRStmts(got.stmts, ""), "_ = flagrt.NewLong(1)") {
+		t.Fatalf("missing discarded form:\n%s", renderIRStmts(got.stmts, ""))
+	}
+}
+
 func TestLetExprToGoUsesResultVar(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n}
