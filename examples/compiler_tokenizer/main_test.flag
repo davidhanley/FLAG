@@ -447,6 +447,47 @@
                           :elements [{:kind :keyword :name "a"}
                                      {:kind :symbol :name "true"}]})))))
 
+(deftest lower-eq-to-ir
+  (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))"
+         (ir/render-ir (lower/eq-to-ir [(ir/rt-call "NewLong" [(ir/ir-int 1)])
+                                        (ir/rt-call "NewLong" [(ir/ir-int 2)])]))))
+  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+         (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
+  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c) && flagrt.Eq(c, d))"
+         (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c") (ir/ir-ident "d")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "="}
+                          {:kind :int :value 1}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewString(\"x\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "="}
+                          {:kind :symbol :name "a"}
+                          {:kind :symbol :name "b"}
+                          {:kind :symbol :name "c"}]}
+              {:locals {"a" :value "b" :value "c" :value}})]
+    (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "countdown"}
+                          {:kind :list
+                           :elements [{:kind :symbol :name "-"}
+                                      {:kind :symbol :name "n"}
+                                      {:kind :int :value 1}]}]}
+              {:locals {"n" :value}
+               :self-function-name "countdown"
+               :self-variadic-name "countdown_variadic"
+               :self-arity-name "countdown_variadic"
+               :self-function-rest true
+               :self-function-arity 1})]
+    (is (= "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))"
+           (ir/render-ir (:expr out))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

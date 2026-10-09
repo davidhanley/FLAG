@@ -1,6 +1,6 @@
 {:namespace "compiler"
  :exports   [ast-node-to-ir quoted-ast-to-ir call-to-ir call-ast-to-ir
-             ctor-to-ir runtime-call-to-ir fold-call-to-ir
+             ctor-to-ir runtime-call-to-ir fold-call-to-ir eq-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
@@ -203,6 +203,21 @@
       (if (or (nil? remaining) (empty? remaining))
         acc
         (recur (literal-rt-call name [acc (first remaining)])
+               (rest remaining))))))
+
+(defn eq-to-ir [args]
+  (if (or (nil? args) (empty? args) (empty? (rest args)))
+    (throw (ex-info "= expects at least two arguments" {}))
+    (loop [acc (literal-rt-call "Eq" [(first args) (first (rest args))])
+           prev (first (rest args))
+           remaining (rest (rest args))]
+      (if (or (nil? remaining) (empty? remaining))
+        (literal-rt-call "NewBool" [acc])
+        (recur {:kind :binary
+                :op "&&"
+                :left acc
+                :right (literal-rt-call "Eq" [prev (first remaining)])}
+               (first remaining)
                (rest remaining))))))
 
 (def builtin-function-names
@@ -572,6 +587,18 @@
 
 (defn ident-call-ir [name args]
   {:kind :call :fun {:kind :ident :name name} :args args})
+
+(defn self-call-target [name nargs ctx]
+  (if (or (nil? name) (= "" name) (not (= name (:self-function-name ctx))))
+    nil
+    (let [arity-names (:self-arity-names ctx)]
+      (if (and (not (nil? arity-names)) (contains? arity-names nargs))
+        (get arity-names nargs)
+        (if (or (:self-function-rest ctx) (= nargs (:self-function-arity ctx)))
+          (if (:self-function-rest ctx)
+            (:self-variadic-name ctx)
+            (:self-arity-name ctx))
+          nil)))))
 
 (defn doto-to-ir [target-stmts target-expr steps]
   (value-iife-ir
@@ -1194,6 +1221,13 @@
 (defn form-value-ir [part]
   (:expr (coerce-form-value part)))
 
+(defn eq-arg-ir [part]
+  (let [k (:expr-kind part)]
+    (cond
+      (= k :value) (:expr part)
+      (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      :else (throw (ex-info "= arguments must evaluate to Value" {})))))
+
 (defn truthy-form-ir [part]
   (let [k (:expr-kind part)]
     (cond
@@ -1386,6 +1420,18 @@
                 (= op "fn") (compile-form-node :fn args ctx)
                 (= op "update!") (compile-form-node :update args ctx)
 
+                (= op "=")
+                (if (or (nil? args) (empty? args) (empty? (rest args)))
+                  (throw (ex-info "= expects at least two arguments" {}))
+                  (loop [remaining args ctx ctx stmts [] irs []]
+                    (if (or (nil? remaining) (empty? remaining))
+                      (form-result stmts (eq-to-ir irs) :value ctx)
+                      (let [part (compile-form-node :form (first remaining) ctx)]
+                        (recur (rest remaining)
+                               (:ctx part)
+                               (concat-stmts stmts (:stmts part))
+                               (conj irs (eq-arg-ir part)))))))
+
                 unary
                 (if (not (= 1 (count args)))
                   (throw (ex-info (str op " expects exactly one argument") {:node node}))
@@ -1422,12 +1468,19 @@
                 (throw (ex-info "not handled by FLAG form lowering" {:node node}))
 
                 :else
-                (let [callee (compile-form-node :form head ctx)
-                      compiled (compile-form-node :seq args (:ctx callee))]
-                  (form-result (concat-stmts (:stmts callee) (:stmts compiled))
-                               (call-to-ir (form-value-ir callee) (:irs compiled))
-                               :value
-                               (:ctx compiled)))))
+                (let [self-target (self-call-target op (count (stmt-list args)) ctx)]
+                  (if (and self-target (not (= "" self-target)))
+                    (let [compiled (compile-form-node :seq args ctx)]
+                      (form-result (:stmts compiled)
+                                   (ident-call-ir self-target (:irs compiled))
+                                   :value
+                                   (:ctx compiled)))
+                    (let [callee (compile-form-node :form head ctx)
+                          compiled (compile-form-node :seq args (:ctx callee))]
+                      (form-result (concat-stmts (:stmts callee) (:stmts compiled))
+                                   (call-to-ir (form-value-ir callee) (:irs compiled))
+                                   :value
+                                   (:ctx compiled)))))))
             (let [callee (compile-form-node :form head ctx)
                   compiled (compile-form-node :seq args (:ctx callee))]
               (form-result (concat-stmts (:stmts callee) (:stmts compiled))

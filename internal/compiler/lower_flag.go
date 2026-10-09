@@ -116,6 +116,10 @@ func flagFoldCallToIR(name string, args []IRExpr) (IRExpr, error) {
 	return flagIRCall(compiler__fold_call_to_ir, flagrt.NewString(name), irExprsToFlagVector(args))
 }
 
+func flagEqToIR(args []IRExpr) (IRExpr, error) {
+	return flagIRCall(compiler__eq_to_ir, irExprsToFlagVector(args))
+}
+
 func flagEvalAstToIR(expr Expr, ctx flagrt.Value) (IRExpr, error) {
 	if flagrt.IsNil(ctx) {
 		ctx = flagrt.NewMap()
@@ -530,6 +534,17 @@ func stringMapToFLAG(m map[string]string) flagrt.Value {
 	return flagrt.NewMap(pairs...)
 }
 
+func intStringMapToFLAG(m map[int]string) flagrt.Value {
+	if len(m) == 0 {
+		return flagrt.NewMap()
+	}
+	pairs := make([]flagrt.Value, 0, len(m)*2)
+	for k, v := range m {
+		pairs = append(pairs, flagrt.NewLong(int64(k)), flagrt.NewString(v))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
 func functionNamesToFLAG(m map[string]functionDef) flagrt.Value {
 	if len(m) == 0 {
 		return flagrt.NewMap()
@@ -576,6 +591,10 @@ func loweringContext(ctx compileContext, locals map[string]exprKind) flagrt.Valu
 		flagrt.NewKeyword("go-fns"), goFnBindingsFLAG(),
 		flagrt.NewKeyword("self-function-name"), flagrt.NewString(ctx.selfFunctionName),
 		flagrt.NewKeyword("self-variadic-name"), flagrt.NewString(ctx.selfVariadicName),
+		flagrt.NewKeyword("self-arity-name"), flagrt.NewString(ctx.selfArityName),
+		flagrt.NewKeyword("self-function-rest"), flagrt.NewBool(ctx.selfFunctionRest),
+		flagrt.NewKeyword("self-function-arity"), flagrt.NewLong(int64(ctx.selfFunctionArity)),
+		flagrt.NewKeyword("self-arity-names"), intStringMapToFLAG(ctx.selfArityNames),
 	)
 }
 

@@ -78,7 +78,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 
 `compiler/lower.lib` exports `ast-node-to-ir`, `quoted-ast-to-ir`,
 `call-to-ir`, `call-ast-to-ir`, `ctor-to-ir`, `runtime-call-to-ir`,
-`fold-call-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
+`fold-call-to-ir`, `eq-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
@@ -114,6 +114,12 @@ and interns constant collections; FLAG emits the call node.
 
 `runtime-call-to-ir` / `fold-call-to-ir` emit simple runtime ops. Go keeps
 arity checks; FLAG emits `flagrt.First`, folded `flagrt.Add`, `BitAnd`, etc.
+
+`eq-to-ir` is `(= a b c …)`: at least two arguments, string args wrapped
+with `NewString`, adjacent values chained as `flagrt.Eq` joined with `&&`,
+then `flagrt.NewBool`. Production `compile-form-to-ir` uses this for `=`.
+Self-calls use the same direct Go ident as production (`goName_arity_N` or
+the variadic wrapper), not `flagrt.Call`.
 
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
@@ -180,9 +186,9 @@ finish it.
 
 `compile-form-to-ir` / `compile-forms-to-ir` lower a form or `do` body:
 literals, collections, symbols (including `pkg/name` via the module
-table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, folded
-`+ - * /`, and other runtime ops already in FLAG. Other special forms
-(`.method`, `loop`, `defer`, `map`, …) throw `not handled by FLAG`.
+table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
+folded `+ - * /`, and other runtime ops already in FLAG. Other special
+forms (`.method`, `loop`, `defer`, `map`, …) throw `not handled by FLAG`.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
 FLAG first and fall back to Go on those errors. FLAG preserves
 `:mutable-value` locals across nested `fn` parameter binding so `update!`

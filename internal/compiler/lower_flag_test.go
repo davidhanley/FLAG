@@ -266,6 +266,27 @@ func TestFLAGCtorAndRuntimeOps(t *testing.T) {
 	if got := renderIRExpr(ir); got != "flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewLong(3))" {
 		t.Fatalf("fold %q", got)
 	}
+	ir, err = flagEqToIR([]IRExpr{
+		rtCall("NewLong", IRInt{Value: 1}),
+		rtCall("NewLong", IRInt{Value: 2}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := renderIRExpr(ir); got != "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))" {
+		t.Fatalf("eq %q", got)
+	}
+	ir, err = flagEqToIR([]IRExpr{IRIdent{Name: "a"}, IRIdent{Name: "b"}, IRIdent{Name: "c"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := renderIRExpr(ir); got != "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))" {
+		t.Fatalf("eq-chain %q", got)
+	}
+	_, err = flagEqToIR([]IRExpr{IRIdent{Name: "a"}})
+	if err == nil {
+		t.Fatal("expected arity error")
+	}
 }
 
 func TestFLAGSymbolToIR(t *testing.T) {
@@ -1154,6 +1175,80 @@ func TestFLAGCompileFormIf(t *testing.T) {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
+	}
+}
+
+func TestFLAGCompileFormEq(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "="},
+		IntExpr{Value: 1},
+		IntExpr{Value: 2},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))" {
+		t.Fatalf("eq %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "="},
+		SymbolExpr{Name: "a"},
+		SymbolExpr{Name: "b"},
+		SymbolExpr{Name: "c"},
+	}}, ctx, map[string]exprKind{"a": exprKindValue, "b": exprKindValue, "c": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))" {
+		t.Fatalf("eq-chain %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "="},
+		IntExpr{Value: 1},
+		StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewString("x")))` {
+		t.Fatalf("eq-string %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "="},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected arity error")
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "="},
+		SymbolExpr{Name: "a"},
+		SymbolExpr{Name: "b"},
+	}}, ctx, map[string]exprKind{"a": exprKindBool, "b": exprKindValue})
+	if err == nil {
+		t.Fatal("expected value-kind error")
+	}
+
+	ctx.selfFunctionName = "countdown"
+	ctx.selfFunctionRest = true
+	ctx.selfFunctionArity = 1
+	ctx.selfVariadicName = "countdown_variadic"
+	ctx.selfArityName = "countdown_variadic"
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "countdown"},
+		ListExpr{Elements: []Expr{SymbolExpr{Name: "-"}, SymbolExpr{Name: "n"}, IntExpr{Value: 1}}},
+	}}, ctx, map[string]exprKind{"n": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))" {
+		t.Fatalf("self-call %q", renderIRExpr(irFromGoExpr(got)))
 	}
 }
 
