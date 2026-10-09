@@ -58,11 +58,11 @@ func compileDefrecord(form ListExpr, ctx *compileContext) (string, []functionDef
 	}
 	typeDecl.WriteString("}\n")
 
-	ctorGoName, err := moduleGoIdent(ctx.namespace, "->"+nameExpr.Name)
+	ctorGoName, err := ctx.defGoIdent("->" + nameExpr.Name)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	mapCtorGoName, err := moduleGoIdent(ctx.namespace, "map->"+nameExpr.Name)
+	mapCtorGoName, err := ctx.defGoIdent("map->" + nameExpr.Name)
 	if err != nil {
 		return "", nil, nil, err
 	}

@@ -3,6 +3,8 @@ package compiler
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ModuleHeader is the first-form module map described in docs/modules.md.
@@ -260,6 +262,43 @@ func splitQualifiedSymbol(name string) (prefix, local string, ok bool) {
 	}
 	// Only the first slash separates namespace from local name.
 	return name[:idx], name[idx+1:], true
+}
+
+// GeneratedModulePath is the Go module path used when emitting one package per
+// FLAG module (`flag-lang build`).
+const GeneratedModulePath = "flagbuild"
+
+var goKeywords = map[string]bool{
+	"break": true, "default": true, "func": true, "interface": true, "select": true,
+	"case": true, "defer": true, "go": true, "map": true, "struct": true,
+	"chan": true, "else": true, "goto": true, "package": true, "switch": true,
+	"const": true, "fallthrough": true, "if": true, "range": true, "type": true,
+	"continue": true, "for": true, "import": true, "return": true, "var": true,
+}
+
+// goPackageName maps a FLAG :namespace to a Go package identifier.
+func goPackageName(namespace string) (string, error) {
+	ident, err := toGoIdentifier(strings.ReplaceAll(namespace, ".", "_"))
+	if err != nil {
+		return "", fmt.Errorf("namespace %q: %w", namespace, err)
+	}
+	if goKeywords[ident] {
+		ident += "_"
+	}
+	return ident, nil
+}
+
+// exportedGoIdent is the public Go name for a FLAG export in its own package.
+func exportedGoIdent(localName string) (string, error) {
+	ident, err := toGoIdentifier(localName)
+	if err != nil {
+		return "", err
+	}
+	r, size := utf8.DecodeRuneInString(ident)
+	if unicode.IsUpper(r) {
+		return ident, nil
+	}
+	return string(unicode.ToUpper(r)) + ident[size:], nil
 }
 
 // moduleGoIdent builds a unique Go identifier for a def in a module namespace.

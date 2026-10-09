@@ -1,5 +1,9 @@
 (ns language.core-test)
 
+(declare declared-answer)
+
+(defn declared-answer [] 42)
+
 (deftest arithmetic
   (testing "add sub div mod"
     (is (= 5 (+ 1 2 2)))
@@ -189,12 +193,56 @@
     (is (= 42 (if (= 1 1.0) 42 0)))
     (is (= nil (if (= 1 2) 42)))
     (is (= 2 (let [a 1 b (+ 1 a)] b)))
+    (is (= 2 (let [x 1] (do x (let [x 2] x)))))
+    (is (= 10 ((fn [x] (+ x (let [x 1] x))) 9)))
     (is (= "#d8dbff" (let [c1 "#d8dbff" ok (> 3 2)] (if ok c1 "no"))))
     (is (= 7 (get-scores-list-base 7)))
     (is (= 1 (foreign-name? 1)))
     (is (= 2 (mutate! 2)))
     (is (= "Ada" (greet "Ada")))
     (is (= 3 (add1 2)))))
+
+(deftest and-or-macros
+  (testing "empty and single"
+    (is (= nil (or)))
+    (is (= true (and)))
+    (is (= 1 (or 1)))
+    (is (= 1 (and 1)))
+    (is (= false (or false)))
+    (is (= false (and false))))
+  (testing "value results"
+    (is (= 1 (or false nil 1)))
+    (is (= nil (or false nil)))
+    (is (= false (and true false)))
+    (is (= 2 (and 1 2)))
+    (is (= "x" (or nil "x")))
+    (is (= nil (and 1 nil 3)))
+    (is (= [] (or nil [])))
+    (is (= [] (or false [])))
+    (is (= [] (and [] [])))
+    (is (= 1 (and 1 1))))
+  (testing "short-circuit and single evaluation"
+    (let [^{:volatile true} acc []]
+      (let [result (or (do (update! acc (conj acc 1)) false)
+                       (do (update! acc (conj acc 2)) 2)
+                       (do (update! acc (conj acc 3)) 3))]
+        (is (= 2 result))
+        (is (= [1 2] acc))))
+    (let [^{:volatile true} acc []]
+      (let [result (or (do (update! acc (conj acc 1)) 7) 9)]
+        (is (= 7 result))
+        (is (= [1] acc))))
+    (let [^{:volatile true} acc []]
+      (let [result (and (do (update! acc (conj acc 1)) 1)
+                        (do (update! acc (conj acc 2)) false)
+                        (do (update! acc (conj acc 3)) 3))]
+        (is (= false result))
+        (is (= [1 2] acc))))
+    (let [^{:volatile true} acc []]
+      (let [result (and (do (update! acc (conj acc 1)) 1)
+                        (do (update! acc (conj acc 2)) 2))]
+        (is (= 2 result))
+        (is (= [1 2] acc))))))
 
 (deftest unused-bindings
   (testing "_ and _-prefixed names are intentionally unused"
@@ -379,6 +427,8 @@
     (is (= [] (vec (map-indexed (fn [i x] [i x]) []))))
     (is (= [[:li 1] [:li 2]] (vec (for [x [1 2]] [:li x]))))
     (is (= [[1 10] [1 20] [2 10] [2 20]] (vec (for [x [1 2] y [10 20]] [x y]))))
+    (is (= ["" 1] (vec (for [cell [nil 1]] (or cell "")))))
+    (is (= [1 2] (vec (for [x [1 2]] (let [y x] y)))))
     (is (= {1 1 2 2} (into {} (map (fn [x] [x x]) [1 2]))))
     (is (sequential? [1]))
     (is (sequential? '(1)))
@@ -635,7 +685,9 @@
     (is (= "xyz" (name :xyz)))
     (is (= "abc" (name (symbol "abc"))))
     (is (= 'xyz (symbol :xyz)))
-    (is (= :abc (keyword "abc")))))
+    (is (= :abc (keyword "abc"))))
+  (testing "declare then defn"
+    (is (= 42 (declared-answer)))))
 
 (deftest strings-and-numbers
   (testing "str format double go-fn json"

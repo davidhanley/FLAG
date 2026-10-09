@@ -8,9 +8,7 @@ import (
 )
 
 func compiler__symbol_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_symbol, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_symbol, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__symbol_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -21,9 +19,7 @@ func compiler__symbol_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__list_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_list, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_list, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__list_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -34,9 +30,7 @@ func compiler__list_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__vector_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_vector, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_vector, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__vector_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -47,9 +41,7 @@ func compiler__vector_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__pipe_vector_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_pipe_vector, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_pipe_vector, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__pipe_vector_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -60,9 +52,7 @@ func compiler__pipe_vector_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__map_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_map, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_map, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__map_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -73,9 +63,7 @@ func compiler__map_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__set_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_set, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_set, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__set_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -86,9 +74,7 @@ func compiler__set_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__hash_fn_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_hash_fn, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_hash_fn, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__hash_fn_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -99,9 +85,7 @@ func compiler__hash_fn_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__meta_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_meta, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_meta, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__meta_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -112,9 +96,7 @@ func compiler__meta_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__string_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewBool(flagrt.Eq(macflagKw_string, flagrt.Call(macflagKw_kind, expr)))
-	}()
+	return flagrt.NewBool(flagrt.Eq(macflagKw_string, flagrt.Call(macflagKw_kind, expr)))
 }
 
 func compiler__string_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -125,14 +107,13 @@ func compiler__string_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__unwrap_meta_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
-				return flagrt.Call(macflagKw_target, expr)
-			}
-			return expr
-		}()
-	}()
+	var if_result_185 flagrt.Value
+	if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
+		if_result_185 = flagrt.Call(macflagKw_target, expr)
+	} else {
+		if_result_185 = expr
+	}
+	return if_result_185
 }
 
 func compiler__unwrap_meta_variadic(args ...flagrt.Value) flagrt.Value {
@@ -143,14 +124,13 @@ func compiler__unwrap_meta_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__node_children_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
-				return flagrt.Call(macflagKw_entries, expr)
-			}
-			return flagrt.Call(macflagKw_elements, expr)
-		}()
-	}()
+	var if_result_186 flagrt.Value
+	if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
+		if_result_186 = flagrt.Call(macflagKw_entries, expr)
+	} else {
+		if_result_186 = flagrt.Call(macflagKw_elements, expr)
+	}
+	return if_result_186
 }
 
 func compiler__node_children_variadic(args ...flagrt.Value) flagrt.Value {
@@ -161,14 +141,13 @@ func compiler__node_children_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__with_children_arity_2(expr flagrt.Value, children flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
-				return flagrt.Assoc(expr, macflagKw_entries, children)
-			}
-			return flagrt.Assoc(expr, macflagKw_elements, children)
-		}()
-	}()
+	var if_result_187 flagrt.Value
+	if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
+		if_result_187 = flagrt.Assoc(expr, macflagKw_entries, children)
+	} else {
+		if_result_187 = flagrt.Assoc(expr, macflagKw_elements, children)
+	}
+	return if_result_187
 }
 
 func compiler__with_children_variadic(args ...flagrt.Value) flagrt.Value {
@@ -179,17 +158,29 @@ func compiler__with_children_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__splice_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr)) {
-				return flagrt.Call(compiler__list_node_q, expr)
+	var let_result_191 flagrt.Value
+	{
+		var or_tmp = flagrt.Call(compiler__list_node_q, expr)
+		var if_result_190 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_190 = or_tmp
+		} else {
+			var let_result_189 flagrt.Value
+			{
+				var or_tmp = flagrt.Call(compiler__vector_node_q, expr)
+				var if_result_188 flagrt.Value
+				if flagrt.IsTruthy(or_tmp) {
+					if_result_188 = or_tmp
+				} else {
+					if_result_188 = flagrt.Call(compiler__pipe_vector_node_q, expr)
+				}
+				let_result_189 = if_result_188
 			}
-			if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, expr)) {
-				return flagrt.Call(compiler__vector_node_q, expr)
-			}
-			return flagrt.Call(compiler__pipe_vector_node_q, expr)
-		}()
-	}()
+			if_result_190 = let_result_189
+		}
+		let_result_191 = if_result_190
+	}
+	return let_result_191
 }
 
 func compiler__splice_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -200,17 +191,29 @@ func compiler__splice_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__walk_node_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.Call(compiler__splice_node_q, expr)) {
-				return flagrt.Call(compiler__splice_node_q, expr)
+	var let_result_195 flagrt.Value
+	{
+		var or_tmp = flagrt.Call(compiler__splice_node_q, expr)
+		var if_result_194 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_194 = or_tmp
+		} else {
+			var let_result_193 flagrt.Value
+			{
+				var or_tmp = flagrt.Call(compiler__map_node_q, expr)
+				var if_result_192 flagrt.Value
+				if flagrt.IsTruthy(or_tmp) {
+					if_result_192 = or_tmp
+				} else {
+					if_result_192 = flagrt.Call(compiler__set_node_q, expr)
+				}
+				let_result_193 = if_result_192
 			}
-			if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
-				return flagrt.Call(compiler__map_node_q, expr)
-			}
-			return flagrt.Call(compiler__set_node_q, expr)
-		}()
-	}()
+			if_result_194 = let_result_193
+		}
+		let_result_195 = if_result_194
+	}
+	return let_result_195
 }
 
 func compiler__walk_node_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -221,9 +224,7 @@ func compiler__walk_node_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__make_symbol_arity_1(name flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(macflagKw_kind, macflagKw_symbol, macflagKw_name, name)
-	}()
+	return flagrt.NewMap(macflagKw_kind, macflagKw_symbol, macflagKw_name, name)
 }
 
 func compiler__make_symbol_variadic(args ...flagrt.Value) flagrt.Value {
@@ -234,9 +235,7 @@ func compiler__make_symbol_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__make_list_arity_1(elements flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(macflagKw_kind, macflagKw_list, macflagKw_elements, elements)
-	}()
+	return flagrt.NewMap(macflagKw_kind, macflagKw_list, macflagKw_elements, elements)
 }
 
 func compiler__make_list_variadic(args ...flagrt.Value) flagrt.Value {
@@ -247,9 +246,7 @@ func compiler__make_list_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__wrap_literal_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(macflagKw_kind, macflagKw_macro_literal, macflagKw_inner, expr)
-	}()
+	return flagrt.NewMap(macflagKw_kind, macflagKw_macro_literal, macflagKw_inner, expr)
 }
 
 func compiler__wrap_literal_variadic(args ...flagrt.Value) flagrt.Value {
@@ -260,14 +257,13 @@ func compiler__wrap_literal_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__unwrap_literal_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(macflagKw_macro_literal, flagrt.Call(macflagKw_kind, expr)))) {
-				return compiler__unwrap_literal_arity_1(flagrt.Call(macflagKw_inner, expr))
-			}
-			return expr
-		}()
-	}()
+	var if_result_196 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(macflagKw_macro_literal, flagrt.Call(macflagKw_kind, expr)))) {
+		if_result_196 = compiler__unwrap_literal_arity_1(flagrt.Call(macflagKw_inner, expr))
+	} else {
+		if_result_196 = expr
+	}
+	return if_result_196
 }
 
 func compiler__unwrap_literal_variadic(args ...flagrt.Value) flagrt.Value {
@@ -278,49 +274,51 @@ func compiler__unwrap_literal_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__unwrap_literal_tree_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var expr = flagrt.Call(compiler__unwrap_literal, expr)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, expr)) {
-					return flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
-						var remaining = flagrt.Call(compiler__node_children, expr)
-						var acc = macflagVec
-						for {
-							__loopResult := func() flagrt.Value {
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-										return acc
-									}
-									return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__unwrap_literal_tree_arity_1(flagrt.First(remaining))))
-								}()
-							}()
-							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-								if len(__recurValues) != 2 {
-									panic("internal error: recur arity mismatch")
-								}
-								remaining = __recurValues[0]
-								acc = __recurValues[1]
-								continue
-							}
-							return __loopResult
-						}
-					}())
-				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
-						return flagrt.Assoc(expr, macflagKw_body, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_body, expr)))
+	var let_result_201 flagrt.Value
+	{
+		var expr = flagrt.Call(compiler__unwrap_literal, expr)
+		var if_result_200 flagrt.Value
+		if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, expr)) {
+			if_result_200 = flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
+				var remaining = flagrt.Call(compiler__node_children, expr)
+				var acc = macflagVec
+				for {
+					var if_result_197 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						if_result_197 = acc
+					} else {
+						if_result_197 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__unwrap_literal_tree_arity_1(flagrt.First(remaining))))
 					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
-							return flagrt.Assoc(expr, macflagKw_meta, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_meta, expr)), macflagKw_target, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_target, expr)))
+					__loopResult := if_result_197
+					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+						if len(__recurValues) != 2 {
+							panic("internal error: recur arity mismatch")
 						}
-						return expr
-					}()
-				}()
-			}()
-		}()
-	}()
+						remaining = __recurValues[0]
+						acc = __recurValues[1]
+						continue
+					}
+					return __loopResult
+				}
+			}())
+		} else {
+			var if_result_199 flagrt.Value
+			if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
+				if_result_199 = flagrt.Assoc(expr, macflagKw_body, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_body, expr)))
+			} else {
+				var if_result_198 flagrt.Value
+				if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
+					if_result_198 = flagrt.Assoc(expr, macflagKw_meta, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_meta, expr)), macflagKw_target, compiler__unwrap_literal_tree_arity_1(flagrt.Call(macflagKw_target, expr)))
+				} else {
+					if_result_198 = expr
+				}
+				if_result_199 = if_result_198
+			}
+			if_result_200 = if_result_199
+		}
+		let_result_201 = if_result_200
+	}
+	return let_result_201
 }
 
 func compiler__unwrap_literal_tree_variadic(args ...flagrt.Value) flagrt.Value {
@@ -331,30 +329,46 @@ func compiler__unwrap_literal_tree_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__macro_definition_q_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if !(flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr))) {
-				return flagrt.Call(compiler__list_node_q, expr)
-			}
-			if !(flagrt.IsTruthy(func() flagrt.Value {
+	var let_result_208 flagrt.Value
+	{
+		var and_tmp = flagrt.Call(compiler__list_node_q, expr)
+		var if_result_207 flagrt.Value
+		if flagrt.IsTruthy(and_tmp) {
+			var let_result_206 flagrt.Value
+			{
+				var if_result_202 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Call(compiler__node_children, expr)))) {
-					return flagrt.NewBool(false)
+					if_result_202 = flagrt.NewBool(false)
+				} else {
+					if_result_202 = flagrt.NewBool(true)
 				}
-				return flagrt.NewBool(true)
-			}())) {
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Call(compiler__node_children, expr)))) {
-						return flagrt.NewBool(false)
+				var and_tmp = if_result_202
+				var if_result_205 flagrt.Value
+				if flagrt.IsTruthy(and_tmp) {
+					var let_result_204 flagrt.Value
+					{
+						var and_tmp = flagrt.Call(compiler__symbol_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(flagrt.Call(compiler__node_children, expr))))
+						var if_result_203 flagrt.Value
+						if flagrt.IsTruthy(and_tmp) {
+							if_result_203 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("defmacro"), flagrt.Call(macflagKw_name, flagrt.Call(compiler__unwrap_meta, flagrt.First(flagrt.Call(compiler__node_children, expr))))))
+						} else {
+							if_result_203 = and_tmp
+						}
+						let_result_204 = if_result_203
 					}
-					return flagrt.NewBool(true)
-				}()
+					if_result_205 = let_result_204
+				} else {
+					if_result_205 = and_tmp
+				}
+				let_result_206 = if_result_205
 			}
-			if !(flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(flagrt.Call(compiler__node_children, expr)))))) {
-				return flagrt.Call(compiler__symbol_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(flagrt.Call(compiler__node_children, expr))))
-			}
-			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("defmacro"), flagrt.Call(macflagKw_name, flagrt.Call(compiler__unwrap_meta, flagrt.First(flagrt.Call(compiler__node_children, expr))))))
-		}()
-	}()
+			if_result_207 = let_result_206
+		} else {
+			if_result_207 = and_tmp
+		}
+		let_result_208 = if_result_207
+	}
+	return let_result_208
 }
 
 func compiler__macro_definition_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -366,29 +380,26 @@ func compiler__macro_definition_q_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__append_all_arity_2(target flagrt.Value, items flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var remaining = items
-			var out = target
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-							return out
-						}
-						return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, flagrt.First(remaining)))
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 2 {
-						panic("internal error: recur arity mismatch")
-					}
-					remaining = __recurValues[0]
-					out = __recurValues[1]
-					continue
-				}
-				return __loopResult
+		var remaining = items
+		var out = target
+		for {
+			var if_result_209 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+				if_result_209 = out
+			} else {
+				if_result_209 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, flagrt.First(remaining)))
 			}
-		}()
+			__loopResult := if_result_209
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				remaining = __recurValues[0]
+				out = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -400,9 +411,7 @@ func compiler__append_all_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__nth_node_arity_2(nodes flagrt.Value, n flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.First(flagrt.Drop(n, nodes))
-	}()
+	return flagrt.First(flagrt.Drop(n, nodes))
 }
 
 func compiler__nth_node_variadic(args ...flagrt.Value) flagrt.Value {
@@ -413,202 +422,269 @@ func compiler__nth_node_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__node_equal_q_arity_2(a flagrt.Value, b flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(a))) {
-					return flagrt.NewBool(flagrt.IsNil(a))
-				}
-				return flagrt.NewBool(flagrt.IsNil(b))
-			}()) {
-				return func() flagrt.Value {
-					if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(a)))) {
-						return flagrt.NewBool(flagrt.IsNil(a))
-					}
-					return flagrt.NewBool(flagrt.IsNil(b))
-				}()
+	var let_result_211 flagrt.Value
+	{
+		var or_tmp = flagrt.NewBool(flagrt.IsNil(a))
+		var if_result_210 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_210 = or_tmp
+		} else {
+			if_result_210 = flagrt.NewBool(flagrt.IsNil(b))
+		}
+		let_result_211 = if_result_210
+	}
+	var if_result_249 flagrt.Value
+	if flagrt.IsTruthy(let_result_211) {
+		var let_result_213 flagrt.Value
+		{
+			var and_tmp = flagrt.NewBool(flagrt.IsNil(a))
+			var if_result_212 flagrt.Value
+			if flagrt.IsTruthy(and_tmp) {
+				if_result_212 = flagrt.NewBool(flagrt.IsNil(b))
+			} else {
+				if_result_212 = and_tmp
 			}
-			return func() flagrt.Value {
-				var kind = flagrt.Call(macflagKw_kind, a)
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, flagrt.Call(macflagKw_kind, b)))) {
-							return flagrt.NewBool(false)
+			let_result_213 = if_result_212
+		}
+		if_result_249 = let_result_213
+	} else {
+		var let_result_248 flagrt.Value
+		{
+			var kind = flagrt.Call(macflagKw_kind, a)
+			var if_result_214 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, flagrt.Call(macflagKw_kind, b)))) {
+				if_result_214 = flagrt.NewBool(false)
+			} else {
+				if_result_214 = flagrt.NewBool(true)
+			}
+			var if_result_247 flagrt.Value
+			if flagrt.IsTruthy(if_result_214) {
+				if_result_247 = flagrt.NewBool(false)
+			} else {
+				var let_result_218 flagrt.Value
+				{
+					var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_symbol))
+					var if_result_217 flagrt.Value
+					if flagrt.IsTruthy(or_tmp) {
+						if_result_217 = or_tmp
+					} else {
+						var let_result_216 flagrt.Value
+						{
+							var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))
+							var if_result_215 flagrt.Value
+							if flagrt.IsTruthy(or_tmp) {
+								if_result_215 = or_tmp
+							} else {
+								if_result_215 = flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_symbol))
+							}
+							let_result_216 = if_result_215
 						}
-						return flagrt.NewBool(true)
-					}()) {
-						return flagrt.NewBool(false)
+						if_result_217 = let_result_216
 					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_symbol))) {
-								return flagrt.NewBool(flagrt.Eq(kind, macflagKw_symbol))
-							}
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))) {
-								return flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))
-							}
-							return flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_symbol))
-						}()) {
-							return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_name, a), flagrt.Call(macflagKw_name, b)))
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_string))) {
-								return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
-							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_char))) {
-									return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
-								}
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_int))) {
-										return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_bigint))) {
-											return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_float))) {
-												return func() flagrt.Value {
-													if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_raw, a), flagrt.Call(macflagKw_raw, b))))) {
-														return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_raw, a), flagrt.Call(macflagKw_raw, b)))
-													}
-													return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
-												}()
+					let_result_218 = if_result_217
+				}
+				var if_result_246 flagrt.Value
+				if flagrt.IsTruthy(let_result_218) {
+					if_result_246 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_name, a), flagrt.Call(macflagKw_name, b)))
+				} else {
+					var if_result_245 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_string))) {
+						if_result_245 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
+					} else {
+						var if_result_244 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_char))) {
+							if_result_244 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
+						} else {
+							var if_result_243 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_int))) {
+								if_result_243 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
+							} else {
+								var if_result_242 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_bigint))) {
+									if_result_242 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
+								} else {
+									var if_result_241 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_float))) {
+										var let_result_220 flagrt.Value
+										{
+											var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_raw, a), flagrt.Call(macflagKw_raw, b)))
+											var if_result_219 flagrt.Value
+											if flagrt.IsTruthy(and_tmp) {
+												if_result_219 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_value, a), flagrt.Call(macflagKw_value, b)))
+											} else {
+												if_result_219 = and_tmp
 											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_ratio))) {
-													return func() flagrt.Value {
-														if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_numerator, a), flagrt.Call(macflagKw_numerator, b))))) {
-															return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_numerator, a), flagrt.Call(macflagKw_numerator, b)))
-														}
-														return flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_denominator, a), flagrt.Call(macflagKw_denominator, b)))
-													}()
+											let_result_220 = if_result_219
+										}
+										if_result_241 = let_result_220
+									} else {
+										var if_result_240 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_ratio))) {
+											var let_result_222 flagrt.Value
+											{
+												var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_numerator, a), flagrt.Call(macflagKw_numerator, b)))
+												var if_result_221 flagrt.Value
+												if flagrt.IsTruthy(and_tmp) {
+													if_result_221 = flagrt.NewBool(flagrt.Eq(flagrt.Call(macflagKw_denominator, a), flagrt.Call(macflagKw_denominator, b)))
+												} else {
+													if_result_221 = and_tmp
 												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_hash_fn))) {
-														return compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_body, a), flagrt.Call(macflagKw_body, b))
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_meta))) {
-															return func() flagrt.Value {
-																if !(flagrt.IsTruthy(compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_meta, a), flagrt.Call(macflagKw_meta, b)))) {
-																	return compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_meta, a), flagrt.Call(macflagKw_meta, b))
-																}
-																return compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_target, a), flagrt.Call(macflagKw_target, b))
-															}()
+												let_result_222 = if_result_221
+											}
+											if_result_240 = let_result_222
+										} else {
+											var if_result_239 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_hash_fn))) {
+												if_result_239 = compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_body, a), flagrt.Call(macflagKw_body, b))
+											} else {
+												var if_result_238 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_meta))) {
+													var let_result_224 flagrt.Value
+													{
+														var and_tmp = compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_meta, a), flagrt.Call(macflagKw_meta, b))
+														var if_result_223 flagrt.Value
+														if flagrt.IsTruthy(and_tmp) {
+															if_result_223 = compiler__node_equal_q_arity_2(flagrt.Call(macflagKw_target, a), flagrt.Call(macflagKw_target, b))
+														} else {
+															if_result_223 = and_tmp
 														}
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, a)) {
-																return func() flagrt.Value {
-																	var as = flagrt.Call(compiler__node_children, a)
-																	var bs = flagrt.Call(compiler__node_children, b)
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(func() flagrt.Value {
-																			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(as))), flagrt.NewLong(int64(flagrt.Count(bs)))))) {
-																				return flagrt.NewBool(false)
+														let_result_224 = if_result_223
+													}
+													if_result_238 = let_result_224
+												} else {
+													var if_result_237 flagrt.Value
+													if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, a)) {
+														var let_result_229 flagrt.Value
+														{
+															var as = flagrt.Call(compiler__node_children, a)
+															var bs = flagrt.Call(compiler__node_children, b)
+															var if_result_225 flagrt.Value
+															if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(as))), flagrt.NewLong(int64(flagrt.Count(bs)))))) {
+																if_result_225 = flagrt.NewBool(false)
+															} else {
+																if_result_225 = flagrt.NewBool(true)
+															}
+															var if_result_228 flagrt.Value
+															if flagrt.IsTruthy(if_result_225) {
+																if_result_228 = flagrt.NewBool(false)
+															} else {
+																if_result_228 = func() flagrt.Value {
+																	var left = as
+																	var right = bs
+																	for {
+																		var if_result_227 flagrt.Value
+																		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(left))) {
+																			if_result_227 = flagrt.NewBool(true)
+																		} else {
+																			var if_result_226 flagrt.Value
+																			if flagrt.IsTruthy(compiler__node_equal_q_arity_2(flagrt.First(left), flagrt.First(right))) {
+																				if_result_226 = flagrt.NewRecur(flagrt.Rest(left), flagrt.Rest(right))
+																			} else {
+																				if_result_226 = flagrt.NewBool(false)
 																			}
-																			return flagrt.NewBool(true)
-																		}()) {
-																			return flagrt.NewBool(false)
+																			if_result_227 = if_result_226
 																		}
-																		return func() flagrt.Value {
-																			var left = as
-																			var right = bs
-																			for {
-																				__loopResult := func() flagrt.Value {
-																					return func() flagrt.Value {
-																						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(left))) {
-																							return flagrt.NewBool(true)
-																						}
-																						return func() flagrt.Value {
-																							if flagrt.IsTruthy(compiler__node_equal_q_arity_2(flagrt.First(left), flagrt.First(right))) {
-																								return flagrt.NewRecur(flagrt.Rest(left), flagrt.Rest(right))
-																							}
-																							return flagrt.NewBool(false)
-																						}()
-																					}()
-																				}()
-																				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-																					if len(__recurValues) != 2 {
-																						panic("internal error: recur arity mismatch")
-																					}
-																					left = __recurValues[0]
-																					right = __recurValues[1]
-																					continue
-																				}
-																				return __loopResult
+																		__loopResult := if_result_227
+																		if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+																			if len(__recurValues) != 2 {
+																				panic("internal error: recur arity mismatch")
 																			}
-																		}()
-																	}()
+																			left = __recurValues[0]
+																			right = __recurValues[1]
+																			continue
+																		}
+																		return __loopResult
+																	}
 																}()
 															}
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_list))) {
-																	return func() flagrt.Value {
-																		var as = flagrt.Call(macflagKw_elements, a)
-																		var bs = flagrt.Call(macflagKw_elements, b)
-																		return func() flagrt.Value {
-																			if flagrt.IsTruthy(func() flagrt.Value {
-																				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(as))), flagrt.NewLong(int64(flagrt.Count(bs)))))) {
-																					return flagrt.NewBool(false)
+															let_result_229 = if_result_228
+														}
+														if_result_237 = let_result_229
+													} else {
+														var if_result_236 flagrt.Value
+														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_list))) {
+															var let_result_234 flagrt.Value
+															{
+																var as = flagrt.Call(macflagKw_elements, a)
+																var bs = flagrt.Call(macflagKw_elements, b)
+																var if_result_230 flagrt.Value
+																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(as))), flagrt.NewLong(int64(flagrt.Count(bs)))))) {
+																	if_result_230 = flagrt.NewBool(false)
+																} else {
+																	if_result_230 = flagrt.NewBool(true)
+																}
+																var if_result_233 flagrt.Value
+																if flagrt.IsTruthy(if_result_230) {
+																	if_result_233 = flagrt.NewBool(false)
+																} else {
+																	if_result_233 = func() flagrt.Value {
+																		var left = as
+																		var right = bs
+																		for {
+																			var if_result_232 flagrt.Value
+																			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(left))) {
+																				if_result_232 = flagrt.NewBool(true)
+																			} else {
+																				var if_result_231 flagrt.Value
+																				if flagrt.IsTruthy(compiler__node_equal_q_arity_2(flagrt.First(left), flagrt.First(right))) {
+																					if_result_231 = flagrt.NewRecur(flagrt.Rest(left), flagrt.Rest(right))
+																				} else {
+																					if_result_231 = flagrt.NewBool(false)
 																				}
-																				return flagrt.NewBool(true)
-																			}()) {
-																				return flagrt.NewBool(false)
+																				if_result_232 = if_result_231
 																			}
-																			return func() flagrt.Value {
-																				var left = as
-																				var right = bs
-																				for {
-																					__loopResult := func() flagrt.Value {
-																						return func() flagrt.Value {
-																							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(left))) {
-																								return flagrt.NewBool(true)
-																							}
-																							return func() flagrt.Value {
-																								if flagrt.IsTruthy(compiler__node_equal_q_arity_2(flagrt.First(left), flagrt.First(right))) {
-																									return flagrt.NewRecur(flagrt.Rest(left), flagrt.Rest(right))
-																								}
-																								return flagrt.NewBool(false)
-																							}()
-																						}()
-																					}()
-																					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-																						if len(__recurValues) != 2 {
-																							panic("internal error: recur arity mismatch")
-																						}
-																						left = __recurValues[0]
-																						right = __recurValues[1]
-																						continue
-																					}
-																					return __loopResult
+																			__loopResult := if_result_232
+																			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+																				if len(__recurValues) != 2 {
+																					panic("internal error: recur arity mismatch")
 																				}
-																			}()
-																		}()
+																				left = __recurValues[0]
+																				right = __recurValues[1]
+																				continue
+																			}
+																			return __loopResult
+																		}
 																	}()
 																}
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(true)) {
-																		return flagrt.NewBool(false)
-																	}
-																	return flagrt.NilValue()
-																}()
-															}()
-														}()
-													}()
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+																let_result_234 = if_result_233
+															}
+															if_result_236 = let_result_234
+														} else {
+															var if_result_235 flagrt.Value
+															if flagrt.IsTruthy(flagrt.NewBool(true)) {
+																if_result_235 = flagrt.NewBool(false)
+															} else {
+																if_result_235 = flagrt.NilValue()
+															}
+															if_result_236 = if_result_235
+														}
+														if_result_237 = if_result_236
+													}
+													if_result_238 = if_result_237
+												}
+												if_result_239 = if_result_238
+											}
+											if_result_240 = if_result_239
+										}
+										if_result_241 = if_result_240
+									}
+									if_result_242 = if_result_241
+								}
+								if_result_243 = if_result_242
+							}
+							if_result_244 = if_result_243
+						}
+						if_result_245 = if_result_244
+					}
+					if_result_246 = if_result_245
+				}
+				if_result_247 = if_result_246
+			}
+			let_result_248 = if_result_247
+		}
+		if_result_249 = let_result_248
+	}
+	return if_result_249
 }
 
 func compiler__node_equal_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -619,107 +695,120 @@ func compiler__node_equal_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, params_node)) {
-					return flagrt.NewBool(false)
-				}
-				return flagrt.NewBool(true)
-			}()) {
-				return func() flagrt.Value {
-					flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects a parameter vector"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
-					return flagrt.NilValue()
-				}()
-			}
-			return func() flagrt.Value {
-				var remaining = flagrt.Call(compiler__node_children, params_node)
-				var params = macflagVec
-				for {
-					__loopResult := func() flagrt.Value {
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-								return flagrt.NewMap(macflagKw_params, params, macflagKw_rest_param, flagrt.NilValue())
-							}
-							return func() flagrt.Value {
-								var param_node = flagrt.Call(compiler__unwrap_meta, flagrt.First(remaining))
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, param_node)) {
-											return flagrt.NewBool(false)
-										}
-										return flagrt.NewBool(true)
-									}()) {
-										return func() flagrt.Value {
-											flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro parameters must be symbols"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
+	var if_result_250 flagrt.Value
+	if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, params_node)) {
+		if_result_250 = flagrt.NewBool(false)
+	} else {
+		if_result_250 = flagrt.NewBool(true)
+	}
+	var if_result_264 flagrt.Value
+	if flagrt.IsTruthy(if_result_250) {
+		if_result_264 = func() flagrt.Value {
+			flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects a parameter vector"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
+			return flagrt.NilValue()
+		}()
+	} else {
+		if_result_264 = func() flagrt.Value {
+			var remaining = flagrt.Call(compiler__node_children, params_node)
+			var params = macflagVec
+			for {
+				var if_result_263 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+					if_result_263 = flagrt.NewMap(macflagKw_params, params, macflagKw_rest_param, flagrt.NilValue())
+				} else {
+					var let_result_262 flagrt.Value
+					{
+						var param_node = flagrt.Call(compiler__unwrap_meta, flagrt.First(remaining))
+						var if_result_251 flagrt.Value
+						if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, param_node)) {
+							if_result_251 = flagrt.NewBool(false)
+						} else {
+							if_result_251 = flagrt.NewBool(true)
+						}
+						var if_result_261 flagrt.Value
+						if flagrt.IsTruthy(if_result_251) {
+							if_result_261 = func() flagrt.Value {
+								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro parameters must be symbols"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
+								return flagrt.NilValue()
+							}()
+						} else {
+							var if_result_260 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, param_node)))) {
+								var let_result_259 flagrt.Value
+								{
+									var tail = flagrt.Rest(remaining)
+									var if_result_252 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(tail)))))) {
+										if_result_252 = flagrt.NewBool(false)
+									} else {
+										if_result_252 = flagrt.NewBool(true)
+									}
+									var if_result_258 flagrt.Value
+									if flagrt.IsTruthy(if_result_252) {
+										if_result_258 = func() flagrt.Value {
+											flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro varargs must use [& name] at end"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
 											return flagrt.NilValue()
 										}()
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, param_node)))) {
-											return func() flagrt.Value {
-												var tail = flagrt.Rest(remaining)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(tail)))))) {
-															return flagrt.NewBool(false)
-														}
-														return flagrt.NewBool(true)
-													}()) {
-														return func() flagrt.Value {
-															flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro varargs must use [& name] at end"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
-															return flagrt.NilValue()
-														}()
-													}
-													return func() flagrt.Value {
-														var rest_node = flagrt.Call(compiler__unwrap_meta, flagrt.First(tail))
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(func() flagrt.Value {
-																if flagrt.IsTruthy(func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, rest_node)) {
-																		return flagrt.NewBool(false)
-																	}
-																	return flagrt.NewBool(true)
-																}()) {
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, rest_node)) {
-																			return flagrt.NewBool(false)
-																		}
-																		return flagrt.NewBool(true)
-																	}()
-																}
-																return flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, rest_node)))
-															}()) {
-																return func() flagrt.Value {
-																	flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro varargs expects symbol after &"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
-																	return flagrt.NilValue()
-																}()
-															}
-															return flagrt.NewMap(macflagKw_params, params, macflagKw_rest_param, flagrt.Call(macflagKw_name, rest_node))
-														}()
-													}()
+									} else {
+										var let_result_257 flagrt.Value
+										{
+											var rest_node = flagrt.Call(compiler__unwrap_meta, flagrt.First(tail))
+											var let_result_255 flagrt.Value
+											{
+												var if_result_253 flagrt.Value
+												if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, rest_node)) {
+													if_result_253 = flagrt.NewBool(false)
+												} else {
+													if_result_253 = flagrt.NewBool(true)
+												}
+												var or_tmp = if_result_253
+												var if_result_254 flagrt.Value
+												if flagrt.IsTruthy(or_tmp) {
+													if_result_254 = or_tmp
+												} else {
+													if_result_254 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, rest_node)))
+												}
+												let_result_255 = if_result_254
+											}
+											var if_result_256 flagrt.Value
+											if flagrt.IsTruthy(let_result_255) {
+												if_result_256 = func() flagrt.Value {
+													flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro varargs expects symbol after &"), macflagKw_data, flagrt.NewMap(macflagKw_form, params_node)))
+													return flagrt.NilValue()
 												}()
-											}()
+											} else {
+												if_result_256 = flagrt.NewMap(macflagKw_params, params, macflagKw_rest_param, flagrt.Call(macflagKw_name, rest_node))
+											}
+											let_result_257 = if_result_256
 										}
-										return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(params, flagrt.Call(macflagKw_name, param_node)))
-									}()
-								}()
-							}()
-						}()
-					}()
-					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-						if len(__recurValues) != 2 {
-							panic("internal error: recur arity mismatch")
+										if_result_258 = let_result_257
+									}
+									let_result_259 = if_result_258
+								}
+								if_result_260 = let_result_259
+							} else {
+								if_result_260 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(params, flagrt.Call(macflagKw_name, param_node)))
+							}
+							if_result_261 = if_result_260
 						}
-						remaining = __recurValues[0]
-						params = __recurValues[1]
-						continue
+						let_result_262 = if_result_261
 					}
-					return __loopResult
+					if_result_263 = let_result_262
 				}
-			}()
+				__loopResult := if_result_263
+				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+					if len(__recurValues) != 2 {
+						panic("internal error: recur arity mismatch")
+					}
+					remaining = __recurValues[0]
+					params = __recurValues[1]
+					continue
+				}
+				return __loopResult
+			}
 		}()
-	}()
+	}
+	return if_result_264
 }
 
 func compiler__parse_macro_params_variadic(args ...flagrt.Value) flagrt.Value {
@@ -730,142 +819,165 @@ func compiler__parse_macro_params_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Value, start flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var arity_forms = flagrt.Drop(start, children)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(arity_forms))) {
-					return func() flagrt.Value {
-						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects at least one arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
-						return flagrt.NilValue()
-					}()
-				}
-				return func() flagrt.Value {
-					var remaining = arity_forms
-					var arities = macflagVec
-					var seen = macflagMap
-					var max_fixed = flagrt.NewLong(-1)
-					var rest_min = flagrt.NewLong(-1)
-					for {
-						__loopResult := func() flagrt.Value {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(func() flagrt.Value {
-											if !(flagrt.Ge(rest_min, flagrt.NewLong(0))) {
-												return flagrt.NewBool(flagrt.Ge(rest_min, flagrt.NewLong(0)))
-											}
-											return flagrt.NewBool(flagrt.Gt(max_fixed, rest_min))
-										}()) {
-											return func() flagrt.Value {
-												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro rest arity must have at least as many required parameters as the largest fixed arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
-												return flagrt.NilValue()
-											}()
-										}
-										return flagrt.NewMap(macflagKw_name, name, macflagKw_arities, arities)
-									}()
+	var let_result_284 flagrt.Value
+	{
+		var arity_forms = flagrt.Drop(start, children)
+		var if_result_283 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(arity_forms))) {
+			if_result_283 = func() flagrt.Value {
+				flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects at least one arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
+				return flagrt.NilValue()
+			}()
+		} else {
+			if_result_283 = func() flagrt.Value {
+				var remaining = arity_forms
+				var arities = macflagVec
+				var seen = macflagMap
+				var max_fixed = flagrt.NewLong(-1)
+				var rest_min = flagrt.NewLong(-1)
+				for {
+					var if_result_282 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						var let_result_266 bool
+						{
+							var and_tmp = flagrt.Ge(rest_min, flagrt.NewLong(0))
+							var if_result_265 bool
+							if and_tmp {
+								if_result_265 = flagrt.Gt(max_fixed, rest_min)
+							} else {
+								if_result_265 = and_tmp
+							}
+							let_result_266 = if_result_265
+						}
+						var if_result_267 flagrt.Value
+						if let_result_266 {
+							if_result_267 = func() flagrt.Value {
+								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro rest arity must have at least as many required parameters as the largest fixed arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
+								return flagrt.NilValue()
+							}()
+						} else {
+							if_result_267 = flagrt.NewMap(macflagKw_name, name, macflagKw_arities, arities)
+						}
+						if_result_282 = if_result_267
+					} else {
+						var let_result_281 flagrt.Value
+						{
+							var raw = flagrt.First(remaining)
+							var let_result_270 flagrt.Value
+							{
+								var if_result_268 flagrt.Value
+								if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, raw)) {
+									if_result_268 = flagrt.NewBool(false)
+								} else {
+									if_result_268 = flagrt.NewBool(true)
 								}
-								return func() flagrt.Value {
-									var raw = flagrt.First(remaining)
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(func() flagrt.Value {
-											if flagrt.IsTruthy(func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, raw)) {
-													return flagrt.NewBool(false)
-												}
-												return flagrt.NewBool(true)
-											}()) {
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, raw)) {
-														return flagrt.NewBool(false)
-													}
-													return flagrt.NewBool(true)
-												}()
+								var or_tmp = if_result_268
+								var if_result_269 flagrt.Value
+								if flagrt.IsTruthy(or_tmp) {
+									if_result_269 = or_tmp
+								} else {
+									if_result_269 = flagrt.NewBool(flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(flagrt.Call(compiler__node_children, raw)))), flagrt.NewLong(2)))
+								}
+								let_result_270 = if_result_269
+							}
+							var if_result_280 flagrt.Value
+							if flagrt.IsTruthy(let_result_270) {
+								if_result_280 = func() flagrt.Value {
+									flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro arity expects ([params] body...)"), macflagKw_data, flagrt.NewMap(macflagKw_form, raw)))
+									return flagrt.NilValue()
+								}()
+							} else {
+								var let_result_279 flagrt.Value
+								{
+									var arity_children = flagrt.Call(compiler__node_children, raw)
+									var params_expr = flagrt.First(arity_children)
+									var if_result_271 flagrt.Value
+									if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, params_expr)) {
+										if_result_271 = flagrt.NewBool(false)
+									} else {
+										if_result_271 = flagrt.NewBool(true)
+									}
+									var if_result_278 flagrt.Value
+									if flagrt.IsTruthy(if_result_271) {
+										if_result_278 = func() flagrt.Value {
+											flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro arity expects a parameter vector"), macflagKw_data, flagrt.NewMap(macflagKw_form, raw)))
+											return flagrt.NilValue()
+										}()
+									} else {
+										var let_result_277 flagrt.Value
+										{
+											var param_spec = flagrt.Call(compiler__parse_macro_params, params_expr)
+											var n = flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, param_spec))))
+											var rest_param = flagrt.Call(macflagKw_rest_param, param_spec)
+											var body_items = flagrt.Rest(arity_children)
+											var if_result_272 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(body_items)))))) {
+												if_result_272 = flagrt.First(body_items)
+											} else {
+												if_result_272 = flagrt.Call(compiler__make_list, flagrt.Cons(flagrt.Call(compiler__make_symbol, macflagStr_do), body_items))
 											}
-											return flagrt.NewBool(flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(flagrt.Call(compiler__node_children, raw)))), flagrt.NewLong(2)))
-										}()) {
-											return func() flagrt.Value {
-												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro arity expects ([params] body...)"), macflagKw_data, flagrt.NewMap(macflagKw_form, raw)))
-												return flagrt.NilValue()
-											}()
-										}
-										return func() flagrt.Value {
-											var arity_children = flagrt.Call(compiler__node_children, raw)
-											var params_expr = flagrt.First(arity_children)
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, params_expr)) {
-														return flagrt.NewBool(false)
-													}
-													return flagrt.NewBool(true)
-												}()) {
-													return func() flagrt.Value {
-														flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro arity expects a parameter vector"), macflagKw_data, flagrt.NewMap(macflagKw_form, raw)))
+											var body = if_result_272
+											var if_result_276 flagrt.Value
+											if flagrt.IsTruthy(rest_param) {
+												var if_result_273 flagrt.Value
+												if flagrt.Ge(rest_min, flagrt.NewLong(0)) {
+													if_result_273 = func() flagrt.Value {
+														flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro supports only one & rest arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
 														return flagrt.NilValue()
 													}()
+												} else {
+													if_result_273 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, rest_param, macflagKw_body, body)), seen, max_fixed, n)
 												}
-												return func() flagrt.Value {
-													var param_spec = flagrt.Call(compiler__parse_macro_params, params_expr)
-													var n = flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, param_spec))))
-													var rest_param = flagrt.Call(macflagKw_rest_param, param_spec)
-													var body_items = flagrt.Rest(arity_children)
-													var body = func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(body_items)))))) {
-															return flagrt.First(body_items)
-														}
-														return flagrt.Call(compiler__make_list, flagrt.Cons(flagrt.Call(compiler__make_symbol, macflagStr_do), body_items))
+												if_result_276 = if_result_273
+											} else {
+												var if_result_275 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(seen, n))) {
+													if_result_275 = func() flagrt.Value {
+														flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("duplicate macro arity with ", n, " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
+														return flagrt.NilValue()
 													}()
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(rest_param) {
-															return func() flagrt.Value {
-																if flagrt.Ge(rest_min, flagrt.NewLong(0)) {
-																	return func() flagrt.Value {
-																		flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro supports only one & rest arity"), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
-																		return flagrt.NilValue()
-																	}()
-																}
-																return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, rest_param, macflagKw_body, body)), seen, max_fixed, n)
-															}()
-														}
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(seen, n))) {
-																return func() flagrt.Value {
-																	flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("duplicate macro arity with ", n, " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_name, name)))
-																	return flagrt.NilValue()
-																}()
-															}
-															return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, flagrt.NilValue(), macflagKw_body, body)), flagrt.Assoc(seen, n, flagrt.NewBool(true)), func() flagrt.Value {
-																if flagrt.Gt(n, max_fixed) {
-																	return n
-																}
-																return max_fixed
-															}(), rest_min)
-														}()
-													}()
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-							if len(__recurValues) != 5 {
-								panic("internal error: recur arity mismatch")
+												} else {
+													var if_result_274 flagrt.Value
+													if flagrt.Gt(n, max_fixed) {
+														if_result_274 = n
+													} else {
+														if_result_274 = max_fixed
+													}
+													if_result_275 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, flagrt.NilValue(), macflagKw_body, body)), flagrt.Assoc(seen, n, flagrt.NewBool(true)), if_result_274, rest_min)
+												}
+												if_result_276 = if_result_275
+											}
+											let_result_277 = if_result_276
+										}
+										if_result_278 = let_result_277
+									}
+									let_result_279 = if_result_278
+								}
+								if_result_280 = let_result_279
 							}
-							remaining = __recurValues[0]
-							arities = __recurValues[1]
-							seen = __recurValues[2]
-							max_fixed = __recurValues[3]
-							rest_min = __recurValues[4]
-							continue
+							let_result_281 = if_result_280
 						}
-						return __loopResult
+						if_result_282 = let_result_281
 					}
-				}()
+					__loopResult := if_result_282
+					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+						if len(__recurValues) != 5 {
+							panic("internal error: recur arity mismatch")
+						}
+						remaining = __recurValues[0]
+						arities = __recurValues[1]
+						seen = __recurValues[2]
+						max_fixed = __recurValues[3]
+						rest_min = __recurValues[4]
+						continue
+					}
+					return __loopResult
+				}
 			}()
-		}()
-	}()
+		}
+		let_result_284 = if_result_283
+	}
+	return let_result_284
 }
 
 func compiler__compile_multi_arity_variadic(args ...flagrt.Value) flagrt.Value {
@@ -876,77 +988,91 @@ func compiler__compile_multi_arity_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_defmacro_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var children = flagrt.Call(compiler__node_children, expr)
-			return func() flagrt.Value {
-				if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(children))), flagrt.NewLong(3)) {
-					return func() flagrt.Value {
-						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
+	var let_result_296 flagrt.Value
+	{
+		var children = flagrt.Call(compiler__node_children, expr)
+		var if_result_295 flagrt.Value
+		if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(children))), flagrt.NewLong(3)) {
+			if_result_295 = func() flagrt.Value {
+				flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
+				return flagrt.NilValue()
+			}()
+		} else {
+			var let_result_294 flagrt.Value
+			{
+				var name_node = flagrt.Call(compiler__unwrap_meta, flagrt.Call(stdlib__second, children))
+				var if_result_285 flagrt.Value
+				if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, name_node)) {
+					if_result_285 = flagrt.NewBool(false)
+				} else {
+					if_result_285 = flagrt.NewBool(true)
+				}
+				var if_result_293 flagrt.Value
+				if flagrt.IsTruthy(if_result_285) {
+					if_result_293 = func() flagrt.Value {
+						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects a macro name"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
 						return flagrt.NilValue()
 					}()
-				}
-				return func() flagrt.Value {
-					var name_node = flagrt.Call(compiler__unwrap_meta, flagrt.Call(stdlib__second, children))
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, name_node)) {
-								return flagrt.NewBool(false)
-							}
-							return flagrt.NewBool(true)
-						}()) {
-							return func() flagrt.Value {
-								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects a macro name"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
+				} else {
+					var let_result_292 flagrt.Value
+					{
+						var maybe_doc = flagrt.Call(stdlib__third, children)
+						var has_docstring = flagrt.Call(compiler__string_node_q, maybe_doc)
+						var if_result_286 flagrt.Value
+						if flagrt.IsTruthy(has_docstring) {
+							if_result_286 = flagrt.NewLong(3)
+						} else {
+							if_result_286 = flagrt.NewLong(2)
+						}
+						var params_index = if_result_286
+						var if_result_287 flagrt.Value
+						if flagrt.IsTruthy(has_docstring) {
+							if_result_287 = flagrt.NewLong(4)
+						} else {
+							if_result_287 = flagrt.NewLong(3)
+						}
+						var body_index = if_result_287
+						var if_result_291 flagrt.Value
+						if flagrt.Ge(params_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
+							if_result_291 = func() flagrt.Value {
+								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
 								return flagrt.NilValue()
 							}()
-						}
-						return func() flagrt.Value {
-							var maybe_doc = flagrt.Call(stdlib__third, children)
-							var has_docstring = flagrt.Call(compiler__string_node_q, maybe_doc)
-							var params_index = func() flagrt.Value {
-								if flagrt.IsTruthy(has_docstring) {
-									return flagrt.NewLong(3)
-								}
-								return flagrt.NewLong(2)
-							}()
-							var body_index = func() flagrt.Value {
-								if flagrt.IsTruthy(has_docstring) {
-									return flagrt.NewLong(4)
-								}
-								return flagrt.NewLong(3)
-							}()
-							return func() flagrt.Value {
-								if flagrt.Ge(params_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
-									return func() flagrt.Value {
+						} else {
+							var if_result_290 flagrt.Value
+							if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, flagrt.Call(compiler__nth_node, children, params_index))) {
+								if_result_290 = flagrt.Call(compiler__compile_multi_arity, flagrt.Call(macflagKw_name, name_node), children, params_index)
+							} else {
+								var if_result_289 flagrt.Value
+								if flagrt.Ge(body_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
+									if_result_289 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
 										return flagrt.NilValue()
 									}()
-								}
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, flagrt.Call(compiler__nth_node, children, params_index))) {
-										return flagrt.Call(compiler__compile_multi_arity, flagrt.Call(macflagKw_name, name_node), children, params_index)
+								} else {
+									var let_result_288 flagrt.Value
+									{
+										var params_node = flagrt.Call(compiler__nth_node, children, params_index)
+										var param_spec = flagrt.Call(compiler__parse_macro_params, params_node)
+										let_result_288 = flagrt.NewMap(macflagKw_name, flagrt.Call(macflagKw_name, name_node), macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, flagrt.Call(macflagKw_rest_param, param_spec), macflagKw_body, flagrt.Call(compiler__nth_node, children, body_index), macflagKw_arities, macflagVec)
 									}
-									return func() flagrt.Value {
-										if flagrt.Ge(body_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
-											return func() flagrt.Value {
-												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), macflagKw_data, flagrt.NewMap(macflagKw_form, expr)))
-												return flagrt.NilValue()
-											}()
-										}
-										return func() flagrt.Value {
-											var params_node = flagrt.Call(compiler__nth_node, children, params_index)
-											var param_spec = flagrt.Call(compiler__parse_macro_params, params_node)
-											return flagrt.NewMap(macflagKw_name, flagrt.Call(macflagKw_name, name_node), macflagKw_params, flagrt.Call(macflagKw_params, param_spec), macflagKw_rest_param, flagrt.Call(macflagKw_rest_param, param_spec), macflagKw_body, flagrt.Call(compiler__nth_node, children, body_index), macflagKw_arities, macflagVec)
-										}()
-									}()
-								}()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+									if_result_289 = let_result_288
+								}
+								if_result_290 = if_result_289
+							}
+							if_result_291 = if_result_290
+						}
+						let_result_292 = if_result_291
+					}
+					if_result_293 = let_result_292
+				}
+				let_result_294 = if_result_293
+			}
+			if_result_295 = let_result_294
+		}
+		let_result_296 = if_result_295
+	}
+	return let_result_296
 }
 
 func compiler__compile_defmacro_variadic(args ...flagrt.Value) flagrt.Value {
@@ -957,73 +1083,88 @@ func compiler__compile_defmacro_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__bind_macro_args_arity_2(arity flagrt.Value, args flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var params = flagrt.Call(macflagKw_params, arity)
-			var rest_param = flagrt.Call(macflagKw_rest_param, arity)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(func() flagrt.Value {
-					if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(rest_param)))) {
-						return flagrt.NewBool(flagrt.IsNil(rest_param))
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(params)))))) {
-							return flagrt.NewBool(false)
-						}
-						return flagrt.NewBool(true)
-					}()
-				}()) {
-					return func() flagrt.Value {
-						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("macro expects exactly ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-						return flagrt.NilValue()
-					}()
+	var let_result_306 flagrt.Value
+	{
+		var params = flagrt.Call(macflagKw_params, arity)
+		var rest_param = flagrt.Call(macflagKw_rest_param, arity)
+		var let_result_299 flagrt.Value
+		{
+			var and_tmp = flagrt.NewBool(flagrt.IsNil(rest_param))
+			var if_result_298 flagrt.Value
+			if flagrt.IsTruthy(and_tmp) {
+				var if_result_297 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(params)))))) {
+					if_result_297 = flagrt.NewBool(false)
+				} else {
+					if_result_297 = flagrt.NewBool(true)
 				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(func() flagrt.Value {
-						if !(flagrt.IsTruthy(rest_param)) {
-							return rest_param
-						}
-						return flagrt.NewBool(flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(params)))))
-					}()) {
-						return func() flagrt.Value {
-							flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("macro expects at least ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-							return flagrt.NilValue()
-						}()
-					}
-					return func() flagrt.Value {
-						var names = params
-						var remaining_args = args
-						var values = macflagMap
-						for {
-							__loopResult := func() flagrt.Value {
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(names))) {
-										return flagrt.NewMap(macflagKw_values, values, macflagKw_rest_bindings, func() flagrt.Value {
-											if flagrt.IsTruthy(rest_param) {
-												return flagrt.NewMap(rest_param, remaining_args)
-											}
-											return macflagMap
-										}())
-									}
-									return flagrt.NewRecur(flagrt.Rest(names), flagrt.Rest(remaining_args), flagrt.Assoc(values, flagrt.First(names), flagrt.First(remaining_args)))
-								}()
-							}()
-							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-								if len(__recurValues) != 3 {
-									panic("internal error: recur arity mismatch")
-								}
-								names = __recurValues[0]
-								remaining_args = __recurValues[1]
-								values = __recurValues[2]
-								continue
-							}
-							return __loopResult
-						}
-					}()
-				}()
+				if_result_298 = if_result_297
+			} else {
+				if_result_298 = and_tmp
+			}
+			let_result_299 = if_result_298
+		}
+		var if_result_305 flagrt.Value
+		if flagrt.IsTruthy(let_result_299) {
+			if_result_305 = func() flagrt.Value {
+				flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("macro expects exactly ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
+				return flagrt.NilValue()
 			}()
-		}()
-	}()
+		} else {
+			var let_result_301 flagrt.Value
+			{
+				var and_tmp = rest_param
+				var if_result_300 flagrt.Value
+				if flagrt.IsTruthy(and_tmp) {
+					if_result_300 = flagrt.NewBool(flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(params)))))
+				} else {
+					if_result_300 = and_tmp
+				}
+				let_result_301 = if_result_300
+			}
+			var if_result_304 flagrt.Value
+			if flagrt.IsTruthy(let_result_301) {
+				if_result_304 = func() flagrt.Value {
+					flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString(flagrt.Str("macro expects at least ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), macflagKw_data, flagrt.NewMap(macflagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
+					return flagrt.NilValue()
+				}()
+			} else {
+				if_result_304 = func() flagrt.Value {
+					var names = params
+					var remaining_args = args
+					var values = macflagMap
+					for {
+						var if_result_303 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(names))) {
+							var if_result_302 flagrt.Value
+							if flagrt.IsTruthy(rest_param) {
+								if_result_302 = flagrt.NewMap(rest_param, remaining_args)
+							} else {
+								if_result_302 = macflagMap
+							}
+							if_result_303 = flagrt.NewMap(macflagKw_values, values, macflagKw_rest_bindings, if_result_302)
+						} else {
+							if_result_303 = flagrt.NewRecur(flagrt.Rest(names), flagrt.Rest(remaining_args), flagrt.Assoc(values, flagrt.First(names), flagrt.First(remaining_args)))
+						}
+						__loopResult := if_result_303
+						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+							if len(__recurValues) != 3 {
+								panic("internal error: recur arity mismatch")
+							}
+							names = __recurValues[0]
+							remaining_args = __recurValues[1]
+							values = __recurValues[2]
+							continue
+						}
+						return __loopResult
+					}
+				}()
+			}
+			if_result_305 = if_result_304
+		}
+		let_result_306 = if_result_305
+	}
+	return let_result_306
 }
 
 func compiler__bind_macro_args_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1034,32 +1175,84 @@ func compiler__bind_macro_args_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__literal_kind_q_arity_1(kind flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))
+	var let_result_320 flagrt.Value
+	{
+		var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_keyword))
+		var if_result_319 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_319 = or_tmp
+		} else {
+			var let_result_318 flagrt.Value
+			{
+				var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_string))
+				var if_result_317 flagrt.Value
+				if flagrt.IsTruthy(or_tmp) {
+					if_result_317 = or_tmp
+				} else {
+					var let_result_316 flagrt.Value
+					{
+						var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_char))
+						var if_result_315 flagrt.Value
+						if flagrt.IsTruthy(or_tmp) {
+							if_result_315 = or_tmp
+						} else {
+							var let_result_314 flagrt.Value
+							{
+								var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_int))
+								var if_result_313 flagrt.Value
+								if flagrt.IsTruthy(or_tmp) {
+									if_result_313 = or_tmp
+								} else {
+									var let_result_312 flagrt.Value
+									{
+										var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_bigint))
+										var if_result_311 flagrt.Value
+										if flagrt.IsTruthy(or_tmp) {
+											if_result_311 = or_tmp
+										} else {
+											var let_result_310 flagrt.Value
+											{
+												var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_float))
+												var if_result_309 flagrt.Value
+												if flagrt.IsTruthy(or_tmp) {
+													if_result_309 = or_tmp
+												} else {
+													var let_result_308 flagrt.Value
+													{
+														var or_tmp = flagrt.NewBool(flagrt.Eq(kind, macflagKw_ratio))
+														var if_result_307 flagrt.Value
+														if flagrt.IsTruthy(or_tmp) {
+															if_result_307 = or_tmp
+														} else {
+															if_result_307 = flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_symbol))
+														}
+														let_result_308 = if_result_307
+													}
+													if_result_309 = let_result_308
+												}
+												let_result_310 = if_result_309
+											}
+											if_result_311 = let_result_310
+										}
+										let_result_312 = if_result_311
+									}
+									if_result_313 = let_result_312
+								}
+								let_result_314 = if_result_313
+							}
+							if_result_315 = let_result_314
+						}
+						let_result_316 = if_result_315
+					}
+					if_result_317 = let_result_316
+				}
+				let_result_318 = if_result_317
 			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_string))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_string))
-			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_char))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_char))
-			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_int))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_int))
-			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_bigint))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_bigint))
-			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_float))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_float))
-			}
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, macflagKw_ratio))) {
-				return flagrt.NewBool(flagrt.Eq(kind, macflagKw_ratio))
-			}
-			return flagrt.NewBool(flagrt.Eq(kind, macflagKw_quoted_symbol))
-		}()
-	}()
+			if_result_319 = let_result_318
+		}
+		let_result_320 = if_result_319
+	}
+	return let_result_320
 }
 
 func compiler__literal_kind_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1070,32 +1263,41 @@ func compiler__literal_kind_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__macro_case_clause_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr)) {
-					return flagrt.Call(compiler__list_node_q, expr)
+	var let_result_322 flagrt.Value
+	{
+		var or_tmp = flagrt.Call(compiler__list_node_q, expr)
+		var if_result_321 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_321 = or_tmp
+		} else {
+			if_result_321 = flagrt.Call(compiler__vector_node_q, expr)
+		}
+		let_result_322 = if_result_321
+	}
+	var if_result_326 flagrt.Value
+	if flagrt.IsTruthy(let_result_322) {
+		var let_result_325 flagrt.Value
+		{
+			var elems = flagrt.Call(compiler__node_children, expr)
+			var if_result_324 flagrt.Value
+			if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(elems))), flagrt.NewLong(2)) {
+				if_result_324 = flagrt.NilValue()
+			} else {
+				var if_result_323 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(2), flagrt.NewLong(int64(flagrt.Count(elems)))))) {
+					if_result_323 = flagrt.NewMap(macflagKw_pattern, flagrt.First(elems), macflagKw_body, flagrt.Call(stdlib__second, elems))
+				} else {
+					if_result_323 = flagrt.NewMap(macflagKw_pattern, flagrt.First(elems), macflagKw_body, flagrt.Call(compiler__make_list, flagrt.Cons(flagrt.Call(compiler__make_symbol, macflagStr_do), flagrt.Rest(elems))))
 				}
-				return flagrt.Call(compiler__vector_node_q, expr)
-			}()) {
-				return func() flagrt.Value {
-					var elems = flagrt.Call(compiler__node_children, expr)
-					return func() flagrt.Value {
-						if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(elems))), flagrt.NewLong(2)) {
-							return flagrt.NilValue()
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(2), flagrt.NewLong(int64(flagrt.Count(elems)))))) {
-								return flagrt.NewMap(macflagKw_pattern, flagrt.First(elems), macflagKw_body, flagrt.Call(stdlib__second, elems))
-							}
-							return flagrt.NewMap(macflagKw_pattern, flagrt.First(elems), macflagKw_body, flagrt.Call(compiler__make_list, flagrt.Cons(flagrt.Call(compiler__make_symbol, macflagStr_do), flagrt.Rest(elems))))
-						}()
-					}()
-				}()
+				if_result_324 = if_result_323
 			}
-			return flagrt.NilValue()
-		}()
-	}()
+			let_result_325 = if_result_324
+		}
+		if_result_326 = let_result_325
+	} else {
+		if_result_326 = flagrt.NilValue()
+	}
+	return if_result_326
 }
 
 func compiler__macro_case_clause_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1106,22 +1308,22 @@ func compiler__macro_case_clause_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__expand_defrecord_macro_arity_1(args flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(2), flagrt.NewLong(int64(flagrt.Count(args)))))) {
-					return flagrt.NewBool(false)
-				}
-				return flagrt.NewBool(true)
-			}()) {
-				return func() flagrt.Value {
-					flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-defrecord expects a record name and field vector"), macflagKw_data, macflagMap))
-					return flagrt.NilValue()
-				}()
-			}
-			return flagrt.Call(compiler__make_list, flagrt.NewArray(flagrt.Call(compiler__make_symbol, macflagStr_defrecord_), flagrt.First(args), flagrt.Call(stdlib__second, args)))
+	var if_result_327 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(2), flagrt.NewLong(int64(flagrt.Count(args)))))) {
+		if_result_327 = flagrt.NewBool(false)
+	} else {
+		if_result_327 = flagrt.NewBool(true)
+	}
+	var if_result_328 flagrt.Value
+	if flagrt.IsTruthy(if_result_327) {
+		if_result_328 = func() flagrt.Value {
+			flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-defrecord expects a record name and field vector"), macflagKw_data, macflagMap))
+			return flagrt.NilValue()
 		}()
-	}()
+	} else {
+		if_result_328 = flagrt.Call(compiler__make_list, flagrt.NewArray(flagrt.Call(compiler__make_symbol, macflagStr_defrecord_), flagrt.First(args), flagrt.Call(stdlib__second, args)))
+	}
+	return if_result_328
 }
 
 func compiler__expand_defrecord_macro_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1132,549 +1334,682 @@ func compiler__expand_defrecord_macro_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value, c flagrt.Value, d flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_seq))) {
-				return func() flagrt.Value {
-					var pats = a
-					var remaining = b
-					var bindings = c
-					var rest_bindings = d
-					for {
-						__loopResult := func() flagrt.Value {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(pats))) {
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-											return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
-										}
-										return macflagMap_1
-									}()
-								}
-								return func() flagrt.Value {
-									var pat = flagrt.First(pats)
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(func() flagrt.Value {
-											if !(flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, pat))) {
-												return flagrt.Call(compiler__symbol_node_q, pat)
-											}
-											return flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, pat)))
-										}()) {
-											return func() flagrt.Value {
-												var tail = flagrt.Rest(pats)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(tail)))))) {
-															return flagrt.NewBool(false)
-														}
-														return flagrt.NewBool(true)
-													}()) {
-														return func() flagrt.Value {
-															flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case rest capture must be in the penultimate position"), macflagKw_data, macflagMap))
-															return flagrt.NilValue()
-														}()
-													}
-													return func() flagrt.Value {
-														var name_node = flagrt.First(tail)
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(func() flagrt.Value {
-																if flagrt.IsTruthy(func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, name_node)) {
-																		return flagrt.NewBool(false)
-																	}
-																	return flagrt.NewBool(true)
-																}()) {
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, name_node)) {
-																			return flagrt.NewBool(false)
-																		}
-																		return flagrt.NewBool(true)
-																	}()
-																}
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString(""), flagrt.Call(macflagKw_name, name_node)))) {
-																	return flagrt.NewBool(flagrt.Eq(flagrt.NewString(""), flagrt.Call(macflagKw_name, name_node)))
-																}
-																return flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, name_node)))
-															}()) {
-																return func() flagrt.Value {
-																	flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case rest capture expects a symbol name"), macflagKw_data, macflagMap))
-																	return flagrt.NilValue()
-																}()
-															}
-															return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, flagrt.Assoc(rest_bindings, flagrt.Call(macflagKw_name, name_node), remaining))
-														}()
-													}()
-												}()
-											}()
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-												return macflagMap_1
-											}
-											return func() flagrt.Value {
-												var result = compiler__macro_op_arity_5(macflagKw_pat, pat, flagrt.NewArray(flagrt.First(remaining)), bindings, rest_bindings)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.Call(macflagKw_matched, result)) {
-															return flagrt.NewBool(false)
-														}
-														return flagrt.NewBool(true)
-													}()) {
-														return macflagMap_1
-													}
-													return flagrt.NewRecur(flagrt.Rest(pats), flagrt.Rest(remaining), flagrt.Call(macflagKw_bindings, result), flagrt.Call(macflagKw_rest_bindings, result))
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-							if len(__recurValues) != 4 {
-								panic("internal error: recur arity mismatch")
-							}
-							pats = __recurValues[0]
-							remaining = __recurValues[1]
-							bindings = __recurValues[2]
-							rest_bindings = __recurValues[3]
-							continue
-						}
-						return __loopResult
+	var if_result_424 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_seq))) {
+		if_result_424 = func() flagrt.Value {
+			var pats = a
+			var remaining = b
+			var bindings = c
+			var rest_bindings = d
+			for {
+				var if_result_348 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(pats))) {
+					var if_result_329 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						if_result_329 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
+					} else {
+						if_result_329 = macflagMap_1
 					}
-				}()
+					if_result_348 = if_result_329
+				} else {
+					var let_result_347 flagrt.Value
+					{
+						var pat = flagrt.First(pats)
+						var let_result_331 flagrt.Value
+						{
+							var and_tmp = flagrt.Call(compiler__symbol_node_q, pat)
+							var if_result_330 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								if_result_330 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, pat)))
+							} else {
+								if_result_330 = and_tmp
+							}
+							let_result_331 = if_result_330
+						}
+						var if_result_346 flagrt.Value
+						if flagrt.IsTruthy(let_result_331) {
+							var let_result_341 flagrt.Value
+							{
+								var tail = flagrt.Rest(pats)
+								var if_result_332 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(tail)))))) {
+									if_result_332 = flagrt.NewBool(false)
+								} else {
+									if_result_332 = flagrt.NewBool(true)
+								}
+								var if_result_340 flagrt.Value
+								if flagrt.IsTruthy(if_result_332) {
+									if_result_340 = func() flagrt.Value {
+										flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case rest capture must be in the penultimate position"), macflagKw_data, macflagMap))
+										return flagrt.NilValue()
+									}()
+								} else {
+									var let_result_339 flagrt.Value
+									{
+										var name_node = flagrt.First(tail)
+										var let_result_337 flagrt.Value
+										{
+											var if_result_333 flagrt.Value
+											if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, name_node)) {
+												if_result_333 = flagrt.NewBool(false)
+											} else {
+												if_result_333 = flagrt.NewBool(true)
+											}
+											var or_tmp = if_result_333
+											var if_result_336 flagrt.Value
+											if flagrt.IsTruthy(or_tmp) {
+												if_result_336 = or_tmp
+											} else {
+												var let_result_335 flagrt.Value
+												{
+													var or_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewString(""), flagrt.Call(macflagKw_name, name_node)))
+													var if_result_334 flagrt.Value
+													if flagrt.IsTruthy(or_tmp) {
+														if_result_334 = or_tmp
+													} else {
+														if_result_334 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, name_node)))
+													}
+													let_result_335 = if_result_334
+												}
+												if_result_336 = let_result_335
+											}
+											let_result_337 = if_result_336
+										}
+										var if_result_338 flagrt.Value
+										if flagrt.IsTruthy(let_result_337) {
+											if_result_338 = func() flagrt.Value {
+												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case rest capture expects a symbol name"), macflagKw_data, macflagMap))
+												return flagrt.NilValue()
+											}()
+										} else {
+											if_result_338 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, flagrt.Assoc(rest_bindings, flagrt.Call(macflagKw_name, name_node), remaining))
+										}
+										let_result_339 = if_result_338
+									}
+									if_result_340 = let_result_339
+								}
+								let_result_341 = if_result_340
+							}
+							if_result_346 = let_result_341
+						} else {
+							var if_result_345 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+								if_result_345 = macflagMap_1
+							} else {
+								var let_result_344 flagrt.Value
+								{
+									var result = compiler__macro_op_arity_5(macflagKw_pat, pat, flagrt.NewArray(flagrt.First(remaining)), bindings, rest_bindings)
+									var if_result_342 flagrt.Value
+									if flagrt.IsTruthy(flagrt.Call(macflagKw_matched, result)) {
+										if_result_342 = flagrt.NewBool(false)
+									} else {
+										if_result_342 = flagrt.NewBool(true)
+									}
+									var if_result_343 flagrt.Value
+									if flagrt.IsTruthy(if_result_342) {
+										if_result_343 = macflagMap_1
+									} else {
+										if_result_343 = flagrt.NewRecur(flagrt.Rest(pats), flagrt.Rest(remaining), flagrt.Call(macflagKw_bindings, result), flagrt.Call(macflagKw_rest_bindings, result))
+									}
+									let_result_344 = if_result_343
+								}
+								if_result_345 = let_result_344
+							}
+							if_result_346 = if_result_345
+						}
+						let_result_347 = if_result_346
+					}
+					if_result_348 = let_result_347
+				}
+				__loopResult := if_result_348
+				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+					if len(__recurValues) != 4 {
+						panic("internal error: recur arity mismatch")
+					}
+					pats = __recurValues[0]
+					remaining = __recurValues[1]
+					bindings = __recurValues[2]
+					rest_bindings = __recurValues[3]
+					continue
+				}
+				return __loopResult
 			}
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_pat))) {
-					return func() flagrt.Value {
-						var pat = flagrt.Call(compiler__unwrap_meta, a)
-						var items = func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(b))) {
-								return b
+		}()
+	} else {
+		var if_result_423 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_pat))) {
+			var let_result_380 flagrt.Value
+			{
+				var pat = flagrt.Call(compiler__unwrap_meta, a)
+				var if_result_350 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(b))) {
+					if_result_350 = b
+				} else {
+					if_result_350 = func() flagrt.Value {
+						var remaining = b
+						var out = macflagVec
+						for {
+							var if_result_349 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+								if_result_349 = out
+							} else {
+								if_result_349 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, flagrt.Call(compiler__unwrap_meta, flagrt.Call(compiler__unwrap_literal, flagrt.First(remaining)))))
 							}
-							return func() flagrt.Value {
-								var remaining = b
-								var out = macflagVec
-								for {
-									__loopResult := func() flagrt.Value {
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-												return out
-											}
-											return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, flagrt.Call(compiler__unwrap_meta, flagrt.Call(compiler__unwrap_literal, flagrt.First(remaining)))))
-										}()
-									}()
-									if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-										if len(__recurValues) != 2 {
-											panic("internal error: recur arity mismatch")
-										}
-										remaining = __recurValues[0]
-										out = __recurValues[1]
-										continue
-									}
-									return __loopResult
+							__loopResult := if_result_349
+							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+								if len(__recurValues) != 2 {
+									panic("internal error: recur arity mismatch")
 								}
-							}()
-						}()
-						var bindings = c
-						var rest_bindings = d
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, pat)) {
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("_"), flagrt.Call(macflagKw_name, pat)))) {
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))) {
-												return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
-											}
-											return macflagMap_1
-										}()
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, pat)))) {
-											return func() flagrt.Value {
-												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case pattern cannot use bare &"), macflagKw_data, macflagMap))
-												return flagrt.NilValue()
-											}()
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(true)) {
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))) {
-															return flagrt.NewBool(false)
-														}
-														return flagrt.NewBool(true)
-													}()) {
-														return macflagMap_1
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(bindings, flagrt.Call(macflagKw_name, pat)))) {
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.Call(compiler__node_equal_q, flagrt.Call(flagrt.BuiltinFunction("get"), bindings, flagrt.Call(macflagKw_name, pat)), flagrt.First(items))) {
-																	return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
-																}
-																return macflagMap_1
-															}()
-														}
-														return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, flagrt.Assoc(bindings, flagrt.Call(macflagKw_name, pat), flagrt.First(items)), macflagKw_rest_bindings, rest_bindings)
-													}()
-												}()
-											}
-											return flagrt.NilValue()
-										}()
-									}()
-								}()
+								remaining = __recurValues[0]
+								out = __recurValues[1]
+								continue
 							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.Call(compiler__literal_kind_q, flagrt.Call(macflagKw_kind, pat))) {
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(func() flagrt.Value {
-											if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items))))))) {
-												return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
-											}
-											return flagrt.Call(compiler__node_equal_q, pat, flagrt.First(items))
-										}()) {
-											return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
-										}
-										return macflagMap_1
-									}()
-								}
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, pat)) {
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(func() flagrt.Value {
-												if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items))))))) {
-													return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
-												}
-												return flagrt.Call(compiler__list_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
-											}()) {
-												return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
-											}
-											return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
-										}()
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, pat)) {
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(func() flagrt.Value {
-													if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items))))))) {
-														return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
-													}
-													return flagrt.Call(compiler__vector_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
-												}()) {
-													return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
-												}
-												return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
-											}()
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.Call(compiler__pipe_vector_node_q, pat)) {
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(func() flagrt.Value {
-														if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items))))))) {
-															return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
-														}
-														return flagrt.Call(compiler__pipe_vector_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
-													}()) {
-														return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
-													}
-													return compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
-												}()
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(true)) {
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(func() flagrt.Value {
-															if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items))))))) {
-																return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
-															}
-															return flagrt.Call(compiler__node_equal_q, pat, flagrt.First(items))
-														}()) {
-															return flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
-														}
-														return macflagMap_1
-													}()
-												}
-												return flagrt.NilValue()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
+							return __loopResult
+						}
 					}()
 				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_case))) {
-						return func() flagrt.Value {
-							if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(a))), flagrt.NewLong(2)) {
-								return func() flagrt.Value {
-									flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case expects a target form and at least one clause"), macflagKw_data, macflagMap))
-									return flagrt.NilValue()
+				var items = if_result_350
+				var bindings = c
+				var rest_bindings = d
+				var if_result_379 flagrt.Value
+				if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, pat)) {
+					var if_result_358 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("_"), flagrt.Call(macflagKw_name, pat)))) {
+						var if_result_351 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))) {
+							if_result_351 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
+						} else {
+							if_result_351 = macflagMap_1
+						}
+						if_result_358 = if_result_351
+					} else {
+						var if_result_357 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(macflagKw_name, pat)))) {
+							if_result_357 = func() flagrt.Value {
+								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case pattern cannot use bare &"), macflagKw_data, macflagMap))
+								return flagrt.NilValue()
+							}()
+						} else {
+							var if_result_356 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(true)) {
+								var if_result_352 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))) {
+									if_result_352 = flagrt.NewBool(false)
+								} else {
+									if_result_352 = flagrt.NewBool(true)
+								}
+								var if_result_355 flagrt.Value
+								if flagrt.IsTruthy(if_result_352) {
+									if_result_355 = macflagMap_1
+								} else {
+									var if_result_354 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(bindings, flagrt.Call(macflagKw_name, pat)))) {
+										var if_result_353 flagrt.Value
+										if flagrt.IsTruthy(flagrt.Call(compiler__node_equal_q, flagrt.Call(flagrt.BuiltinFunction("get"), bindings, flagrt.Call(macflagKw_name, pat)), flagrt.First(items))) {
+											if_result_353 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
+										} else {
+											if_result_353 = macflagMap_1
+										}
+										if_result_354 = if_result_353
+									} else {
+										if_result_354 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, flagrt.Assoc(bindings, flagrt.Call(macflagKw_name, pat), flagrt.First(items)), macflagKw_rest_bindings, rest_bindings)
+									}
+									if_result_355 = if_result_354
+								}
+								if_result_356 = if_result_355
+							} else {
+								if_result_356 = flagrt.NilValue()
+							}
+							if_result_357 = if_result_356
+						}
+						if_result_358 = if_result_357
+					}
+					if_result_379 = if_result_358
+				} else {
+					var if_result_378 flagrt.Value
+					if flagrt.IsTruthy(flagrt.Call(compiler__literal_kind_q, flagrt.Call(macflagKw_kind, pat))) {
+						var let_result_360 flagrt.Value
+						{
+							var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
+							var if_result_359 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								if_result_359 = flagrt.Call(compiler__node_equal_q, pat, flagrt.First(items))
+							} else {
+								if_result_359 = and_tmp
+							}
+							let_result_360 = if_result_359
+						}
+						var if_result_361 flagrt.Value
+						if flagrt.IsTruthy(let_result_360) {
+							if_result_361 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
+						} else {
+							if_result_361 = macflagMap_1
+						}
+						if_result_378 = if_result_361
+					} else {
+						var if_result_377 flagrt.Value
+						if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, pat)) {
+							var let_result_363 flagrt.Value
+							{
+								var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
+								var if_result_362 flagrt.Value
+								if flagrt.IsTruthy(and_tmp) {
+									if_result_362 = flagrt.Call(compiler__list_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
+								} else {
+									if_result_362 = and_tmp
+								}
+								let_result_363 = if_result_362
+							}
+							var if_result_364 flagrt.Value
+							if flagrt.IsTruthy(let_result_363) {
+								if_result_364 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
+							} else {
+								if_result_364 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
+							}
+							if_result_377 = if_result_364
+						} else {
+							var if_result_376 flagrt.Value
+							if flagrt.IsTruthy(flagrt.Call(compiler__vector_node_q, pat)) {
+								var let_result_366 flagrt.Value
+								{
+									var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
+									var if_result_365 flagrt.Value
+									if flagrt.IsTruthy(and_tmp) {
+										if_result_365 = flagrt.Call(compiler__vector_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
+									} else {
+										if_result_365 = and_tmp
+									}
+									let_result_366 = if_result_365
+								}
+								var if_result_367 flagrt.Value
+								if flagrt.IsTruthy(let_result_366) {
+									if_result_367 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
+								} else {
+									if_result_367 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
+								}
+								if_result_376 = if_result_367
+							} else {
+								var if_result_375 flagrt.Value
+								if flagrt.IsTruthy(flagrt.Call(compiler__pipe_vector_node_q, pat)) {
+									var let_result_369 flagrt.Value
+									{
+										var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
+										var if_result_368 flagrt.Value
+										if flagrt.IsTruthy(and_tmp) {
+											if_result_368 = flagrt.Call(compiler__pipe_vector_node_q, flagrt.Call(compiler__unwrap_meta, flagrt.First(items)))
+										} else {
+											if_result_368 = and_tmp
+										}
+										let_result_369 = if_result_368
+									}
+									var if_result_370 flagrt.Value
+									if flagrt.IsTruthy(let_result_369) {
+										if_result_370 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), flagrt.Call(compiler__node_children, flagrt.Call(compiler__unwrap_meta, flagrt.First(items))), bindings, rest_bindings)
+									} else {
+										if_result_370 = compiler__macro_op_arity_5(macflagKw_seq, flagrt.Call(compiler__node_children, pat), items, bindings, rest_bindings)
+									}
+									if_result_375 = if_result_370
+								} else {
+									var if_result_374 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(true)) {
+										var let_result_372 flagrt.Value
+										{
+											var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(items)))))
+											var if_result_371 flagrt.Value
+											if flagrt.IsTruthy(and_tmp) {
+												if_result_371 = flagrt.Call(compiler__node_equal_q, pat, flagrt.First(items))
+											} else {
+												if_result_371 = and_tmp
+											}
+											let_result_372 = if_result_371
+										}
+										var if_result_373 flagrt.Value
+										if flagrt.IsTruthy(let_result_372) {
+											if_result_373 = flagrt.NewMap(macflagKw_matched, flagrt.NewBool(true), macflagKw_bindings, bindings, macflagKw_rest_bindings, rest_bindings)
+										} else {
+											if_result_373 = macflagMap_1
+										}
+										if_result_374 = if_result_373
+									} else {
+										if_result_374 = flagrt.NilValue()
+									}
+									if_result_375 = if_result_374
+								}
+								if_result_376 = if_result_375
+							}
+							if_result_377 = if_result_376
+						}
+						if_result_378 = if_result_377
+					}
+					if_result_379 = if_result_378
+				}
+				let_result_380 = if_result_379
+			}
+			if_result_423 = let_result_380
+		} else {
+			var if_result_422 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_case))) {
+				var if_result_391 flagrt.Value
+				if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(a))), flagrt.NewLong(2)) {
+					if_result_391 = func() flagrt.Value {
+						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case expects a target form and at least one clause"), macflagKw_data, macflagMap))
+						return flagrt.NilValue()
+					}()
+				} else {
+					var let_result_390 flagrt.Value
+					{
+						var target_expr = flagrt.First(a)
+						var if_result_381 flagrt.Value
+						if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, target_expr)) {
+							if_result_381 = flagrt.NewBool(false)
+						} else {
+							if_result_381 = flagrt.NewBool(true)
+						}
+						var if_result_389 flagrt.Value
+						if flagrt.IsTruthy(if_result_381) {
+							if_result_389 = func() flagrt.Value {
+								flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case expects a list target form"), macflagKw_data, macflagMap))
+								return flagrt.NilValue()
+							}()
+						} else {
+							var let_result_388 flagrt.Value
+							{
+								var target_elems = flagrt.Call(compiler__node_children, target_expr)
+								var if_result_382 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(target_elems))) {
+									if_result_382 = macflagVec
+								} else {
+									if_result_382 = flagrt.Rest(target_elems)
+								}
+								var target = if_result_382
+								let_result_388 = func() flagrt.Value {
+									var clauses = flagrt.Rest(a)
+									for {
+										var if_result_387 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(clauses))) {
+											if_result_387 = func() flagrt.Value {
+												flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case had no matching clause"), macflagKw_data, macflagMap))
+												return flagrt.NilValue()
+											}()
+										} else {
+											var let_result_386 flagrt.Value
+											{
+												var clause = flagrt.Call(compiler__macro_case_clause, flagrt.First(clauses))
+												var if_result_385 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(clause))) {
+													if_result_385 = func() flagrt.Value {
+														flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case clauses must be ([pattern] body) lists"), macflagKw_data, macflagMap))
+														return flagrt.NilValue()
+													}()
+												} else {
+													var let_result_384 flagrt.Value
+													{
+														var result = compiler__macro_op_arity_5(macflagKw_pat, flagrt.Call(macflagKw_pattern, clause), target, macflagMap, macflagMap)
+														var if_result_383 flagrt.Value
+														if flagrt.IsTruthy(flagrt.Call(macflagKw_matched, result)) {
+															if_result_383 = compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_body, clause), flagrt.Call(macflagKw_bindings, result), flagrt.Call(macflagKw_rest_bindings, result), flagrt.NilValue())
+														} else {
+															if_result_383 = flagrt.NewRecur(flagrt.Rest(clauses))
+														}
+														let_result_384 = if_result_383
+													}
+													if_result_385 = let_result_384
+												}
+												let_result_386 = if_result_385
+											}
+											if_result_387 = let_result_386
+										}
+										__loopResult := if_result_387
+										if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+											if len(__recurValues) != 1 {
+												panic("internal error: recur arity mismatch")
+											}
+											clauses = __recurValues[0]
+											continue
+										}
+										return __loopResult
+									}
 								}()
 							}
-							return func() flagrt.Value {
-								var target_expr = flagrt.First(a)
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, target_expr)) {
-											return flagrt.NewBool(false)
-										}
-										return flagrt.NewBool(true)
-									}()) {
-										return func() flagrt.Value {
-											flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case expects a list target form"), macflagKw_data, macflagMap))
-											return flagrt.NilValue()
-										}()
+							if_result_389 = let_result_388
+						}
+						let_result_390 = if_result_389
+					}
+					if_result_391 = let_result_390
+				}
+				if_result_422 = if_result_391
+			} else {
+				var if_result_421 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_subst))) {
+					var let_result_419 flagrt.Value
+					{
+						var expr = a
+						var values = b
+						var rest_bindings = c
+						var if_result_418 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(macflagKw_macro_literal, flagrt.Call(macflagKw_kind, expr)))) {
+							if_result_418 = expr
+						} else {
+							var if_result_417 flagrt.Value
+							if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, expr)) {
+								var let_result_393 flagrt.Value
+								{
+									var replacement = flagrt.Call(flagrt.BuiltinFunction("get"), values, flagrt.Call(macflagKw_name, expr))
+									var if_result_392 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(replacement))) {
+										if_result_392 = expr
+									} else {
+										if_result_392 = flagrt.Call(compiler__wrap_literal, replacement)
 									}
-									return func() flagrt.Value {
-										var target_elems = flagrt.Call(compiler__node_children, target_expr)
-										var target = func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(target_elems))) {
-												return macflagVec
-											}
-											return flagrt.Rest(target_elems)
-										}()
-										return func() flagrt.Value {
-											var clauses = flagrt.Rest(a)
+									let_result_393 = if_result_392
+								}
+								if_result_417 = let_result_393
+							} else {
+								var if_result_416 flagrt.Value
+								if flagrt.IsTruthy(flagrt.Call(compiler__splice_node_q, expr)) {
+									var let_result_409 flagrt.Value
+									{
+										var out = func() flagrt.Value {
+											var remaining = flagrt.Call(compiler__node_children, expr)
+											var acc = macflagVec
 											for {
-												__loopResult := func() flagrt.Value {
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(clauses))) {
-															return func() flagrt.Value {
-																flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case had no matching clause"), macflagKw_data, macflagMap))
-																return flagrt.NilValue()
-															}()
+												var if_result_399 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+													if_result_399 = acc
+												} else {
+													var let_result_398 flagrt.Value
+													{
+														var child = flagrt.First(remaining)
+														var if_result_394 flagrt.Value
+														if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, child)) {
+															if_result_394 = flagrt.Call(flagrt.BuiltinFunction("get"), rest_bindings, flagrt.Call(macflagKw_name, child))
+														} else {
+															if_result_394 = flagrt.NilValue()
 														}
-														return func() flagrt.Value {
-															var clause = flagrt.Call(compiler__macro_case_clause, flagrt.First(clauses))
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(clause))) {
-																	return func() flagrt.Value {
-																		flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro-case clauses must be ([pattern] body) lists"), macflagKw_data, macflagMap))
-																		return flagrt.NilValue()
-																	}()
-																}
-																return func() flagrt.Value {
-																	var result = compiler__macro_op_arity_5(macflagKw_pat, flagrt.Call(macflagKw_pattern, clause), target, macflagMap, macflagMap)
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(flagrt.Call(macflagKw_matched, result)) {
-																			return compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_body, clause), flagrt.Call(macflagKw_bindings, result), flagrt.Call(macflagKw_rest_bindings, result), flagrt.NilValue())
+														var rest_items = if_result_394
+														var if_result_395 flagrt.Value
+														if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(rest_items))) {
+															if_result_395 = flagrt.NewBool(false)
+														} else {
+															if_result_395 = flagrt.NewBool(true)
+														}
+														var if_result_397 flagrt.Value
+														if flagrt.IsTruthy(if_result_395) {
+															if_result_397 = flagrt.NewRecur(flagrt.Rest(remaining), func() flagrt.Value {
+																var items = rest_items
+																var out = acc
+																for {
+																	var if_result_396 flagrt.Value
+																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(items))) {
+																		if_result_396 = out
+																	} else {
+																		if_result_396 = flagrt.NewRecur(flagrt.Rest(items), flagrt.Conj(out, flagrt.Call(compiler__wrap_literal, flagrt.First(items))))
+																	}
+																	__loopResult := if_result_396
+																	if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+																		if len(__recurValues) != 2 {
+																			panic("internal error: recur arity mismatch")
 																		}
-																		return flagrt.NewRecur(flagrt.Rest(clauses))
-																	}()
-																}()
-															}()
-														}()
-													}()
-												}()
+																		items = __recurValues[0]
+																		out = __recurValues[1]
+																		continue
+																	}
+																	return __loopResult
+																}
+															}())
+														} else {
+															if_result_397 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(macflagKw_subst, child, values, rest_bindings, flagrt.NilValue())))
+														}
+														let_result_398 = if_result_397
+													}
+													if_result_399 = let_result_398
+												}
+												__loopResult := if_result_399
 												if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-													if len(__recurValues) != 1 {
+													if len(__recurValues) != 2 {
 														panic("internal error: recur arity mismatch")
 													}
-													clauses = __recurValues[0]
+													remaining = __recurValues[0]
+													acc = __recurValues[1]
 													continue
 												}
 												return __loopResult
 											}
 										}()
-									}()
-								}()
-							}()
-						}()
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(op, macflagKw_subst))) {
-							return func() flagrt.Value {
-								var expr = a
-								var values = b
-								var rest_bindings = c
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(macflagKw_macro_literal, flagrt.Call(macflagKw_kind, expr)))) {
-										return expr
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, expr)) {
-											return func() flagrt.Value {
-												var replacement = flagrt.Call(flagrt.BuiltinFunction("get"), values, flagrt.Call(macflagKw_name, expr))
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(replacement))) {
-														return expr
+										var let_result_404 flagrt.Value
+										{
+											var and_tmp = flagrt.Call(compiler__list_node_q, expr)
+											var if_result_403 flagrt.Value
+											if flagrt.IsTruthy(and_tmp) {
+												var let_result_402 flagrt.Value
+												{
+													var if_result_400 flagrt.Value
+													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(out))) {
+														if_result_400 = flagrt.NewBool(false)
+													} else {
+														if_result_400 = flagrt.NewBool(true)
 													}
-													return flagrt.Call(compiler__wrap_literal, replacement)
-												}()
-											}()
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.Call(compiler__splice_node_q, expr)) {
-												return func() flagrt.Value {
-													var out = func() flagrt.Value {
-														var remaining = flagrt.Call(compiler__node_children, expr)
-														var acc = macflagVec
-														for {
-															__loopResult := func() flagrt.Value {
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-																		return acc
-																	}
-																	return func() flagrt.Value {
-																		var child = flagrt.First(remaining)
-																		var rest_items = func() flagrt.Value {
-																			if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, child)) {
-																				return flagrt.Call(flagrt.BuiltinFunction("get"), rest_bindings, flagrt.Call(macflagKw_name, child))
-																			}
-																			return flagrt.NilValue()
-																		}()
-																		return func() flagrt.Value {
-																			if flagrt.IsTruthy(func() flagrt.Value {
-																				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(rest_items))) {
-																					return flagrt.NewBool(false)
-																				}
-																				return flagrt.NewBool(true)
-																			}()) {
-																				return flagrt.NewRecur(flagrt.Rest(remaining), func() flagrt.Value {
-																					var items = rest_items
-																					var out = acc
-																					for {
-																						__loopResult := func() flagrt.Value {
-																							return func() flagrt.Value {
-																								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(items))) {
-																									return out
-																								}
-																								return flagrt.NewRecur(flagrt.Rest(items), flagrt.Conj(out, flagrt.Call(compiler__wrap_literal, flagrt.First(items))))
-																							}()
-																						}()
-																						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-																							if len(__recurValues) != 2 {
-																								panic("internal error: recur arity mismatch")
-																							}
-																							items = __recurValues[0]
-																							out = __recurValues[1]
-																							continue
-																						}
-																						return __loopResult
-																					}
-																				}())
-																			}
-																			return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(macflagKw_subst, child, values, rest_bindings, flagrt.NilValue())))
-																		}()
-																	}()
-																}()
-															}()
-															if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-																if len(__recurValues) != 2 {
-																	panic("internal error: recur arity mismatch")
-																}
-																remaining = __recurValues[0]
-																acc = __recurValues[1]
-																continue
-															}
-															return __loopResult
-														}
-													}()
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(func() flagrt.Value {
-															if !(flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr))) {
-																return flagrt.Call(compiler__list_node_q, expr)
-															}
-															if !(flagrt.IsTruthy(func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(out))) {
-																	return flagrt.NewBool(false)
-																}
-																return flagrt.NewBool(true)
-															}())) {
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(out))) {
-																		return flagrt.NewBool(false)
-																	}
-																	return flagrt.NewBool(true)
-																}()
-															}
-															return flagrt.Call(compiler__symbol_node_q, flagrt.First(out))
-														}()) {
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-case"), flagrt.Call(macflagKw_name, flagrt.First(out))))) {
-																	return compiler__macro_op_arity_5(macflagKw_case, flagrt.Rest(out), flagrt.NilValue(), flagrt.NilValue(), flagrt.NilValue())
-																}
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-defrecord"), flagrt.Call(macflagKw_name, flagrt.First(out))))) {
-																		return flagrt.Call(compiler__expand_defrecord_macro, flagrt.Rest(out))
-																	}
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(flagrt.NewBool(true)) {
-																			return flagrt.Call(compiler__with_children, expr, out)
-																		}
-																		return flagrt.NilValue()
-																	}()
-																}()
-															}()
-														}
-														return flagrt.Call(compiler__with_children, expr, out)
-													}()
-												}()
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.Call(compiler__map_node_q, expr)) {
-														return flagrt.Call(compiler__map_node_q, expr)
+													var and_tmp = if_result_400
+													var if_result_401 flagrt.Value
+													if flagrt.IsTruthy(and_tmp) {
+														if_result_401 = flagrt.Call(compiler__symbol_node_q, flagrt.First(out))
+													} else {
+														if_result_401 = and_tmp
 													}
-													return flagrt.Call(compiler__set_node_q, expr)
-												}()) {
-													return flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
-														var remaining = flagrt.Call(compiler__node_children, expr)
-														var acc = macflagVec
-														for {
-															__loopResult := func() flagrt.Value {
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-																		return acc
-																	}
-																	return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(macflagKw_subst, flagrt.First(remaining), values, rest_bindings, flagrt.NilValue())))
-																}()
-															}()
-															if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-																if len(__recurValues) != 2 {
-																	panic("internal error: recur arity mismatch")
-																}
-																remaining = __recurValues[0]
-																acc = __recurValues[1]
-																continue
-															}
-															return __loopResult
-														}
-													}())
+													let_result_402 = if_result_401
 												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
-														return flagrt.Assoc(expr, macflagKw_body, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_body, expr), values, rest_bindings, flagrt.NilValue()))
+												if_result_403 = let_result_402
+											} else {
+												if_result_403 = and_tmp
+											}
+											let_result_404 = if_result_403
+										}
+										var if_result_408 flagrt.Value
+										if flagrt.IsTruthy(let_result_404) {
+											var if_result_407 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-case"), flagrt.Call(macflagKw_name, flagrt.First(out))))) {
+												if_result_407 = compiler__macro_op_arity_5(macflagKw_case, flagrt.Rest(out), flagrt.NilValue(), flagrt.NilValue(), flagrt.NilValue())
+											} else {
+												var if_result_406 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-defrecord"), flagrt.Call(macflagKw_name, flagrt.First(out))))) {
+													if_result_406 = flagrt.Call(compiler__expand_defrecord_macro, flagrt.Rest(out))
+												} else {
+													var if_result_405 flagrt.Value
+													if flagrt.IsTruthy(flagrt.NewBool(true)) {
+														if_result_405 = flagrt.Call(compiler__with_children, expr, out)
+													} else {
+														if_result_405 = flagrt.NilValue()
 													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
-															return flagrt.Assoc(expr, macflagKw_meta, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_meta, expr), values, rest_bindings, flagrt.NilValue()), macflagKw_target, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_target, expr), values, rest_bindings, flagrt.NilValue()))
-														}
-														return expr
-													}()
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(true)) {
-								return func() flagrt.Value {
-									flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("unknown macro-op"), macflagKw_data, flagrt.NewMap(macflagKw_op, op)))
-									return flagrt.NilValue()
-								}()
+													if_result_406 = if_result_405
+												}
+												if_result_407 = if_result_406
+											}
+											if_result_408 = if_result_407
+										} else {
+											if_result_408 = flagrt.Call(compiler__with_children, expr, out)
+										}
+										let_result_409 = if_result_408
+									}
+									if_result_416 = let_result_409
+								} else {
+									var let_result_411 flagrt.Value
+									{
+										var or_tmp = flagrt.Call(compiler__map_node_q, expr)
+										var if_result_410 flagrt.Value
+										if flagrt.IsTruthy(or_tmp) {
+											if_result_410 = or_tmp
+										} else {
+											if_result_410 = flagrt.Call(compiler__set_node_q, expr)
+										}
+										let_result_411 = if_result_410
+									}
+									var if_result_415 flagrt.Value
+									if flagrt.IsTruthy(let_result_411) {
+										if_result_415 = flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
+											var remaining = flagrt.Call(compiler__node_children, expr)
+											var acc = macflagVec
+											for {
+												var if_result_412 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+													if_result_412 = acc
+												} else {
+													if_result_412 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(macflagKw_subst, flagrt.First(remaining), values, rest_bindings, flagrt.NilValue())))
+												}
+												__loopResult := if_result_412
+												if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+													if len(__recurValues) != 2 {
+														panic("internal error: recur arity mismatch")
+													}
+													remaining = __recurValues[0]
+													acc = __recurValues[1]
+													continue
+												}
+												return __loopResult
+											}
+										}())
+									} else {
+										var if_result_414 flagrt.Value
+										if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
+											if_result_414 = flagrt.Assoc(expr, macflagKw_body, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_body, expr), values, rest_bindings, flagrt.NilValue()))
+										} else {
+											var if_result_413 flagrt.Value
+											if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
+												if_result_413 = flagrt.Assoc(expr, macflagKw_meta, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_meta, expr), values, rest_bindings, flagrt.NilValue()), macflagKw_target, compiler__macro_op_arity_5(macflagKw_subst, flagrt.Call(macflagKw_target, expr), values, rest_bindings, flagrt.NilValue()))
+											} else {
+												if_result_413 = expr
+											}
+											if_result_414 = if_result_413
+										}
+										if_result_415 = if_result_414
+									}
+									if_result_416 = if_result_415
+								}
+								if_result_417 = if_result_416
 							}
+							if_result_418 = if_result_417
+						}
+						let_result_419 = if_result_418
+					}
+					if_result_421 = let_result_419
+				} else {
+					var if_result_420 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(true)) {
+						if_result_420 = func() flagrt.Value {
+							flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("unknown macro-op"), macflagKw_data, flagrt.NewMap(macflagKw_op, op)))
 							return flagrt.NilValue()
 						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+					} else {
+						if_result_420 = flagrt.NilValue()
+					}
+					if_result_421 = if_result_420
+				}
+				if_result_422 = if_result_421
+			}
+			if_result_423 = if_result_422
+		}
+		if_result_424 = if_result_423
+	}
+	return if_result_424
 }
 
 func compiler__macro_op_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1685,9 +2020,7 @@ func compiler__macro_op_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__substitute_node_arity_3(expr flagrt.Value, values flagrt.Value, rest_bindings flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.Call(compiler__macro_op, macflagKw_subst, expr, values, rest_bindings, flagrt.NilValue())
-	}()
+	return flagrt.Call(compiler__macro_op, macflagKw_subst, expr, values, rest_bindings, flagrt.NilValue())
 }
 
 func compiler__substitute_node_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1698,12 +2031,12 @@ func compiler__substitute_node_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__apply_macro_arity_arity_2(arity flagrt.Value, args flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var bindings = flagrt.Call(compiler__bind_macro_args, arity, args)
-			return flagrt.Call(compiler__unwrap_literal_tree, flagrt.Call(compiler__substitute_node, flagrt.Call(macflagKw_body, arity), flagrt.Call(macflagKw_values, bindings), flagrt.Call(macflagKw_rest_bindings, bindings)))
-		}()
-	}()
+	var let_result_425 flagrt.Value
+	{
+		var bindings = flagrt.Call(compiler__bind_macro_args, arity, args)
+		let_result_425 = flagrt.Call(compiler__unwrap_literal_tree, flagrt.Call(compiler__substitute_node, flagrt.Call(macflagKw_body, arity), flagrt.Call(macflagKw_values, bindings), flagrt.Call(macflagKw_rest_bindings, bindings)))
+	}
+	return let_result_425
 }
 
 func compiler__apply_macro_arity_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1715,60 +2048,74 @@ func compiler__apply_macro_arity_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__apply_multi_arity_arity_2(macro flagrt.Value, args flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var remaining = flagrt.Call(macflagKw_arities, macro)
-			var rest_arity = flagrt.NilValue()
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(func() flagrt.Value {
-									if !(flagrt.IsTruthy(rest_arity)) {
-										return rest_arity
-									}
-									return flagrt.NewBool(flagrt.Ge(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, rest_arity))))))
-								}()) {
-									return flagrt.Call(compiler__apply_macro_arity, rest_arity, args)
-								}
-								return func() flagrt.Value {
-									flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro expects arguments"), macflagKw_data, flagrt.NewMap(macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-									return flagrt.NilValue()
-								}()
-							}()
-						}
-						return func() flagrt.Value {
-							var arity = flagrt.First(remaining)
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(func() flagrt.Value {
-									if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(macflagKw_rest_param, arity))))) {
-										return flagrt.NewBool(flagrt.IsNil(flagrt.Call(macflagKw_rest_param, arity)))
-									}
-									return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, arity))))))
-								}()) {
-									return flagrt.Call(compiler__apply_macro_arity, arity, args)
-								}
-								return flagrt.NewRecur(flagrt.Rest(remaining), func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.Call(macflagKw_rest_param, arity)) {
-										return arity
-									}
-									return rest_arity
-								}())
-							}()
-						}()
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 2 {
-						panic("internal error: recur arity mismatch")
+		var remaining = flagrt.Call(macflagKw_arities, macro)
+		var rest_arity = flagrt.NilValue()
+		for {
+			var if_result_434 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+				var let_result_427 flagrt.Value
+				{
+					var and_tmp = rest_arity
+					var if_result_426 flagrt.Value
+					if flagrt.IsTruthy(and_tmp) {
+						if_result_426 = flagrt.NewBool(flagrt.Ge(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, rest_arity))))))
+					} else {
+						if_result_426 = and_tmp
 					}
-					remaining = __recurValues[0]
-					rest_arity = __recurValues[1]
-					continue
+					let_result_427 = if_result_426
 				}
-				return __loopResult
+				var if_result_428 flagrt.Value
+				if flagrt.IsTruthy(let_result_427) {
+					if_result_428 = flagrt.Call(compiler__apply_macro_arity, rest_arity, args)
+				} else {
+					if_result_428 = func() flagrt.Value {
+						flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro expects arguments"), macflagKw_data, flagrt.NewMap(macflagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
+						return flagrt.NilValue()
+					}()
+				}
+				if_result_434 = if_result_428
+			} else {
+				var let_result_433 flagrt.Value
+				{
+					var arity = flagrt.First(remaining)
+					var let_result_430 flagrt.Value
+					{
+						var and_tmp = flagrt.NewBool(flagrt.IsNil(flagrt.Call(macflagKw_rest_param, arity)))
+						var if_result_429 flagrt.Value
+						if flagrt.IsTruthy(and_tmp) {
+							if_result_429 = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(int64(flagrt.Count(args))), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(macflagKw_params, arity))))))
+						} else {
+							if_result_429 = and_tmp
+						}
+						let_result_430 = if_result_429
+					}
+					var if_result_432 flagrt.Value
+					if flagrt.IsTruthy(let_result_430) {
+						if_result_432 = flagrt.Call(compiler__apply_macro_arity, arity, args)
+					} else {
+						var if_result_431 flagrt.Value
+						if flagrt.IsTruthy(flagrt.Call(macflagKw_rest_param, arity)) {
+							if_result_431 = arity
+						} else {
+							if_result_431 = rest_arity
+						}
+						if_result_432 = flagrt.NewRecur(flagrt.Rest(remaining), if_result_431)
+					}
+					let_result_433 = if_result_432
+				}
+				if_result_434 = let_result_433
 			}
-		}()
+			__loopResult := if_result_434
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				remaining = __recurValues[0]
+				rest_arity = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -1780,14 +2127,13 @@ func compiler__apply_multi_arity_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__apply_macro_arity_2(macro flagrt.Value, args flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Call(macflagKw_arities, macro)))) {
-				return flagrt.Call(compiler__apply_macro_arity, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, macro), macflagKw_rest_param, flagrt.Call(macflagKw_rest_param, macro), macflagKw_body, flagrt.Call(macflagKw_body, macro)), args)
-			}
-			return flagrt.Call(compiler__apply_multi_arity, macro, args)
-		}()
-	}()
+	var if_result_435 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Call(macflagKw_arities, macro)))) {
+		if_result_435 = flagrt.Call(compiler__apply_macro_arity, flagrt.NewMap(macflagKw_params, flagrt.Call(macflagKw_params, macro), macflagKw_rest_param, flagrt.Call(macflagKw_rest_param, macro), macflagKw_body, flagrt.Call(macflagKw_body, macro)), args)
+	} else {
+		if_result_435 = flagrt.Call(compiler__apply_multi_arity, macro, args)
+	}
+	return if_result_435
 }
 
 func compiler__apply_macro_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1798,103 +2144,111 @@ func compiler__apply_macro_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__expand_node_arity_3(expr flagrt.Value, macros flagrt.Value, depth flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.Gt(depth, flagrt.NewLong(100)) {
-				return func() flagrt.Value {
-					flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro expansion depth exceeded"), macflagKw_data, flagrt.NewMap(macflagKw_expr, expr)))
-					return flagrt.NilValue()
-				}()
-			}
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr)) {
-					return func() flagrt.Value {
-						var children = flagrt.Call(compiler__node_children, expr)
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(children))) {
-								return expr
-							}
-							return func() flagrt.Value {
-								var head = flagrt.First(children)
-								var macro = func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, head)) {
-										return flagrt.Call(flagrt.BuiltinFunction("get"), macros, flagrt.Call(macflagKw_name, head))
-									}
-									return flagrt.NilValue()
-								}()
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(macro) {
-										return compiler__expand_node_arity_3(flagrt.Call(compiler__apply_macro, macro, flagrt.Rest(children)), macros, flagrt.Add(depth, flagrt.NewLong(1)))
-									}
-									return flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
-										var remaining = children
-										var out = macflagVec
-										for {
-											__loopResult := func() flagrt.Value {
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-														return out
-													}
-													return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, compiler__expand_node_arity_3(flagrt.First(remaining), macros, depth)))
-												}()
-											}()
-											if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-												if len(__recurValues) != 2 {
-													panic("internal error: recur arity mismatch")
-												}
-												remaining = __recurValues[0]
-												out = __recurValues[1]
-												continue
-											}
-											return __loopResult
-										}
-									}())
-								}()
-							}()
-						}()
-					}()
-				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, expr)) {
-						return flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
-							var remaining = flagrt.Call(compiler__node_children, expr)
-							var out = macflagVec
-							for {
-								__loopResult := func() flagrt.Value {
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-											return out
-										}
-										return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, compiler__expand_node_arity_3(flagrt.First(remaining), macros, depth)))
-									}()
-								}()
-								if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-									if len(__recurValues) != 2 {
-										panic("internal error: recur arity mismatch")
-									}
-									remaining = __recurValues[0]
-									out = __recurValues[1]
-									continue
-								}
-								return __loopResult
-							}
-						}())
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
-							return flagrt.Assoc(expr, macflagKw_body, compiler__expand_node_arity_3(flagrt.Call(macflagKw_body, expr), macros, depth))
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
-								return flagrt.Assoc(expr, macflagKw_meta, compiler__expand_node_arity_3(flagrt.Call(macflagKw_meta, expr), macros, depth), macflagKw_target, compiler__expand_node_arity_3(flagrt.Call(macflagKw_target, expr), macros, depth))
-							}
-							return expr
-						}()
-					}()
-				}()
-			}()
+	var if_result_447 flagrt.Value
+	if flagrt.Gt(depth, flagrt.NewLong(100)) {
+		if_result_447 = func() flagrt.Value {
+			flagrt.Throw(flagrt.NewMap(macflagKw_message, flagrt.NewString("macro expansion depth exceeded"), macflagKw_data, flagrt.NewMap(macflagKw_expr, expr)))
+			return flagrt.NilValue()
 		}()
-	}()
+	} else {
+		var if_result_446 flagrt.Value
+		if flagrt.IsTruthy(flagrt.Call(compiler__list_node_q, expr)) {
+			var let_result_441 flagrt.Value
+			{
+				var children = flagrt.Call(compiler__node_children, expr)
+				var if_result_440 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(children))) {
+					if_result_440 = expr
+				} else {
+					var let_result_439 flagrt.Value
+					{
+						var head = flagrt.First(children)
+						var if_result_436 flagrt.Value
+						if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, head)) {
+							if_result_436 = flagrt.Call(flagrt.BuiltinFunction("get"), macros, flagrt.Call(macflagKw_name, head))
+						} else {
+							if_result_436 = flagrt.NilValue()
+						}
+						var macro = if_result_436
+						var if_result_438 flagrt.Value
+						if flagrt.IsTruthy(macro) {
+							if_result_438 = compiler__expand_node_arity_3(flagrt.Call(compiler__apply_macro, macro, flagrt.Rest(children)), macros, flagrt.Add(depth, flagrt.NewLong(1)))
+						} else {
+							if_result_438 = flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
+								var remaining = children
+								var out = macflagVec
+								for {
+									var if_result_437 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+										if_result_437 = out
+									} else {
+										if_result_437 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, compiler__expand_node_arity_3(flagrt.First(remaining), macros, depth)))
+									}
+									__loopResult := if_result_437
+									if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+										if len(__recurValues) != 2 {
+											panic("internal error: recur arity mismatch")
+										}
+										remaining = __recurValues[0]
+										out = __recurValues[1]
+										continue
+									}
+									return __loopResult
+								}
+							}())
+						}
+						let_result_439 = if_result_438
+					}
+					if_result_440 = let_result_439
+				}
+				let_result_441 = if_result_440
+			}
+			if_result_446 = let_result_441
+		} else {
+			var if_result_445 flagrt.Value
+			if flagrt.IsTruthy(flagrt.Call(compiler__walk_node_q, expr)) {
+				if_result_445 = flagrt.Call(compiler__with_children, expr, func() flagrt.Value {
+					var remaining = flagrt.Call(compiler__node_children, expr)
+					var out = macflagVec
+					for {
+						var if_result_442 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+							if_result_442 = out
+						} else {
+							if_result_442 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(out, compiler__expand_node_arity_3(flagrt.First(remaining), macros, depth)))
+						}
+						__loopResult := if_result_442
+						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+							if len(__recurValues) != 2 {
+								panic("internal error: recur arity mismatch")
+							}
+							remaining = __recurValues[0]
+							out = __recurValues[1]
+							continue
+						}
+						return __loopResult
+					}
+				}())
+			} else {
+				var if_result_444 flagrt.Value
+				if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
+					if_result_444 = flagrt.Assoc(expr, macflagKw_body, compiler__expand_node_arity_3(flagrt.Call(macflagKw_body, expr), macros, depth))
+				} else {
+					var if_result_443 flagrt.Value
+					if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
+						if_result_443 = flagrt.Assoc(expr, macflagKw_meta, compiler__expand_node_arity_3(flagrt.Call(macflagKw_meta, expr), macros, depth), macflagKw_target, compiler__expand_node_arity_3(flagrt.Call(macflagKw_target, expr), macros, depth))
+					} else {
+						if_result_443 = expr
+					}
+					if_result_444 = if_result_443
+				}
+				if_result_445 = if_result_444
+			}
+			if_result_446 = if_result_445
+		}
+		if_result_447 = if_result_446
+	}
+	return if_result_447
 }
 
 func compiler__expand_node_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1905,12 +2259,12 @@ func compiler__expand_node_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__register_macro_arity_2(macros flagrt.Value, expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var macro = flagrt.Call(compiler__compile_defmacro, expr)
-			return flagrt.Assoc(macros, flagrt.Call(macflagKw_name, macro), macro)
-		}()
-	}()
+	var let_result_448 flagrt.Value
+	{
+		var macro = flagrt.Call(compiler__compile_defmacro, expr)
+		let_result_448 = flagrt.Assoc(macros, flagrt.Call(macflagKw_name, macro), macro)
+	}
+	return let_result_448
 }
 
 func compiler__register_macro_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1921,90 +2275,85 @@ func compiler__register_macro_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__expand_macros_arity_1(in flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var out = flagrt.Call(async__make_channel, flagrt.NewLong(64))
-			_ = flagrt.Call(async__go_run, flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-				if len(args) != 0 {
-					panic("fn expects exactly 0 arguments")
-				}
-				return func() flagrt.Value {
-					return func() flagrt.Value {
-						var __flag_try_result flagrt.Value
-						defer func() {
-							_ = func() flagrt.Value {
-								return flagrt.Call(async__channel_close, out)
-							}()
-						}()
-						func() {
-							defer func() {
-								r := recover()
-								if r == nil {
-									return
-								}
-								__flag_thrown := flagrt.PanicValue(r)
-								if flagrt.CatchMatches("Exception", __flag_thrown) {
-									__flag_try_result = func() flagrt.Value {
-										var e = __flag_thrown
-										_ = e
-										return func() flagrt.Value {
-											return flagrt.Call(async__channel_send, out, flagrt.NewMap(macflagKw_kind, macflagKw_error, macflagKw_message, flagrt.ExMessage(e)))
-										}()
-									}()
-									return
-								}
-								panic(r)
-							}()
+	var let_result_454 flagrt.Value
+	{
+		var out = flagrt.Call(async__make_channel, flagrt.NewLong(64))
+		_ = flagrt.Call(async__go_run, flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if len(args) != 0 {
+				panic("fn expects exactly 0 arguments")
+			}
+			return func() flagrt.Value {
+				var __flag_try_result flagrt.Value
+				defer func() {
+					_ = flagrt.Call(async__channel_close, out)
+				}()
+				func() {
+					defer func() {
+						r := recover()
+						if r == nil {
+							return
+						}
+						__flag_thrown := flagrt.PanicValue(r)
+						if flagrt.CatchMatches("Exception", __flag_thrown) {
 							__flag_try_result = func() flagrt.Value {
-								return func() flagrt.Value {
-									var macros = macflagMap
-									for {
-										__loopResult := func() flagrt.Value {
-											return func() flagrt.Value {
-												var expr = flagrt.Call(async__channel_receive, in)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(expr))) {
-														return flagrt.NilValue()
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.Call(compiler__macro_definition_q, expr)) {
-															return flagrt.NewRecur(flagrt.Call(compiler__register_macro, macros, expr))
-														}
-														return func() flagrt.Value {
-															var expanded = flagrt.Call(compiler__expand_node, expr, macros, flagrt.NewLong(0))
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.Call(compiler__macro_definition_q, expanded)) {
-																	return flagrt.NewRecur(flagrt.Call(compiler__register_macro, macros, expanded))
-																}
-																return func() flagrt.Value {
-																	_ = flagrt.Call(async__channel_send, out, expanded)
-																	return flagrt.NewRecur(macros)
-																}()
-															}()
-														}()
-													}()
-												}()
-											}()
-										}()
-										if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-											if len(__recurValues) != 1 {
-												panic("internal error: recur arity mismatch")
-											}
-											macros = __recurValues[0]
-											continue
-										}
-										return __loopResult
-									}
-								}()
+								var e = __flag_thrown
+								_ = e
+								return flagrt.Call(async__channel_send, out, flagrt.NewMap(macflagKw_kind, macflagKw_error, macflagKw_message, flagrt.ExMessage(e)))
 							}()
-						}()
-						return __flag_try_result
+							return
+						}
+						panic(r)
+					}()
+					__flag_try_result = func() flagrt.Value {
+						var macros = macflagMap
+						for {
+							var let_result_453 flagrt.Value
+							{
+								var expr = flagrt.Call(async__channel_receive, in)
+								var if_result_452 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(expr))) {
+									if_result_452 = flagrt.NilValue()
+								} else {
+									var if_result_451 flagrt.Value
+									if flagrt.IsTruthy(flagrt.Call(compiler__macro_definition_q, expr)) {
+										if_result_451 = flagrt.NewRecur(flagrt.Call(compiler__register_macro, macros, expr))
+									} else {
+										var let_result_450 flagrt.Value
+										{
+											var expanded = flagrt.Call(compiler__expand_node, expr, macros, flagrt.NewLong(0))
+											var if_result_449 flagrt.Value
+											if flagrt.IsTruthy(flagrt.Call(compiler__macro_definition_q, expanded)) {
+												if_result_449 = flagrt.NewRecur(flagrt.Call(compiler__register_macro, macros, expanded))
+											} else {
+												_ = flagrt.Call(async__channel_send, out, expanded)
+												if_result_449 = flagrt.NewRecur(macros)
+											}
+											let_result_450 = if_result_449
+										}
+										if_result_451 = let_result_450
+									}
+									if_result_452 = if_result_451
+								}
+								let_result_453 = if_result_452
+							}
+							__loopResult := let_result_453
+							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+								if len(__recurValues) != 1 {
+									panic("internal error: recur arity mismatch")
+								}
+								macros = __recurValues[0]
+								continue
+							}
+							return __loopResult
+						}
 					}()
 				}()
-			}))
-			return out
-		}()
-	}()
+				return __flag_try_result
+			}()
+		}))
+		let_result_454 = out
+	}
+	return let_result_454
 }
 
 func compiler__expand_macros_variadic(args ...flagrt.Value) flagrt.Value {

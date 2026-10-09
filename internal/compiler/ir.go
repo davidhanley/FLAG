@@ -9,6 +9,8 @@ import (
 // IRExpr is a Go-backend-neutral expression node. Lowering builds these;
 // renderIRExpr is the only place that turns them into Go source. Unmigrated
 // paths still use IRRaw so the rest of the compiler can keep emitting strings.
+//
+// FLAG mirrors this schema as maps in libraries/compiler/ir.lib (render-ir).
 type IRExpr interface {
 	irExpr()
 }
@@ -154,6 +156,21 @@ type IRForStmt struct{ Body []IRStmt }
 
 func (IRForStmt) irStmt() {}
 
+// IRBlock is a Go block { stmts } used to scope flattened let bindings.
+type IRBlock struct{ Body []IRStmt }
+
+func (IRBlock) irStmt() {}
+
+// IRFuncDecl is a named top-level function.
+type IRFuncDecl struct {
+	Name   string
+	Params string
+	Result string
+	Body   []IRStmt
+}
+
+func (IRFuncDecl) irStmt() {}
+
 // IRRawStmt is preformatted Go, including indent and trailing newline.
 type IRRawStmt struct{ Code string }
 
@@ -191,6 +208,55 @@ func irFromGoExpr(e goExpr) IRExpr {
 
 func fromIR(ir IRExpr, kind exprKind) goExpr {
 	return goExpr{code: renderIRExpr(ir), kind: kind, ir: ir}
+}
+
+func cloneIRStmts(stmts []IRStmt) []IRStmt {
+	if len(stmts) == 0 {
+		return nil
+	}
+	return append([]IRStmt{}, stmts...)
+}
+
+func withStmts(e goExpr, stmts []IRStmt) goExpr {
+	if len(stmts) == 0 {
+		return e
+	}
+	e.stmts = append(cloneIRStmts(stmts), e.stmts...)
+	return e
+}
+
+func keepStmts(from, e goExpr) goExpr {
+	e.stmts = from.stmts
+	return e
+}
+
+func flattenToExpr(e goExpr) goExpr {
+	if len(e.stmts) == 0 {
+		return e
+	}
+	typeName, err := goTypeForExprKind(e.kind)
+	if err != nil {
+		typeName = runtimeAlias + ".Value"
+	}
+	body := append(cloneIRStmts(e.stmts), IRReturn{Expr: irFromGoExpr(e)})
+	return fromIR(iife(typeName, body...), e.kind)
+}
+
+func goExprPrelude(e goExpr) string {
+	return renderIRStmts(e.stmts, "\t")
+}
+
+func nextResultTemp(ctx compileContext, prefix string) string {
+	if ctx.ifTemps == nil {
+		n := 0
+		ctx.ifTemps = &n
+	}
+	*ctx.ifTemps++
+	return fmt.Sprintf("%s_%d", prefix, *ctx.ifTemps)
+}
+
+func nextIfTemp(ctx compileContext) string {
+	return nextResultTemp(ctx, "if_result")
 }
 
 func fromStmt(stmt IRStmt, kind exprKind) goExpr {
@@ -332,6 +398,23 @@ func renderIRStmt(stmt IRStmt, indent string) string {
 	case IRForStmt:
 		var b strings.Builder
 		b.WriteString(indent + "for {\n")
+		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(indent + "}\n")
+		return b.String()
+	case IRBlock:
+		var b strings.Builder
+		b.WriteString(indent + "{\n")
+		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(indent + "}\n")
+		return b.String()
+	case IRFuncDecl:
+		var b strings.Builder
+		b.WriteString(indent + "func " + s.Name + "(" + s.Params + ")")
+		if s.Result != "" {
+			b.WriteString(" ")
+			b.WriteString(s.Result)
+		}
+		b.WriteString(" {\n")
 		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()

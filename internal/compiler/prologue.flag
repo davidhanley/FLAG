@@ -4,6 +4,28 @@
 (defmacro when-not [test & body]
   (if test nil (do body)))
 
+(defmacro or [& exprs]
+  (macro-case (do exprs)
+    ([] nil)
+    ([x] x)
+    ([x y]
+     (let [or-tmp x]
+       (if or-tmp or-tmp y)))
+    ([x y & rest]
+     (let [or-tmp x]
+       (if or-tmp or-tmp (or y rest))))))
+
+(defmacro and [& exprs]
+  (macro-case (do exprs)
+    ([] true)
+    ([x] x)
+    ([x y]
+     (let [and-tmp x]
+       (if and-tmp y and-tmp)))
+    ([x y & rest]
+     (let [and-tmp x]
+       (if and-tmp (and y rest) and-tmp)))))
+
 (defn inc [x]
   (+ x 1))
 

@@ -79,11 +79,19 @@ Implemented top-level forms:
 - `(defn fname ([args] body) ([args2] body) ...)` multiple fixed arities
 - `(defmacro name "doc" [args] body)` optional docstring
 - `(defmacro name ([args] body) ([args2] body) ...)` multiple arities, same `()` style as `defn`
+- `(declare name ...)` — forward-declare symbols (no body). Compiled module interfaces (`.flagi`) use this for exported fns/vars
 - `(deftest name body...)` runs during build/repl compilation
 - `(defrecord Name [fields])` — Go struct + `->Name` / `map->Name` constructors
 - expression forms at top level (evaluated in `main`; entry module only when using imports)
 
 Every compiled program gets **`internal/compiler/prologue.flag`** (macros and FLAG functions). Unqualified **runtime builtins** live in `runtime/builtins.go`. Namespaced hosts (`str/…`, `io/…`, `vector/…`, …) are compile-time Go adapters (`goFnBindings`).
+
+Prologue macros include Clojure-style short-circuit `(or …)` and `(and …)`.
+They compile through flattened `let`/`if` (result variables, not IIFEs).
+They expand to `let` + `if` so the first clause is not evaluated twice:
+`(or)` is `nil`, `(and)` is `true`, `(or nil [])` is `[]`, and later
+clauses run only if needed. They are macros, so they cannot be passed to
+`map` / `apply`.
 
 Implemented special forms:
 
@@ -93,7 +101,6 @@ Implemented special forms:
 - `(loop [bindings...] body...)` with `(recur args...)` only in **tail position** of the loop body (not nested in `let` / `if`)
 - `(for [bindings...] body)` list comprehension (eager array)
 - `(doseq [bindings...] body)` sequential side effects (currently lazy `mapcat`; do not rely on it to launch `go` — use `loop`)
-- `(or …)` / `(and …)` short-circuit
 - `(doto obj form…)` thread `obj` as first argument
 - `(update! name expr)` mutate a `^{:volatile true}` let binding
 - `(defer f)` — Go `defer`: evaluate `f` now, call it with no args when the enclosing compiled function returns (LIFO). Use in `do` / `let` / `defn` bodies, e.g. `(defer (fn [] (close chan)))`. Yields `nil` if it is the last body form.
