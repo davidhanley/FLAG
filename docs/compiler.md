@@ -78,7 +78,8 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 
 `compiler/lower.lib` exports `ast-node-to-ir`, `quoted-ast-to-ir`,
 `call-to-ir`, `call-ast-to-ir`, `ctor-to-ir`, `runtime-call-to-ir`,
-`fold-call-to-ir`, `eq-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
+`fold-call-to-ir`, `eq-to-ir`, `nil-pred-to-ir`, `empty-pred-to-ir`,
+`count-to-ir`, `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
@@ -121,6 +122,14 @@ then `flagrt.NewBool`. Production `compile-form-to-ir` uses this for `=`.
 Self-calls use the same direct Go ident as production (`goName_arity_N` or
 the variadic wrapper), not `flagrt.Call`.
 
+`nil-pred-to-ir` / `empty-pred-to-ir` wrap `flagrt.IsNil` / `IsEmpty` in
+`NewBool`. `count-to-ir` is `NewLong(int64(Count(x)))`. Each takes one
+argument; string args become `NewString`. Production `compile-form-to-ir`
+handles `nil?`, `empty?`, `count`, `throw` (existing `throw-to-ir` IIFE),
+and `loop`/`recur` (symbol bindings, `:mutable-value` locals,
+`:loop-binding-names` for arity). Nested `fn` clears loop names so `recur`
+cannot escape.
+
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
 `:self-function-name`, `:self-variadic-name`). It matches Go resolution:
@@ -158,9 +167,10 @@ runs when that thunk returns (`with-open`). Empty `(do)` is still
 
 `loop-to-ir` emits a value IIFE: init statements, `var` bindings, then
 `for { body; __loopResult := body-expr; if unwrap-recur { assign; continue }; return }`.
-Production `loopExprToGo` still compiles bindings (symbols only) and the
-body via `do`, then calls this. `recur-to-ir` is `flagrt.NewRecur(args...)`;
-Go still checks `recur` is inside `loop` and arity matches.
+Production `compile-form-to-ir` compiles bindings (symbols only) and the
+body via `do`, then calls this; Go `loopExprToGo` is the fallback. `recur-to-ir`
+is `flagrt.NewRecur(args...)`; FLAG and Go both require `recur` inside `loop`
+with matching arity.
 
 `defer-to-ir` is `defer flagrt.Call(thunk)`. Production still compiles the
 zero-arg function and keeps its statements on the `goExpr`. `throw-to-ir`
@@ -187,8 +197,9 @@ finish it.
 `compile-form-to-ir` / `compile-forms-to-ir` lower a form or `do` body:
 literals, collections, symbols (including `pkg/name` via the module
 table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
-folded `+ - * /`, and other runtime ops already in FLAG. Other special
-forms (`.method`, `loop`, `defer`, `map`, …) throw `not handled by FLAG`.
+`nil?`, `empty?`, `count`, `throw`, `loop`/`recur`, folded `+ - * /`,
+and other runtime ops already in FLAG. Other special forms (`.method`,
+`defer`, `map`, …) throw `not handled by FLAG`.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
 FLAG first and fall back to Go on those errors. FLAG preserves
 `:mutable-value` locals across nested `fn` parameter binding so `update!`

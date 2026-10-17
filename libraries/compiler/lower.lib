@@ -1,6 +1,7 @@
 {:namespace "compiler"
  :exports   [ast-node-to-ir quoted-ast-to-ir call-to-ir call-ast-to-ir
              ctor-to-ir runtime-call-to-ir fold-call-to-ir eq-to-ir
+             nil-pred-to-ir empty-pred-to-ir count-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
@@ -219,6 +220,18 @@
                 :right (literal-rt-call "Eq" [prev (first remaining)])}
                (first remaining)
                (rest remaining))))))
+
+(defn nil-pred-to-ir [arg]
+  (literal-rt-call "NewBool" [(literal-rt-call "IsNil" [arg])]))
+
+(defn empty-pred-to-ir [arg]
+  (literal-rt-call "NewBool" [(literal-rt-call "IsEmpty" [arg])]))
+
+(defn count-to-ir [arg]
+  (literal-rt-call "NewLong"
+                   [{:kind :call
+                     :fun {:kind :ident :name "int64"}
+                     :args [(literal-rt-call "Count" [arg])]}]))
 
 (def builtin-function-names
   #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
@@ -1228,6 +1241,13 @@
       (= k :string) (literal-rt-call "NewString" [(:expr part)])
       :else (throw (ex-info "= arguments must evaluate to Value" {})))))
 
+(defn value-arg-ir [part label]
+  (let [k (:expr-kind part)]
+    (cond
+      (= k :value) (:expr part)
+      (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      :else (throw (ex-info (str label " expects an argument that evaluates to Value") {})))))
+
 (defn truthy-form-ir [part]
   (let [k (:expr-kind part)]
     (cond
@@ -1371,7 +1391,7 @@
           (if (not (= :vector (:kind params)))
             (throw (ex-info "fn expects a parameter vector" {:node params}))
             (let [bound (bind-params-to-ir params "fn" (:locals ctx))
-                  inner (assoc ctx :locals (:locals bound))
+                  inner (assoc ctx :locals (:locals bound) :loop-binding-names [])
                   compiled (coerce-form-value (compile-form-node :form body inner))
                   ir (fn-to-ir "fn"
                                (:params bound)
@@ -1397,6 +1417,101 @@
                      ir (update-bang-to-ir ident (:stmts part) (:expr part))]
                  (form-result [] ir :value (:ctx part)))))))))
 
+    (= mode :nil?)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "nil? expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                    (nil-pred-to-ir (value-arg-ir part "nil?"))
+                    :value
+                    (:ctx part))))
+
+    (= mode :empty?)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "empty? expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                    (empty-pred-to-ir (value-arg-ir part "empty?"))
+                    :value
+                    (:ctx part))))
+
+    (= mode :count)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "count expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                    (count-to-ir (value-arg-ir part "count"))
+                    :value
+                    (:ctx part))))
+
+    (= mode :throw)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "throw expects exactly one argument" {}))
+      (let [part (coerce-form-value (compile-form-node :form (first node) ctx))]
+        (form-result [] (throw-to-ir (:stmts part) (:expr part)) :value (:ctx part))))
+
+    (= mode :recur)
+    (let [names (:loop-binding-names ctx)]
+      (if (or (nil? names) (empty? names))
+        (throw (ex-info "recur can only be used within loop" {}))
+        (if (not (= (count (stmt-list node)) (count names)))
+          (throw (ex-info (str "recur expects " (count names) " arguments") {}))
+          (let [compiled (compile-form-node :seq node ctx)]
+            (form-result (:stmts compiled)
+                        (recur-to-ir (:irs compiled))
+                        :value
+                        (:ctx compiled))))))
+
+    (= mode :loop)
+    (let [args node
+          outer-ctx ctx]
+      (if (or (nil? args) (empty? args))
+        (throw (ex-info "loop expects a binding vector" {}))
+        (let [bindings-node (unwrap-ast (first args))
+              body (rest args)]
+          (if (not (= :vector (:kind bindings-node)))
+            (throw (ex-info "loop expects a binding vector" {:node bindings-node}))
+            (if (or (nil? body) (empty? body))
+              (throw (ex-info "loop expects at least one body form" {}))
+              (let [entries (ast-seq bindings-node)]
+                (if (not (= 0 (% (count entries) 2)))
+                 (throw (ex-info "loop binding vector expects name/value pairs" {}))
+                 (loop [remaining entries
+                        ctx ctx
+                        init-stmts []
+                        bindings []
+                        names []
+                        declared {}]
+                   (if (or (nil? remaining) (empty? remaining))
+                     (let [loop-ctx (assoc ctx :loop-binding-names names)
+                           compiled (coerce-form-value (compile-form-node :forms body loop-ctx))]
+                       (form-result []
+                                    (loop-to-ir init-stmts bindings (:stmts compiled) (:expr compiled))
+                                    :value
+                                    (assoc (:ctx compiled)
+                                           :locals (:locals outer-ctx)
+                                           :loop-binding-names (:loop-binding-names outer-ctx))))
+                     (let [pat (unwrap-ast (first remaining))
+                           val-node (first (rest remaining))]
+                       (if (or (not (= :symbol (:kind pat))) (= "" (:name pat)))
+                         (throw (ex-info "loop bindings must be symbols" {:node pat}))
+                         (let [go-name (go-ident (:name pat))]
+                           (if (contains? declared go-name)
+                             (throw (ex-info (str "duplicate loop binding \"" (:name pat) "\"") {:name (:name pat)}))
+                             (let [locals (if (nil? (:locals ctx)) {} (:locals ctx))
+                                   next-locals (if (= go-name "_")
+                                                 locals
+                                                 (assoc locals go-name :mutable-value))
+                                   next-ctx (assoc ctx :locals next-locals)
+                                   part (coerce-form-value (compile-form-node :form val-node next-ctx))
+                                   unused (and (unused-binding? (:name pat)) (not (= go-name "_")))]
+                               (recur (rest (rest remaining))
+                                      (:ctx part)
+                                      (concat-stmts init-stmts (:stmts part))
+                                      (conj bindings {:name go-name :init (:expr part) :unused unused})
+                                      (conj names go-name)
+                                      (if (= go-name "_") declared (assoc declared go-name true)))))))))))))))))
+
     (= mode :call)
     (let [elements (:elements node)]
       (if (or (nil? elements) (empty? elements))
@@ -1419,6 +1534,12 @@
                 (= op "let") (compile-form-node :let args ctx)
                 (= op "fn") (compile-form-node :fn args ctx)
                 (= op "update!") (compile-form-node :update args ctx)
+                (= op "nil?") (compile-form-node :nil? args ctx)
+                (= op "empty?") (compile-form-node :empty? args ctx)
+                (= op "count") (compile-form-node :count args ctx)
+                (= op "throw") (compile-form-node :throw args ctx)
+                (= op "loop") (compile-form-node :loop args ctx)
+                (= op "recur") (compile-form-node :recur args ctx)
 
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))

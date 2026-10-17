@@ -1252,16 +1252,193 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	}
 }
 
-func TestFLAGCompileFormUnhandled(t *testing.T) {
+func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
-	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "nil?"},
+		SymbolExpr{Name: "nil"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.IsNil(flagrt.NilValue()))" {
+		t.Fatalf("nil? %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "empty?"},
+		VectorExpr{},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.IsEmpty(flagrt.NewArray()))" {
+		t.Fatalf("empty? %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "empty?"},
+		StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewBool(flagrt.IsEmpty(flagrt.NewString("x")))` {
+		t.Fatalf("empty?-string %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "count"},
+		VectorExpr{Elements: []Expr{IntExpr{Value: 1}, IntExpr{Value: 2}}},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewLong(int64(flagrt.Count(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)))))" {
+		t.Fatalf("count %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "nil?"}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected nil? arity error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "count"}, SymbolExpr{Name: "a"}, SymbolExpr{Name: "b"}}}, ctx, map[string]exprKind{"a": exprKindValue, "b": exprKindValue})
+	if err == nil {
+		t.Fatal("expected count arity error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "nil?"}, SymbolExpr{Name: "a"}}}, ctx, map[string]exprKind{"a": exprKindBool})
+	if err == nil {
+		t.Fatal("expected nil? value-kind error")
+	}
+}
+
+func TestFLAGCompileFormThrow(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "throw"},
+		SymbolExpr{Name: "err"},
+	}}, ctx, map[string]exprKind{"err": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{"flagrt.Throw(err)", "return flagrt.NilValue()"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "throw"},
+		StringExpr{Value: "boom"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(renderIRExpr(irFromGoExpr(got)), `flagrt.Throw(flagrt.NewString("boom"))`) {
+		t.Fatalf("throw string:\n%s", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "throw"}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected throw arity error")
+	}
+}
+
+func TestFLAGCompileFormLoopRecur(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
 		SymbolExpr{Name: "loop"},
 		VectorExpr{},
 		IntExpr{Value: 1},
 	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{"UnwrapRecur", "return __loopResult", "flagrt.NewLong(1)"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "n"}, IntExpr{Value: 0}}},
+		ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "if"},
+			ListExpr{Elements: []Expr{SymbolExpr{Name: "="}, SymbolExpr{Name: "n"}, IntExpr{Value: 2}}},
+			SymbolExpr{Name: "n"},
+			ListExpr{Elements: []Expr{
+				SymbolExpr{Name: "recur"},
+				ListExpr{Elements: []Expr{SymbolExpr{Name: "+"}, SymbolExpr{Name: "n"}, IntExpr{Value: 1}}},
+			}},
+		}},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"var n = flagrt.NewLong(0)",
+		"flagrt.NewRecur",
+		"UnwrapRecur",
+		"n = __recurValues[0]",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "recur"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected recur outside loop")
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "n"}, IntExpr{Value: 0}}},
+		ListExpr{Elements: []Expr{SymbolExpr{Name: "recur"}}},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected recur arity error")
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}, IntExpr{Value: 1}, SymbolExpr{Name: "x"}, IntExpr{Value: 2}}},
+		SymbolExpr{Name: "x"},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected duplicate loop binding")
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		IntExpr{Value: 1},
+		IntExpr{Value: 2},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected binding vector error")
+	}
+}
+
+func TestFLAGCompileFormUnhandled(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "map"},
+		SymbolExpr{Name: "f"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"f": exprKindValue, "xs": exprKindValue})
 	if !flagUnhandled(err) {
-		t.Fatalf("expected unhandled loop, got %v", err)
+		t.Fatalf("expected unhandled map, got %v", err)
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{

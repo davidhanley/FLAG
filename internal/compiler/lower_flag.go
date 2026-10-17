@@ -595,7 +595,19 @@ func loweringContext(ctx compileContext, locals map[string]exprKind) flagrt.Valu
 		flagrt.NewKeyword("self-function-rest"), flagrt.NewBool(ctx.selfFunctionRest),
 		flagrt.NewKeyword("self-function-arity"), flagrt.NewLong(int64(ctx.selfFunctionArity)),
 		flagrt.NewKeyword("self-arity-names"), intStringMapToFLAG(ctx.selfArityNames),
+		flagrt.NewKeyword("loop-binding-names"), stringSliceToFLAG(ctx.loopBindingNames),
 	)
+}
+
+func stringSliceToFLAG(xs []string) flagrt.Value {
+	if len(xs) == 0 {
+		return flagrt.NewArray()
+	}
+	vals := make([]flagrt.Value, len(xs))
+	for i, s := range xs {
+		vals[i] = flagrt.NewString(s)
+	}
+	return flagrt.NewArray(vals...)
 }
 
 func flagSymbolToGoExpr(name, ident string, ctx compileContext, locals map[string]exprKind) (result goExpr, err error) {

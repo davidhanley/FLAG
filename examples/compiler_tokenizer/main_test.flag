@@ -488,6 +488,62 @@
     (is (= "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))"
            (ir/render-ir (:expr out))))))
 
+(deftest lower-nil-empty-count-throw-loop
+  (is (= "flagrt.NewBool(flagrt.IsNil(x))"
+         (ir/render-ir (lower/nil-pred-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.NewBool(flagrt.IsEmpty(xs))"
+         (ir/render-ir (lower/empty-pred-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.NewLong(int64(flagrt.Count(xs)))"
+         (ir/render-ir (lower/count-to-ir (ir/ir-ident "xs")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "nil?"}
+                          {:kind :symbol :name "nil"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.IsNil(flagrt.NilValue()))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "empty?"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.IsEmpty(flagrt.NewString(\"x\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "count"}
+                          {:kind :vector
+                           :elements [{:kind :int :value 1}
+                                      {:kind :int :value 2}]}]}
+              {})]
+    (is (= "flagrt.NewLong(int64(flagrt.Count(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)))))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "throw"}
+                          {:kind :string :value "boom"}]}
+              {})]
+    (is (= "func() flagrt.Value {\n\tflagrt.Throw(flagrt.NewString(\"boom\"))\n\treturn flagrt.NilValue()\n}()"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "loop"}
+                          {:kind :vector :elements []}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= :call (:kind (:expr out))))
+    (is (= :func-lit (:kind (:fun (:expr out))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "loop"}
+                          {:kind :vector
+                           :elements [{:kind :symbol :name "n"}
+                                      {:kind :int :value 0}]}
+                          {:kind :symbol :name "n"}]}
+              {})]
+    (is (= :call (:kind (:expr out))))
+    (is (= :func-lit (:kind (:fun (:expr out)))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
