@@ -1313,6 +1313,131 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormStr(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "str"}}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindString {
+		t.Fatalf("kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Str()" {
+		t.Fatalf("empty str %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "str"},
+		StringExpr{Value: "a"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Str("a", flagrt.NewLong(1))` {
+		t.Fatalf("str %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
+func TestFLAGCompileFormExInfo(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "ex-info"},
+		StringExpr{Value: "boom"},
+		MapExpr{},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("boom"), flagrt.NewKeyword("data"), flagrt.NewMap())`
+	if renderIRExpr(irFromGoExpr(got)) != want {
+		t.Fatalf("ex-info %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "ex-info"},
+		StringExpr{Value: "boom"},
+		MapExpr{},
+		SymbolExpr{Name: "c"},
+	}}, ctx, map[string]exprKind{"c": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(renderIRExpr(irFromGoExpr(got)), `flagrt.NewKeyword("cause"), c`) {
+		t.Fatalf("ex-info cause %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "ex-info"},
+		IntExpr{Value: 1},
+		MapExpr{},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected string message error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "ex-info"}, StringExpr{Value: "x"}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected arity error")
+	}
+}
+
+func TestFLAGCompileFormAssocConj(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "assoc"},
+		SymbolExpr{Name: "m"},
+		KeywordExpr{Name: "k"},
+		IntExpr{Value: 1},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Assoc(m, flagrt.NewKeyword("k"), flagrt.NewLong(1))` {
+		t.Fatalf("assoc %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "assoc"},
+		SymbolExpr{Name: "m"},
+		StringExpr{Value: "k"},
+		IntExpr{Value: 1},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err == nil {
+		t.Fatal("expected assoc string error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "assoc"},
+		SymbolExpr{Name: "m"},
+		KeywordExpr{Name: "k"},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err == nil {
+		t.Fatal("expected assoc arity error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "conj"},
+		SymbolExpr{Name: "xs"},
+		StringExpr{Value: "x"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Conj(xs, flagrt.NewString("x"))` {
+		t.Fatalf("conj %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "conj"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err == nil {
+		t.Fatal("expected conj arity error")
+	}
+}
+
 func TestFLAGCompileFormThrow(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}

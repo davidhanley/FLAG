@@ -544,6 +544,52 @@
     (is (= :call (:kind (:expr out))))
     (is (= :func-lit (:kind (:fun (:expr out)))))))
 
+(deftest lower-str-ex-info-assoc-conj
+  (is (= "flagrt.Str()"
+         (ir/render-ir (lower/str-to-ir []))))
+  (is (= "flagrt.Str(\"a\", x)"
+         (ir/render-ir (lower/str-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"message\"), flagrt.NewString(\"boom\"), flagrt.NewKeyword(\"data\"), m)"
+         (ir/render-ir (lower/ex-info-to-ir (ir/ir-string "boom") (ir/ir-ident "m") nil))))
+  (is (= "flagrt.Assoc(m, k, v)"
+         (ir/render-ir (lower/assoc-to-ir [(ir/ir-ident "m") (ir/ir-ident "k") (ir/ir-ident "v")]))))
+  (is (= "flagrt.Conj(xs, x)"
+         (ir/render-ir (lower/conj-to-ir [(ir/ir-ident "xs") (ir/ir-ident "x")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "str"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.Str(\"a\", flagrt.NewLong(1))"
+           (ir/render-ir (:expr out))))
+    (is (= :string (:expr-kind out))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "ex-info"}
+                          {:kind :string :value "boom"}
+                          {:kind :map :entries []}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"message\"), flagrt.NewString(\"boom\"), flagrt.NewKeyword(\"data\"), flagrt.NewMap())"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "assoc"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}
+                          {:kind :int :value 1}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.Assoc(m, flagrt.NewKeyword(\"k\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "conj"}
+                          {:kind :symbol :name "xs"}
+                          {:kind :string :value "x"}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Conj(xs, flagrt.NewString(\"x\"))"
+           (ir/render-ir (:expr out))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
