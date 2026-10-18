@@ -3,6 +3,7 @@
              ctor-to-ir runtime-call-to-ir fold-call-to-ir eq-to-ir
              nil-pred-to-ir empty-pred-to-ir count-to-ir
              str-to-ir ex-info-to-ir assoc-to-ir conj-to-ir
+             seq-to-ir drop-to-ir take-to-ir cons-to-ir get-to-ir nth-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
@@ -253,6 +254,24 @@
 
 (defn conj-to-ir [args]
   (literal-rt-call "Conj" (if (or (nil? args) (empty? args)) [] args)))
+
+(defn seq-to-ir [arg]
+  (literal-rt-call "Seq" [arg]))
+
+(defn drop-to-ir [args]
+  (literal-rt-call "Drop" args))
+
+(defn take-to-ir [args]
+  (literal-rt-call "Take" args))
+
+(defn cons-to-ir [args]
+  (literal-rt-call "Cons" args))
+
+(defn get-to-ir [args]
+  (literal-rt-call "Get" args))
+
+(defn nth-to-ir [args]
+  (literal-rt-call "Nth" args))
 
 (def builtin-function-names
   #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
@@ -1595,6 +1614,77 @@
                    (concat-stmts stmts (:stmts part))
                    (conj irs (wrap-value-arg-ir part true "conj arguments must evaluate to Value")))))))
 
+    (= mode :seq-op)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "seq expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (seq-to-ir (value-arg-ir part "seq"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :drop)
+    (if (not (= 2 (count (stmt-list node))))
+      (throw (ex-info "drop expects count and sequence" {}))
+      (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          (form-result stmts (drop-to-ir irs) :value ctx)
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part false "drop arguments must evaluate to Value")))))))
+
+    (= mode :take)
+    (if (not (= 2 (count (stmt-list node))))
+      (throw (ex-info "take expects count and sequence" {}))
+      (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          (form-result stmts (take-to-ir irs) :value ctx)
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part false "take arguments must evaluate to Value")))))))
+
+    (= mode :cons)
+    (if (not (= 2 (count (stmt-list node))))
+      (throw (ex-info "cons expects exactly two arguments" {}))
+      (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          (form-result stmts (cons-to-ir irs) :value ctx)
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part false "cons arguments must evaluate to Value")))))))
+
+    (= mode :get)
+    (let [n (count (stmt-list node))]
+      (if (and (not (= n 2)) (not (= n 3)))
+        (throw (ex-info "get expects collection, key, and optional default" {}))
+        (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+          (if (or (nil? remaining) (empty? remaining))
+            (form-result stmts (get-to-ir irs) :value ctx)
+            (let [part (compile-form-node :form (first remaining) ctx)]
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (wrap-value-arg-ir part true "get arguments must evaluate to Value"))))))))
+
+    (= mode :nth)
+    (let [n (count (stmt-list node))]
+      (if (and (not (= n 2)) (not (= n 3)))
+        (throw (ex-info "nth expects collection, index, and optional default" {}))
+        (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+          (if (or (nil? remaining) (empty? remaining))
+            (form-result stmts (nth-to-ir irs) :value ctx)
+            (let [part (compile-form-node :form (first remaining) ctx)]
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (wrap-value-arg-ir part true "nth arguments must evaluate to Value"))))))))
+
     (= mode :call)
     (let [elements (:elements node)]
       (if (or (nil? elements) (empty? elements))
@@ -1627,6 +1717,12 @@
                 (= op "ex-info") (compile-form-node :ex-info args ctx)
                 (= op "assoc") (compile-form-node :assoc args ctx)
                 (= op "conj") (compile-form-node :conj args ctx)
+                (= op "seq") (compile-form-node :seq-op args ctx)
+                (= op "drop") (compile-form-node :drop args ctx)
+                (= op "take") (compile-form-node :take args ctx)
+                (= op "cons") (compile-form-node :cons args ctx)
+                (= op "get") (compile-form-node :get args ctx)
+                (= op "nth") (compile-form-node :nth args ctx)
 
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))

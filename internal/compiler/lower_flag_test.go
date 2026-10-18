@@ -1438,6 +1438,157 @@ func TestFLAGCompileFormAssocConj(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormSeqDropTakeCons(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "seq"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Seq(xs)" {
+		t.Fatalf("seq %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "seq"},
+		StringExpr{Value: "ab"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Seq(flagrt.NewString("ab"))` {
+		t.Fatalf("seq string %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "seq"}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected seq arity error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "drop"},
+		IntExpr{Value: 1},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Drop(flagrt.NewLong(1), xs)" {
+		t.Fatalf("drop %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "drop"},
+		StringExpr{Value: "1"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err == nil {
+		t.Fatal("expected drop string error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "drop"}, IntExpr{Value: 1}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected drop arity error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "take"},
+		IntExpr{Value: 2},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Take(flagrt.NewLong(2), xs)" {
+		t.Fatalf("take %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "cons"},
+		SymbolExpr{Name: "x"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"x": exprKindValue, "xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Cons(x, xs)" {
+		t.Fatalf("cons %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "cons"},
+		StringExpr{Value: "x"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err == nil {
+		t.Fatal("expected cons string error")
+	}
+}
+
+func TestFLAGCompileFormGetNth(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "get"},
+		SymbolExpr{Name: "m"},
+		KeywordExpr{Name: "k"},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Get(m, flagrt.NewKeyword("k"))` {
+		t.Fatalf("get %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "get"},
+		SymbolExpr{Name: "m"},
+		StringExpr{Value: "k"},
+		IntExpr{Value: 0},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Get(m, flagrt.NewString("k"), flagrt.NewLong(0))` {
+		t.Fatalf("get default %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "get"},
+		SymbolExpr{Name: "m"},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err == nil {
+		t.Fatal("expected get arity error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "nth"},
+		SymbolExpr{Name: "xs"},
+		IntExpr{Value: 0},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Nth(xs, flagrt.NewLong(0))" {
+		t.Fatalf("nth %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "nth"},
+		SymbolExpr{Name: "xs"},
+		IntExpr{Value: 0},
+		StringExpr{Value: "missing"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Nth(xs, flagrt.NewLong(0), flagrt.NewString("missing"))` {
+		t.Fatalf("nth default %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "nth"}}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected nth arity error")
+	}
+}
+
 func TestFLAGCompileFormThrow(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}

@@ -590,6 +590,52 @@
     (is (= "flagrt.Conj(xs, flagrt.NewString(\"x\"))"
            (ir/render-ir (:expr out))))))
 
+(deftest lower-seq-drop-take-cons-get-nth
+  (is (= "flagrt.Seq(xs)"
+         (ir/render-ir (lower/seq-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.Drop(n, xs)"
+         (ir/render-ir (lower/drop-to-ir [(ir/ir-ident "n") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Take(n, xs)"
+         (ir/render-ir (lower/take-to-ir [(ir/ir-ident "n") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Cons(x, xs)"
+         (ir/render-ir (lower/cons-to-ir [(ir/ir-ident "x") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Get(m, k)"
+         (ir/render-ir (lower/get-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.Nth(xs, i, d)"
+         (ir/render-ir (lower/nth-to-ir [(ir/ir-ident "xs") (ir/ir-ident "i") (ir/ir-ident "d")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "seq"}
+                          {:kind :string :value "ab"}]}
+              {})]
+    (is (= "flagrt.Seq(flagrt.NewString(\"ab\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "drop"}
+                          {:kind :int :value 1}
+                          {:kind :symbol :name "xs"}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Drop(flagrt.NewLong(1), xs)"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "get"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}
+                          {:kind :string :value "d"}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.Get(m, flagrt.NewKeyword(\"k\"), flagrt.NewString(\"d\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "nth"}
+                          {:kind :symbol :name "xs"}
+                          {:kind :int :value 0}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Nth(xs, flagrt.NewLong(0))"
+           (ir/render-ir (:expr out))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

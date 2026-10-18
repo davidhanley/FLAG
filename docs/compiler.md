@@ -80,6 +80,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `call-to-ir`, `call-ast-to-ir`, `ctor-to-ir`, `runtime-call-to-ir`,
 `fold-call-to-ir`, `eq-to-ir`, `nil-pred-to-ir`, `empty-pred-to-ir`,
 `count-to-ir`, `str-to-ir`, `ex-info-to-ir`, `assoc-to-ir`, `conj-to-ir`,
+`seq-to-ir`, `drop-to-ir`, `take-to-ir`, `cons-to-ir`, `get-to-ir`, `nth-to-ir`,
 `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
@@ -140,6 +141,12 @@ message and coerces data/cause to Value. Keywords are inline `NewKeyword`
 `conj-to-ir` are `flagrt.Assoc` / `Conj`. `assoc` needs a collection plus
 odd-length key/value pairs and rejects non-Value args (no string wrap).
 `conj` needs a collection plus at least one item and wraps strings.
+
+`seq-to-ir` is `flagrt.Seq` of one Value (strings wrapped). `drop-to-ir` /
+`take-to-ir` / `cons-to-ir` are two-arg `Drop` / `Take` / `Cons` with no
+string wrap. `get-to-ir` / `nth-to-ir` are `Get` / `Nth` with two or three
+args and string wrapping. Compile-form mode `:seq-op` is the `seq` special
+form; `:seq` still means “compile an argument list”.
 
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
@@ -209,7 +216,8 @@ finish it.
 literals, collections, symbols (including `pkg/name` via the module
 table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
 `nil?`, `empty?`, `count`, `throw`, `loop`/`recur`, `str`, `ex-info`,
-`assoc`, `conj`, folded `+ - * /`, and other runtime ops already in FLAG.
+`assoc`, `conj`, `seq`, `drop`/`take`/`cons`, `get`/`nth`, folded `+ - * /`,
+and other runtime ops already in FLAG.
 Other special forms (`.method`, `defer`, `map`, …) throw `not handled by FLAG`.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
 FLAG first and fall back to Go on those errors. FLAG preserves
