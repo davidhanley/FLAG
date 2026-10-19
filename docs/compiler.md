@@ -96,10 +96,12 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
 `doseq-body-to-ir`, `mapcat-binding-to-ir`, `fn-to-ir`, `ns-to-ir`,
 `def-to-ir`, `defn-binding-to-ir`, `defn-to-ir`, `defn-multi-to-ir`,
-`go-ident`, `bind-params-to-ir`, `compile-form-to-ir`,
-`compile-forms-to-ir`, `form-defer-result`, `forms-have-defer?`,
-`list-head-name`, `catch-type-name`, `parse-catch-clause`, and
-`split-try-args`.
+`write-to-ir`, `ends-with-to-ir`, `testing-to-ir`, `is-to-ir`,
+`expect-exception-to-ir`, `ast-form-source`, `hash-fn-placeholder-index`,
+`map-destructure-key-ir`, `go-ident`, `bind-params-to-ir`,
+`compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
+`forms-have-defer?`, `list-head-name`, `catch-type-name`,
+`parse-catch-clause`, and `split-try-args`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -243,19 +245,28 @@ Production `doseq`/`for` take a binding vector of symbol/collection pairs
 `doseq` bindings discard the body then `DoAll`. `fn-to-ir` wraps `NewFunction` around a
 variadic `func(args ...flagrt.Value)`: arity panic (`exactly` vs rest
 `at least`), `p := args[i]` or `_ = args[i]`, init/body statements, then
-`return`. `#()` still rewrites placeholders in Go, then calls
-`compileLambda`.
+`return`. `#()` rewrites `%` / `%N` placeholders (nested `#()` kept
+intact) to `__pN` and lowers as `fn`. `.write` is `flagrt.Write` (file
+Value, stringish content). `.endsWith` is `strings.HasSuffix` with
+result kind `:bool`. Other `.Foo` methods stay unhandled. `testing`
+discards its body in a `NilValue` IIFE. `is` panics unless the test is
+truthy (optional string message; default is `ast-form-source`).
+`expect-exception` recovers in a deferred thunk and optionally
+`strings.Contains` the panic text.
 
 `go-ident` maps FLAG names to Go identifiers (`-` → `_`, `?` → `_q`,
 `!` → `_bang`, `>` → `_gt`, `<` → `_lt`, `main` → `flag_main`, keywords
 get a trailing `_`). `bind-params-to-ir` binds `fn`/`defn` parameter
-vectors: symbols, unused `_`, `& rest`, and vector destructure (`SeqFirst`
-/ `SeqRest`). Map destructure throws `not handled by FLAG` so Go can
-finish it.
+vectors: symbols, unused `_`, `& rest` (`NewArray`, or `NewMap` for a
+map rest pattern), vector destructure (`SeqFirst` / `SeqRest`), and map
+destructure (`Get` with `:as` / `:or` / `:keys` / `:syms` / `:strs`).
+`:or` defaults must be literals (`map-destructure-key-ir` uses
+`NewKeyword`, not interned idents). `let` uses the same patterns.
 
 `compile-form-to-ir` / `compile-forms-to-ir` lower a form or `do` body:
 literals, collections, symbols (including `pkg/name` via the module
-table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
+table), `if`, `let` (with `^{:volatile true}` and vector/map
+destructure), `fn`, `#()`, `update!`, `=`,
 `nil?`, `empty?`, `count`, `throw`, `loop`/`recur`, `str`, `ex-info`,
 `assoc`, `conj`, `seq`, `drop`/`take`/`cons`, `get`/`nth`, `not-empty`,
 `type-of`, `vec`, `dissoc`, `contains?`, `list`/`array`/`hash-map`, `into`,
@@ -263,9 +274,10 @@ table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
 `symbol`/`name`/`keyword`, `format`, `map`/`filter`/`reduce`/`apply`/`pmap`/
 `sort-by`/`some`/`set`/`doall`, `line-seq`/`repeat`/`rand-int`, `to-json`/
 `from-json`, `open-file`/`file-to-strings`/`go-fn`/`go-fn-args`, `defer`,
-`doto`, `try`/`catch`/`finally`, `doseq`, `for`, folded `+ - * /`, and other
+`doto`, `try`/`catch`/`finally`, `doseq`, `for`, `.write` / `.endsWith`,
+`testing` / `is` / `expect-exception`, folded `+ - * /`, and other
 runtime ops already in FLAG.
-Other special forms (`.method`, `testing`, `is`, …) throw `not handled by FLAG`.
+Unknown `.method` calls still throw `not handled by FLAG`.
 `list-head-name`, `catch-type-name`, `parse-catch-clause`, and `split-try-args`
 parse `try` clauses; `form-defer-result` / `forms-have-defer?` mark `defer`
 forms so `:forms` can wrap them.

@@ -22,6 +22,9 @@
              doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir
              fn-to-ir ns-to-ir def-to-ir defn-binding-to-ir
              defn-to-ir defn-multi-to-ir
+             write-to-ir ends-with-to-ir testing-to-ir is-to-ir
+             expect-exception-to-ir ast-form-source hash-fn-placeholder-index
+             map-destructure-key-ir
              go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir
              form-defer-result forms-have-defer? list-head-name catch-type-name
              parse-catch-clause split-try-args]}
@@ -1250,6 +1253,96 @@
 (defn unhandled-param [node]
   (throw (ex-info "not handled by FLAG param lowering" {:node node})))
 
+(defn map-entries [node]
+  (let [entries (:entries node)]
+    (if (nil? entries) [] entries)))
+
+(defn map-destructure-key-ir [node]
+  (let [form (unwrap-ast node)
+        kind (:kind form)]
+    (cond
+      (= kind :keyword) (literal-rt-call "NewKeyword" [{:kind :string :value (:name form)}])
+      (= kind :symbol) (literal-rt-call "NewSymbol" [{:kind :string :value (:name form)}])
+      (= kind :quoted-symbol) (literal-rt-call "NewSymbol" [{:kind :string :value (:name form)}])
+      (= kind :int) (literal-rt-call "NewLong" [{:kind :int :value (:value form)}])
+      (= kind :bigint) (literal-rt-call "NewBigIntFromString" [{:kind :string :value (:value form)}])
+      (= kind :float)
+      (literal-rt-call "NewDouble" [{:kind :raw
+                                     :code (if (or (nil? (:raw form)) (= "" (:raw form)))
+                                             (str (:value form))
+                                             (:raw form))}])
+      (= kind :string) (literal-rt-call "NewString" [{:kind :string :value (:value form)}])
+      (= kind :char) (literal-rt-call "NewString" [{:kind :string :value (:value form)}])
+      :else (unhandled-param node))))
+
+(defn literal-default-ir [node]
+  (let [form (unwrap-ast node)
+        kind (:kind form)]
+    (cond
+      (or (= kind :string) (= kind :char) (= kind :int) (= kind :bigint)
+          (= kind :ratio) (= kind :float) (= kind :keyword) (= kind :quoted-symbol))
+      (ast-node-to-ir form)
+      (= kind :symbol)
+      (if (or (= (:name form) "true") (= (:name form) "false") (= (:name form) "nil"))
+        (ast-node-to-ir form)
+        (unhandled-param node))
+      :else (unhandled-param node))))
+
+(defn collect-or-defaults [defaults node]
+  (let [form (unwrap-ast node)]
+    (if (not (= :map (:kind form)))
+      (throw (ex-info "map destructuring :or expects a map" {:node node}))
+      (let [entries (map-entries form)]
+        (if (not (= 0 (% (count entries) 2)))
+          (throw (ex-info "map destructuring :or expects key/value pairs" {:node node}))
+          (loop [remaining entries out defaults]
+            (if (or (nil? remaining) (empty? remaining))
+              out
+              (let [key-node (unwrap-ast (first remaining))
+                    kind (:kind key-node)]
+                (if (not (or (= kind :symbol) (= kind :keyword)))
+                  (throw (ex-info "map destructuring :or keys must be symbols or keywords" {:node key-node}))
+                  (if (= "" (:name key-node))
+                    (throw (ex-info "map destructuring :or key cannot be empty" {:node key-node}))
+                    (recur (rest (rest remaining))
+                           (assoc out (:name key-node) (literal-default-ir (first (rest remaining)))))))))))))))
+
+(defn append-bindings [left right]
+  (loop [remaining right out left]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (conj out (first remaining))))))
+
+(defn expand-destructure-special [name vec-node]
+  (let [form (unwrap-ast vec-node)]
+    (if (not (= :vector (:kind form)))
+      (throw (ex-info (str "map destructuring :" name " expects a vector") {:node vec-node}))
+      (loop [remaining (ast-seq form) out []]
+        (if (or (nil? remaining) (empty? remaining))
+          out
+          (let [item (first remaining)
+                node (unwrap-ast item)]
+            (cond
+              (= name "keys")
+              (if (or (not (= :symbol (:kind node))) (= "" (:name node)))
+                (throw (ex-info "map destructuring :keys entries must be symbols" {:node item}))
+                (recur (rest remaining)
+                       (conj out {:key (literal-rt-call "NewKeyword" [{:kind :string :value (:name node)}])
+                                  :binding item})))
+              (= name "syms")
+              (if (or (not (= :symbol (:kind node))) (= "" (:name node)))
+                (throw (ex-info "map destructuring :syms entries must be symbols" {:node item}))
+                (recur (rest remaining)
+                       (conj out {:key (literal-rt-call "NewSymbol" [{:kind :string :value (:name node)}])
+                                  :binding item})))
+              (= name "strs")
+              (if (not (= :string (:kind node)))
+                (throw (ex-info "map destructuring :strs entries must be strings" {:node item}))
+                (recur (rest remaining)
+                       (conj out {:key (literal-rt-call "NewString" [{:kind :string :value (:value node)}])
+                                  :binding {:kind :symbol :name (go-ident (:value node))}})))
+              :else (throw (ex-info (str "unsupported map destructuring key :" name) {})))))))))
+
 (defn bind-pattern-node [mode state pattern source]
   (cond
     (= mode :pattern)
@@ -1265,6 +1358,9 @@
 
         (= kind :vector)
         (bind-pattern-node :vector state node source)
+
+        (= kind :map)
+        (bind-pattern-node :map state node source)
 
         :else (unhandled-param node)))
 
@@ -1321,6 +1417,56 @@
           :else
           (recur (rest remaining) (conj positionals item) rest-pat as-pat seen-rest)))))
 
+    (= mode :map)
+    (let [entries (map-entries pattern)]
+      (if (not (= 0 (% (count entries) 2)))
+        (throw (ex-info "map destructuring expects key/value pairs" {:node pattern}))
+        (loop [remaining entries
+               bindings []
+               as-pat nil
+               defaults {}]
+          (if (or (nil? remaining) (empty? remaining))
+            (let [with-as (if (nil? as-pat)
+                            state
+                            (bind-pattern-node :pattern state as-pat source))]
+              (loop [remaining bindings st with-as]
+                (if (or (nil? remaining) (empty? remaining))
+                  st
+                  (let [b (first remaining)
+                        binding (:binding b)
+                        binding-node (unwrap-ast binding)
+                        value-expr (if (and (= :symbol (:kind binding-node))
+                                            (contains? defaults (:name binding-node)))
+                                     (literal-rt-call "Get" [source (:key b) (get defaults (:name binding-node))])
+                                     (literal-rt-call "Get" [source (:key b)]))]
+                    (recur (rest remaining)
+                           (bind-pattern-node :pattern st binding value-expr))))))
+            (let [key (first remaining)
+                  value (first (rest remaining))
+                  key-node (unwrap-ast key)]
+              (if (and (= :keyword (:kind key-node))
+                       (or (= "as" (:name key-node))
+                           (= "or" (:name key-node))
+                           (= "keys" (:name key-node))
+                           (= "syms" (:name key-node))
+                           (= "strs" (:name key-node))))
+                (cond
+                  (= "as" (:name key-node))
+                  (recur (rest (rest remaining)) bindings value defaults)
+
+                  (= "or" (:name key-node))
+                  (recur (rest (rest remaining)) bindings as-pat (collect-or-defaults defaults value))
+
+                  :else
+                  (recur (rest (rest remaining))
+                         (append-bindings bindings (expand-destructure-special (:name key-node) value))
+                         as-pat
+                         defaults))
+                (recur (rest (rest remaining))
+                       (conj bindings {:key (map-destructure-key-ir key) :binding value})
+                       as-pat
+                       defaults)))))))
+
     :else (throw (ex-info "unsupported bind-pattern mode" {:mode mode}))))
 
 (defn bind-pattern [state pattern source]
@@ -1352,7 +1498,7 @@
                     rest-name (:name t)
                     st1 (:state t)
                     ctor (if (= :map (:kind rest-node))
-                           (unhandled-param rest-node)
+                           "NewMap"
                            "NewArray")
                     source (rest-source-ir (count (:params st1)) ctor)
                     st2 (assoc st1 :has-rest true)
@@ -1371,12 +1517,10 @@
           (if (and (= :symbol (:kind node)) (not (= "" (:name node))))
             (recur (rest remaining) (inc idx) (bind-symbol-param state (:name node)))
             (if (or (= :vector (:kind node)) (= :map (:kind node)))
-              (if (= :map (:kind node))
-                (unhandled-param node)
-                (let [param-name (str "__arg" idx)
-                      st1 (assoc state :params (conj (:params state) param-name))
-                      st2 (bind-pattern st1 node {:kind :ident :name param-name})]
-                  (recur (rest remaining) (inc idx) st2)))
+              (let [param-name (str "__arg" idx)
+                    st1 (assoc state :params (conj (:params state) param-name))
+                    st2 (bind-pattern st1 node {:kind :ident :name param-name})]
+                (recur (rest remaining) (inc idx) st2))
               (unhandled-param node))))))))
 
 (defn form-result [stmts expr kind ctx]
@@ -1543,8 +1687,225 @@
              :finally (rest (:elements (unwrap-ast (first remaining))))}
             (throw (ex-info "catch and finally clauses must come last in try" {}))))))))
 
+(defn stringish-ir [part label]
+  (let [k (:expr-kind part)]
+    (cond
+      (= k :string) (:expr part)
+      (= k :value) (literal-rt-call "Str" [(:expr part)])
+      :else (throw (ex-info (str label) {})))))
+
+(defn write-to-ir [file content]
+  (literal-rt-call "Write" [file content]))
+
+(defn ends-with-to-ir [left right]
+  {:kind :call
+   :fun {:kind :selector :pkg "strings" :name "HasSuffix"}
+   :args [left right]})
+
+(defn testing-to-ir [body-stmts body-expr]
+  (value-iife-ir
+    (append-stmt
+      (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true})
+      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+
+(defn is-to-ir [test-stmts condition message]
+  (value-iife-ir
+    (append-stmt
+      (append-stmt test-stmts
+                   {:kind :if
+                    :init ""
+                    :cond {:kind :unary :op "!" :x condition}
+                    :then [{:kind :expr-stmt
+                            :expr (ident-call-ir "panic" [{:kind :string :value message}])
+                            :discard false}]
+                    :else []})
+      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+
+(defn expect-exception-to-ir [body-stmts body-expr no-panic expected prefix]
+  (let [base [{:kind :define :names ["r"] :expr (ident-call-ir "recover" [])}
+              {:kind :if
+               :init ""
+               :cond {:kind :binary
+                      :op "=="
+                      :left {:kind :ident :name "r"}
+                      :right {:kind :ident :name "nil"}}
+               :then [{:kind :expr-stmt
+                       :expr (ident-call-ir "panic" [{:kind :string :value no-panic}])
+                       :discard false}]
+               :else []}]
+        recover-body (if (or (nil? expected) (= "" expected))
+                       base
+                       (append-stmt
+                         (append-stmt base
+                                      {:kind :define
+                                       :names ["msg"]
+                                       :expr {:kind :call
+                                              :fun {:kind :selector :pkg "fmt" :name "Sprint"}
+                                              :args [{:kind :ident :name "r"}]}})
+                         {:kind :if
+                          :init ""
+                          :cond {:kind :unary
+                                 :op "!"
+                                 :x {:kind :call
+                                     :fun {:kind :selector :pkg "strings" :name "Contains"}
+                                     :args [{:kind :ident :name "msg"}
+                                            {:kind :string :value expected}]}}
+                          :then [{:kind :expr-stmt
+                                  :expr (ident-call-ir "panic"
+                                                       [{:kind :raw
+                                                         :code (str (format "%q" (str prefix "expected exception matching " (format "%q" expected) ", got "))
+                                                                    " + msg")}])
+                                  :discard false}]
+                          :else []}))]
+    (value-iife-ir
+      (append-stmt
+        (concat-stmts
+          [{:kind :defer
+            :expr {:kind :call
+                   :fun {:kind :func-lit :params "" :result "" :body recover-body}
+                   :args []}}]
+          (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true}))
+        {:kind :return :expr (literal-rt-call "NilValue" [])}))))
+
+(defn ast-form-source-node [mode node]
+  (cond
+    (= mode :join)
+    (loop [remaining node out ""]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (let [piece (ast-form-source-node :form (first remaining))]
+          (recur (rest remaining)
+                 (if (= out "") piece (str out " " piece))))))
+
+    :else
+    (let [form (unwrap-ast node)
+          kind (:kind form)]
+      (cond
+        (= kind :string) (format "%q" (:value form))
+        (= kind :char) (str "\\" (:value form))
+        (= kind :int) (str (:value form))
+        (= kind :bigint) (str (:value form) "N")
+        (= kind :float) (if (or (nil? (:raw form)) (= "" (:raw form))) (str (:value form)) (:raw form))
+        (= kind :ratio) (str (:numerator form) "/" (:denominator form))
+        (= kind :keyword) (str ":" (:name form))
+        (= kind :symbol) (:name form)
+        (= kind :quoted-symbol) (str "'" (:name form))
+        (= kind :list) (str "(" (ast-form-source-node :join (:elements form)) ")")
+        (= kind :vector) (str "[" (ast-form-source-node :join (:elements form)) "]")
+        (= kind :pipe-vector) (str "|[" (ast-form-source-node :join (:elements form)) "]")
+        (= kind :set) (str "#{" (ast-form-source-node :join (:elements form)) "}")
+        (= kind :map) (str "{" (ast-form-source-node :join (:entries form)) "}")
+        (= kind :hash-fn) (str "#(" (ast-form-source-node :join (:elements (:body form))) ")")
+        :else (str kind)))))
+
+(defn ast-form-source [node]
+  (ast-form-source-node :form node))
+
+(defn form-pos-prefix [form]
+  (let [line (:line form)
+        col (:col form)]
+    (if (and (not (nil? line)) (> line 0))
+      (str "at " line ":" (if (nil? col) 0 col) ": ")
+      "")))
+
+(defn digit-value [ch]
+  (loop [digits go-ident-digits i 0]
+    (if (or (nil? digits) (= 0 (count digits)))
+      nil
+      (if (= ch (subs digits 0 1))
+        i
+        (recur (subs digits 1) (inc i))))))
+
+(defn positive-int-from-digits [s]
+  (loop [i 0 n 0]
+    (if (= i (count s))
+      (if (= n 0) nil n)
+      (let [d (digit-value (subs s i (inc i)))]
+        (if (nil? d)
+          nil
+          (recur (inc i) (+ (* n 10) d)))))))
+
+(defn hash-fn-placeholder-index [name]
+  (if (= name "%")
+    1
+    (if (and (not (nil? name)) (> (count name) 1) (= "%" (subs name 0 1)))
+      (positive-int-from-digits (subs name 1))
+      nil)))
+
+(defn hash-fn-node [mode node max]
+  (cond
+    (= mode :max-items)
+    (loop [remaining (stmt-list node) m max]
+      (if (or (nil? remaining) (empty? remaining))
+        m
+        (recur (rest remaining) (hash-fn-node :max (first remaining) m))))
+
+    (= mode :replace-items)
+    (loop [remaining (stmt-list node) out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (recur (rest remaining) (conj out (hash-fn-node :replace (first remaining) max)))))
+
+    :else
+    (if (nil? node)
+      (if (= mode :max) max node)
+      (let [kind (:kind node)]
+        (cond
+          (= kind :symbol)
+          (let [idx (hash-fn-placeholder-index (:name node))]
+            (if (nil? idx)
+              (if (= mode :max) max node)
+              (if (= mode :max)
+                (if (> idx max) idx max)
+                {:kind :symbol
+                 :name (str "__p" idx)
+                 :line (:line node)
+                 :col (:col node)})))
+
+          (= kind :list)
+          (if (= mode :max)
+            (hash-fn-node :max-items (:elements node) max)
+            (assoc node :elements (hash-fn-node :replace-items (:elements node) max)))
+
+          (= kind :vector)
+          (if (= mode :max)
+            (hash-fn-node :max-items (:elements node) max)
+            (assoc node :elements (hash-fn-node :replace-items (:elements node) max)))
+
+          (= kind :pipe-vector)
+          (if (= mode :max)
+            (hash-fn-node :max-items (:elements node) max)
+            (assoc node :elements (hash-fn-node :replace-items (:elements node) max)))
+
+          (= kind :set)
+          (if (= mode :max)
+            (hash-fn-node :max-items (:elements node) max)
+            (assoc node :elements (hash-fn-node :replace-items (:elements node) max)))
+
+          (= kind :map)
+          (if (= mode :max)
+            (hash-fn-node :max-items (:entries node) max)
+            (assoc node :entries (hash-fn-node :replace-items (:entries node) max)))
+
+          (= kind :hash-fn)
+          (if (= mode :max) max node)
+
+          (= kind :meta)
+          (if (= mode :max)
+            (hash-fn-node :max (:target node) (hash-fn-node :max (:meta node) max))
+            (assoc (assoc node :meta (hash-fn-node :replace (:meta node) max))
+                   :target (hash-fn-node :replace (:target node) max)))
+
+          :else (if (= mode :max) max node))))))
+
+(defn hash-fn-param-vector [n]
+  (loop [i 1 out []]
+    (if (> i n)
+      {:kind :vector :elements out}
+      (recur (inc i) (conj out {:kind :symbol :name (str "__p" i)})))))
+
 (def control-forms
-  #{"defer" "doto" "try" "doseq" "for"})
+  #{"defer" "doto" "try" "doseq" "for" "testing" "is" "expect-exception"})
 
 (defn compile-form-node [mode node ctx]
   (cond
@@ -1624,7 +1985,27 @@
                   (if (not (= :symbol (:kind pat)))
                     (if (:volatile? parsed)
                       (throw (ex-info "volatile let binding currently supports symbol bindings only" {:node pat}))
-                      (throw (ex-info "not handled by FLAG form lowering" {:node pat})))
+                      (if (or (= :vector (:kind pat)) (= :map (:kind pat)))
+                        (let [part (compile-form-node :form val-node ctx)]
+                          (if (not (= :value (:expr-kind part)))
+                            (throw (ex-info "let binding value must evaluate to Value" {}))
+                            (let [source-name (str "__bind" bind-temp)
+                                  st0 {:params []
+                                       :init-stmts (concat-stmts bind-stmts (:stmts part))
+                                       :locals (if (nil? (:locals (:ctx part))) {} (:locals (:ctx part)))
+                                       :declared declared
+                                       :temp (inc bind-temp)
+                                       :has-rest false}
+                                  st1 (assoc st0 :init-stmts
+                                             (conj (:init-stmts st0)
+                                                   {:kind :var :name source-name :type "" :expr (:expr part)}))
+                                  st2 (bind-pattern st1 pat {:kind :ident :name source-name})]
+                              (recur (rest (rest remaining))
+                                     (assoc (:ctx part) :locals (:locals st2))
+                                     (:init-stmts st2)
+                                     (:declared st2)
+                                     (:temp st2)))))
+                        (throw (ex-info "not handled by FLAG form lowering" {:node pat}))))
                     (if (= "" (:name pat))
                       (throw (ex-info "binding symbol cannot be empty" {:node pat}))
                       (let [part (compile-form-node :form val-node ctx)
@@ -2288,6 +2669,36 @@
 
     :else (throw (ex-info "unsupported remaining runtime op" {:op op}))))
 
+    (= mode :dot)
+    (let [name (first node)
+          args (first (rest node))]
+      (cond
+        (= name ".write")
+        (if (not (= 2 (count (stmt-list args))))
+          (throw (ex-info ".write expects file and content" {}))
+          (let [file-part (compile-form-node :form (first args) ctx)]
+            (if (not (= :value (:expr-kind file-part)))
+              (throw (ex-info ".write expects a file Value" {}))
+              (let [content-part (compile-form-node :form (first (rest args)) (:ctx file-part))]
+                (form-result (concat-stmts (:stmts file-part) (:stmts content-part))
+                             (write-to-ir (:expr file-part)
+                                          (stringish-ir content-part ".write content must be string-like"))
+                             :value
+                             (:ctx content-part))))))
+
+        (= name ".endsWith")
+        (if (not (= 2 (count (stmt-list args))))
+          (throw (ex-info ".endsWith expects string and suffix" {}))
+          (let [left (compile-form-node :form (first args) ctx)
+                right (compile-form-node :form (first (rest args)) (:ctx left))]
+            (form-result (concat-stmts (:stmts left) (:stmts right))
+                         (ends-with-to-ir (stringish-ir left ".endsWith expects a string-like value")
+                                          (stringish-ir right ".endsWith expects a string-like value"))
+                         :bool
+                         (:ctx right))))
+
+        :else (throw (ex-info "not handled by FLAG form lowering" {:node node}))))
+
     (= mode :call)
     (let [elements (:elements node)]
       (if (or (nil? elements) (empty? elements))
@@ -2297,7 +2708,7 @@
           (if (and (= :symbol (:kind head))
                   (not (= 0 (count (:name head))))
                   (= "." (subs (:name head) 0 1)))
-            (throw (ex-info "not handled by FLAG form lowering" {:node node}))
+            (compile-form-node :dot [(:name head) args] ctx)
           (if (= :symbol (:kind head))
             (let [op (:name head)
                   unary (get unary-runtime-ops op)
@@ -2340,7 +2751,7 @@
                 (= op "ex-data") (compile-form-node :ex-data args ctx)
                 (= op "ex-cause") (compile-form-node :ex-cause args ctx)
                 (= op "println") (compile-form-node :println args ctx)
-                (contains? control-forms op) (compile-form-node :control [op args] ctx)
+                (contains? control-forms op) (compile-form-node :control [op args node] ctx)
                 (contains? remaining-runtime-ops op) (compile-form-node :runtime-op [op args] ctx)
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -2467,6 +2878,13 @@
 
         (= kind :list) (compile-form-node :call form ctx)
 
+        (= kind :hash-fn)
+        (let [body (:body form)
+              n (hash-fn-node :max body 0)
+              params (hash-fn-param-vector n)
+              rewritten (hash-fn-node :replace body 0)]
+          (compile-form-node :fn [params rewritten] ctx))
+
         :else (throw (ex-info "not handled by FLAG form lowering" {:node form}))))
 
     (= mode :forms)
@@ -2491,7 +2909,8 @@
 
     (= mode :control)
     (let [op (first node)
-          args (first (rest node))]
+          args (first (rest node))
+          form (first (rest (rest node)))]
       (cond
         (= op "defer")
         (if (not (= 1 (count (stmt-list args))))
@@ -2538,6 +2957,53 @@
                 (if (not (= 0 (% (count entries) 2)))
                   (throw (ex-info "for binding vector expects name/value pairs" {}))
                   (compile-form-node :seq-bindings ["for" entries (rest args)] ctx))))))
+
+        (= op "testing")
+        (if (or (nil? args) (empty? args) (empty? (rest args)))
+          (throw (ex-info "testing expects a label and body" {}))
+          (let [label (unwrap-ast (first args))]
+            (if (not (= :string (:kind label)))
+              (throw (ex-info "testing expects a string label" {}))
+              (if (= "" (:value label))
+                (throw (ex-info "testing label cannot be empty" {}))
+                (let [compiled (compile-form-node :forms (rest args) ctx)]
+                  (form-result [] (testing-to-ir (:stmts compiled) (:expr compiled)) :value (:ctx compiled)))))))
+
+        (= op "is")
+        (let [n (count (stmt-list args))]
+          (if (and (not (= n 1)) (not (= n 2)))
+            (throw (ex-info "is expects an expression and optional message" {}))
+            (let [test-part (compile-form-node :form (first args) ctx)
+                  message (if (= n 2)
+                            (let [msg (unwrap-ast (first (rest args)))]
+                              (if (not (= :string (:kind msg)))
+                                (throw (ex-info "is message must be a string" {}))
+                                (:value msg)))
+                            (ast-form-source (first args)))
+                  prefixed (str (form-pos-prefix form) message)]
+              (form-result []
+                           (is-to-ir (:stmts test-part) (truthy-form-ir test-part) prefixed)
+                           :value
+                           (:ctx test-part)))))
+
+        (= op "expect-exception")
+        (let [n (count (stmt-list args))]
+          (if (and (not (= n 1)) (not (= n 2)))
+            (throw (ex-info "expect-exception expects an expression and optional message" {}))
+            (let [body (compile-form-node :form (first args) ctx)
+                  expected (if (= n 2)
+                             (let [msg (unwrap-ast (first (rest args)))]
+                               (if (not (= :string (:kind msg)))
+                                 (throw (ex-info "expect-exception message must be a string" {}))
+                                 (:value msg)))
+                             "")
+                  prefix (form-pos-prefix form)
+                  source (ast-form-source (first args))
+                  no-panic (str prefix "expected exception from " source)]
+              (form-result []
+                           (expect-exception-to-ir (:stmts body) (:expr body) no-panic expected prefix)
+                           :value
+                           (:ctx body)))))
 
         :else (throw (ex-info "unsupported control form" {:op op}))))
 

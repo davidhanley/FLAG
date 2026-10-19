@@ -856,6 +856,54 @@
               {})]
     (is (= "flagrt.NewArray(flagrt.NewLong(1))" (ir/render-ir (:expr out))))))
 
+(deftest lower-dot-testing-hash-destructure
+  (is (= 1 (lower/hash-fn-placeholder-index "%")))
+  (is (= 2 (lower/hash-fn-placeholder-index "%2")))
+  (is (nil? (lower/hash-fn-placeholder-index "%0")))
+  (is (= "flagrt.NewKeyword(\"a\")" (ir/render-ir (lower/map-destructure-key-ir {:kind :keyword :name "a"}))))
+  (is (= "x" (lower/ast-form-source {:kind :symbol :name "x"})))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name ".write"}
+                         {:kind :symbol :name "f"}
+                         {:kind :string :value "hi"}]}
+             {:locals {"f" :value}})]
+    (is (= "flagrt.Write(f, \"hi\")" (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name ".endsWith"}
+                         {:kind :symbol :name "s"}
+                         {:kind :string :value "ing"}]}
+             {:locals {"s" :value}})]
+    (is (= :bool (:expr-kind out)))
+    (is (= "strings.HasSuffix(flagrt.Str(s), \"ing\")" (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "is"}
+                         {:kind :symbol :name "true"}
+                         {:kind :string :value "ok"}]}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "panic(\"ok\")")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :hash-fn
+              :body {:kind :list
+                     :elements [{:kind :symbol :name "+"}
+                                {:kind :symbol :name "%"}
+                                {:kind :symbol :name "%2"}]}}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p1 := args[0]"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p2 := args[1]")))))
+  (let [bound (lower/bind-params-to-ir
+               {:kind :vector
+                :elements [{:kind :map
+                            :entries [{:kind :keyword :name "a"}
+                                      {:kind :symbol :name "a"}]}]}
+               "fn"
+               {})]
+    (is (= "__arg0" (first (:params bound))))
+    (is (not (nil? (str/index-of (ir/render-ir-stmts (:init-stmts bound) "")
+                                "flagrt.NewKeyword(\"a\")"))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

@@ -1072,13 +1072,27 @@ func TestFLAGBindParams(t *testing.T) {
 		t.Fatal("expected duplicate parameter error")
 	}
 
-	_, _, _, _, err = flagBindParams(
+	mapParams, kinds, stmts, hasRest, err := flagBindParams(
 		VectorExpr{Elements: []Expr{MapExpr{Entries: []Expr{KeywordExpr{Name: "a"}, SymbolExpr{Name: "a"}}}}},
 		"fn",
 		nil,
 	)
-	if !flagUnhandled(err) {
-		t.Fatalf("expected unhandled map param, got %v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRest || len(mapParams) != 1 || mapParams[0] != "__arg0" {
+		t.Fatalf("map params %v hasRest %v", mapParams, hasRest)
+	}
+	if kinds["a"] != exprKindValue {
+		t.Fatalf("map kinds %v", kinds)
+	}
+	src = renderIRStmts(stmts, "")
+	for _, want := range []string{
+		"var a = flagrt.Get(__arg0, flagrt.NewKeyword(\"a\"))",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in map stmts:\n%s", want, src)
+		}
 	}
 
 	vec, kinds, stmts, hasRest, err := flagBindParams(
@@ -2397,16 +2411,187 @@ func TestFLAGCompileFormDoseqFor(t *testing.T) {
 	}
 }
 
-func TestFLAGCompileFormUnhandled(t *testing.T) {
+func TestFLAGCompileFormDotTestingHashDestructure(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
-	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: ".write"},
+		SymbolExpr{Name: "f"},
+		StringExpr{Value: "hi"},
+	}}, ctx, map[string]exprKind{"f": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Write(f, "hi")` {
+		t.Fatalf("write %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: ".endsWith"},
+		SymbolExpr{Name: "s"},
+		StringExpr{Value: "ing"},
+	}}, ctx, map[string]exprKind{"s": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindBool {
+		t.Fatalf("endsWith kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `strings.HasSuffix(flagrt.Str(s), "ing")` {
+		t.Fatalf("endsWith %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
 		SymbolExpr{Name: "testing"},
 		StringExpr{Value: "label"},
 		IntExpr{Value: 1},
 	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{"_ = flagrt.NewLong(1)", "return flagrt.NilValue()"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("testing missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "is"},
+		SymbolExpr{Name: "true"},
+		StringExpr{Value: "ok"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"if !(flagrt.IsTruthy(flagrt.NewBool(true)))",
+		`panic("ok")`,
+		"return flagrt.NilValue()",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("is missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "expect-exception"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"r := recover()",
+		"if r == nil",
+		`panic("expected exception from 1")`,
+		"_ = flagrt.NewLong(1)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expect-exception missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(HashFnExpr{Body: ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "+"},
+		SymbolExpr{Name: "%"},
+		SymbolExpr{Name: "%2"},
+	}}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRExpr(irFromGoExpr(got))
+	for _, want := range []string{
+		"__p1 := args[0]",
+		"__p2 := args[1]",
+		"flagrt.Add(__p1, __p2)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("hash-fn missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "let"},
+		VectorExpr{Elements: []Expr{
+			MapExpr{Entries: []Expr{
+				KeywordExpr{Name: "a"}, SymbolExpr{Name: "a"},
+				KeywordExpr{Name: "or"}, MapExpr{Entries: []Expr{
+					SymbolExpr{Name: "a"}, IntExpr{Value: 0},
+				}},
+			}},
+			SymbolExpr{Name: "m"},
+		}},
+		SymbolExpr{Name: "a"},
+	}}, ctx, map[string]exprKind{"m": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRStmts(got.stmts, "")
+	for _, want := range []string{
+		"__bind0",
+		`flagrt.Get(__bind0, flagrt.NewKeyword("a"), flagrt.NewLong(0))`,
+		"var a =",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("let map missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "let"},
+		VectorExpr{Elements: []Expr{
+			VectorExpr{Elements: []Expr{SymbolExpr{Name: "x"}, SymbolExpr{Name: "y"}}},
+			SymbolExpr{Name: "xs"},
+		}},
+		SymbolExpr{Name: "x"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRStmts(got.stmts, "")
+	for _, want := range []string{
+		"__bind0",
+		"flagrt.SeqFirst(__bind0)",
+		"flagrt.SeqRest(__bind0)",
+		"var x =",
+		"var y =",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("let vector missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: ".write"},
+		SymbolExpr{Name: "f"},
+	}}, ctx, map[string]exprKind{"f": exprKindValue})
+	if err == nil {
+		t.Fatal("expected .write arity error")
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "is"},
+		SymbolExpr{Name: "true"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected is message type error")
+	}
+}
+
+func TestFLAGCompileFormUnhandled(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "catch"},
+		SymbolExpr{Name: "Exception"},
+		SymbolExpr{Name: "e"},
+	}}, ctx, nil)
 	if !flagUnhandled(err) {
-		t.Fatalf("expected unhandled testing, got %v", err)
+		t.Fatalf("expected unhandled catch, got %v", err)
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
