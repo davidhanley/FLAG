@@ -759,9 +759,9 @@
                           {:kind :symbol :name "a"}
                           {:kind :symbol :name "b"}]}
               {:locals {"a" :value "b" :value}})]
-    (is (= "flagrt.NewBool(flagrt.Lt(a, b))"
+    (is (= "flagrt.Lt(a, b)"
            (ir/render-ir (:expr out))))
-    (is (= :value (:expr-kind out))))
+    (is (= :bool (:expr-kind out))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
                :elements [{:kind :symbol :name "map"}
@@ -877,6 +877,15 @@
              {:locals {"s" :value}})]
     (is (= :bool (:expr-kind out)))
     (is (= "strings.HasSuffix(flagrt.Str(s), \"ing\")" (ir/render-ir (:expr out)))))
+  (let [threw (try
+                (do (lower/compile-form-to-ir
+                      {:kind :list
+                       :elements [{:kind :symbol :name ".Foo"}
+                                  {:kind :symbol :name "x"}]}
+                      {:locals {"x" :value}})
+                    false)
+                (catch Throwable t true))]
+    (is threw))
   (let [out (lower/compile-form-to-ir
              {:kind :list
               :elements [{:kind :symbol :name "is"}
@@ -1068,6 +1077,56 @@
     (is (= 2 (count (lower/intern-decls (:constants other)))))
     (is (= "flagKw_foo" (:name (first (lower/intern-decls (:constants other))))))
     (is (= "flagrt.NewKeyword(\"foo\")" (:code (first (lower/intern-decls (:constants other)))))))
+  (let [out (lower/intern-form-ir {:constants {:by-code {} :used {} :order []}}
+                                  "Kw_foo"
+                                  (lower/ast-node-to-ir {:kind :keyword :name "foo"}))]
+    (is (= :ident (:kind (:ir out))))
+    (is (= "flagKw_foo" (:name (:ir out)))))
+  (is (= "short" (lower/truncate-hint "short")))
+  (is (= 24 (count (lower/truncate-hint "abcdefghijklmnopqrstuvwxyz"))))
+  (is (lower/str-contains? "unknown symbol \"nope\" at 2:1" " at "))
+  (is (not (lower/str-contains? "unknown symbol" " at ")))
+  (is (lower/const-form? {:kind :int :value 1}))
+  (is (lower/const-form? {:kind :vector :elements [{:kind :string :value "Ada"}]}))
+  (is (not (lower/const-form? {:kind :symbol :name "x"})))
+  (let [out (lower/compile-form-to-ir {:kind :keyword :name "foo"}
+                                      {:constants {:by-code {} :used {} :order []}})]
+    (is (= :ident (:kind (:expr out))))
+    (is (= "flagKw_foo" (:name (:expr out))))
+    (is (= "flagKw_foo" (:name (first (lower/intern-decls (:constants (:ctx out))))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "f"}
+                          {:kind :string :value "Ada"}]}
+              {:constants {:by-code {} :used {} :order []}
+               :locals {"f" :value}})]
+    (is (= "flagStr_Ada" (:name (first (lower/intern-decls (:constants (:ctx out))))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :vector :elements [{:kind :int :value 1} {:kind :int :value 2}]}
+              {:constants {:by-code {} :used {} :order []}})]
+    (is (= "flagVec" (:name (:expr out)))))
+  (let [threw (try
+                (do (lower/compile-form-to-ir {:kind :symbol :name "nope" :line 2 :col 1}
+                                              {:locals {}})
+                    false)
+                (catch Throwable t
+                  (str/index-of (ex-message t) "at 2:")))]
+    (is threw))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false
+             :constants {:by-code {} :used {} :order []}}
+        form {:kind :list
+              :elements [{:kind :symbol :name "defn"}
+                         {:kind :symbol :name "kw"}
+                         {:kind :vector :elements []}
+                         {:kind :keyword :name "foo"}]}
+        out (lower/compile-module-body [form] ctx)
+        decls (lower/intern-decls (:constants (:ctx out)))]
+    (is (= "flagKw_foo" (:name (first decls)))))
   (let [src (lower/compile-program
               "main"
               {:functions [{:flag-name "flag_main"
@@ -1108,6 +1167,274 @@
     (is (not (nil? (str/index-of tested "type flagTestCase struct"))))
     (is (not (nil? (str/index-of tested "runFlagTestCase"))))
     (is (not (nil? (str/index-of tested "fn: test_ok"))))))
+
+(deftest lower-compile-module-body-defn-def-deftest
+  (is (= "foo" (lower/module-go-ident "" "foo")))
+  (is (= "compiler__foo_bar" (lower/module-go-ident "compiler" "foo-bar")))
+  (is (= "a_b__x" (lower/module-go-ident "a.b" "x")))
+  (is (= "Add" (lower/exported-go-ident "add")))
+  (is (= "compiler__add"
+         (lower/def-go-ident {:namespace "compiler" :package-mode false} "add")))
+  (is (= "Add"
+         (lower/def-go-ident {:package-mode true :exported-names {"add" true}} "add")))
+  (is (= "add"
+         (lower/def-go-ident {:package-mode true :exported-names {}} "add")))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        defn-form {:kind :list
+                   :elements [{:kind :symbol :name "defn"}
+                              {:kind :symbol :name "add"}
+                              {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                              {:kind :symbol :name "x"}]}
+        out (lower/compile-module-body [defn-form] ctx)
+        fn0 (first (:functions out))
+        src (ir/render-ir-stmts (:ir-decls fn0) "")]
+    (is (= "add" (:flag-name fn0)))
+    (is (= "compiler__add" (:go-name fn0)))
+    (is (= "compiler__add_arity_1" (:arity-name fn0)))
+    (is (= :ident (:kind (:body-expr fn0))))
+    (is (= "x" (:name (:body-expr fn0))))
+    (is (= "compiler__add" (get (:defined out) "add")))
+    (is (= "compiler__add" (get (:module (:ctx out)) "add")))
+    (is (= "compiler__add" (get (:module (:ctx out)) "compiler/add")))
+    (is (not (nil? (str/index-of src "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func compiler__add_variadic(args ...flagrt.Value)"))))
+    (is (= "compiler__add" (:go-name (first (:vars out))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        rec {:kind :list
+             :elements [{:kind :symbol :name "defn"}
+                        {:kind :symbol :name "walk"}
+                        {:kind :vector :elements [{:kind :symbol :name "n"}]}
+                        {:kind :list :elements [{:kind :symbol :name "walk"}
+                                                {:kind :symbol :name "n"}]}]}
+        src (ir/render-ir-stmts (:ir-decls (first (:functions (lower/compile-module-body [rec] ctx)))) "")]
+    (is (not (nil? (str/index-of src "return compiler__walk_arity_1(n)")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        multi {:kind :list
+               :elements [{:kind :symbol :name "defn"}
+                          {:kind :symbol :name "add"}
+                          {:kind :list
+                           :elements [{:kind :vector :elements []}
+                                      {:kind :int :value 0}]}
+                          {:kind :list
+                           :elements [{:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                      {:kind :symbol :name "x"}]}]}
+        src (ir/render-ir-stmts (:ir-decls (first (:functions (lower/compile-module-body [multi] ctx)))) "")]
+    (is (not (nil? (str/index-of src "func compiler__add_arity_0() flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "add expects 0 or 1 arguments")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        def-form {:kind :list
+                  :elements [{:kind :symbol :name "def"}
+                             {:kind :symbol :name "answer"}
+                             {:kind :int :value 42}]}
+        out (lower/compile-module-body [def-form] ctx)
+        v0 (first (:vars out))]
+    (is (= "answer" (:flag-name v0)))
+    (is (= "compiler__answer" (:go-name v0)))
+    (is (= "flagrt.NewLong(42)" (ir/render-ir (:expr v0))))
+    (is (= "compiler__answer" (get (:defined out) "answer"))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        test-form {:kind :list
+                   :line 7
+                   :elements [{:kind :symbol :name "deftest"}
+                              {:kind :symbol :name "ok"}
+                              {:kind :list :elements [{:kind :symbol :name "is"}
+                                                      {:kind :symbol :name "true"}]}]}
+        out (lower/compile-module-body [test-form] ctx)
+        fn0 (first (:functions out))
+        tc (first (:tests out))
+        src (ir/render-ir-stmts (:ir-decls fn0) "")]
+    (is (= "ok" (:flag-name fn0)))
+    (is (= "compiler__ok" (:arity-name fn0)))
+    (is (= "ok" (:label tc)))
+    (is (= 7 (:line tc)))
+    (is (= "((is true))" (:body-source tc)))
+    (is (not (nil? (str/index-of src "func compiler__ok() flagrt.Value"))))
+    (is (= 0 (count (:vars out)))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        mac {:kind :list
+             :elements [{:kind :symbol :name "defmacro"}
+                        {:kind :symbol :name "m"}
+                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                        {:kind :symbol :name "x"}]}
+        id {:kind :list
+            :elements [{:kind :symbol :name "defn"}
+                       {:kind :symbol :name "id"}
+                       {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                       {:kind :symbol :name "x"}]}
+        out (lower/compile-module-body [mac id] ctx)]
+    (is (= 1 (count (:functions out))))
+    (is (= "id" (:flag-name (first (:functions out))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        spliced {:kind :list
+                 :elements [{:kind :symbol :name "do"}
+                            {:kind :list
+                             :elements [{:kind :symbol :name "defn"}
+                                        {:kind :symbol :name "a"}
+                                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                        {:kind :symbol :name "x"}]}
+                            {:kind :list
+                             :elements [{:kind :symbol :name "defn"}
+                                        {:kind :symbol :name "b"}
+                                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                        {:kind :symbol :name "x"}]}]}
+        out (lower/compile-module-body [spliced] ctx)]
+    (is (= 2 (count (:functions out))))
+    (is (= "a" (:flag-name (first (:functions out)))))
+    (is (= "b" (:flag-name (first (rest (:functions out)))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        rec {:kind :list :elements [{:kind :symbol :name "defrecord"}
+                                    {:kind :symbol :name "Point"}
+                                    {:kind :vector :elements [{:kind :symbol :name "x"}
+                                                              {:kind :symbol :name "y"}]}]}
+        out (lower/compile-module-body [rec] ctx)
+        src (ir/render-ir-stmts (:ir-decls (first (:functions out))) "")]
+    (is (= 1 (count (:type-decls out))))
+    (is (not (nil? (str/index-of (first (:type-decls out)) "type Point struct"))))
+    (is (not (nil? (str/index-of src "flagrt.NewRecord(Point{X: x, Y: y})"))))
+    (is (not (nil? (get (:defined out) "->Point"))))
+    (is (not (nil? (get (:defined out) "map->Point")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        decl {:kind :list :elements [{:kind :symbol :name "declare"}
+                                     {:kind :symbol :name "foo"}]}
+        out (lower/compile-module-body [decl] ctx)]
+    (is (= "compiler__foo" (get (:defined out) "foo")))
+    (is (= "compiler__foo" (get (:module (:ctx out)) "foo"))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        ns-form {:kind :list :elements [{:kind :symbol :name "ns"}
+                                        {:kind :symbol :name "demo"}]}
+        threw (try
+                (do (lower/compile-module-body [ns-form] ctx) false)
+                (catch Throwable t true))]
+    (is threw))
+   (is (= "int64" (lower/type-hint-to-go-type "long")))
+   (is (= "float64" (lower/type-hint-to-go-type "double")))
+   (is (= "string" (lower/type-hint-to-go-type "string")))
+   (is (= "bool" (lower/type-hint-to-go-type "bool")))
+   (is (nil? (lower/type-hint-to-go-type "error")))
+   (is (= "StartLine" (lower/exported-record-field-name "start-line")))
+   (is (= "EOF" (lower/exported-record-field-name "eof")))
+   (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false :allow-top-level true}
+        printed (lower/compile-module-body
+                  [{:kind :list :elements [{:kind :symbol :name "println"}
+                                           {:kind :string :value "Hello"}]}]
+                  ctx)
+        print-form {:kind :list :elements [{:kind :symbol :name "print"}
+                                           {:kind :int :value 42}]}
+        printed2 (lower/compile-module-body [print-form] ctx)]
+    (is (:needs-fmt printed))
+    (is (= :call (:kind (:expr (first (:stmts printed))))))
+    (is (= "Println" (:name (:fun (:expr (first (:stmts printed)))))))
+    (is (:needs-fmt printed2))
+    (is (= "Print" (:name (:fun (:expr (first (:stmts printed2))))))))
+   (let [ctx {:locals {} :globals {} :functions {} :module {"square" "compiler__square"} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        form {:kind :list
+              :elements [{:kind :symbol :name "go-interface"}
+                         {:kind :symbol :name "square"}
+                         {:kind :symbol :name "double"}
+                         {:kind :vector :elements [{:kind :symbol :name "double"}]}]}
+        out (lower/compile-module-body [form] ctx)
+        fn0 (first (:functions out))]
+    (is (= "square_go" (:go-name fn0)))
+    (is (= "(p1 float64) float64" (:go-signature fn0)))
+    (is (not (nil? (str/index-of (:body-source fn0) "flagrt.NewDouble(p1)"))))))
+
+(deftest lower-form-loop-fn-and-map-bool
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "loop"}
+                         {:kind :vector
+                          :elements [{:kind :symbol :name "i"}
+                                     {:kind :int :value 0}]}
+                         {:kind :list
+                          :elements [{:kind :symbol :name "do"}
+                                     {:kind :list
+                                      :elements [{:kind :symbol :name "fn"}
+                                                 {:kind :vector :elements []}
+                                                 {:kind :symbol :name "i"}]}
+                                     {:kind :list
+                                      :elements [{:kind :symbol :name "recur"}
+                                                 {:kind :list
+                                                  :elements [{:kind :symbol :name "+"}
+                                                             {:kind :symbol :name "i"}
+                                                             {:kind :int :value 1}]}]}]}]}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.NewRecur")))))
+  (let [threw (try
+               (do (lower/compile-form-to-ir
+                     {:kind :map
+                      :entries [{:kind :keyword :name "a"}
+                                {:kind :list
+                                 :line 3
+                                 :col 16
+                                 :elements [{:kind :symbol :name "<"}
+                                            {:kind :int :value 1}
+                                            {:kind :int :value 2}]}]}
+                     {})
+                   false)
+               (catch Throwable t
+                 (ex-message t)))]
+    (is (not (nil? (str/index-of threw "map literal entries must evaluate to Value at 3:"))))))
 
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")

@@ -102,14 +102,22 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
-`intern-ir`, `intern-decls`, `emit-go-file`, and `compile-program`.
+`intern-ir`, `intern-decls`, `intern-form-ir`, `emit-go-file`, `compile-program`,
+`module-go-ident`, `exported-go-ident`, `def-go-ident`, `bind-module-name`,
+`type-hint-to-go-type`, `exported-record-field-name`,
+`truncate-hint`, `const-form?`, `str-contains?`,
+and `compile-module-body`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
 `true`/`false`/`nil`) to IR maps. The Go compiler calls this from `exprToGo`
 (`flagLiteralToIR`) and still hoists keywords, chars, bigints, ratios, and
-quoted symbols with `internIR`. String literals stay `:string`
-(`exprKindString`); other literals become `flagrt.New*` calls.
+quoted symbols with `internIR`. FLAG `compile-form-to-ir` hoists the same
+literals (plus quoted lists as `List`) when ctx has `:constants`. String
+literals stay `:string` (`exprKindString`); wrapping them as Values interns
+`flagrt.NewString` as `flagStr_*` (`truncate-hint` 24 chars, same sanitizing as
+keywords). Constant vectors/maps/sets intern as `Vec`/`Map`/`Set`/`PipeVec`.
+Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-form-error` match Go). `intern-string-part` only hoists literal `:string` IR (not `(str …)`).
 
 `quoted-ast-to-ir` lowers quoted collections: `:quoted-list` / `:list` →
 `NewList`, `:vector` → `NewArray`, `:pipe-vector` → `NewVector`, `:map` →
@@ -127,7 +135,8 @@ can keep those paths.
 
 `ctor-to-ir` builds `NewArray` / `NewMap` / `NewVector` / `NewSet` (and
 `(list)` / `(array)` ctors). Go still lowers each element, wraps strings,
-and interns constant collections; FLAG emits the call node.
+and interns constant collections; FLAG `compile-form-to-ir` now intern
+constant collections the same way.
 
 `runtime-call-to-ir` / `fold-call-to-ir` emit simple runtime ops. Go keeps
 arity checks; FLAG emits `flagrt.First`, folded `flagrt.Add`, `BitAnd`, etc.
@@ -278,7 +287,10 @@ destructure), `fn`, `#()`, `update!`, `=`,
 `doto`, `try`/`catch`/`finally`, `doseq`, `for`, `.write` / `.endsWith`,
 `testing` / `is` / `expect-exception`, folded `+ - * /`, and other
 runtime ops already in FLAG.
-Unknown `.method` calls still throw `not handled by FLAG`.
+Unknown `.method` calls throw `unsupported symbol ".Foo"` (same as Go).
+Comparisons `<` `<=` `>` `>=` are Go-matched `:bool` (`Lt`/`Le`/`Gt`/`Ge` chained with `&&`, no `NewBool` wrap).
+Map/vector/set entries wrap strings and otherwise require `:value` (bools error, with `at line:col`).
+`fn` and `let` restore outer `:locals` / `:loop-binding-names` so a sibling `recur` after `(fn …)` still sees the enclosing `loop`.
 `list-head-name`, `catch-type-name`, `parse-catch-clause`, and `split-try-args`
 parse `try` clauses; `form-defer-result` / `forms-have-defer?` mark `defer`
 forms so `:forms` can wrap them.
@@ -292,8 +304,34 @@ top-level `var name = expr`. `defn-to-ir` emits named `:func-decl`s: the
 typed `goName_arity_N` function plus a variadic wrapper, or one rest
 variadic. `defn-multi-to-ir` emits each arity function and a `len(args)`
 dispatch. `defn-binding-to-ir` is `var name = NewFunction(variadic)`.
-Production still parses names, docs, and `&`/destructure. `deftest` and
-`go-interface` still use the Go printer.
+`deftest` uses FLAG `compile-module-body`. `go-interface` emits an unmangled
+wrapper (`name_go`) with a native Go signature and boxing/`flagrt.Call` body.
+
+`def-go-ident` matches production `defGoIdent`: inlined modules use
+`module-go-ident` (`ns__local`, dots in the namespace become `_`); empty
+namespace keeps the bare `go-ident`. Package mode capitalizes
+`exported-go-ident` for `:exports` and otherwise uses `go-ident`.
+`bind-module-name` records bare and `ns/local` names in `:module`, allowing
+a package-mode local to replace an import (`pkg.Name`).
+
+`compile-module-body` walks expanded module forms: `defn` (docstring,
+single and multi-arity, `& rest` on single-arity, recursive self-names),
+`def` (optional docstring, Value, IIFE-flattened stmts), `deftest`
+(0-arg `arity-name` = Go name plus `testing-to-ir` body), `defmacro`
+(skip), `do` (splice), and `declare` (binds names, no emit). Bare
+`catch`/`finally` error with `used outside try`. `ns` and `defn-` error
+like Go. `go-interface` looks up the target in `:module` and emits `name_go` with
+`:go-signature` / `:body-source`. `defrecord` / `defrecord*` emit a Go
+struct (`exported-record-field-name`, `eof` → `EOF`, reserved param `_`
+suffix), `->Name` / `map->Name` ctors, and interned field keywords.
+Top-level `println` is `fmt.Println(flagrt.Str(...))` with `needs-fmt`;
+`print` is `fmt.Print` of one arg (`ValueToAny` for Values). Other
+top-level exprs compile via `compile-form-to-ir` and require
+`:allow-top-level`. Production tries FLAG
+first after `:go-exports`. FLAG `deftest` bodies use the same comparison
+and collection rules as Go, so `{:a (< 1 2)}` is still a positioned error.
+Single-arity `defn` also returns `:body-expr` / `:body-stmts` / `:init-stmts`
+so REPL `renderDirectFunctionLiteral` gets a Value `return`, not a bare `return`.
 
 `intern-ir` is the FLAG `constantInterner`: given `constants` (or `nil`), a
 hint, and rendered constructor code, it returns `{:name :constants}`. `nil`
@@ -302,6 +340,13 @@ string becomes `flag`+hint (`flagKw_foo_1` on collision) and later uses reuse
 that var. `intern-decls` is the `{:name :code}` list in first-seen order.
 `sanitize-keyword-ident` keeps letters, digits, and `_`. Go `internIR` renders
 the IR expr, calls `intern-ir`, and returns `IRIdent` when hoisted.
+`intern-form-ir` does the same from an IR map (intern key via a subset of
+`render-ir`: ident/string/int/raw/selector/call). Production
+`compile-form-to-ir` hoists `:char`, `:bigint`, `:ratio`, `:keyword`,
+`:quoted-symbol`, and `:quoted-list` when `:constants` is set, and writes the
+updated table back onto ctx so Go `decls()` can emit the vars.
+`compile-module-body` copies `:constants` (and `:if-temps`) from each compiled
+form onto the outer module ctx after `defn`/`def`/`deftest`.
 
 `emit-go-file` / `compile-program` print a compile-result map: package clause,
 imports (`fmt` / `strings` / `os` / extras / `flagrt`), namespace code, type
@@ -309,7 +354,10 @@ decls, function sources (plus doc comments), interned `var`s, the test runner
 when tests are present, and `main` (entry `flag_main`/`main`, or top-level
 stmts). Library emit (`include-main` false) omits `main` and `strings`/`os`.
 Go `emitGoFile` / `CompileProgram` call FLAG then `go/format`. Loading the
-import graph and compiling module bodies (`compileModuleBody`) stay in Go.
+import graph stays in Go. `compileModuleBody` tries FLAG
+`compile-module-body` (including `declare`, `go-interface`, `defrecord`,
+and top-level `println`/`print`/exprs) and falls back to Go only on
+remaining unhandled forms.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
@@ -342,8 +390,11 @@ func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
 Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
 `loop`/`recur`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
 IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`/`defer`/`throw`/`future`/`doto`/`update!`/
-`try`/`doseq`/`for` MapCat assembly is FLAG. Remaining string concat in Go is `renderFunctionDef` (function bodies not yet
-IR). The package file printer is FLAG `emit-go-file`.
+`try`/`doseq`/`for` MapCat assembly is FLAG, as are `go-interface`,
+`defrecord` type/ctor emit, intern-on-compile-form, leftover `.method`
+errors, and top-level `println`/`print`. Remaining Go IR work is
+`renderFunctionDef` (function printing). The package file printer is FLAG
+`emit-go-file`.
 
 ## Package emit (`flag-lang build`)
 

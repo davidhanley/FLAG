@@ -190,11 +190,14 @@ func flagCompileNode(fn, node flagrt.Value, ctx compileContext, locals map[strin
 	if err != nil {
 		return goExpr{}, err
 	}
-	if inner := flagMapGet(out, "ctx"); !flagrt.IsNil(inner) && ctx.ifTemps != nil {
-		n := flagMapGet(inner, "if-temps")
-		if !flagrt.IsNil(n) {
-			*ctx.ifTemps = int(n.Long())
+	if inner := flagMapGet(out, "ctx"); !flagrt.IsNil(inner) {
+		if ctx.ifTemps != nil {
+			n := flagMapGet(inner, "if-temps")
+			if !flagrt.IsNil(n) {
+				*ctx.ifTemps = int(n.Long())
+			}
 		}
+		applyConstantInterner(ctx.constants, flagMapGet(inner, "constants"))
 	}
 	if flagrt.IsTruthy(flagMapGet(out, "defer?")) {
 		stmt, err := flagValueToIRStmt(flagMapGet(out, "stmt"))
@@ -231,7 +234,248 @@ func formCompileContext(ctx compileContext, locals map[string]exprKind) flagrt.V
 	if ctx.ifTemps != nil {
 		n = *ctx.ifTemps
 	}
-	return flagrt.Assoc(base, flagrt.NewKeyword("if-temps"), flagrt.NewLong(int64(n)))
+	return flagrt.Assoc(
+		base,
+		flagrt.NewKeyword("if-temps"), flagrt.NewLong(int64(n)),
+		flagrt.NewKeyword("constants"), constantInternerToFLAG(ctx.constants),
+	)
+}
+
+func boolMapToFLAG(m map[string]bool) flagrt.Value {
+	if len(m) == 0 {
+		return flagrt.NewMap()
+	}
+	pairs := make([]flagrt.Value, 0, len(m)*2)
+	for k, v := range m {
+		pairs = append(pairs, flagrt.NewString(k), flagrt.NewBool(v))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func moduleCompileContext(ctx compileContext, allowTopLevel bool) flagrt.Value {
+	return flagrt.Assoc(
+		formCompileContext(ctx, nil),
+		flagrt.NewKeyword("namespace"), flagrt.NewString(ctx.namespace),
+		flagrt.NewKeyword("package-mode"), flagrt.NewBool(ctx.packageMode),
+		flagrt.NewKeyword("exported-names"), boolMapToFLAG(ctx.exportedNames),
+		flagrt.NewKeyword("allow-redefine"), flagrt.NewBool(ctx.allowRedefine),
+		flagrt.NewKeyword("allow-top-level"), flagrt.NewBool(allowTopLevel),
+	)
+}
+
+func flagStringStringMap(m flagrt.Value) map[string]string {
+	out := map[string]string{}
+	if flagrt.IsNil(m) {
+		return out
+	}
+	keys := flagrt.Keys(m)
+	if flagrt.IsNil(keys) {
+		return out
+	}
+	for _, key := range flagrt.Vec(keys).ArrayValues() {
+		out[flagString(key)] = flagString(flagrt.Get(m, key))
+	}
+	return out
+}
+
+func flagModuleFunction(item flagrt.Value) (functionDef, error) {
+	decls, err := flagIRStmtSeq(flagMapGet(item, "ir-decls"))
+	if err != nil {
+		return functionDef{}, err
+	}
+	params, err := flagIRStringSeq(flagMapGet(item, "params"))
+	if err != nil {
+		return functionDef{}, err
+	}
+	fn := functionDef{
+		flagName:     flagString(flagMapGet(item, "flag-name")),
+		goName:       flagString(flagMapGet(item, "go-name")),
+		variadicName: flagString(flagMapGet(item, "variadic-name")),
+		arityName:    flagString(flagMapGet(item, "arity-name")),
+		hasRest:      flagrt.IsTruthy(flagMapGet(item, "has-rest")),
+		doc:          flagString(flagMapGet(item, "doc")),
+		params:       params,
+		irDecls:      decls,
+		goSignature:  flagString(flagMapGet(item, "go-signature")),
+	}
+	if src := flagString(flagMapGet(item, "body-source")); src != "" {
+		fn.body = src
+	}
+	if raw := flagMapGet(item, "body-expr"); !flagrt.IsNil(raw) {
+		bodyIR, convErr := flagValueToIRExpr(raw)
+		if convErr != nil {
+			return functionDef{}, convErr
+		}
+		fn.body = renderIRExpr(bodyIR)
+	}
+	if raw := flagMapGet(item, "body-stmts"); !flagrt.IsNil(raw) {
+		stmts, convErr := flagIRStmtSeq(raw)
+		if convErr != nil {
+			return functionDef{}, convErr
+		}
+		fn.bodyPrelude = renderIRStmts(stmts, "\t")
+	}
+	if raw := flagMapGet(item, "init-stmts"); !flagrt.IsNil(raw) {
+		inits, convErr := flagIRStmtSeq(raw)
+		if convErr != nil {
+			return functionDef{}, convErr
+		}
+		fn.localInits = irStmtsToLines(inits)
+	}
+	return fn, nil
+}
+
+func flagModuleVar(item flagrt.Value) (varDef, error) {
+	exprIR, err := flagValueToIRExpr(flagMapGet(item, "expr"))
+	if err != nil {
+		return varDef{}, err
+	}
+	return varDef{
+		flagName: flagString(flagMapGet(item, "flag-name")),
+		goName:   flagString(flagMapGet(item, "go-name")),
+		doc:      flagString(flagMapGet(item, "doc")),
+		expr:     renderIRExpr(exprIR),
+	}, nil
+}
+
+func flagMainStmts(raw flagrt.Value) ([]mainStmt, error) {
+	if flagrt.IsNil(raw) {
+		return nil, nil
+	}
+	out := make([]mainStmt, 0)
+	for _, item := range flagrt.Vec(raw).ArrayValues() {
+		preludeStmts, err := flagIRStmtSeq(flagMapGet(item, "prelude-stmts"))
+		if err != nil {
+			return nil, err
+		}
+		prelude := strings.TrimSuffix(renderIRStmts(preludeStmts, "\t"), "\n")
+		if ds := flagMapGet(item, "defer-stmt"); !flagrt.IsNil(ds) {
+			stmt, convErr := flagValueToIRStmt(ds)
+			if convErr != nil {
+				return nil, convErr
+			}
+			out = append(out, mainStmt{
+				prelude: prelude,
+				code:    strings.TrimSuffix(renderIRStmt(stmt, ""), "\n"),
+			})
+			continue
+		}
+		expr, err := flagValueToIRExpr(flagMapGet(item, "expr"))
+		if err != nil {
+			return nil, err
+		}
+		kind := exprKind(0)
+		if k := flagMapGet(item, "kind"); !flagrt.IsNil(k) {
+			kind = exprKind(k.Long())
+		}
+		out = append(out, mainStmt{
+			prelude: prelude,
+			code:    renderIRExpr(expr),
+			kind:    kind,
+		})
+	}
+	return out, nil
+}
+
+func flagCompileModuleBody(forms []Expr, ctx *compileContext, allowTopLevel bool) (result compileResult, defined map[string]string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	out := flagrt.Call(compiler__compile_module_body, exprsToFlagVector(forms), moduleCompileContext(*ctx, allowTopLevel))
+	fns := make([]functionDef, 0)
+	if raw := flagMapGet(out, "functions"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			fn, convErr := flagModuleFunction(item)
+			if convErr != nil {
+				return compileResult{}, nil, convErr
+			}
+			fns = append(fns, fn)
+		}
+	}
+	vars := make([]varDef, 0)
+	if raw := flagMapGet(out, "vars"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			v, convErr := flagModuleVar(item)
+			if convErr != nil {
+				return compileResult{}, nil, convErr
+			}
+			vars = append(vars, v)
+		}
+	}
+	tests := make([]testCase, 0)
+	if raw := flagMapGet(out, "tests"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			line := 0
+			if n := flagMapGet(item, "line"); !flagrt.IsNil(n) {
+				line = int(n.Long())
+			}
+			tests = append(tests, testCase{
+				goName:     flagString(flagMapGet(item, "go-name")),
+				label:      flagString(flagMapGet(item, "label")),
+				line:       line,
+				bodySource: flagString(flagMapGet(item, "body-source")),
+			})
+		}
+	}
+	inner := flagMapGet(out, "ctx")
+	if !flagrt.IsNil(inner) {
+		if ctx.ifTemps != nil {
+			n := flagMapGet(inner, "if-temps")
+			if !flagrt.IsNil(n) {
+				*ctx.ifTemps = int(n.Long())
+			}
+		}
+		applyConstantInterner(ctx.constants, flagMapGet(inner, "constants"))
+		if mod := flagMapGet(inner, "module"); !flagrt.IsNil(mod) {
+			if ctx.moduleSymbols == nil {
+				ctx.moduleSymbols = map[string]string{}
+			}
+			for k, v := range flagStringStringMap(mod) {
+				ctx.moduleSymbols[k] = v
+			}
+		}
+		if kinds, kindErr := flagStringKindMap(flagMapGet(inner, "globals")); kindErr == nil {
+			if ctx.globals == nil {
+				ctx.globals = map[string]exprKind{}
+			}
+			for k, v := range kinds {
+				ctx.globals[k] = v
+			}
+		}
+	}
+	if ctx.functions == nil {
+		ctx.functions = map[string]functionDef{}
+	}
+	for _, fn := range fns {
+		ctx.functions[fn.goName] = fn
+		ctx.globals[fn.goName] = exprKindValue
+	}
+	for _, v := range vars {
+		if _, isFn := ctx.functions[v.goName]; !isFn {
+			ctx.globals[v.goName] = exprKindValue
+		}
+	}
+	stmts, err := flagMainStmts(flagMapGet(out, "stmts"))
+	if err != nil {
+		return compileResult{}, nil, err
+	}
+	needsFmt := flagrt.IsTruthy(flagMapGet(out, "needs-fmt"))
+	typeDecls := []string{}
+	if raw := flagMapGet(out, "type-decls"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			typeDecls = append(typeDecls, flagString(item))
+		}
+	}
+	return compileResult{
+		typeDecls: typeDecls,
+		functions: fns,
+		vars:      vars,
+		tests:     tests,
+		stmts:     stmts,
+		needsFmt:  needsFmt,
+	}, flagStringStringMap(flagMapGet(out, "defined")), nil
 }
 
 func flagIfToIR(name, typeName string, cond IRExpr, thenStmts []IRStmt, thenExpr IRExpr, elseStmts []IRStmt, elseExpr IRExpr) (stmts []IRStmt, err error) {
@@ -823,4 +1067,3 @@ func flagCompileProgram(pkgName string, result compileResult, includeMain bool) 
 	out := flagrt.Call(compiler__compile_program, flagrt.NewString(pkgName), flagResult, flagrt.NewBool(includeMain))
 	return []byte(flagString(out)), nil
 }
-

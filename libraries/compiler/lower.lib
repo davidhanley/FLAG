@@ -28,8 +28,12 @@
              go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir
              form-defer-result forms-have-defer? list-head-name catch-type-name
              parse-catch-clause split-try-args
-             sanitize-keyword-ident intern-ir intern-decls
-             emit-go-file compile-program]}
+             sanitize-keyword-ident intern-ir intern-decls intern-form-ir
+             emit-go-file compile-program
+             module-go-ident exported-go-ident def-go-ident bind-module-name
+             type-hint-to-go-type exported-record-field-name
+             truncate-hint const-form? str-contains?
+             compile-module-body]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -1162,6 +1166,113 @@
             ""
             (recur (inc i) n (str out piece))))))))
 
+(defn map-put [m k v]
+  (assoc m k v))
+
+(defn as-value [x]
+  x)
+
+(defn ident-replace-char [s from to]
+  (loop [remaining (str s) out ""]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      out
+      (let [ch (subs remaining 0 1)]
+        (if (= ch from)
+          (recur (subs remaining 1) (str out to))
+          (recur (subs remaining 1) (str out ch)))))))
+
+(defn upcase-first-ident [s]
+  (if (or (nil? s) (= 0 (count s)))
+    s
+    (let [ch (subs s 0 1)
+          tail (subs s 1)
+          lowers (subs go-ident-letters 0 26)
+          uppers (subs go-ident-letters 26)]
+      (loop [i 0]
+        (if (= i 26)
+          s
+          (if (= ch (subs lowers i (inc i)))
+            (str (subs uppers i (inc i)) tail)
+            (recur (inc i))))))))
+
+(defn module-go-ident [namespace local-name]
+  (let [local (go-ident local-name)]
+    (if (or (nil? namespace) (= "" namespace))
+      local
+      (str (go-ident (ident-replace-char namespace "." "_")) "__" local))))
+
+(defn exported-go-ident [name]
+  (upcase-first-ident (go-ident name)))
+
+(defn def-go-ident [ctx name]
+  (if (:package-mode ctx)
+    (if (get (:exported-names ctx) name)
+      (exported-go-ident name)
+      (go-ident name))
+    (module-go-ident (:namespace ctx) name)))
+
+(defn local-def-replaces-import? [ctx prev go-name]
+  (and (:package-mode ctx)
+       (str-has-char? prev ".")
+       (not (str-has-char? go-name "."))))
+
+(defn bind-module-name [ctx flag-name go-name]
+  (let [mod (if (nil? (:module ctx)) {} (:module ctx))
+        prev (get mod flag-name)]
+    (if (and prev (not (= prev go-name)))
+      (if (local-def-replaces-import? ctx prev go-name)
+        (bind-module-name (assoc ctx :module (map-put mod flag-name go-name)) flag-name go-name)
+        (throw (ex-info (str "symbol \"" flag-name "\" already bound to " prev) {})))
+      (let [mod1 (map-put mod flag-name go-name)
+            ns (:namespace ctx)]
+        (if (or (nil? ns) (= "" ns) (str-has-char? flag-name "/"))
+          (assoc ctx :module mod1)
+          (let [qualified (str ns "/" flag-name)
+                qprev (get mod1 qualified)]
+            (if (and qprev (not (= qprev go-name)))
+              (if (local-def-replaces-import? ctx qprev go-name)
+                (assoc ctx :module (map-put mod1 qualified go-name))
+                (throw (ex-info (str "symbol \"" qualified "\" already bound to " qprev) {})))
+              (assoc ctx :module (map-put mod1 qualified go-name)))))))))
+
+(defn insert-sorted-int [xs n]
+  (loop [remaining xs out []]
+    (if (or (nil? remaining) (empty? remaining))
+      (conj out n)
+      (if (< n (first remaining))
+        (loop [more remaining acc (conj out n)]
+          (if (or (nil? more) (empty? more))
+            acc
+            (recur (rest more) (conj acc (first more)))))
+        (recur (rest remaining) (conj out (first remaining)))))))
+
+(defn sort-ints [xs]
+  (loop [remaining xs out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (insert-sorted-int out (first remaining))))))
+
+(defn join-arity-counts [counts]
+  (loop [remaining counts out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [more (rest remaining)
+            n (first remaining)]
+        (if (or (nil? more) (empty? more))
+          (if (= out "")
+            (str n)
+            (str out ", or " n))
+          (recur more (if (= out "") (str n) (str out ", " n))))))))
+
+(defn multi-arity-expects-msg [name counts]
+  (let [sorted (sort-ints counts)
+        n (count sorted)]
+    (cond
+      (= n 0) (str name " expects arguments")
+      (= n 1) (str name " expects exactly " (first sorted) " arguments")
+      (= n 2) (str name " expects " (first sorted) " or " (first (rest sorted)) " arguments")
+      :else (str name " expects " (join-arity-counts sorted) " arguments"))))
+
 (defn parse-volatile [pattern]
   (if (not (= :meta (:kind pattern)))
     {:volatile? false :target pattern}
@@ -1810,6 +1921,177 @@
       (str "at " line ":" (if (nil? col) 0 col) ": ")
       "")))
 
+(defn form-at-suffix [form]
+  (let [line (:line form)
+        col (:col form)]
+    (if (and (not (nil? line)) (> line 0))
+      (str " at " line ":" (if (nil? col) 0 col))
+      "")))
+
+(defn restore-outer-scope [inner outer]
+  (assoc inner
+         :locals (:locals outer)
+         :loop-binding-names (:loop-binding-names outer)))
+
+(defn sanitize-keyword-ident [name]
+  (loop [remaining (str name) out ""]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      out
+      (let [ch (subs remaining 0 1)]
+        (if (or (= ch "_")
+                (str-has-char? go-ident-letters ch)
+                (str-has-char? go-ident-digits ch))
+          (recur (subs remaining 1) (str out ch))
+          (recur (subs remaining 1) (str out "_")))))))
+
+(defn truncate-hint [s]
+  (let [text (str s)]
+    (if (> (count text) 24)
+      (subs text 0 24)
+      text)))
+
+(defn str-contains? [s needle]
+  (let [text (str s)
+        want (str needle)
+        n (count want)]
+    (if (or (nil? text) (= 0 n) (> n (count text)))
+      false
+      (loop [i 0]
+        (if (> (+ i n) (count text))
+          false
+          (if (= want (subs text i (+ i n)))
+            true
+            (recur (inc i))))))))
+
+(defn annotate-form-error [form t]
+  (let [msg (ex-message t)]
+    (if (or (nil? msg) (str-contains? msg " at "))
+      t
+      (ex-info (str msg (form-at-suffix form)) {}))))
+
+(defn const-form? [node]
+  (let [form (unwrap-ast node)
+        kind (:kind form)]
+    (cond
+      (or (= kind :string) (= kind :char) (= kind :int) (= kind :float)
+          (= kind :ratio) (= kind :bigint) (= kind :keyword)
+          (= kind :quoted-symbol) (= kind :quoted-list))
+      true
+      (= kind :symbol)
+      (or (= (:name form) "true") (= (:name form) "false") (= (:name form) "nil"))
+      (or (= kind :vector) (= kind :pipe-vector) (= kind :set))
+      (loop [remaining (stmt-list (:elements form))]
+        (if (or (nil? remaining) (empty? remaining))
+          true
+          (if (const-form? (first remaining))
+            (recur (rest remaining))
+            false)))
+      (= kind :map)
+      (loop [remaining (stmt-list (:entries form))]
+        (if (or (nil? remaining) (empty? remaining))
+          true
+          (if (const-form? (first remaining))
+            (recur (rest remaining))
+            false)))
+      (= kind :meta) (const-form? (:target form))
+      :else false)))
+
+(defn intern-fresh-name [used base]
+  (if (get used base)
+    (loop [i 1]
+      (let [v (str base "_" i)]
+        (if (get used v)
+          (recur (inc i))
+          v)))
+    base))
+
+(defn intern-ir [constants hint code]
+  (if (nil? constants)
+    {:name code :constants nil}
+    (let [by-code (or (:by-code constants) {})
+          existing (get by-code code)]
+      (if existing
+        {:name existing :constants constants}
+        (let [name (intern-fresh-name (or (:used constants) {}) (str "flag" hint))]
+          {:name name
+           :constants {:by-code (assoc by-code code name)
+                       :used (assoc (or (:used constants) {}) name true)
+                       :order (conj (or (:order constants) []) {:name name :code code})}})))))
+
+(defn intern-decls [constants]
+  (if (nil? constants)
+    []
+    (or (:order constants) [])))
+
+(defn intern-form-code-node [mode node]
+  (cond
+    (= mode :args)
+    (loop [remaining (stmt-list node) out "" first? true]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (let [arg (first remaining)
+              piece (if (= :spread (:kind arg))
+                      (str (intern-form-code-node :expr (:expr arg)) "...")
+                      (intern-form-code-node :expr arg))]
+          (if first?
+            (recur (rest remaining) piece false)
+            (recur (rest remaining) (str out ", " piece) false)))))
+
+    :else
+    (let [kind (:kind node)]
+      (cond
+        (= kind :ident) (:name node)
+        (= kind :string) (format "%q" (:value node))
+        (= kind :int) (str (:value node))
+        (= kind :raw) (:code node)
+        (= kind :selector)
+        (if (or (nil? (:pkg node)) (= "" (:pkg node)))
+          (:name node)
+          (str (:pkg node) "." (:name node)))
+        (= kind :call)
+        (str (intern-form-code-node :expr (:fun node))
+             "("
+             (intern-form-code-node :args (:args node))
+             ")")
+        :else (throw (ex-info "intern-form-ir: unsupported IR" {:node node}))))))
+
+(defn intern-form-ir [ctx hint ir]
+  (if (nil? (:constants ctx))
+    {:ir ir :ctx ctx}
+    (let [code (intern-form-code-node :expr ir)
+          out (intern-ir (:constants ctx) hint code)]
+      {:ir (if (= (:name out) code) ir {:kind :ident :name (:name out)})
+       :ctx (assoc ctx :constants (:constants out))})))
+
+(defn intern-new-string-ir [ctx expr]
+  (let [hint (if (= :string (:kind expr))
+               (str "Str_" (sanitize-keyword-ident (truncate-hint (str (:value expr)))))
+               "Str_")]
+    (intern-form-ir ctx hint (literal-rt-call "NewString" [expr]))))
+
+(defn intern-string-part [part]
+  (if (not (and (= :string (:expr-kind part))
+                (= :string (:kind (:expr part)))))
+    part
+    (let [out (intern-new-string-ir (:ctx part) (:expr part))]
+      (form-result (:stmts part) (:ir out) :value (:ctx out)))))
+
+(defn intern-const-ctor [ctx hint ir const?]
+  (if const?
+    (intern-form-ir ctx hint ir)
+    {:ir ir :ctx ctx}))
+
+(defn intern-literal-form [form ctx]
+  (let [kind (:kind form)
+        ir (ast-node-to-ir form)]
+    (cond
+      (= kind :char) (intern-form-ir ctx "Char" ir)
+      (= kind :bigint) (intern-form-ir ctx (str "Big_" (sanitize-keyword-ident (:value form))) ir)
+      (= kind :ratio) (intern-form-ir ctx (str "Ratio_" (:numerator form) "_" (:denominator form)) ir)
+      (= kind :keyword) (intern-form-ir ctx (str "Kw_" (sanitize-keyword-ident (:name form))) ir)
+      (= kind :quoted-symbol) (intern-form-ir ctx (str "Sym_" (sanitize-keyword-ident (:name form))) ir)
+      :else {:ir ir :ctx ctx})))
+
 (defn digit-value [ch]
   (loop [digits go-ident-digits i 0]
     (if (or (nil? digits) (= 0 (count digits)))
@@ -1907,7 +2189,8 @@
       (recur (inc i) (conj out {:kind :symbol :name (str "__p" i)})))))
 
 (def control-forms
-  #{"defer" "doto" "try" "doseq" "for" "testing" "is" "expect-exception"})
+  #{"defer" "doto" "try" "doseq" "for" "testing" "is" "expect-exception"
+    "catch" "finally"})
 
 (defn compile-form-node [mode node ctx]
   (cond
@@ -1915,11 +2198,38 @@
     (loop [remaining node ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         {:stmts stmts :irs irs :ctx ctx}
-        (let [part (compile-form-node :form (first remaining) ctx)]
+        (let [part (coerce-form-value (intern-string-part (compile-form-node :form (first remaining) ctx)))]
           (recur (rest remaining)
                  (:ctx part)
                  (concat-stmts stmts (:stmts part))
-                 (conj irs (form-value-ir part))))))
+                 (conj irs (:expr part))))))
+
+    (= mode :ctor-seq)
+    (let [items (first node)
+          label (first (rest node))]
+      (loop [remaining (stmt-list items) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          {:stmts stmts :irs irs :ctx ctx}
+          (let [item (first remaining)
+                part (compile-form-node :form item ctx)
+                k (:expr-kind part)]
+            (cond
+              (= k :value)
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (:expr part)))
+              (= k :string)
+              (let [wrapped (intern-string-part part)
+                    ir (if (= :value (:expr-kind wrapped))
+                         (:expr wrapped)
+                         (literal-rt-call "NewString" [(:expr wrapped)]))]
+                (recur (rest remaining)
+                       (:ctx wrapped)
+                       (concat-stmts stmts (:stmts wrapped))
+                       (conj irs ir)))
+              :else
+              (throw (ex-info (str label (form-at-suffix item)) {})))))))
 
     (= mode :if)
     (let [args node
@@ -1954,7 +2264,8 @@
                        (:ctx tmp)))))
 
     (= mode :let)
-    (let [args node]
+    (let [args node
+          outer-ctx ctx]
   (if (or (nil? args) (empty? args))
     (throw (ex-info "let expects a binding vector" {}))
     (let [bindings-node (unwrap-ast (first args))
@@ -1980,7 +2291,7 @@
                   (form-result let-stmts
                                {:kind :ident :name (:name tmp)}
                                (:expr-kind compiled)
-                               (:ctx tmp)))
+                               (restore-outer-scope (:ctx tmp) outer-ctx)))
                 (let [parsed (parse-volatile (first remaining))
                       pat (:target parsed)
                       val-node (first (rest remaining))]
@@ -2069,7 +2380,7 @@
                                (:init-stmts bound)
                                (:stmts compiled)
                                (:expr compiled))]
-              (form-result [] ir :value (:ctx compiled)))))))
+              (form-result [] ir :value (restore-outer-scope (:ctx compiled) ctx)))))))
 
     (= mode :update)
     (let [args node]
@@ -2460,7 +2771,8 @@
       (loop [remaining (stmt-list args) ctx ctx stmts [] irs []]
         (if (or (nil? remaining) (empty? remaining))
           {:stmts stmts :irs irs :ctx ctx}
-          (let [part (compile-form-node :form (first remaining) ctx)]
+          (let [part0 (compile-form-node :form (first remaining) ctx)
+                part (if wrap? (intern-string-part part0) part0)]
             (recur (rest remaining)
                    (:ctx part)
                    (concat-stmts stmts (:stmts part))
@@ -2486,8 +2798,8 @@
       (let [rt (get {"<" "Lt" "<=" "Le" ">" "Gt" ">=" "Ge"} op)
             compiled (compile-form-node :value-args [args true (str op " expects numeric or string Value arguments")] ctx)]
         (form-result (:stmts compiled)
-                     (literal-rt-call "NewBool" [(comparison-to-ir rt (:irs compiled))])
-                     :value
+                     (comparison-to-ir rt (:irs compiled))
+                     :bool
                      (:ctx compiled))))
 
     (= op "symbol")
@@ -2699,7 +3011,7 @@
                          :bool
                          (:ctx right))))
 
-        :else (throw (ex-info "not handled by FLAG form lowering" {:node node}))))
+        :else (throw (ex-info (str "unsupported symbol \"" name "\"") {:name name}))))
 
     (= mode :call)
     (let [elements (:elements node)]
@@ -2826,15 +3138,26 @@
     (= mode :form)
     (let [form (unwrap-ast node)
           kind (:kind form)]
+      (try
       (cond
         (= kind :string) (form-result [] (ast-node-to-ir form) :string ctx)
-        (= kind :char) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :char)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
         (= kind :int) (form-result [] (ast-node-to-ir form) :value ctx)
-        (= kind :bigint) (form-result [] (ast-node-to-ir form) :value ctx)
-        (= kind :ratio) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :bigint)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
+        (= kind :ratio)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
         (= kind :float) (form-result [] (ast-node-to-ir form) :value ctx)
-        (= kind :keyword) (form-result [] (ast-node-to-ir form) :value ctx)
-        (= kind :quoted-symbol) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :keyword)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
+        (= kind :quoted-symbol)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
 
         (= kind :symbol)
         (let [name (:name form)]
@@ -2844,39 +3167,33 @@
                   resolved (symbol-to-ir name ident ctx)]
               (form-result [] (:ir resolved) (:expr-kind resolved) ctx))))
 
-        (= kind :quoted-list) (form-result [] (quoted-ast-to-ir form) :value ctx)
+        (= kind :quoted-list)
+        (let [interned (intern-form-ir ctx "List" (quoted-ast-to-ir form))]
+          (form-result [] (:ir interned) :value (:ctx interned)))
 
         (= kind :vector)
-        (let [compiled (compile-form-node :seq (:elements form) ctx)]
-          (form-result (:stmts compiled)
-                       (ctor-to-ir "NewArray" (:irs compiled))
-                       :value
-                       (:ctx compiled)))
+        (let [compiled (compile-form-node :ctor-seq [(:elements form) "vector literal entries must evaluate to Value"] ctx)
+              interned (intern-const-ctor (:ctx compiled) "Vec" (ctor-to-ir "NewArray" (:irs compiled)) (const-form? form))]
+          (form-result (:stmts compiled) (:ir interned) :value (:ctx interned)))
 
         (= kind :pipe-vector)
-        (let [compiled (compile-form-node :seq (:elements form) ctx)]
-          (form-result (:stmts compiled)
-                       (ctor-to-ir "NewVector" (:irs compiled))
-                       :value
-                       (:ctx compiled)))
+        (let [compiled (compile-form-node :ctor-seq [(:elements form) "vector literal entries must evaluate to Value"] ctx)
+              interned (intern-const-ctor (:ctx compiled) "PipeVec" (ctor-to-ir "NewVector" (:irs compiled)) (const-form? form))]
+          (form-result (:stmts compiled) (:ir interned) :value (:ctx interned)))
 
         (= kind :set)
-        (let [compiled (compile-form-node :seq (:elements form) ctx)]
-          (form-result (:stmts compiled)
-                       (ctor-to-ir "NewSet" (:irs compiled))
-                       :value
-                       (:ctx compiled)))
+        (let [compiled (compile-form-node :ctor-seq [(:elements form) "set literal entries must evaluate to Value"] ctx)
+              interned (intern-const-ctor (:ctx compiled) "Set" (ctor-to-ir "NewSet" (:irs compiled)) (const-form? form))]
+          (form-result (:stmts compiled) (:ir interned) :value (:ctx interned)))
 
         (= kind :map)
         (let [entries (:entries form)
               n (if (nil? entries) 0 (count entries))]
           (if (not (= 0 (% n 2)))
             (throw (ex-info "map literal expects key/value pairs" {:node form}))
-            (let [compiled (compile-form-node :seq entries ctx)]
-              (form-result (:stmts compiled)
-                           (ctor-to-ir "NewMap" (:irs compiled))
-                           :value
-                           (:ctx compiled)))))
+            (let [compiled (compile-form-node :ctor-seq [entries "map literal entries must evaluate to Value"] ctx)
+                  interned (intern-const-ctor (:ctx compiled) "Map" (ctor-to-ir "NewMap" (:irs compiled)) (const-form? form))]
+              (form-result (:stmts compiled) (:ir interned) :value (:ctx interned)))))
 
         (= kind :list) (compile-form-node :call form ctx)
 
@@ -2887,7 +3204,9 @@
               rewritten (hash-fn-node :replace body 0)]
           (compile-form-node :fn [params rewritten] ctx))
 
-        :else (throw (ex-info "not handled by FLAG form lowering" {:node form}))))
+        :else (throw (ex-info "not handled by FLAG form lowering" {:node form})))
+      (catch Throwable t
+        (throw (annotate-form-error form t)))))
 
     (= mode :forms)
     (if (or (nil? node) (empty? node))
@@ -2914,6 +3233,12 @@
           args (first (rest node))
           form (first (rest (rest node)))]
       (cond
+        (= op "catch")
+        (throw (ex-info "catch used outside try" {}))
+
+        (= op "finally")
+        (throw (ex-info "finally used outside try" {}))
+
         (= op "defer")
         (if (not (= 1 (count (stmt-list args))))
           (throw (ex-info "defer expects a zero-argument function" {}))
@@ -3092,44 +3417,6 @@
 
 (defn compile-forms-to-ir [forms ctx]
   (compile-form-node :forms forms ctx))
-
-(defn sanitize-keyword-ident [name]
-  (loop [remaining (str name) out ""]
-    (if (or (nil? remaining) (= 0 (count remaining)))
-      out
-      (let [ch (subs remaining 0 1)]
-        (if (or (= ch "_")
-                (str-has-char? go-ident-letters ch)
-                (str-has-char? go-ident-digits ch))
-          (recur (subs remaining 1) (str out ch))
-          (recur (subs remaining 1) (str out "_")))))))
-
-(defn intern-fresh-name [used base]
-  (if (get used base)
-    (loop [i 1]
-      (let [v (str base "_" i)]
-        (if (get used v)
-          (recur (inc i))
-          v)))
-    base))
-
-(defn intern-ir [constants hint code]
-  (if (nil? constants)
-    {:name code :constants nil}
-    (let [by-code (or (:by-code constants) {})
-          existing (get by-code code)]
-      (if existing
-        {:name existing :constants constants}
-        (let [name (intern-fresh-name (or (:used constants) {}) (str "flag" hint))]
-          {:name name
-           :constants {:by-code (assoc by-code code name)
-                       :used (assoc (or (:used constants) {}) name true)
-                       :order (conj (or (:order constants) []) {:name name :code code})}})))))
-
-(defn intern-decls [constants]
-  (if (nil? constants)
-    []
-    (or (:order constants) [])))
 
 (defn emit-doc-comment [doc]
   (if (or (nil? doc) (= "" doc))
@@ -3326,3 +3613,766 @@
 
 (defn compile-program [pkg-name result include-main]
   (emit-go-file pkg-name result include-main))
+
+(defn ast-symbol-name [node]
+  (let [n (unwrap-ast node)]
+    (if (and (= :symbol (:kind n)) (not (= "" (:name n))))
+      (:name n)
+      nil)))
+
+(defn ast-elements [node]
+  (let [els (:elements (unwrap-ast node))]
+    (if (nil? els)
+      []
+      els)))
+
+(defn flatten-form-expr [part]
+  (if (or (nil? (:stmts part)) (empty? (:stmts part)))
+    (:expr part)
+    (value-iife-ir (append-stmt (:stmts part) {:kind :return :expr (:expr part)}))))
+
+(defn module-list-source [forms]
+  (str "(" (ast-form-source-node :join forms) ")"))
+
+(defn compiled-inner-ctx [compiled]
+  (if (nil? (:ctx compiled))
+    compiled
+    (:ctx compiled)))
+
+(defn module-ctx-keep [outer inner]
+  (-> outer
+      (assoc :if-temps (:if-temps inner))
+      (assoc :constants (or (:constants inner) (:constants outer)))))
+
+(defn module-ctx-after-fn [outer compiled flag-name go-name]
+  (let [inner (compiled-inner-ctx compiled)]
+    (-> (module-ctx-keep outer inner)
+        (assoc :functions (map-put (or (:functions outer) {}) go-name true))
+        (assoc :globals (map-put (or (:globals outer) {}) go-name :value))
+        (bind-module-name flag-name go-name))))
+
+(defn module-ctx-after-def [outer compiled flag-name go-name]
+  (let [inner (compiled-inner-ctx compiled)]
+    (-> (module-ctx-keep outer inner)
+        (assoc :globals (map-put (or (:globals outer) {}) go-name :value))
+        (bind-module-name flag-name go-name))))
+
+(defn module-ctx-after-test [outer compiled go-name]
+  (let [inner (compiled-inner-ctx compiled)]
+    (-> (module-ctx-keep outer inner)
+        (assoc :functions (map-put (or (:functions outer) {}) go-name true)))))
+
+(defn defn-var-binding [flag-name go-name variadic]
+  {:flag-name flag-name
+   :go-name go-name
+   :doc ""
+   :expr (:expr (defn-binding-to-ir go-name variadic))})
+
+(defn ensure-unique-fn [ctx go-name kind]
+  (if (and (get (:functions ctx) go-name) (not (:allow-redefine ctx)))
+    (throw (ex-info (str kind " \"" go-name "\" already defined") {}))
+    ctx))
+
+(defn compile-single-arity-defn [name go-name doc rest-els ctx]
+  (let [params-ast (unwrap-ast (first rest-els))]
+    (if (not (= :vector (:kind params-ast)))
+      (throw (ex-info "defn expects a parameter vector" {}))
+      (let [body-els (rest rest-els)]
+        (if (or (nil? body-els) (empty? body-els))
+          (throw (ex-info "defn expects name, optional docstring, vector params, and body" {}))
+          (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx))
+                params (:params bound)
+                has-rest (:has-rest bound)
+                n (count (stmt-list params))
+                variadic (str go-name "_variadic")
+                arity-name (if has-rest variadic (str go-name "_arity_" n))
+                fn-ctx (-> ctx
+                           (assoc :locals (:locals bound))
+                           (assoc :self-function-name name)
+                           (assoc :self-function-arity n)
+                           (assoc :self-variadic-name (as-value variadic))
+                           (assoc :self-function-rest has-rest)
+                           (assoc :self-arity-name (as-value arity-name))
+                           (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
+                           (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                           (bind-module-name name go-name))
+                compiled (coerce-form-value (compile-forms-to-ir body-els fn-ctx))
+                decls (defn-to-ir arity-name variadic go-name params has-rest
+                                  (:init-stmts bound) (:stmts compiled) (:expr compiled))]
+            {:op :defn
+             :function {:flag-name name
+                        :go-name go-name
+                        :variadic-name variadic
+                        :arity-name arity-name
+                        :has-rest has-rest
+                        :doc doc
+                        :params params
+                        :ir-decls decls
+                        :body-expr (:expr compiled)
+                        :body-stmts (:stmts compiled)
+                        :init-stmts (:init-stmts bound)}
+             :var (defn-var-binding name go-name variadic)
+             :ctx (module-ctx-after-fn ctx compiled name go-name)}))))))
+
+(defn compile-multi-arity-pending [arity-forms go-name ctx]
+  (loop [remaining arity-forms seen {} pending [] names {} counts []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:pending pending :names names :counts counts}
+      (let [raw (first remaining)
+            list (unwrap-ast raw)]
+        (if (or (not (= :list (:kind list))) (< (count (ast-elements list)) 2))
+          (throw (ex-info "defn arity expects ([params] body...)" {}))
+          (let [params-ast (unwrap-ast (first (ast-elements list)))]
+            (if (not (= :vector (:kind params-ast)))
+              (throw (ex-info "defn arity expects a parameter vector" {}))
+              (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx))]
+                (if (:has-rest bound)
+                  (throw (ex-info "multi-arity defn does not yet support & rest" {}))
+                  (let [params (:params bound)
+                        n (count (stmt-list params))]
+                    (if (get seen n)
+                      (throw (ex-info (str "duplicate arity with " n " arguments") {}))
+                      (let [arity-name (str go-name "_arity_" n)]
+                        (recur (rest remaining)
+                               (map-put seen n true)
+                               (conj pending {:list list
+                                              :params params
+                                              :init-stmts (:init-stmts bound)
+                                              :locals (:locals bound)
+                                              :arity-name arity-name
+                                              :n n})
+                               (map-put names n arity-name)
+                               (conj counts n))))))))))))))
+
+(defn compile-multi-arity-defn [name go-name doc arity-forms ctx]
+  (if (or (nil? arity-forms) (empty? arity-forms))
+    (throw (ex-info "defn expects at least one arity" {}))
+    (let [parsed (compile-multi-arity-pending arity-forms go-name ctx)
+          variadic (str go-name "_variadic")
+          fn-base (-> ctx
+                      (assoc :self-function-name name)
+                      (assoc :self-variadic-name (as-value variadic))
+                      (assoc :self-arity-names (:names parsed))
+                      (assoc :self-function-rest false)
+                      (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
+                      (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                      (bind-module-name name go-name))
+          compiled (loop [remaining (:pending parsed) cur fn-base arities []]
+                     (if (or (nil? remaining) (empty? remaining))
+                       {:arities arities :ctx cur}
+                       (let [item (first remaining)
+                             body-els (rest (ast-elements (:list item)))
+                             fn-ctx (-> cur
+                                        (assoc :locals (:locals item))
+                                        (assoc :self-function-arity (:n item))
+                                        (assoc :self-arity-name (as-value (:arity-name item))))
+                             body (coerce-form-value (compile-forms-to-ir body-els fn-ctx))]
+                         (recur (rest remaining)
+                                (:ctx body)
+                                (conj arities {:name (:arity-name item)
+                                               :params (:params item)
+                                               :init-stmts (:init-stmts item)
+                                               :body-stmts (:stmts body)
+                                               :body-expr (:expr body)
+                                               :n (:n item)})))))
+          decls (defn-multi-to-ir variadic (multi-arity-expects-msg name (:counts parsed)) (:arities compiled))]
+      {:op :defn
+       :function {:flag-name name
+                  :go-name go-name
+                  :variadic-name variadic
+                  :arity-name ""
+                  :has-rest false
+                  :doc doc
+                  :params []
+                  :ir-decls decls}
+       :var (defn-var-binding name go-name variadic)
+       :ctx (module-ctx-after-fn ctx (:ctx compiled) name go-name)})))
+
+(defn compile-defn-form [form ctx]
+  (let [els (ast-elements form)]
+    (if (< (count els) 3)
+      (throw (ex-info (str (form-pos-prefix form) "defn expects name, optional docstring, vector params, and body") {}))
+      (let [name (ast-symbol-name (first (rest els)))]
+        (if (nil? name)
+          (throw (ex-info "defn expects a function name" {}))
+          (let [go-name (def-go-ident ctx name)
+                ctx (ensure-unique-fn ctx go-name "function")
+                third (first (rest (rest els)))
+                has-doc (and (not (nil? third)) (= :string (:kind (unwrap-ast third))))
+                doc (if has-doc (:value (unwrap-ast third)) "")
+                rest-els (if has-doc (rest (rest (rest els))) (rest (rest els)))]
+            (if (or (nil? rest-els) (empty? rest-els))
+              (throw (ex-info (str (form-pos-prefix form) "defn expects name, optional docstring, vector params, and body") {}))
+              (let [head (unwrap-ast (first rest-els))]
+                (if (= :list (:kind head))
+                  (compile-multi-arity-defn name go-name doc rest-els ctx)
+                  (if (or (nil? (rest rest-els)) (empty? (rest rest-els)))
+                    (throw (ex-info (str (form-pos-prefix form) "defn expects name, optional docstring, vector params, and body") {}))
+                    (compile-single-arity-defn name go-name doc rest-els ctx)))))))))))
+
+(defn compile-def-form [form ctx]
+  (let [els (ast-elements form)
+        n (count els)]
+    (if (and (not (= n 3)) (not (= n 4)))
+      (throw (ex-info "def expects name, optional docstring, and value" {}))
+      (let [name (ast-symbol-name (first (rest els)))]
+        (if (nil? name)
+          (throw (ex-info "def expects a symbol name" {}))
+          (let [has-doc (= n 4)
+                doc-node (if has-doc (unwrap-ast (first (rest (rest els)))) nil)]
+            (if (and has-doc (not (= :string (:kind doc-node))))
+              (throw (ex-info "def docstring must be a string" {}))
+              (let [doc (if has-doc (:value doc-node) "")
+                    value-node (if has-doc
+                                 (first (rest (rest (rest els))))
+                                 (first (rest (rest els))))
+                    go-name (def-go-ident ctx name)
+                    compiled (coerce-form-value (compile-form-to-ir value-node ctx))]
+                (if (not (= :value (:expr-kind compiled)))
+                  (throw (ex-info "def value must evaluate to Value" {}))
+                  (let [next-ctx (module-ctx-after-def ctx compiled name go-name)]
+                    {:op :def
+                     :var {:flag-name name
+                           :go-name go-name
+                           :doc doc
+                           :expr (flatten-form-expr compiled)}
+                     :ctx next-ctx}))))))))))
+
+(defn compile-declare-form [form ctx]
+  (let [els (rest (ast-elements form))]
+    (if (or (nil? els) (empty? els))
+      (throw (ex-info (str "declare expects one or more names" (form-at-suffix form)) {}))
+      (loop [remaining els ctx ctx names []]
+        (if (or (nil? remaining) (empty? remaining))
+          {:op :declare :names names :ctx ctx}
+          (let [sym (unwrap-ast (first remaining))
+                name (if (and (= :symbol (:kind sym)) (not (= "" (:name sym))))
+                       (:name sym)
+                       nil)]
+            (if (nil? name)
+              (throw (ex-info (str "declare expects symbols" (form-at-suffix (first remaining))) {}))
+              (let [go-name (def-go-ident ctx name)]
+                (recur (rest remaining)
+                       (bind-module-name ctx name go-name)
+                       (conj names {:flag-name name :go-name go-name}))))))))))
+
+(defn merge-defined-names [defined names]
+  (loop [remaining (stmt-list names) out defined]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [item (first remaining)]
+        (recur (rest remaining)
+               (map-put out (:flag-name item) (:go-name item)))))))
+
+(defn compile-deftest-form [form ctx]
+  (let [els (ast-elements form)]
+    (if (< (count els) 3)
+      (throw (ex-info "deftest expects a name and body" {}))
+      (let [name (ast-symbol-name (first (rest els)))]
+        (if (nil? name)
+          (throw (ex-info "deftest expects a test name" {}))
+          (let [go-name (def-go-ident ctx name)
+                ctx (ensure-unique-fn ctx go-name "test")
+                body-els (rest (rest els))
+                compiled (compile-forms-to-ir body-els ctx)
+                body-expr (testing-to-ir (:stmts compiled) (:expr compiled))
+                decls (defn-to-ir go-name (str go-name "_variadic") go-name [] false [] [] body-expr)]
+            {:op :deftest
+             :function {:flag-name name
+                        :go-name go-name
+                        :variadic-name (str go-name "_variadic")
+                        :arity-name go-name
+                        :has-rest false
+                        :doc ""
+                        :params []
+                        :ir-decls decls
+                        :body-expr body-expr
+                        :body-stmts []
+                        :init-stmts []}
+             :test {:go-name go-name
+                    :label name
+                    :line (if (nil? (:line form)) 0 (:line form))
+                    :body-source (module-list-source body-els)}
+             :ctx (module-ctx-after-test ctx compiled go-name)}))))))
+
+(def reserved-go-idents
+  #{"any" "append" "bool" "byte" "cap" "close" "complex" "copy" "delete"
+    "error" "false" "float32" "float64" "imag" "int" "int8" "int16" "int32" "int64"
+    "iota" "len" "make" "max" "min" "new" "nil" "panic" "print" "println"
+    "real" "recover" "rune" "string" "true" "uint" "uint8" "uint16" "uint32" "uint64"
+    "uintptr"})
+
+(defn reserved-go-ident? [name]
+  (or (contains? go-keywords name) (contains? reserved-go-idents name)))
+
+(defn type-hint-to-go-type [hint]
+  (cond
+    (or (= hint "double") (= hint "float")) "float64"
+    (or (= hint "long") (= hint "int")) "int64"
+    (= hint "string") "string"
+    (or (= hint "boolean") (= hint "bool")) "bool"
+    :else nil))
+
+(defn hyphen-ident-parts [name]
+  (loop [remaining (str name) cur "" out []]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      (if (= cur "") out (conj out cur))
+      (let [ch (subs remaining 0 1)]
+        (if (= ch "-")
+          (recur (subs remaining 1) "" (if (= cur "") out (conj out cur)))
+          (recur (subs remaining 1) (str cur ch) out))))))
+
+(defn exported-record-field-name [flag-name]
+  (loop [remaining (hyphen-ident-parts flag-name) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [part (first remaining)]
+        (recur (rest remaining)
+               (str out (if (= part "eof") "EOF" (upcase-first-ident part))))))))
+
+(defn record-param-name [flag-name]
+  (let [param (go-ident flag-name)]
+    (if (reserved-go-ident? param)
+      (str param "_")
+      param)))
+
+(defn join-strings [items sep]
+  (loop [remaining (stmt-list items) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [item (str (first remaining))]
+        (recur (rest remaining)
+               (if (= out "")
+                 item
+                 (str out sep item)))))))
+
+(defn box-go-value [var-name go-type]
+  (cond
+    (= go-type "float64") (str "flagrt.NewDouble(" var-name ")")
+    (= go-type "int64") (str "flagrt.NewLong(" var-name ")")
+    (= go-type "string") (str "flagrt.NewString(" var-name ")")
+    (= go-type "bool") (str "flagrt.NewBoolean(" var-name ")")
+    :else var-name))
+
+(defn unbox-go-value [var-name go-type]
+  (cond
+    (= go-type "float64") (str var-name ".Double()")
+    (= go-type "int64") (str var-name ".Long()")
+    (= go-type "string") (str var-name ".String()")
+    (= go-type "bool") (str var-name ".Bool()")
+    :else var-name))
+
+(defn unbox-record-field [expr go-type]
+  (cond
+    (= go-type "string") (str "flagrt.RequireString(" expr ")")
+    (= go-type "int64") (str "flagrt.RequireLong(" expr ")")
+    (= go-type "float64") (str "flagrt.RequireDouble(" expr ")")
+    (= go-type "bool") (str "flagrt.RequireBool(" expr ")")
+    :else expr))
+
+(defn fmt-call-ir [name args]
+  {:kind :call
+   :fun {:kind :selector :pkg "fmt" :name name}
+   :args args})
+
+(defn form-kind-number [k]
+  (cond
+    (= k :value) 1
+    (= k :string) 2
+    (= k :bool) 3
+    (= k :mutable-value) 4
+    :else 0))
+
+(defn require-top-level-form [form ctx]
+  (if (:allow-top-level ctx)
+    ctx
+    (throw (ex-info (str "top-level expressions are only allowed in the entry module" (form-at-suffix form)) {}))))
+
+(defn intern-keyword-code [ctx flag-name]
+  (let [out (intern-form-ir ctx
+                            (str "Kw_" (sanitize-keyword-ident flag-name))
+                            (literal-rt-call "NewKeyword" [{:kind :string :value flag-name}]))]
+    {:code (intern-form-code-node :expr (:ir out))
+     :ctx (:ctx out)}))
+
+(defn parse-record-field [expr]
+  (let [hint (if (= :meta (:kind expr))
+               (let [m (:meta expr)]
+                 (if (= :symbol (:kind m))
+                   (:name m)
+                   (throw (ex-info "defrecord field type hint must be a symbol" {}))))
+               "")
+        target (unwrap-ast expr)
+        name (if (and (= :symbol (:kind target)) (not (= "" (:name target))))
+               (:name target)
+               nil)]
+    (if (nil? name)
+      (throw (ex-info "defrecord fields must be symbols" {}))
+      (let [go-type (if (= hint "")
+                      "flagrt.Value"
+                      (let [mapped (type-hint-to-go-type hint)]
+                        (if (nil? mapped)
+                          (throw (ex-info (str "unsupported defrecord field type \"" hint "\"") {}))
+                          mapped)))]
+        {:flag-name name
+         :go-name (exported-record-field-name name)
+         :go-type go-type
+         :param (record-param-name name)}))))
+
+(defn record-type-decl [type-name fields]
+  (str "type " type-name " struct {\n"
+       (loop [remaining (stmt-list fields) out ""]
+         (if (or (nil? remaining) (empty? remaining))
+           out
+           (let [f (first remaining)]
+             (recur (rest remaining)
+                    (str out "\t" (:go-name f) " " (:go-type f) " `flag:" (format "%q" (:flag-name f)) "`\n")))))
+       "}\n"))
+
+(defn record-ctor-body [type-name fields]
+  (str "flagrt.NewRecord(" type-name "{"
+       (loop [remaining (stmt-list fields) parts []]
+         (if (or (nil? remaining) (empty? remaining))
+           (join-strings parts ", ")
+           (let [f (first remaining)]
+             (recur (rest remaining)
+                    (conj parts (str (:go-name f) ": " (unbox-record-field (:param f) (:go-type f))))))))
+       "})"))
+
+(defn record-map-ctor-body [type-name fields ctx]
+  (loop [remaining (stmt-list fields) ctx ctx parts []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:code (str "flagrt.NewRecord(" type-name "{" (join-strings parts ", ") "})")
+       :ctx ctx}
+      (let [f (first remaining)
+            interned (intern-keyword-code ctx (:flag-name f))
+            get-code (str "flagrt.Get(m, " (:code interned) ")")]
+        (recur (rest remaining)
+               (:ctx interned)
+               (conj parts (str (:go-name f) ": " (unbox-record-field get-code (:go-type f)))))))))
+
+(defn record-ctor-function [flag-name go-name params body]
+  (let [n (count (stmt-list params))
+        variadic (str go-name "_variadic")
+        arity-name (str go-name "_arity_" n)
+        decls (defn-to-ir arity-name variadic go-name params false [] [] {:kind :raw :code body})]
+    {:flag-name flag-name
+     :go-name go-name
+     :variadic-name variadic
+     :arity-name arity-name
+     :has-rest false
+     :doc ""
+     :params params
+     :ir-decls decls
+     :body-expr {:kind :raw :code body}
+     :body-stmts []
+     :init-stmts []}))
+
+(defn compile-go-interface-params [elements]
+  (loop [remaining (stmt-list elements) i 1 types [] sigs []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:types types :sigs sigs}
+      (let [node (unwrap-ast (first remaining))
+            name (if (= :symbol (:kind node)) (:name node) nil)]
+        (if (nil? name)
+          (throw (ex-info "parameter type must be a symbol" {}))
+          (let [go-type (type-hint-to-go-type name)]
+            (if (nil? go-type)
+              (throw (ex-info (str "unsupported parameter type: " name) {}))
+              (recur (rest remaining)
+                     (inc i)
+                     (conj types go-type)
+                     (conj sigs (str "p" i " " go-type))))))))))
+
+(defn go-interface-body [target-go types return-type]
+  (let [n (count (stmt-list types))]
+    (loop [remaining (stmt-list types) i 1 out (str "args := make([]flagrt.Value, 0, " n ")\n")]
+      (if (or (nil? remaining) (empty? remaining))
+        (str out
+             "\tresult := flagrt.Call(" target-go ", args...)\n"
+             "\treturn " (unbox-go-value "result" return-type) "\n")
+        (recur (rest remaining)
+               (inc i)
+               (str out "\targs = append(args, " (box-go-value (str "p" i) (first remaining)) ")\n"))))))
+
+(defn compile-go-interface-form [form ctx]
+  (let [els (ast-elements form)]
+    (if (not (= 4 (count els)))
+      (throw (ex-info (str "go-interface expects: function-name return-type [param-type ...]" (form-at-suffix form)) {}))
+      (let [target (ast-symbol-name (first (rest els)))
+            ret-sym (ast-symbol-name (first (rest (rest els))))
+            params-ast (unwrap-ast (first (rest (rest (rest els)))))]
+        (if (nil? target)
+          (throw (ex-info "go-interface expects a function name" {}))
+          (if (nil? ret-sym)
+            (throw (ex-info "go-interface expects a return type symbol" {}))
+            (let [return-type (type-hint-to-go-type ret-sym)]
+              (if (nil? return-type)
+                (throw (ex-info (str "unsupported return type: " ret-sym) {}))
+                (let [target-go (get (:module ctx) target)]
+                  (if (nil? target-go)
+                    (throw (ex-info (str "function \"" target "\" not defined") {}))
+                    (if (not (= :vector (:kind params-ast)))
+                      (throw (ex-info "go-interface expects a parameter type vector" {}))
+                      (let [parsed (compile-go-interface-params (:elements params-ast))
+                            wrapper (str target "_go")]
+                        {:op :go-interface
+                         :function {:flag-name wrapper
+                                    :go-name wrapper
+                                    :variadic-name ""
+                                    :arity-name ""
+                                    :has-rest false
+                                    :doc (str "Go interop wrapper for " target)
+                                    :params []
+                                    :ir-decls []
+                                    :go-signature (str "(" (join-strings (:sigs parsed) ", ") ") " return-type)
+                                    :body-source (go-interface-body target-go (:types parsed) return-type)}
+                         :ctx ctx}))))))))))))
+
+(defn compile-defrecord-fields [elements]
+  (loop [remaining (stmt-list elements) fields [] params []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:fields fields :params params}
+      (let [field (parse-record-field (first remaining))]
+        (recur (rest remaining)
+               (conj fields field)
+               (conj params (:param field)))))))
+
+(defn compile-defrecord-form [form ctx]
+  (let [els (ast-elements form)]
+    (if (not (= 3 (count els)))
+      (throw (ex-info (str "defrecord expects a name and field vector" (form-at-suffix form)) {}))
+      (let [name (ast-symbol-name (first (rest els)))
+            fields-ast (unwrap-ast (first (rest (rest els))))]
+        (if (nil? name)
+          (throw (ex-info "defrecord name must be a symbol" {}))
+          (if (not (= :vector (:kind fields-ast)))
+            (throw (ex-info "defrecord fields must be a vector" {}))
+            (let [type-name (go-ident name)
+                  prev (get (or (:record-types ctx) {}) type-name)]
+              (if prev
+                (throw (ex-info (str "record \"" name "\" already defined as " prev) {}))
+                (let [parsed (compile-defrecord-fields (:elements fields-ast))
+                      ctor-flag (str "->" name)
+                      map-flag (str "map->" name)
+                      ctor-go (def-go-ident ctx ctor-flag)
+                      map-go (def-go-ident ctx map-flag)
+                      map-body (record-map-ctor-body type-name (:fields parsed) ctx)
+                      ctor (record-ctor-function ctor-flag ctor-go (:params parsed) (record-ctor-body type-name (:fields parsed)))
+                      map-ctor (record-ctor-function map-flag map-go ["m"] (:code map-body))
+                      next-ctx (-> (:ctx map-body)
+                                   (assoc :record-types (map-put (or (:record-types ctx) {}) type-name name))
+                                   (assoc :functions (map-put (map-put (or (:functions ctx) {}) ctor-go true) map-go true))
+                                   (assoc :globals (map-put (map-put (or (:globals ctx) {}) ctor-go :value) map-go :value))
+                                   (bind-module-name ctor-flag ctor-go)
+                                   (bind-module-name map-flag map-go))]
+                  {:op :defrecord
+                   :type-decl (record-type-decl type-name (:fields parsed))
+                   :functions [ctor map-ctor]
+                   :vars [(defn-var-binding ctor-flag ctor-go (:variadic-name ctor))
+                          (defn-var-binding map-flag map-go (:variadic-name map-ctor))]
+                   :names [{:flag-name ctor-flag :go-name ctor-go}
+                           {:flag-name map-flag :go-name map-go}]
+                   :ctx next-ctx})))))))))
+
+(defn compile-top-level-println [form ctx]
+  (let [ctx (require-top-level-form form ctx)]
+    (loop [remaining (rest (ast-elements form)) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        {:op :stmt
+         :stmt {:prelude-stmts stmts
+                :expr (fmt-call-ir "Println" [(literal-rt-call "Str" irs)])
+                :kind 0}
+         :needs-fmt true
+         :ctx ctx}
+        (let [part (compile-form-to-ir (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (:expr part))))))))
+
+(defn compile-top-level-print [form ctx]
+  (let [ctx (require-top-level-form form ctx)
+        args (rest (ast-elements form))]
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "expected one argument" {}))
+      (let [part (compile-form-to-ir (first args) ctx)
+            flat (flatten-form-expr part)
+            arg (if (= :value (:expr-kind part))
+                  (literal-rt-call "ValueToAny" [flat])
+                  flat)]
+        {:op :stmt
+         :stmt {:prelude-stmts []
+                :expr (fmt-call-ir "Print" [arg])
+                :kind 0}
+         :needs-fmt true
+         :ctx (:ctx part)}))))
+
+(defn compile-top-level-expr [form ctx]
+  (let [ctx (require-top-level-form form ctx)
+        part (compile-form-to-ir form ctx)]
+    (if (:defer? part)
+      {:op :stmt
+       :stmt {:prelude-stmts (:stmts part)
+              :defer-stmt (:stmt part)}
+       :needs-fmt false
+       :ctx (:ctx part)}
+      {:op :stmt
+       :stmt {:prelude-stmts (:stmts part)
+              :expr (:expr part)
+              :kind (form-kind-number (:expr-kind part))}
+       :needs-fmt false
+       :ctx (:ctx part)})))
+
+(defn compile-module-form [form ctx]
+  (let [head (list-head-name form)]
+    (cond
+      (nil? head)
+      (compile-top-level-expr form ctx)
+
+      (= head "ns")
+      (throw (ex-info "ns must be the first form (or use a module header map)" {}))
+
+      (= head "defn-")
+      (throw (ex-info "defn- is not supported; list public names in the module :exports instead" {}))
+
+      (= head "defmacro")
+      {:op :skip :ctx ctx}
+
+      (= head "do")
+      {:op :splice :forms (rest (ast-elements form)) :ctx ctx}
+
+      (= head "defn")
+      (compile-defn-form form ctx)
+
+      (= head "def")
+      (compile-def-form form ctx)
+
+      (= head "deftest")
+      (compile-deftest-form form ctx)
+
+      (= head "declare")
+      (compile-declare-form form ctx)
+
+      (= head "go-interface")
+      (compile-go-interface-form form ctx)
+
+      (or (= head "defrecord") (= head "defrecord*"))
+      (compile-defrecord-form form ctx)
+
+      (= head "println")
+      (compile-top-level-println form ctx)
+
+      (= head "print")
+      (compile-top-level-print form ctx)
+
+      :else
+      (compile-top-level-expr form ctx))))
+
+(defn compile-module-body [forms ctx]
+  (loop [remaining forms
+         ctx ctx
+         functions []
+         vars []
+         tests []
+         stmts []
+         defined {}
+         needs-fmt false
+         type-decls []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:functions functions
+       :vars vars
+       :tests tests
+       :stmts stmts
+       :defined defined
+       :ctx ctx
+       :needs-fmt needs-fmt
+       :type-decls type-decls}
+      (let [item (compile-module-form (first remaining) ctx)
+            op (:op item)]
+        (cond
+          (= op :skip)
+          (recur (rest remaining) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+
+          (= op :splice)
+          (recur (concat-stmts (:forms item) (rest remaining)) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+
+          (= op :defn)
+          (recur (rest remaining)
+                 (:ctx item)
+                 (conj functions (:function item))
+                 (conj vars (:var item))
+                 tests
+                 stmts
+                 (map-put defined (:flag-name (:function item)) (:go-name (:function item)))
+                 needs-fmt
+                 type-decls)
+
+          (= op :def)
+          (recur (rest remaining)
+                 (:ctx item)
+                 functions
+                 (conj vars (:var item))
+                 tests
+                 stmts
+                 (map-put defined (:flag-name (:var item)) (:go-name (:var item)))
+                 needs-fmt
+                 type-decls)
+
+          (= op :deftest)
+          (recur (rest remaining)
+                 (:ctx item)
+                 (conj functions (:function item))
+                 vars
+                 (conj tests (:test item))
+                 stmts
+                 defined
+                 needs-fmt
+                 type-decls)
+
+          (= op :declare)
+          (recur (rest remaining)
+                 (:ctx item)
+                 functions
+                 vars
+                 tests
+                 stmts
+                 (merge-defined-names defined (:names item))
+                 needs-fmt
+                 type-decls)
+
+          (= op :go-interface)
+          (recur (rest remaining)
+                 (:ctx item)
+                 (conj functions (:function item))
+                 vars
+                 tests
+                 stmts
+                 defined
+                 needs-fmt
+                 type-decls)
+
+          (= op :defrecord)
+          (recur (rest remaining)
+                 (:ctx item)
+                 (concat-stmts functions (:functions item))
+                 (concat-stmts vars (:vars item))
+                 tests
+                 stmts
+                 (merge-defined-names defined (:names item))
+                 needs-fmt
+                 (conj type-decls (:type-decl item)))
+
+          (= op :stmt)
+          (recur (rest remaining)
+                 (:ctx item)
+                 functions
+                 vars
+                 tests
+                 (conj stmts (:stmt item))
+                 defined
+                 (if (or needs-fmt (:needs-fmt item)) true false)
+                 type-decls)
+
+          :else
+          (throw (ex-info "not handled by FLAG form lowering" {:node (first remaining)})))))))

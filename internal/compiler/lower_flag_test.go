@@ -52,6 +52,60 @@ func TestLiteralExprToGoInternsKeywords(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormInternsLiterals(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, constants: newConstantInterner()}
+	got, err := flagCompileForm(KeywordExpr{Name: "foo"}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagKw_foo" {
+		t.Fatalf("keyword %q", got.code)
+	}
+	got, err = flagCompileForm(QuotedSymbolExpr{Name: "bar"}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagSym_bar" {
+		t.Fatalf("symbol %q", got.code)
+	}
+	got, err = flagCompileForm(QuotedListExpr{Elements: []Expr{IntExpr{Value: 1}, KeywordExpr{Name: "a"}}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagList" {
+		t.Fatalf("quoted list %q", got.code)
+	}
+	decls := ctx.constants.decls()
+	if len(decls) != 3 {
+		t.Fatalf("decls %d %+v", len(decls), decls)
+	}
+}
+
+func TestFLAGCompileModuleBodyInternsKeyword(t *testing.T) {
+	ast, err := ParseFile("(defn kw [] :foo)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "compiler",
+		ifTemps:       &n,
+		constants:     newConstantInterner(),
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+	}
+	_, _, err = flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decls := ctx.constants.decls()
+	if len(decls) != 1 || decls[0].goName != "flagKw_foo" {
+		t.Fatalf("decls %+v", decls)
+	}
+}
+
 func TestFLAGQuotedLowering(t *testing.T) {
 	cases := []struct {
 		name string
@@ -1145,10 +1199,10 @@ func TestFLAGBindParamsPreservesMutableLocal(t *testing.T) {
 func TestFLAGCompileFormLet(t *testing.T) {
 	n := 0
 	ctx := compileContext{
-		globals:        map[string]exprKind{},
-		functions:      map[string]functionDef{},
-		moduleSymbols:  map[string]string{},
-		ifTemps:        &n,
+		globals:       map[string]exprKind{},
+		functions:     map[string]functionDef{},
+		moduleSymbols: map[string]string{},
+		ifTemps:       &n,
 	}
 	form := ListExpr{Elements: []Expr{
 		SymbolExpr{Name: "let"},
@@ -1889,7 +1943,10 @@ func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Lt(a, b) && flagrt.Lt(b, a))" {
+	if got.kind != exprKindBool {
+		t.Fatalf("< kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Lt(a, b) && flagrt.Lt(b, a)" {
 		t.Fatalf("< %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -2128,6 +2185,57 @@ func TestFLAGCompileFormLoopRecur(t *testing.T) {
 	}}, ctx, nil)
 	if err == nil {
 		t.Fatal("expected binding vector error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "loop"},
+		VectorExpr{Elements: []Expr{SymbolExpr{Name: "i"}, IntExpr{Value: 0}}},
+		ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "do"},
+			ListExpr{Elements: []Expr{
+				SymbolExpr{Name: "fn"},
+				VectorExpr{},
+				SymbolExpr{Name: "i"},
+			}},
+			ListExpr{Elements: []Expr{
+				SymbolExpr{Name: "recur"},
+				ListExpr{Elements: []Expr{SymbolExpr{Name: "+"}, SymbolExpr{Name: "i"}, IntExpr{Value: 1}}},
+			}},
+		}},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered = renderIRExpr(irFromGoExpr(got))
+	if !strings.Contains(rendered, "flagrt.NewRecur") {
+		t.Fatalf("fn must not drop loop bindings for sibling recur:\n%s", rendered)
+	}
+}
+
+func TestFLAGCompileFormMapRejectsBool(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	_, err := flagCompileForm(MapExpr{
+		Line: 3,
+		Col:  12,
+		Entries: []Expr{
+			KeywordExpr{Name: "a", Line: 3, Col: 13},
+			ListExpr{
+				Line: 3,
+				Col:  16,
+				Elements: []Expr{
+					SymbolExpr{Name: "<", Line: 3, Col: 17},
+					IntExpr{Value: 1, Line: 3, Col: 19},
+					IntExpr{Value: 2, Line: 3, Col: 21},
+				},
+			},
+		},
+	}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected map bool entry error")
+	}
+	if !strings.Contains(err.Error(), "map literal entries must evaluate to Value at 3:") {
+		t.Fatalf("expected positioned Value error, got %v", err)
 	}
 }
 
@@ -2590,8 +2698,8 @@ func TestFLAGCompileFormUnhandled(t *testing.T) {
 		SymbolExpr{Name: "Exception"},
 		SymbolExpr{Name: "e"},
 	}}, ctx, nil)
-	if !flagUnhandled(err) {
-		t.Fatalf("expected unhandled catch, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "catch used outside try") {
+		t.Fatalf("expected catch outside try, got %v", err)
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
@@ -2716,7 +2824,7 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 		functions: []functionDef{{
 			flagName: "flag_main",
 			goName:   "flag_main",
-			irDecls: []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+			irDecls:  []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
 		}},
 		vars:  []varDef{{goName: "flagKw_foo", expr: `flagrt.NewKeyword("foo")`}},
 		stmts: []mainStmt{{code: "flagrt.NewLong(1)", kind: exprKindValue}},
@@ -2755,6 +2863,255 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 	}
 	if !strings.Contains(got, "// add two numbers") {
 		t.Fatalf("missing doc:\n%s", got)
+	}
+}
+
+func TestFLAGDefGoIdent(t *testing.T) {
+	got := flagString(flagrt.Call(
+		compiler__def_go_ident,
+		flagrt.NewMap(
+			flagKW("namespace"), flagrt.NewString("compiler"),
+			flagKW("package-mode"), flagrt.NewBool(false),
+		),
+		flagrt.NewString("foo-bar"),
+	))
+	if got != "compiler__foo_bar" {
+		t.Fatalf("inlined ident %q", got)
+	}
+	got = flagString(flagrt.Call(
+		compiler__module_go_ident,
+		flagrt.NewString("a.b"),
+		flagrt.NewString("x"),
+	))
+	if got != "a_b__x" {
+		t.Fatalf("dotted ns ident %q", got)
+	}
+	got = flagString(flagrt.Call(
+		compiler__def_go_ident,
+		flagrt.NewMap(
+			flagKW("package-mode"), flagrt.NewBool(true),
+			flagKW("exported-names"), flagrt.NewMap(flagrt.NewString("add"), flagrt.NewBool(true)),
+		),
+		flagrt.NewString("add"),
+	))
+	if got != "Add" {
+		t.Fatalf("exported ident %q", got)
+	}
+}
+
+func TestFLAGCompileModuleBody(t *testing.T) {
+	ast, err := ParseFile("(defn add [x] x)\n(def answer 42)\n(deftest ok (is true))\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "compiler",
+		ifTemps:       &n,
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+	}
+	result, defined, err := flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defined["add"] != "compiler__add" || defined["answer"] != "compiler__answer" {
+		t.Fatalf("defined %v", defined)
+	}
+	if len(result.functions) != 2 {
+		t.Fatalf("functions %d", len(result.functions))
+	}
+	if result.functions[0].goName != "compiler__add" || result.functions[0].arityName != "compiler__add_arity_1" {
+		t.Fatalf("defn %+v", result.functions[0])
+	}
+	src := renderIRStmts(result.functions[0].irDecls, "")
+	if result.functions[0].body != "x" {
+		t.Fatalf("defn body %q", result.functions[0].body)
+	}
+	if !strings.Contains(src, "func compiler__add_arity_1(x flagrt.Value) flagrt.Value") {
+		t.Fatalf("missing arity func:\n%s", src)
+	}
+	if len(result.vars) != 2 {
+		t.Fatalf("vars %d", len(result.vars))
+	}
+	if result.vars[1].goName != "compiler__answer" || result.vars[1].expr != "flagrt.NewLong(42)" {
+		t.Fatalf("def %+v", result.vars[1])
+	}
+	if len(result.tests) != 1 || result.tests[0].label != "ok" || result.functions[1].arityName != "compiler__ok" {
+		t.Fatalf("deftest fn=%+v tests=%+v", result.functions[1], result.tests)
+	}
+	if ctx.moduleSymbols["add"] != "compiler__add" || ctx.moduleSymbols["compiler/add"] != "compiler__add" {
+		t.Fatalf("module symbols %v", ctx.moduleSymbols)
+	}
+}
+
+func TestFLAGCompileModuleBodyDeclare(t *testing.T) {
+	ast, err := ParseFile("(declare foo bar)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "compiler",
+		ifTemps:       &n,
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+	}
+	_, defined, err := flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defined["foo"] != "compiler__foo" || defined["bar"] != "compiler__bar" {
+		t.Fatalf("declare defined %v", defined)
+	}
+	if ctx.moduleSymbols["foo"] != "compiler__foo" || ctx.moduleSymbols["compiler/foo"] != "compiler__foo" {
+		t.Fatalf("declare module %v", ctx.moduleSymbols)
+	}
+}
+
+func TestFLAGCompileModuleBodyDefrecord(t *testing.T) {
+	ast, err := ParseFile("(defrecord Point [x y])")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "compiler",
+		ifTemps:       &n,
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+		constants:     newConstantInterner(),
+	}
+	result, defined, err := flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defined["->Point"] == "" || defined["map->Point"] == "" {
+		t.Fatalf("defined %v", defined)
+	}
+	if len(result.typeDecls) != 1 || !strings.Contains(result.typeDecls[0], "type Point struct") {
+		t.Fatalf("typeDecls %v", result.typeDecls)
+	}
+	if !strings.Contains(result.typeDecls[0], "`flag:\"x\"`") {
+		t.Fatalf("missing field tag:\n%s", result.typeDecls[0])
+	}
+	if len(result.functions) != 2 {
+		t.Fatalf("functions %d", len(result.functions))
+	}
+	src := renderIRStmts(result.functions[0].irDecls, "")
+	if !strings.Contains(src, "flagrt.NewRecord(Point{X: x, Y: y})") {
+		t.Fatalf("ctor src:\n%s", src)
+	}
+}
+
+func TestFLAGCompileModuleBodyPrintlnPrint(t *testing.T) {
+	ast, err := ParseFile("(println \"Hello\")\n(print 42)\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "hello.core",
+		ifTemps:       &n,
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+		constants:     newConstantInterner(),
+	}
+	result, _, err := flagCompileModuleBody(ast.Forms, &ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.needsFmt {
+		t.Fatal("expected needsFmt")
+	}
+	if len(result.stmts) != 2 {
+		t.Fatalf("stmts %d", len(result.stmts))
+	}
+	if result.stmts[0].code != `fmt.Println(flagrt.Str("Hello"))` {
+		t.Fatalf("println %q", result.stmts[0].code)
+	}
+	if result.stmts[1].code != "fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))" {
+		t.Fatalf("print %q", result.stmts[1].code)
+	}
+	_, _, err = flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err == nil || !strings.Contains(err.Error(), "top-level expressions are only allowed in the entry module") {
+		t.Fatalf("expected top-level error, got %v", err)
+	}
+}
+
+func TestFLAGCompileModuleBodyGoInterface(t *testing.T) {
+	ast, err := ParseFile("(defn square [x] (* x x))\n(go-interface square double [double])\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ctx := compileContext{
+		namespace:     "compiler",
+		ifTemps:       &n,
+		functions:     map[string]functionDef{},
+		globals:       map[string]exprKind{},
+		moduleSymbols: map[string]string{},
+		constants:     newConstantInterner(),
+	}
+	result, _, err := flagCompileModuleBody(ast.Forms, &ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.functions) != 2 {
+		t.Fatalf("functions %d", len(result.functions))
+	}
+	wrapper := result.functions[1]
+	if wrapper.goName != "square_go" || wrapper.goSignature != "(p1 float64) float64" {
+		t.Fatalf("wrapper %+v", wrapper)
+	}
+	src := renderFunctionDef(wrapper)
+	for _, want := range []string{
+		"func square_go(p1 float64) float64 {",
+		"args := make([]flagrt.Value, 0, 1)",
+		"args = append(args, flagrt.NewDouble(p1))",
+		"result := flagrt.Call(compiler__square, args...)",
+		"return result.Double()",
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("missing %q in:\n%s", want, src)
+		}
+	}
+}
+
+func TestFLAGTypeHintAndRecordField(t *testing.T) {
+	got := flagString(flagrt.Call(compiler__type_hint_to_go_type, flagrt.NewString("long")))
+	if got != "int64" {
+		t.Fatalf("long hint %q", got)
+	}
+	got = flagString(flagrt.Call(compiler__exported_record_field_name, flagrt.NewString("start-line")))
+	if got != "StartLine" {
+		t.Fatalf("field %q", got)
+	}
+	got = flagString(flagrt.Call(compiler__exported_record_field_name, flagrt.NewString("eof")))
+	if got != "EOF" {
+		t.Fatalf("eof field %q", got)
+	}
+}
+
+func TestFLAGCompileFormCatchOutsideTry(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	_, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "catch"},
+		SymbolExpr{Name: "Exception"},
+		SymbolExpr{Name: "e"},
+		SymbolExpr{Name: "e"},
+	}}, ctx, nil)
+	if err == nil || !strings.Contains(err.Error(), "catch used outside try") {
+		t.Fatalf("expected catch outside try, got %v", err)
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "finally"}}}, ctx, nil)
+	if err == nil || !strings.Contains(err.Error(), "finally used outside try") {
+		t.Fatalf("expected finally outside try, got %v", err)
 	}
 }
 

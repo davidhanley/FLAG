@@ -1433,6 +1433,19 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
+	if !ctx.allowRedefine {
+		if flagResult, flagDefined, flagErr := flagCompileModuleBody(expandedForms, ctx, allowTopLevel); flagErr == nil {
+			for name, goName := range flagDefined {
+				defined[name] = goName
+			}
+			flagResult.vars = append(vars, flagResult.vars...)
+			flagResult.needsFmt = needsFmt || flagResult.needsFmt
+			return flagResult, defined, definedMacros, nil
+		} else if !flagUnhandled(flagErr) {
+			return compileResult{}, nil, nil, flagErr
+		}
+	}
+
 	pendingForms := append([]Expr(nil), expandedForms...)
 	for i := 0; i < len(pendingForms); i++ {
 		form := pendingForms[i]
