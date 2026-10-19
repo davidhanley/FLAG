@@ -81,6 +81,9 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `fold-call-to-ir`, `eq-to-ir`, `nil-pred-to-ir`, `empty-pred-to-ir`,
 `count-to-ir`, `str-to-ir`, `ex-info-to-ir`, `assoc-to-ir`, `conj-to-ir`,
 `seq-to-ir`, `drop-to-ir`, `take-to-ir`, `cons-to-ir`, `get-to-ir`, `nth-to-ir`,
+`not-empty-to-ir`, `type-of-to-ir`, `vec-to-ir`, `dissoc-to-ir`,
+`contains-pred-to-ir`, `into-to-ir`, `concat-to-ir`, `ex-message-to-ir`,
+`ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`,
 `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
@@ -147,6 +150,15 @@ odd-length key/value pairs and rejects non-Value args (no string wrap).
 string wrap. `get-to-ir` / `nth-to-ir` are `Get` / `Nth` with two or three
 args and string wrapping. Compile-form mode `:seq-op` is the `seq` special
 form; `:seq` still means “compile an argument list”.
+
+`not-empty-to-ir` is strict-Value `NotEmpty`. `type-of-to-ir` / `vec-to-ir`
+wrap strings like `seq`. `dissoc-to-ir` is `MapDissoc` (≥1 arg, no string
+wrap). `contains-pred-to-ir` is `NewBool(Contains)` (exactly two Values).
+`(list)` / `(array)` / `(hash-map)` use `ctor-to-ir` (`NewList` / `NewArray` /
+`NewMap`) and wrap strings; `hash-map` needs even key/value pairs. `into-to-ir`
+is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
+`ex-data-to-ir` / `ex-cause-to-ir` wrap strings. `println-to-ir` is `str`
+args (`Println`) with result kind `:value`.
 
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
@@ -216,7 +228,9 @@ finish it.
 literals, collections, symbols (including `pkg/name` via the module
 table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
 `nil?`, `empty?`, `count`, `throw`, `loop`/`recur`, `str`, `ex-info`,
-`assoc`, `conj`, `seq`, `drop`/`take`/`cons`, `get`/`nth`, folded `+ - * /`,
+`assoc`, `conj`, `seq`, `drop`/`take`/`cons`, `get`/`nth`, `not-empty`,
+`type-of`, `vec`, `dissoc`, `contains?`, `list`/`array`/`hash-map`, `into`,
+`concat`, `ex-message`/`ex-data`/`ex-cause`, `println`, folded `+ - * /`,
 and other runtime ops already in FLAG.
 Other special forms (`.method`, `defer`, `map`, …) throw `not handled by FLAG`.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try

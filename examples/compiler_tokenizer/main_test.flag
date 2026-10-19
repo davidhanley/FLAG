@@ -636,6 +636,70 @@
     (is (= "flagrt.Nth(xs, flagrt.NewLong(0))"
            (ir/render-ir (:expr out))))))
 
+(deftest lower-not-empty-through-println
+  (is (= "flagrt.NotEmpty(xs)"
+         (ir/render-ir (lower/not-empty-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.TypeOf(x)"
+         (ir/render-ir (lower/type-of-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Vec(xs)"
+         (ir/render-ir (lower/vec-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.MapDissoc(m, k)"
+         (ir/render-ir (lower/dissoc-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.NewBool(flagrt.Contains(m, k))"
+         (ir/render-ir (lower/contains-pred-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.Into(to, from)"
+         (ir/render-ir (lower/into-to-ir [(ir/ir-ident "to") (ir/ir-ident "from")]))))
+  (is (= "flagrt.Concat(a, b)"
+         (ir/render-ir (lower/concat-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.ExMessage(e)"
+         (ir/render-ir (lower/ex-message-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.ExData(e)"
+         (ir/render-ir (lower/ex-data-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.ExCause(e)"
+         (ir/render-ir (lower/ex-cause-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.Println(\"a\", x)"
+         (ir/render-ir (lower/println-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "type-of"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.TypeOf(flagrt.NewString(\"x\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "list"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewList(flagrt.NewString(\"a\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "hash-map"}
+                          {:kind :keyword :name "k"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"k\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "contains?"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.NewBool(flagrt.Contains(m, flagrt.NewKeyword(\"k\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "println"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.Println(\"a\", flagrt.NewLong(1))"
+           (ir/render-ir (:expr out))))
+    (is (= :value (:expr-kind out)))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

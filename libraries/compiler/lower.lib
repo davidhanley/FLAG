@@ -4,6 +4,9 @@
              nil-pred-to-ir empty-pred-to-ir count-to-ir
              str-to-ir ex-info-to-ir assoc-to-ir conj-to-ir
              seq-to-ir drop-to-ir take-to-ir cons-to-ir get-to-ir nth-to-ir
+             not-empty-to-ir type-of-to-ir vec-to-ir dissoc-to-ir contains-pred-to-ir
+             into-to-ir concat-to-ir
+             ex-message-to-ir ex-data-to-ir ex-cause-to-ir println-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
@@ -272,6 +275,39 @@
 
 (defn nth-to-ir [args]
   (literal-rt-call "Nth" args))
+
+(defn not-empty-to-ir [arg]
+  (literal-rt-call "NotEmpty" [arg]))
+
+(defn type-of-to-ir [arg]
+  (literal-rt-call "TypeOf" [arg]))
+
+(defn vec-to-ir [arg]
+  (literal-rt-call "Vec" [arg]))
+
+(defn dissoc-to-ir [args]
+  (literal-rt-call "MapDissoc" (if (or (nil? args) (empty? args)) [] args)))
+
+(defn contains-pred-to-ir [args]
+  (literal-rt-call "NewBool" [(literal-rt-call "Contains" args)]))
+
+(defn into-to-ir [args]
+  (literal-rt-call "Into" args))
+
+(defn concat-to-ir [args]
+  (literal-rt-call "Concat" (if (or (nil? args) (empty? args)) [] args)))
+
+(defn ex-message-to-ir [arg]
+  (literal-rt-call "ExMessage" [arg]))
+
+(defn ex-data-to-ir [arg]
+  (literal-rt-call "ExData" [arg]))
+
+(defn ex-cause-to-ir [arg]
+  (literal-rt-call "ExCause" [arg]))
+
+(defn println-to-ir [args]
+  (literal-rt-call "Println" (if (or (nil? args) (empty? args)) [] args)))
 
 (def builtin-function-names
   #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
@@ -1685,6 +1721,151 @@
                      (concat-stmts stmts (:stmts part))
                      (conj irs (wrap-value-arg-ir part true "nth arguments must evaluate to Value"))))))))
 
+    (= mode :not-empty)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "not-empty expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (not-empty-to-ir (wrap-value-arg-ir part false "not-empty expects an argument that evaluates to Value"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :type-of)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "type-of expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (type-of-to-ir (value-arg-ir part "type-of"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :vec)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "vec expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (vec-to-ir (value-arg-ir part "vec"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :dissoc)
+    (if (or (nil? node) (empty? node))
+      (throw (ex-info "dissoc expects a collection argument" {}))
+      (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          (form-result stmts (dissoc-to-ir irs) :value ctx)
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part false "dissoc arguments must evaluate to Value")))))))
+
+    (= mode :contains?)
+    (if (not (= 2 (count (stmt-list node))))
+      (throw (ex-info "contains? expects collection and key" {}))
+      (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          (form-result stmts (contains-pred-to-ir irs) :value ctx)
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part false "contains? arguments must evaluate to Value")))))))
+
+    (= mode :list-ctor)
+    (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        (form-result stmts (ctor-to-ir "NewList" irs) :value ctx)
+        (let [part (compile-form-node :form (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (wrap-value-arg-ir part true "list entries must evaluate to Value"))))))
+
+    (= mode :array-ctor)
+    (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        (form-result stmts (ctor-to-ir "NewArray" irs) :value ctx)
+        (let [part (compile-form-node :form (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (wrap-value-arg-ir part true "array entries must evaluate to Value"))))))
+
+    (= mode :hash-map)
+    (let [n (count (stmt-list node))]
+      (if (not (= 0 (% n 2)))
+        (throw (ex-info "hash-map expects key/value pairs" {}))
+        (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+          (if (or (nil? remaining) (empty? remaining))
+            (form-result stmts (ctor-to-ir "NewMap" irs) :value ctx)
+            (let [part (compile-form-node :form (first remaining) ctx)]
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (wrap-value-arg-ir part true "hash-map entries must evaluate to Value"))))))))
+
+    (= mode :into)
+    (if (not (= 2 (count (stmt-list node))))
+      (throw (ex-info "into expects exactly two arguments" {}))
+      (let [target (compile-form-node :form (first node) ctx)]
+        (if (not (= :value (:expr-kind target)))
+          (throw (ex-info "into expects a collection Value as the first argument" {}))
+          (let [from (compile-form-node :form (first (rest node)) (:ctx target))]
+            (if (not (= :value (:expr-kind from)))
+              (throw (ex-info "into expects a collection Value as the second argument" {}))
+              (form-result (concat-stmts (:stmts target) (:stmts from))
+                           (into-to-ir [(:expr target) (:expr from)])
+                           :value
+                           (:ctx from)))))))
+
+    (= mode :concat)
+    (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        (form-result stmts (concat-to-ir irs) :value ctx)
+        (let [part (compile-form-node :form (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (wrap-value-arg-ir part true "concat arguments must evaluate to Value"))))))
+
+    (= mode :ex-message)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "ex-message expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (ex-message-to-ir (value-arg-ir part "ex-message"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :ex-data)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "ex-data expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (ex-data-to-ir (value-arg-ir part "ex-data"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :ex-cause)
+    (if (not (= 1 (count (stmt-list node))))
+      (throw (ex-info "ex-cause expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first node) ctx)]
+        (form-result (:stmts part)
+                     (ex-cause-to-ir (value-arg-ir part "ex-cause"))
+                     :value
+                     (:ctx part))))
+
+    (= mode :println)
+    (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
+        (form-result stmts (println-to-ir irs) :value ctx)
+        (let [part (compile-form-node :form (first remaining) ctx)]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs (:expr part))))))
+
     (= mode :call)
     (let [elements (:elements node)]
       (if (or (nil? elements) (empty? elements))
@@ -1723,6 +1904,20 @@
                 (= op "cons") (compile-form-node :cons args ctx)
                 (= op "get") (compile-form-node :get args ctx)
                 (= op "nth") (compile-form-node :nth args ctx)
+                (= op "not-empty") (compile-form-node :not-empty args ctx)
+                (= op "type-of") (compile-form-node :type-of args ctx)
+                (= op "vec") (compile-form-node :vec args ctx)
+                (= op "dissoc") (compile-form-node :dissoc args ctx)
+                (= op "contains?") (compile-form-node :contains? args ctx)
+                (= op "list") (compile-form-node :list-ctor args ctx)
+                (= op "array") (compile-form-node :array-ctor args ctx)
+                (= op "hash-map") (compile-form-node :hash-map args ctx)
+                (= op "into") (compile-form-node :into args ctx)
+                (= op "concat") (compile-form-node :concat args ctx)
+                (= op "ex-message") (compile-form-node :ex-message args ctx)
+                (= op "ex-data") (compile-form-node :ex-data args ctx)
+                (= op "ex-cause") (compile-form-node :ex-cause args ctx)
+                (= op "println") (compile-form-node :println args ctx)
 
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))
