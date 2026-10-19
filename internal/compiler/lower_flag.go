@@ -663,3 +663,164 @@ func literalExprToGo(expr Expr, ctx compileContext) (goExpr, error) {
 	}
 	return fromIR(internLiteralIR(expr, ir, ctx), kind), nil
 }
+
+func flagKW(name string) flagrt.Value {
+	return flagrt.NewKeyword(name)
+}
+
+func constantInternerToFLAG(c *constantInterner) flagrt.Value {
+	if c == nil {
+		return flagrt.NilValue()
+	}
+	byPairs := make([]flagrt.Value, 0, len(c.byCode)*2)
+	for k, v := range c.byCode {
+		byPairs = append(byPairs, flagrt.NewString(k), flagrt.NewString(v))
+	}
+	usedPairs := make([]flagrt.Value, 0, len(c.used)*2)
+	for k, ok := range c.used {
+		if ok {
+			usedPairs = append(usedPairs, flagrt.NewString(k), flagrt.NewBool(true))
+		}
+	}
+	order := make([]flagrt.Value, 0, len(c.order))
+	for _, d := range c.order {
+		order = append(order, flagrt.NewMap(flagKW("name"), flagrt.NewString(d.name), flagKW("code"), flagrt.NewString(d.code)))
+	}
+	return flagrt.NewMap(
+		flagKW("by-code"), flagrt.NewMap(byPairs...),
+		flagKW("used"), flagrt.NewMap(usedPairs...),
+		flagKW("order"), flagrt.NewArray(order...),
+	)
+}
+
+func applyConstantInterner(c *constantInterner, v flagrt.Value) {
+	if c == nil || flagrt.IsNil(v) {
+		return
+	}
+	c.byCode = map[string]string{}
+	if by := flagrt.Get(v, flagKW("by-code")); !flagrt.IsNil(by) {
+		if keys := flagrt.Keys(by); !flagrt.IsNil(keys) {
+			for _, key := range flagrt.Vec(keys).ArrayValues() {
+				c.byCode[flagString(key)] = flagString(flagrt.Get(by, key))
+			}
+		}
+	}
+	c.used = map[string]bool{}
+	if used := flagrt.Get(v, flagKW("used")); !flagrt.IsNil(used) {
+		if keys := flagrt.Keys(used); !flagrt.IsNil(keys) {
+			for _, key := range flagrt.Vec(keys).ArrayValues() {
+				c.used[flagString(key)] = true
+			}
+		}
+	}
+	c.order = nil
+	if order := flagrt.Get(v, flagKW("order")); !flagrt.IsNil(order) {
+		for _, item := range flagrt.Vec(order).ArrayValues() {
+			c.order = append(c.order, constDecl{
+				name: flagString(flagrt.Get(item, flagKW("name"))),
+				code: flagString(flagrt.Get(item, flagKW("code"))),
+			})
+		}
+	}
+}
+
+func flagStringValues(items []string) flagrt.Value {
+	vals := make([]flagrt.Value, 0, len(items))
+	for _, s := range items {
+		vals = append(vals, flagrt.NewString(s))
+	}
+	return flagrt.NewArray(vals...)
+}
+
+func compileResultToFLAG(result compileResult) (flagrt.Value, error) {
+	nsCode := ""
+	if result.namespace != "" {
+		nsStmt, err := flagNsToIR(result.namespace)
+		if err != nil {
+			return flagrt.Value{}, err
+		}
+		nsCode = renderIRStmt(nsStmt, "")
+	}
+	fns := make([]flagrt.Value, 0, len(result.functions))
+	for _, fn := range result.functions {
+		fns = append(fns, flagrt.NewMap(
+			flagKW("doc"), flagrt.NewString(fn.doc),
+			flagKW("source"), flagrt.NewString(renderFunctionDef(fn)),
+			flagKW("flag-name"), flagrt.NewString(fn.flagName),
+			flagKW("go-name"), flagrt.NewString(fn.goName),
+			flagKW("has-rest"), flagrt.NewBool(fn.hasRest),
+			flagKW("param-count"), flagrt.NewLong(int64(len(fn.params))),
+		))
+	}
+	vars := make([]flagrt.Value, 0, len(result.vars))
+	for _, v := range result.vars {
+		vars = append(vars, flagrt.NewMap(
+			flagKW("doc"), flagrt.NewString(v.doc),
+			flagKW("go-name"), flagrt.NewString(v.goName),
+			flagKW("expr"), flagrt.NewString(v.expr),
+		))
+	}
+	stmts := make([]flagrt.Value, 0, len(result.stmts))
+	for _, stmt := range result.stmts {
+		stmts = append(stmts, flagrt.NewMap(
+			flagKW("prelude"), flagrt.NewString(stmt.prelude),
+			flagKW("code"), flagrt.NewString(stmt.code),
+			flagKW("kind"), flagrt.NewLong(int64(stmt.kind)),
+		))
+	}
+	tests := make([]flagrt.Value, 0, len(result.tests))
+	for _, tc := range result.tests {
+		tests = append(tests, flagrt.NewMap(
+			flagKW("go-name"), flagrt.NewString(tc.goName),
+			flagKW("label"), flagrt.NewString(tc.label),
+			flagKW("line"), flagrt.NewLong(int64(tc.line)),
+			flagKW("body-source"), flagrt.NewString(tc.bodySource),
+		))
+	}
+	imports := make([]flagrt.Value, 0, len(result.extraImports))
+	for _, imp := range result.extraImports {
+		imports = append(imports, flagrt.NewMap(
+			flagKW("name"), flagrt.NewString(imp.Name),
+			flagKW("path"), flagrt.NewString(imp.Path),
+		))
+	}
+	return flagrt.NewMap(
+		flagKW("namespace"), flagrt.NewString(result.namespace),
+		flagKW("namespace-code"), flagrt.NewString(nsCode),
+		flagKW("type-decls"), flagStringValues(result.typeDecls),
+		flagKW("functions"), flagrt.NewArray(fns...),
+		flagKW("vars"), flagrt.NewArray(vars...),
+		flagKW("stmts"), flagrt.NewArray(stmts...),
+		flagKW("tests"), flagrt.NewArray(tests...),
+		flagKW("needs-fmt"), flagrt.NewBool(result.needsFmt),
+		flagKW("extra-imports"), flagrt.NewArray(imports...),
+	), nil
+}
+
+func flagInternName(c *constantInterner, hint, code string) string {
+	if c == nil {
+		return code
+	}
+	out := flagrt.Call(compiler__intern_ir, constantInternerToFLAG(c), flagrt.NewString(hint), flagrt.NewString(code))
+	applyConstantInterner(c, flagrt.Get(out, flagKW("constants")))
+	name := flagString(flagrt.Get(out, flagKW("name")))
+	if name == "" {
+		return code
+	}
+	return name
+}
+
+func flagCompileProgram(pkgName string, result compileResult, includeMain bool) (src []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	flagResult, err := compileResultToFLAG(result)
+	if err != nil {
+		return nil, err
+	}
+	out := flagrt.Call(compiler__compile_program, flagrt.NewString(pkgName), flagResult, flagrt.NewBool(includeMain))
+	return []byte(flagString(out)), nil
+}
+

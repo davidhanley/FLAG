@@ -101,7 +101,8 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `map-destructure-key-ir`, `go-ident`, `bind-params-to-ir`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
-`parse-catch-clause`, and `split-try-args`.
+`parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
+`intern-ir`, `intern-decls`, `emit-go-file`, and `compile-program`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -294,6 +295,22 @@ dispatch. `defn-binding-to-ir` is `var name = NewFunction(variadic)`.
 Production still parses names, docs, and `&`/destructure. `deftest` and
 `go-interface` still use the Go printer.
 
+`intern-ir` is the FLAG `constantInterner`: given `constants` (or `nil`), a
+hint, and rendered constructor code, it returns `{:name :constants}`. `nil`
+constants leave the code inline (REPL). Otherwise the first use of each code
+string becomes `flag`+hint (`flagKw_foo_1` on collision) and later uses reuse
+that var. `intern-decls` is the `{:name :code}` list in first-seen order.
+`sanitize-keyword-ident` keeps letters, digits, and `_`. Go `internIR` renders
+the IR expr, calls `intern-ir`, and returns `IRIdent` when hoisted.
+
+`emit-go-file` / `compile-program` print a compile-result map: package clause,
+imports (`fmt` / `strings` / `os` / extras / `flagrt`), namespace code, type
+decls, function sources (plus doc comments), interned `var`s, the test runner
+when tests are present, and `main` (entry `flag_main`/`main`, or top-level
+stmts). Library emit (`include-main` false) omits `main` and `strings`/`os`.
+Go `emitGoFile` / `CompileProgram` call FLAG then `go/format`. Loading the
+import graph and compiling module bodies (`compileModuleBody`) stay in Go.
+
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
 clauses short-circuit: `(or a b)` becomes `(let [or-tmp a] (if or-tmp
@@ -325,9 +342,8 @@ func literal with no arguments. `IRStmt` covers `_ = expr`, `return`, `defer`,
 Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
 `loop`/`recur`/`try`/`throw`/`defer`/`go`/`doto`/`update!`, `for`/`doseq` MapCat
 IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`/`defer`/`throw`/`future`/`doto`/`update!`/
-`try`/`doseq`/`for` MapCat assembly is FLAG. Remaining string concat
-is the Go file printer (top-level `func`/`var` emission), not per-form
-lowering.
+`try`/`doseq`/`for` MapCat assembly is FLAG. Remaining string concat in Go is `renderFunctionDef` (function bodies not yet
+IR). The package file printer is FLAG `emit-go-file`.
 
 ## Package emit (`flag-lang build`)
 

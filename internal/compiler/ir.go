@@ -274,7 +274,7 @@ func valueIIFE(body ...IRStmt) IRExpr {
 
 func (ctx compileContext) internIR(hint string, ir IRExpr) IRExpr {
 	code := renderIRExpr(ir)
-	name := ctx.constCode(hint, code)
+	name := flagInternName(ctx.constants, hint, code)
 	if name == code {
 		return ir
 	}

@@ -27,7 +27,9 @@
              map-destructure-key-ir
              go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir
              form-defer-result forms-have-defer? list-head-name catch-type-name
-             parse-catch-clause split-try-args]}
+             parse-catch-clause split-try-args
+             sanitize-keyword-ident intern-ir intern-decls
+             emit-go-file compile-program]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -3090,3 +3092,237 @@
 
 (defn compile-forms-to-ir [forms ctx]
   (compile-form-node :forms forms ctx))
+
+(defn sanitize-keyword-ident [name]
+  (loop [remaining (str name) out ""]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      out
+      (let [ch (subs remaining 0 1)]
+        (if (or (= ch "_")
+                (str-has-char? go-ident-letters ch)
+                (str-has-char? go-ident-digits ch))
+          (recur (subs remaining 1) (str out ch))
+          (recur (subs remaining 1) (str out "_")))))))
+
+(defn intern-fresh-name [used base]
+  (if (get used base)
+    (loop [i 1]
+      (let [v (str base "_" i)]
+        (if (get used v)
+          (recur (inc i))
+          v)))
+    base))
+
+(defn intern-ir [constants hint code]
+  (if (nil? constants)
+    {:name code :constants nil}
+    (let [by-code (or (:by-code constants) {})
+          existing (get by-code code)]
+      (if existing
+        {:name existing :constants constants}
+        (let [name (intern-fresh-name (or (:used constants) {}) (str "flag" hint))]
+          {:name name
+           :constants {:by-code (assoc by-code code name)
+                       :used (assoc (or (:used constants) {}) name true)
+                       :order (conj (or (:order constants) []) {:name name :code code})}})))))
+
+(defn intern-decls [constants]
+  (if (nil? constants)
+    []
+    (or (:order constants) [])))
+
+(defn emit-doc-comment [doc]
+  (if (or (nil? doc) (= "" doc))
+    ""
+    (loop [remaining doc out "" current ""]
+      (if (or (nil? remaining) (= 0 (count remaining)))
+        (if (= "" current)
+          (str out "//\n")
+          (str out "// " current "\n"))
+        (let [ch (subs remaining 0 1)]
+          (if (= ch "\n")
+            (recur (subs remaining 1)
+                   (if (= "" current)
+                     (str out "//\n")
+                     (str out "// " current "\n"))
+                   "")
+            (recur (subs remaining 1) out (str current ch))))))))
+
+(defn emit-extra-imports [imports]
+  (loop [remaining (stmt-list imports) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [imp (first remaining)]
+        (recur (rest remaining)
+               (str out "\t" (:name imp) " " (format "%q" (:path imp)) "\n"))))))
+
+(defn ends-with-newline? [s]
+  (if (or (nil? s) (= 0 (count s)))
+    false
+    (= "\n" (subs s (- (count s) 1)))))
+
+(defn emit-type-decls [decls]
+  (loop [remaining (stmt-list decls) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [decl (str (first remaining))
+            with-nl (if (ends-with-newline? decl) decl (str decl "\n"))]
+        (recur (rest remaining) (str out with-nl "\n"))))))
+
+(defn emit-functions [fns]
+  (loop [remaining (stmt-list fns) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [item (first remaining)]
+        (recur (rest remaining)
+               (str out (emit-doc-comment (:doc item)) (:source item) "\n"))))))
+
+(defn emit-vars [vars]
+  (loop [remaining (stmt-list vars) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [item (first remaining)]
+        (recur (rest remaining)
+               (str out
+                    (emit-doc-comment (:doc item))
+                    "var " (:go-name item) " = " (:expr item) "\n"))))))
+
+(defn find-named-function [fns want]
+  (loop [remaining (stmt-list fns)]
+    (if (or (nil? remaining) (empty? remaining))
+      nil
+      (if (= want (:flag-name (first remaining)))
+        (first remaining)
+        (recur (rest remaining))))))
+
+(defn find-entry-function [fns]
+  (let [flag-main (find-named-function fns "flag_main")]
+    (if flag-main
+      flag-main
+      (loop [remaining (stmt-list fns)]
+        (if (or (nil? remaining) (empty? remaining))
+          nil
+          (let [item (first remaining)]
+            (if (or (= "main" (:flag-name item))
+                    (= "flag_main" (:go-name item))
+                    (= "main" (:go-name item)))
+              item
+              (recur (rest remaining)))))))))
+
+(defn emit-imports [needs-fmt include-main tests entry extra]
+  (str "import (\n"
+       (if needs-fmt "\t\"fmt\"\n" "")
+       (if include-main
+         (str "\t\"strings\"\n"
+              (if (or (not (or (nil? tests) (empty? tests))) entry)
+                "\t\"os\"\n"
+                ""))
+         "")
+       (emit-extra-imports extra)
+       "\tflagrt \"flag-lang/runtime\"\n"
+       ")\n\n"))
+
+(defn emit-test-runner []
+  (str "type flagTestCase struct {\n"
+       "\tname string\n"
+       "\tline int\n"
+       "\tbody string\n"
+       "\tfn func() flagrt.Value\n"
+       "}\n\n"
+       "func runFlagTestCase(tc flagTestCase) (passed bool) {\n"
+       "\tdefer func() {\n"
+       "\t\tif r := recover(); r != nil {\n"
+       "\t\t\tfmt.Printf(\"FAIL %s (line %d)\\n%s\\n%s\\n\", tc.name, tc.line, tc.body, r)\n"
+       "\t\t\treturn\n"
+       "\t\t}\n"
+       "\t\tpassed = true\n"
+       "\t\tfmt.Printf(\"PASS %s\\n\", tc.name)\n"
+       "\t}()\n"
+       "\ttc.fn()\n"
+       "\treturn passed\n"
+       "}\n\n"))
+
+(defn emit-test-cases [tests]
+  (loop [remaining (stmt-list tests) out "\ttests := []flagTestCase{\n"]
+    (if (or (nil? remaining) (empty? remaining))
+      (str out "\t}\n")
+      (let [tc (first remaining)]
+        (recur (rest remaining)
+               (str out
+                    "\t\t{name: " (format "%q" (:label tc))
+                    ", line: " (:line tc)
+                    ", body: " (format "%q" (:body-source tc))
+                    ", fn: " (:go-name tc) "},\n"))))))
+
+(defn emit-main-stmts [stmts]
+  (loop [remaining (stmt-list stmts) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [stmt (first remaining)
+            prelude (:prelude stmt)
+            prelude-out (if (or (nil? prelude) (= "" prelude))
+                          ""
+                          (if (ends-with-newline? prelude) prelude (str prelude "\n")))
+            line (if (= 0 (:kind stmt))
+                   (str "\t" (:code stmt) "\n")
+                   (str "\t_ = " (:code stmt) "\n"))]
+        (recur (rest remaining) (str out prelude-out line))))))
+
+(defn emit-entry-call [entry]
+  (if (nil? entry)
+    ""
+    (if (or (:has-rest entry) (< 0 (or (:param-count entry) 0)))
+      (str "\targs := make([]flagrt.Value, 0, len(os.Args)-1)\n"
+           "\tfor _, arg := range os.Args[1:] {\n"
+           "\t\targs = append(args, flagrt.NewString(arg))\n"
+           "\t}\n"
+           "\t_ = flagrt.Call(" (:go-name entry) ", args...)\n")
+      (str "\t_ = flagrt.Call(" (:go-name entry) ")\n"))))
+
+(defn emit-main [result entry]
+  (let [tests (:tests result)]
+    (str "func main() {\n"
+         "\t_ = strings.HasSuffix\n"
+         (if (or (nil? tests) (empty? tests))
+           (str (emit-main-stmts (:stmts result))
+                (emit-entry-call entry))
+           (str (emit-test-cases tests)
+                "\tpassed := 0\n"
+                "\tfailed := 0\n"
+                "\tfor _, tc := range tests {\n"
+                "\t\tif runFlagTestCase(tc) {\n"
+                "\t\t\tpassed++\n"
+                "\t\t} else {\n"
+                "\t\t\tfailed++\n"
+                "\t\t}\n"
+                "\t}\n"
+                "\tfmt.Printf(\"%d passed, %d failed\\n\", passed, failed)\n"
+                "\tif failed > 0 {\n"
+                "\t\tos.Exit(1)\n"
+                "\t}\n"))
+         "}\n")))
+
+(defn emit-go-file [pkg-name result include-main]
+  (let [tests (:tests result)
+        needs-fmt (if (or (nil? tests) (empty? tests))
+                    (if (:needs-fmt result) true false)
+                    true)
+        entry (if include-main (find-entry-function (:functions result)) nil)
+        vars (:vars result)
+        ns-code (or (:namespace-code result) "")]
+    (str "package " pkg-name "\n\n"
+         (emit-imports needs-fmt include-main tests entry (:extra-imports result))
+         ns-code
+         (emit-type-decls (:type-decls result))
+         (emit-functions (:functions result))
+         (emit-vars vars)
+         (if (or (nil? vars) (empty? vars)) "" "\n")
+         (if (and include-main (not (or (nil? tests) (empty? tests))))
+           (emit-test-runner)
+           "")
+         (if include-main
+           (emit-main result entry)
+           ""))))
+
+(defn compile-program [pkg-name result include-main]
+  (emit-go-file pkg-name result include-main))

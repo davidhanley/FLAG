@@ -1046,6 +1046,69 @@
     (is (not (nil? (str/index-of rest-defn "foo expects at least 1 arguments"))))
     (is (not (nil? (str/index-of rest-defn "x := args[0]"))))))
 
+(deftest lower-intern-ir-and-emit-go-file
+  (is (= "foo_bar" (lower/sanitize-keyword-ident "foo-bar")))
+  (is (= "a_b" (lower/sanitize-keyword-ident "a.b")))
+  (is (= "foo" (lower/sanitize-keyword-ident "foo")))
+  (let [inline (lower/intern-ir nil "Kw_foo" "flagrt.NewKeyword(\"foo\")")]
+    (is (= "flagrt.NewKeyword(\"foo\")" (:name inline)))
+    (is (nil? (:constants inline))))
+  (let [first (lower/intern-ir {:by-code {} :used {} :order []}
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"foo\")")
+        again (lower/intern-ir (:constants first)
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"foo\")")
+        other (lower/intern-ir (:constants again)
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"bar\")")]
+    (is (= "flagKw_foo" (:name first)))
+    (is (= "flagKw_foo" (:name again)))
+    (is (= "flagKw_foo_1" (:name other)))
+    (is (= 2 (count (lower/intern-decls (:constants other)))))
+    (is (= "flagKw_foo" (:name (first (lower/intern-decls (:constants other))))))
+    (is (= "flagrt.NewKeyword(\"foo\")" (:code (first (lower/intern-decls (:constants other)))))))
+  (let [src (lower/compile-program
+              "main"
+              {:functions [{:flag-name "flag_main"
+                            :go-name "flag_main"
+                            :source "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"
+                            :param-count 0}]
+               :vars [{:go-name "flagKw_foo" :expr "flagrt.NewKeyword(\"foo\")"}]
+               :stmts [{:code "flagrt.NewLong(1)" :kind 1}]
+               :needs-fmt false}
+              true)]
+    (is (not (nil? (str/index-of src "package main"))))
+    (is (not (nil? (str/index-of src "import ("))))
+    (is (not (nil? (str/index-of src "\"strings\""))))
+    (is (not (nil? (str/index-of src "\"os\""))))
+    (is (not (nil? (str/index-of src "flagrt \"flag-lang/runtime\""))))
+    (is (not (nil? (str/index-of src "var flagKw_foo = flagrt.NewKeyword(\"foo\")"))))
+    (is (not (nil? (str/index-of src "func flag_main()"))))
+    (is (not (nil? (str/index-of src "_ = flagrt.NewLong(1)"))))
+    (is (not (nil? (str/index-of src "_ = flagrt.Call(flag_main)"))))
+    (is (not (nil? (str/index-of src "_ = strings.HasSuffix")))))
+  (let [lib (lower/emit-go-file
+              "pkg"
+              {:functions [{:source "func Add() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"
+                            :doc "add two numbers"}]
+               :needs-fmt false}
+              false)]
+    (is (not (nil? (str/index-of lib "package pkg"))))
+    (is (nil? (str/index-of lib "func main()")))
+    (is (nil? (str/index-of lib "\"strings\"")))
+    (is (not (nil? (str/index-of lib "// add two numbers"))))
+    (is (not (nil? (str/index-of lib "func Add()")))) )
+  (let [tested (lower/emit-go-file
+                 "main"
+                 {:tests [{:label "ok" :line 3 :body-source "(is true)" :go-name "test_ok"}]
+                  :functions [{:source "func test_ok() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}]}
+                 true)]
+    (is (not (nil? (str/index-of tested "\"fmt\""))))
+    (is (not (nil? (str/index-of tested "type flagTestCase struct"))))
+    (is (not (nil? (str/index-of tested "runFlagTestCase"))))
+    (is (not (nil? (str/index-of tested "fn: test_ok"))))))
+
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")
         node (codegen/emit-ir-expr (nth-token exprs 0))]

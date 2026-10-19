@@ -2686,6 +2686,78 @@ func TestFLAGCompileFormsDo(t *testing.T) {
 	}
 }
 
+func TestFLAGInternIR(t *testing.T) {
+	inline := flagrt.Call(compiler__intern_ir, flagrt.NilValue(), flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
+	if flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))) != `flagrt.NewKeyword("foo")` {
+		t.Fatalf("inline name %q", flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))))
+	}
+
+	empty := flagrt.NewMap(
+		flagrt.NewKeyword("by-code"), flagrt.NewMap(),
+		flagrt.NewKeyword("used"), flagrt.NewMap(),
+		flagrt.NewKeyword("order"), flagrt.NewArray(),
+	)
+	first := flagrt.Call(compiler__intern_ir, empty, flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
+	if flagString(flagrt.Get(first, flagrt.NewKeyword("name"))) != "flagKw_foo" {
+		t.Fatalf("first name %q", flagString(flagrt.Get(first, flagrt.NewKeyword("name"))))
+	}
+	again := flagrt.Call(compiler__intern_ir, flagrt.Get(first, flagrt.NewKeyword("constants")), flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
+	if flagString(flagrt.Get(again, flagrt.NewKeyword("name"))) != "flagKw_foo" {
+		t.Fatalf("dedup name %q", flagString(flagrt.Get(again, flagrt.NewKeyword("name"))))
+	}
+	other := flagrt.Call(compiler__intern_ir, flagrt.Get(again, flagrt.NewKeyword("constants")), flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("bar")`))
+	if flagString(flagrt.Get(other, flagrt.NewKeyword("name"))) != "flagKw_foo_1" {
+		t.Fatalf("collision name %q", flagString(flagrt.Get(other, flagrt.NewKeyword("name"))))
+	}
+}
+
+func TestFLAGCompileProgramPrinter(t *testing.T) {
+	src, err := flagCompileProgram("main", compileResult{
+		functions: []functionDef{{
+			flagName: "flag_main",
+			goName:   "flag_main",
+			irDecls: []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+		}},
+		vars:  []varDef{{goName: "flagKw_foo", expr: `flagrt.NewKeyword("foo")`}},
+		stmts: []mainStmt{{code: "flagrt.NewLong(1)", kind: exprKindValue}},
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(src)
+	for _, want := range []string{
+		"package main",
+		"flagrt \"flag-lang/runtime\"",
+		`var flagKw_foo = flagrt.NewKeyword("foo")`,
+		"func flag_main()",
+		"_ = flagrt.NewLong(1)",
+		"_ = flagrt.Call(flag_main)",
+		"_ = strings.HasSuffix",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+
+	lib, err := flagCompileProgram("pkg", compileResult{
+		functions: []functionDef{{
+			doc:     "add two numbers",
+			goName:  "Add",
+			irDecls: []IRStmt{IRRawStmt{Code: "func Add() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+		}},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = string(lib)
+	if strings.Contains(got, "func main()") {
+		t.Fatalf("library emit included main:\n%s", got)
+	}
+	if !strings.Contains(got, "// add two numbers") {
+		t.Fatalf("missing doc:\n%s", got)
+	}
+}
+
 func TestLetExprToGoUsesResultVar(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n}
