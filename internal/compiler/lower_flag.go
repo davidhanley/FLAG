@@ -196,6 +196,15 @@ func flagCompileNode(fn, node flagrt.Value, ctx compileContext, locals map[strin
 			*ctx.ifTemps = int(n.Long())
 		}
 	}
+	if flagrt.IsTruthy(flagMapGet(out, "defer?")) {
+		stmt, err := flagValueToIRStmt(flagMapGet(out, "stmt"))
+		if err != nil {
+			return goExpr{}, err
+		}
+		got := fromStmt(stmt, exprKindDefer)
+		got.stmts = stmts
+		return got, nil
+	}
 	got := fromIR(ir, exprKindFromFLAG(flagMapGet(out, "expr-kind")))
 	got.stmts = stmts
 	return got, nil
@@ -577,6 +586,8 @@ func exprKindFromFLAG(v flagrt.Value) exprKind {
 		return exprKindBool
 	case "mutable-value":
 		return exprKindMutableValue
+	case "defer":
+		return exprKindDefer
 	default:
 		return exprKindValue
 	}

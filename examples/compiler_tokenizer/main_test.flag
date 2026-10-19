@@ -779,6 +779,83 @@
            (ir/render-ir (:expr out))))
     (is (= :string (:expr-kind out)))))
 
+(deftest lower-defer-doto-try-doseq
+  (is (= "catch" (lower/list-head-name
+                   {:kind :list
+                    :elements [{:kind :symbol :name "catch"}
+                               {:kind :symbol :name "Exception"}]})))
+  (is (nil? (lower/list-head-name {:kind :symbol :name "x"})))
+  (is (= "ExceptionInfo" (lower/catch-type-name {:kind :symbol :name "ExceptionInfo"})))
+  (is (= "Exception" (lower/catch-type-name {:kind :symbol :name "Exception"})))
+  (is (= "Throwable" (lower/catch-type-name {:kind :symbol :name "Throwable"})))
+  (is (= ":default" (lower/catch-type-name {:kind :keyword :name "default"})))
+  (let [clause (lower/parse-catch-clause
+                 {:kind :list
+                  :elements [{:kind :symbol :name "catch"}
+                             {:kind :symbol :name "Exception"}
+                             {:kind :symbol :name "e"}
+                             {:kind :symbol :name "e"}]})]
+    (is (= "Exception" (:class clause)))
+    (is (= "e" (:name (:name clause)))))
+  (let [parsed (lower/split-try-args
+                 [{:kind :int :value 1}
+                  {:kind :list
+                   :elements [{:kind :symbol :name "catch"}
+                              {:kind :symbol :name "Exception"}
+                              {:kind :symbol :name "e"}]}
+                  {:kind :list
+                   :elements [{:kind :symbol :name "finally"}
+                              {:kind :int :value 2}]}])]
+    (is (= 1 (count (:body parsed))))
+    (is (= 1 (count (:catches parsed))))
+    (is (= 1 (count (:finally parsed)))))
+  (is (lower/forms-have-defer? [{:defer? false} {:defer? true}]))
+  (is (not (lower/forms-have-defer? [{:defer? false}])))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "defer"}
+                          {:kind :symbol :name "f"}]}
+              {:locals {"f" :value}})]
+    (is (:defer? out))
+    (is (= :defer (:expr-kind out)))
+    (is (= "\tdefer flagrt.Call(f)\n" (ir/render-ir-stmt (:stmt out) "\t"))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "doto"}
+                          {:kind :symbol :name "obj"}
+                          {:kind :symbol :name "step"}]}
+              {:locals {"obj" :value "step" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__doto := obj"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.Call(step, __doto)")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "try"}
+                          {:kind :int :value 1}
+                          {:kind :list
+                           :elements [{:kind :symbol :name "catch"}
+                                      {:kind :symbol :name "Exception"}
+                                      {:kind :symbol :name "e"}
+                                      {:kind :symbol :name "e"}]}]}
+              {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "CatchMatches(\"Exception\", __flag_thrown)")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "doseq"}
+                          {:kind :vector
+                           :elements [{:kind :symbol :name "x"}
+                                      {:kind :symbol :name "xs"}]}
+                          {:kind :symbol :name "x"}]}
+              {:locals {"xs" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.DoAll"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.MapCat")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "for"}
+                          {:kind :vector :elements []}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewArray(flagrt.NewLong(1))" (ir/render-ir (:expr out))))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

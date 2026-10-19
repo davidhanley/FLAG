@@ -96,8 +96,10 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `update-bang-to-ir`, `catch-handler-to-ir`, `try-to-ir`, `doseq-to-ir`,
 `doseq-body-to-ir`, `mapcat-binding-to-ir`, `fn-to-ir`, `ns-to-ir`,
 `def-to-ir`, `defn-binding-to-ir`, `defn-to-ir`, `defn-multi-to-ir`,
-`go-ident`, `bind-params-to-ir`, `compile-form-to-ir`, and
-`compile-forms-to-ir`.
+`go-ident`, `bind-params-to-ir`, `compile-form-to-ir`,
+`compile-forms-to-ir`, `form-defer-result`, `forms-have-defer?`,
+`list-head-name`, `catch-type-name`, `parse-catch-clause`, and
+`split-try-args`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
@@ -221,16 +223,24 @@ body via `do`, then calls this; Go `loopExprToGo` is the fallback. `recur-to-ir`
 is `flagrt.NewRecur(args...)`; FLAG and Go both require `recur` inside `loop`
 with matching arity.
 
-`defer-to-ir` is `defer flagrt.Call(thunk)`. Production still compiles the
-zero-arg function and keeps its statements on the `goExpr`. `throw-to-ir`
-wraps `flagrt.Throw` plus `return NilValue` in a value IIFE so `throw` is an
-expression. `future-to-ir` is `flagrt.NewFuture(func() flagrt.Value { body })`.
+`defer-to-ir` is `defer flagrt.Call(thunk)`. Production `compile-form-to-ir`
+compiles the zero-arg function (strings wrapped), sets `:defer?` / `:stmt`,
+and keeps thunk statements on the form. A `do` / `:forms` body that contains
+`defer` wraps with `do-defer-to-ir` so the thunk runs when that IIFE returns.
+`throw-to-ir` wraps `flagrt.Throw` plus `return NilValue` in a value IIFE so
+`throw` is an expression. `future-to-ir` is
+`flagrt.NewFuture(func() flagrt.Value { body })`.
 
-`doto-to-ir` binds `__doto` and `Call`s each step on it. `update-bang-to-ir`
-assigns then returns the mutable binding. `try-to-ir` / `catch-handler-to-ir`
-emit the recover/`CatchMatches` IIFE; Go still parses `catch` types and
-compiles bodies. `doseq-to-ir` wraps `DoAll`; `mapcat-binding-to-ir` is the
-`for`/`doseq` MapCat callback. `fn-to-ir` wraps `NewFunction` around a
+`doto-to-ir` binds `__doto` and `Call`s each step on it. Production compiles
+the target and each step to Value. `update-bang-to-ir` assigns then returns
+the mutable binding. `try-to-ir` / `catch-handler-to-ir` emit the
+recover/`CatchMatches` IIFE. Production parses `catch` types
+(`ExceptionInfo`, `Exception`, `Throwable`, `:default`), compiles bodies, and
+skips the IIFE when there is no `catch`/`finally`. `doseq-to-ir` wraps
+`DoAll`; `mapcat-binding-to-ir` is the `for`/`doseq` MapCat callback.
+Production `doseq`/`for` take a binding vector of symbol/collection pairs
+(strings wrapped); empty `for` bindings are `NewArray(body)` and empty
+`doseq` bindings discard the body then `DoAll`. `fn-to-ir` wraps `NewFunction` around a
 variadic `func(args ...flagrt.Value)`: arity panic (`exactly` vs rest
 `at least`), `p := args[i]` or `_ = args[i]`, init/body statements, then
 `return`. `#()` still rewrites placeholders in Go, then calls
@@ -252,10 +262,13 @@ table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
 `concat`, `ex-message`/`ex-data`/`ex-cause`, `println`, `compare`/`==`/`<`/`>` ,
 `symbol`/`name`/`keyword`, `format`, `map`/`filter`/`reduce`/`apply`/`pmap`/
 `sort-by`/`some`/`set`/`doall`, `line-seq`/`repeat`/`rand-int`, `to-json`/
-`from-json`, `open-file`/`file-to-strings`/`go-fn`/`go-fn-args`, folded
-`+ - * /`, and other runtime ops already in FLAG.
-Other special forms (`.method`, `defer`, `try`, `doseq`, `for`, `testing`, …)
-throw `not handled by FLAG`.
+`from-json`, `open-file`/`file-to-strings`/`go-fn`/`go-fn-args`, `defer`,
+`doto`, `try`/`catch`/`finally`, `doseq`, `for`, folded `+ - * /`, and other
+runtime ops already in FLAG.
+Other special forms (`.method`, `testing`, `is`, …) throw `not handled by FLAG`.
+`list-head-name`, `catch-type-name`, `parse-catch-clause`, and `split-try-args`
+parse `try` clauses; `form-defer-result` / `forms-have-defer?` mark `defer`
+forms so `:forms` can wrap them.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
 FLAG first and fall back to Go on those errors. FLAG preserves
 `:mutable-value` locals across nested `fn` parameter binding so `update!`

@@ -22,7 +22,9 @@
              doseq-to-ir doseq-body-to-ir mapcat-binding-to-ir
              fn-to-ir ns-to-ir def-to-ir defn-binding-to-ir
              defn-to-ir defn-multi-to-ir
-             go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir]}
+             go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir
+             form-defer-result forms-have-defer? list-head-name catch-type-name
+             parse-catch-clause split-try-args]}
 
 (defn literal-rt-call [name args]
   {:kind :call
@@ -1403,6 +1405,8 @@
                    (literal-rt-call "NewBool" [(:expr part)])
                    :value
                    (:ctx part))
+      (= k :defer)
+      (throw (ex-info "cannot coerce a defer form to Value (defer is a statement)" {}))
       :else part)))
 
 (defn form-value-ir [part]
@@ -1454,6 +1458,93 @@
     (= k :string) "string"
     (= k :bool) "bool"
     :else "flagrt.Value"))
+
+(defn form-defer-result [stmts stmt ctx]
+  {:stmts (stmt-list stmts)
+   :expr (literal-rt-call "NilValue" [])
+   :expr-kind :defer
+   :defer? true
+   :stmt stmt
+   :ctx ctx})
+
+(defn forms-have-defer? [forms]
+  (loop [remaining (stmt-list forms)]
+    (if (or (nil? remaining) (empty? remaining))
+      false
+      (if (:defer? (first remaining))
+        true
+        (recur (rest remaining))))))
+
+(defn list-head-name [node]
+  (let [form (unwrap-ast node)]
+    (if (not (= :list (:kind form)))
+      nil
+      (let [head (first (:elements form))]
+        (if (and (not (nil? head)) (= :symbol (:kind head)))
+          (:name head)
+          nil)))))
+
+(defn catch-type-name [node]
+  (let [form (unwrap-ast node)
+        kind (:kind form)]
+    (cond
+      (= kind :symbol)
+      (let [n (:name form)]
+        (if (or (= n "ExceptionInfo") (= n "Exception") (= n "Throwable"))
+          n
+          (throw (ex-info (str "unknown catch type " n " (expected ExceptionInfo, Exception, Throwable, or :default)") {}))))
+      (= kind :keyword)
+      (if (= (:name form) "default")
+        ":default"
+        (throw (ex-info (str "unknown catch type :" (:name form) " (expected :default)") {})))
+      :else (throw (ex-info "catch type must be Exception, ExceptionInfo, Throwable, or :default" {})))))
+
+(defn parse-catch-clause [node]
+  (let [form (unwrap-ast node)
+        elems (stmt-list (:elements form))]
+    (if (or (nil? elems) (empty? (rest elems)) (empty? (rest (rest elems))))
+      (throw (ex-info "catch expects type, name, and optional body" {:node node}))
+      (let [class (catch-type-name (first (rest elems)))
+            name-node (unwrap-ast (first (rest (rest elems))))]
+        (if (or (not (= :symbol (:kind name-node))) (= "" (:name name-node)))
+          (throw (ex-info "catch binding name must be a symbol" {:node name-node}))
+          {:class class :name name-node :body (rest (rest (rest elems)))})))))
+
+(defn split-try-body [args]
+  (loop [remaining (stmt-list args) body []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:remaining remaining :body body}
+      (let [name (list-head-name (first remaining))]
+        (if (or (= name "catch") (= name "finally"))
+          {:remaining remaining :body body}
+          (recur (rest remaining) (conj body (first remaining))))))))
+
+(defn split-try-catches [args]
+  (loop [remaining (stmt-list args) catches []]
+    (if (or (nil? remaining) (empty? remaining))
+      {:remaining remaining :catches catches}
+      (let [name (list-head-name (first remaining))]
+        (if (= name "catch")
+          (recur (rest remaining) (conj catches (first remaining)))
+          {:remaining remaining :catches catches})))))
+
+(defn split-try-args [args]
+  (let [body-part (split-try-body args)
+        catch-part (split-try-catches (:remaining body-part))
+        remaining (:remaining catch-part)]
+    (if (or (nil? remaining) (empty? remaining))
+      {:body (:body body-part) :catches (:catches catch-part) :finally nil}
+      (let [name (list-head-name (first remaining))]
+        (if (not (= name "finally"))
+          (throw (ex-info "catch and finally clauses must come last in try" {}))
+          (if (or (nil? (rest remaining)) (empty? (rest remaining)))
+            {:body (:body body-part)
+             :catches (:catches catch-part)
+             :finally (rest (:elements (unwrap-ast (first remaining))))}
+            (throw (ex-info "catch and finally clauses must come last in try" {}))))))))
+
+(def control-forms
+  #{"defer" "doto" "try" "doseq" "for"})
 
 (defn compile-form-node [mode node ctx]
   (cond
@@ -1585,7 +1676,10 @@
             (throw (ex-info "fn expects a parameter vector" {:node params}))
             (let [bound (bind-params-to-ir params "fn" (:locals ctx))
                   inner (assoc ctx :locals (:locals bound) :loop-binding-names [])
-                  compiled (coerce-form-value (compile-form-node :form body inner))
+                  compiled0 (compile-form-node :form body inner)
+                  compiled (if (:defer? compiled0)
+                             (form-result [] (do-defer-to-ir "flagrt.Value" [compiled0]) :value (:ctx compiled0))
+                             (coerce-form-value compiled0))
                   ir (fn-to-ir "fn"
                                (:params bound)
                                (:has-rest bound)
@@ -2246,6 +2340,7 @@
                 (= op "ex-data") (compile-form-node :ex-data args ctx)
                 (= op "ex-cause") (compile-form-node :ex-cause args ctx)
                 (= op "println") (compile-form-node :println args ctx)
+                (contains? control-forms op) (compile-form-node :control [op args] ctx)
                 (contains? remaining-runtime-ops op) (compile-form-node :runtime-op [op args] ctx)
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -2382,11 +2477,145 @@
               more (rest remaining)
               next-compiled (conj compiled part)]
           (if (or (nil? more) (empty? more))
-            (form-result (do-prelude-stmts next-compiled)
-                         (:expr part)
-                         (:expr-kind part)
-                         (:ctx part))
+            (if (forms-have-defer? next-compiled)
+              (let [result-kind (if (:defer? part) :value (:expr-kind part))]
+                (form-result []
+                             (do-defer-to-ir (go-type-for-kind result-kind) next-compiled)
+                             result-kind
+                             (:ctx part)))
+              (form-result (do-prelude-stmts next-compiled)
+                           (:expr part)
+                           (:expr-kind part)
+                           (:ctx part)))
             (recur more (:ctx part) next-compiled)))))
+
+    (= mode :control)
+    (let [op (first node)
+          args (first (rest node))]
+      (cond
+        (= op "defer")
+        (if (not (= 1 (count (stmt-list args))))
+          (throw (ex-info "defer expects a zero-argument function" {}))
+          (let [part (coerce-form-value (compile-form-node :form (first args) ctx))]
+            (form-defer-result (:stmts part) (defer-to-ir (:expr part)) (:ctx part))))
+
+        (= op "doto")
+        (if (or (nil? args) (empty? args))
+          (throw (ex-info "doto expects a target and at least one form" {}))
+          (let [target (coerce-form-value (compile-form-node :form (first args) ctx))]
+            (loop [remaining (rest args) ctx (:ctx target) steps []]
+              (if (or (nil? remaining) (empty? remaining))
+                (form-result [] (doto-to-ir (:stmts target) (:expr target) steps) :value ctx)
+                (let [step (coerce-form-value (compile-form-node :form (first remaining) ctx))]
+                  (recur (rest remaining)
+                         (:ctx step)
+                         (conj steps {:stmts (:stmts step) :expr (:expr step)})))))))
+
+        (= op "try") (compile-form-node :try args ctx)
+
+        (= op "doseq")
+        (if (or (nil? args) (empty? args) (empty? (rest args)))
+          (throw (ex-info "doseq expects a binding vector and body" {}))
+          (let [bindings-node (unwrap-ast (first args))]
+            (if (not (= :vector (:kind bindings-node)))
+              (throw (ex-info "doseq expects a binding vector" {:node bindings-node}))
+              (let [entries (ast-seq bindings-node)]
+                (if (not (= 0 (% (count entries) 2)))
+                  (throw (ex-info "doseq binding vector expects name/value pairs" {}))
+                  (let [loop-part (compile-form-node :seq-bindings ["doseq" entries (rest args)] ctx)]
+                    (form-result (:stmts loop-part)
+                                 (doseq-to-ir (:expr loop-part))
+                                 :value
+                                 (:ctx loop-part))))))))
+
+        (= op "for")
+        (if (or (nil? args) (empty? args) (empty? (rest args)))
+          (throw (ex-info "for expects a binding vector and body" {}))
+          (let [bindings-node (unwrap-ast (first args))]
+            (if (not (= :vector (:kind bindings-node)))
+              (throw (ex-info "for expects a binding vector" {:node bindings-node}))
+              (let [entries (ast-seq bindings-node)]
+                (if (not (= 0 (% (count entries) 2)))
+                  (throw (ex-info "for binding vector expects name/value pairs" {}))
+                  (compile-form-node :seq-bindings ["for" entries (rest args)] ctx))))))
+
+        :else (throw (ex-info "unsupported control form" {:op op}))))
+
+    (= mode :seq-bindings)
+    (let [kind (first node)
+          bindings (first (rest node))
+          body (first (rest (rest node)))]
+      (if (or (nil? body) (empty? body))
+        (throw (ex-info (str kind " expects at least one body form") {}))
+        (if (or (nil? bindings) (empty? bindings))
+          (if (= kind "doseq")
+            (let [compiled (compile-form-node :forms body ctx)
+                  k (:expr-kind compiled)]
+              (if (or (= k :value) (= k :string) (= k :bool))
+                (form-result [] (doseq-body-to-ir (:stmts compiled) (:expr compiled)) :value (:ctx compiled))
+                (throw (ex-info "doseq body must evaluate to Value" {}))))
+            (let [compiled (coerce-form-value (compile-form-node :forms body ctx))]
+              (form-result (:stmts compiled)
+                           (ctor-to-ir "NewArray" [(:expr compiled)])
+                           :value
+                           (:ctx compiled))))
+          (if (or (nil? (rest bindings)) (empty? (rest bindings)))
+            (throw (ex-info (str kind " binding vector expects name/value pairs") {}))
+            (let [name-node (unwrap-ast (first bindings))
+                  coll-node (first (rest bindings))]
+              (if (not (= :symbol (:kind name-node)))
+                (throw (ex-info (str kind " binding name must be a symbol") {:node name-node}))
+                (let [ident (go-ident (:name name-node))
+                      coll (compile-form-node :form coll-node ctx)
+                      coll-ir (wrap-value-arg-ir coll true (str kind " binding collection must evaluate to Value"))
+                      locals (:locals (:ctx coll))
+                      next-locals (if (= ident "_")
+                                    locals
+                                    (assoc (if (nil? locals) {} locals) ident :value))
+                      next-ctx (assoc (:ctx coll) :locals next-locals)
+                      rest-part (compile-form-node :seq-bindings [kind (rest (rest bindings)) body] next-ctx)
+                      unused (and (unused-binding? (:name name-node)) (not (= ident "_")))
+                      ir (mapcat-binding-to-ir ident
+                                               unused
+                                               (str kind " binding expects exactly one value")
+                                               (:expr rest-part)
+                                               (:stmts rest-part)
+                                               coll-ir)]
+                  (form-result (:stmts coll) ir :value (:ctx rest-part)))))))))
+
+    (= mode :try)
+    (let [parsed (split-try-args node)
+          body-forms (:body parsed)
+          catch-forms (:catches parsed)
+          finally-forms (:finally parsed)
+          body (if (or (nil? body-forms) (empty? body-forms))
+                 (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+                 (coerce-form-value (compile-form-node :forms body-forms ctx)))]
+      (if (and (or (nil? catch-forms) (empty? catch-forms)) (nil? finally-forms))
+        body
+        (loop [remaining (stmt-list catch-forms) ctx (:ctx body) catches []]
+          (if (or (nil? remaining) (empty? remaining))
+            (let [finally (if (nil? finally-forms)
+                            nil
+                            (compile-form-node :forms finally-forms ctx))]
+              (form-result []
+                           (try-to-ir (:stmts body) (:expr body) catches finally)
+                           :value
+                           (if (nil? finally) ctx (:ctx finally))))
+            (let [clause (parse-catch-clause (first remaining))
+                  ident (go-ident (:name (:name clause)))
+                  locals (:locals ctx)
+                  handler-locals (if (= ident "_")
+                                   locals
+                                   (assoc (if (nil? locals) {} locals) ident :value))
+                  handler-ctx (assoc ctx :locals handler-locals)
+                  handler-body (if (or (nil? (:body clause)) (empty? (:body clause)))
+                                 (form-result [] (literal-rt-call "NilValue" []) :value handler-ctx)
+                                 (coerce-form-value (compile-form-node :forms (:body clause) handler-ctx)))
+                  handler (catch-handler-to-ir ident (:stmts handler-body) (:expr handler-body))]
+              (recur (rest remaining)
+                     (:ctx handler-body)
+                     (conj catches {:class (:class clause) :stmts [] :handler handler})))))))
 
     :else (throw (ex-info "unsupported compile-form mode" {:mode mode}))))
 
