@@ -7,6 +7,14 @@
              not-empty-to-ir type-of-to-ir vec-to-ir dissoc-to-ir contains-pred-to-ir
              into-to-ir concat-to-ir
              ex-message-to-ir ex-data-to-ir ex-cause-to-ir println-to-ir
+             compare-to-ir numeric-eq-to-ir comparison-to-ir
+             symbol-ctor-to-ir name-to-ir keyword-ctor-to-ir format-to-ir
+             map-to-ir sort-by-to-ir apply-to-ir pmap-to-ir filter-to-ir
+             reduce-to-ir doall-to-ir some-to-ir set-to-ir
+             line-seq-to-ir repeat-to-ir rand-int-to-ir
+             to-json-to-ir from-json-to-ir
+             open-file-to-ir file-to-strings-to-ir file-to-strings-path-to-ir
+             go-fn-to-ir go-fn-args-to-ir
              symbol-to-ir eval-ast-to-ir if-to-ir let-to-ir
              do-prelude-stmts do-defer-to-ir loop-to-ir recur-to-ir
              defer-to-ir throw-to-ir future-to-ir
@@ -308,6 +316,96 @@
 
 (defn println-to-ir [args]
   (literal-rt-call "Println" (if (or (nil? args) (empty? args)) [] args)))
+
+(defn compare-to-ir [args]
+  (literal-rt-call "Compare" args))
+
+(defn numeric-eq-to-ir [args]
+  (literal-rt-call "NewBool" [(literal-rt-call "NumericEq" (if (or (nil? args) (empty? args)) [] args))]))
+
+(defn comparison-to-ir [op args]
+  (if (or (nil? args) (empty? args) (empty? (rest args)))
+    (throw (ex-info (str op " expects at least two arguments") {}))
+    (loop [acc (literal-rt-call op [(first args) (first (rest args))])
+           prev (first (rest args))
+           remaining (rest (rest args))]
+      (if (or (nil? remaining) (empty? remaining))
+        acc
+        (recur {:kind :binary
+                :op "&&"
+                :left acc
+                :right (literal-rt-call op [prev (first remaining)])}
+               (first remaining)
+               (rest remaining))))))
+
+(defn symbol-ctor-to-ir [arg]
+  (literal-rt-call "Symbol" [arg]))
+
+(defn name-to-ir [arg]
+  (literal-rt-call "Name" [arg]))
+
+(defn keyword-ctor-to-ir [arg]
+  (literal-rt-call "Keyword" [arg]))
+
+(defn format-to-ir [args]
+  (literal-rt-call "NewString" [(literal-rt-call "Format" args)]))
+
+(defn map-to-ir [args]
+  (literal-rt-call "Map" args))
+
+(defn sort-by-to-ir [args]
+  (literal-rt-call "SortBy" args))
+
+(defn apply-to-ir [args]
+  (literal-rt-call "Apply" args))
+
+(defn pmap-to-ir [args]
+  (literal-rt-call "PMap" args))
+
+(defn filter-to-ir [args]
+  (literal-rt-call "Filter" args))
+
+(defn reduce-to-ir [args]
+  (literal-rt-call "Reduce" args))
+
+(defn doall-to-ir [arg]
+  (literal-rt-call "DoAll" [arg]))
+
+(defn some-to-ir [args]
+  (literal-rt-call "Some" args))
+
+(defn set-to-ir [arg]
+  (literal-rt-call "Set" [arg]))
+
+(defn line-seq-to-ir [arg]
+  (literal-rt-call "LineSeq" [arg]))
+
+(defn repeat-to-ir [args]
+  (literal-rt-call "Repeat" args))
+
+(defn rand-int-to-ir [arg]
+  (literal-rt-call "RandInt" [arg]))
+
+(defn to-json-to-ir [arg]
+  (literal-rt-call "ToJSON" [arg]))
+
+(defn from-json-to-ir [arg]
+  (literal-rt-call "FromJSON" [arg]))
+
+(defn open-file-to-ir [arg]
+  (literal-rt-call "OpenFile" [arg]))
+
+(defn file-to-strings-to-ir [arg]
+  (literal-rt-call "FileToStrings" [arg]))
+
+(defn file-to-strings-path-to-ir [arg]
+  (literal-rt-call "FileToStringsPath" [arg]))
+
+(defn go-fn-to-ir [arg]
+  (literal-rt-call "GoFunction" [arg]))
+
+(defn go-fn-args-to-ir [arg]
+  (literal-rt-call "GoFunctionArgs" [arg]))
 
 (def builtin-function-names
   #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
@@ -1331,6 +1429,18 @@
       (and wrap? (= k :string)) (literal-rt-call "NewString" [(:expr part)])
       :else (throw (ex-info (str msg) {})))))
 
+(defn string-or-value-ir [part label]
+  (let [k (:expr-kind part)]
+    (if (or (= k :string) (= k :value))
+      (:expr part)
+      (throw (ex-info (str label " expects a string, symbol, or keyword argument") {})))))
+
+(def remaining-runtime-ops
+  #{"compare" "==" "<" "<=" ">" ">=" "symbol" "name" "keyword" "format"
+    "map" "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "set"
+    "line-seq" "repeat" "rand-int" "to-json" "from-json"
+    "open-file" "file-to-strings" "go-fn" "go-fn-args"})
+
 (defn truthy-form-ir [part]
   (let [k (:expr-kind part)]
     (cond
@@ -1866,6 +1976,224 @@
                  (concat-stmts stmts (:stmts part))
                  (conj irs (:expr part))))))
 
+    (= mode :value-args)
+    (let [args (first node)
+          wrap? (first (rest node))
+          msg (first (rest (rest node)))]
+      (loop [remaining (stmt-list args) ctx ctx stmts [] irs []]
+        (if (or (nil? remaining) (empty? remaining))
+          {:stmts stmts :irs irs :ctx ctx}
+          (let [part (compile-form-node :form (first remaining) ctx)]
+            (recur (rest remaining)
+                   (:ctx part)
+                   (concat-stmts stmts (:stmts part))
+                   (conj irs (wrap-value-arg-ir part wrap? msg)))))))
+
+    (= mode :runtime-op)
+    (let [op (first node)
+          args (first (rest node))]
+      (cond
+    (= op "compare")
+    (if (not (= 2 (count (stmt-list args))))
+      (throw (ex-info "compare expects exactly two arguments" {}))
+      (let [compiled (compile-form-node :value-args [args true "compare arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (compare-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "==")
+    (let [compiled (compile-form-node :value-args [args false "== arguments must evaluate to Value"] ctx)]
+      (form-result (:stmts compiled) (numeric-eq-to-ir (:irs compiled)) :value (:ctx compiled)))
+
+    (or (= op "<") (= op "<=") (= op ">") (= op ">="))
+    (if (or (nil? args) (empty? args) (empty? (rest args)))
+      (throw (ex-info (str op " expects at least two arguments") {}))
+      (let [rt (get {"<" "Lt" "<=" "Le" ">" "Gt" ">=" "Ge"} op)
+            compiled (compile-form-node :value-args [args true (str op " expects numeric or string Value arguments")] ctx)]
+        (form-result (:stmts compiled)
+                     (literal-rt-call "NewBool" [(comparison-to-ir rt (:irs compiled))])
+                     :value
+                     (:ctx compiled))))
+
+    (= op "symbol")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "symbol expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part) (symbol-ctor-to-ir (string-or-value-ir part "symbol")) :value (:ctx part))))
+
+    (= op "name")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "name expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part) (name-to-ir (string-or-value-ir part "name")) :string (:ctx part))))
+
+    (= op "keyword")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "keyword expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part) (keyword-ctor-to-ir (string-or-value-ir part "keyword")) :value (:ctx part))))
+
+    (= op "format")
+    (if (or (nil? args) (empty? args))
+      (throw (ex-info "format expects a format string and optional values" {}))
+      (let [fmt-part (compile-form-node :form (first args) ctx)]
+        (if (not (= :string (:expr-kind fmt-part)))
+          (throw (ex-info "format expects a string format argument" {}))
+          (let [compiled (compile-form-node :value-args [(rest args) true "function argument must evaluate to Value"] ctx)]
+            (form-result (concat-stmts (:stmts fmt-part) (:stmts compiled))
+                         (format-to-ir (concat [(:expr fmt-part)] (:irs compiled)))
+                         :value
+                         (:ctx compiled))))))
+
+    (= op "map")
+    (if (or (nil? args) (empty? args) (empty? (rest args)))
+      (throw (ex-info "map expects function and at least one sequence" {}))
+      (let [compiled (compile-form-node :value-args [args false "map arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (map-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "sort-by")
+    (let [n (count (stmt-list args))]
+      (if (and (not (= n 2)) (not (= n 3)))
+        (throw (ex-info "sort-by expects key function, optional comparator, and collection" {}))
+        (let [compiled (compile-form-node :value-args [args false "sort-by arguments must evaluate to Value"] ctx)]
+          (form-result (:stmts compiled) (sort-by-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "apply")
+    (if (or (nil? args) (empty? args) (empty? (rest args)))
+      (throw (ex-info "apply expects function and at least one argument sequence" {}))
+      (let [compiled (compile-form-node :value-args [args false "apply arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (apply-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "pmap")
+    (if (or (nil? args) (empty? args) (empty? (rest args)))
+      (throw (ex-info "pmap expects function and at least one sequence" {}))
+      (let [compiled (compile-form-node :value-args [args false "pmap arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (pmap-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "filter")
+    (if (not (= 2 (count (stmt-list args))))
+      (throw (ex-info "filter expects function and one sequence" {}))
+      (let [compiled (compile-form-node :value-args [args false "filter arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (filter-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "reduce")
+    (let [n (count (stmt-list args))]
+      (if (and (not (= n 2)) (not (= n 3)))
+        (throw (ex-info "reduce expects function and collection, or function, initial value, and collection" {}))
+        (let [compiled (compile-form-node :value-args [args false "reduce arguments must evaluate to Value"] ctx)]
+          (form-result (:stmts compiled) (reduce-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "doall")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "doall expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part)
+                     (doall-to-ir (wrap-value-arg-ir part false "doall expects an argument that evaluates to Value"))
+                     :value
+                     (:ctx part))))
+
+    (= op "some")
+    (if (not (= 2 (count (stmt-list args))))
+      (throw (ex-info "some expects predicate and collection" {}))
+      (let [compiled (compile-form-node :value-args [args false "some arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (some-to-ir (:irs compiled)) :value (:ctx compiled))))
+
+    (= op "set")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "set expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part)
+                     (set-to-ir (wrap-value-arg-ir part false "set expects an argument that evaluates to Value"))
+                     :value
+                     (:ctx part))))
+
+    (= op "line-seq")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "line-seq expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part)
+                     (line-seq-to-ir (wrap-value-arg-ir part false "line-seq expects an argument that evaluates to Value"))
+                     :value
+                     (:ctx part))))
+
+    (= op "repeat")
+    (let [n (count (stmt-list args))]
+      (if (and (not (= n 1)) (not (= n 2)))
+        (throw (ex-info "repeat expects one or two arguments" {}))
+        (let [compiled (compile-form-node :value-args [args true "repeat arguments must evaluate to Value"] ctx)]
+          (form-result (:stmts compiled) (repeat-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "rand-int")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "rand-int expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part)
+                     (rand-int-to-ir (wrap-value-arg-ir part false "rand-int expects an argument that evaluates to Value"))
+                     :value
+                     (:ctx part))))
+
+    (= op "to-json")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "to-json expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (form-result (:stmts part)
+                     (to-json-to-ir (wrap-value-arg-ir part false "to-json expects an argument that evaluates to Value"))
+                     :string
+                     (:ctx part))))
+
+    (= op "from-json")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "from-json expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)]
+        (if (not (= :string (:expr-kind part)))
+          (throw (ex-info "from-json expects a string argument" {}))
+          (form-result (:stmts part) (from-json-to-ir (:expr part)) :value (:ctx part)))))
+
+    (= op "open-file")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "open-file expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)
+            k (:expr-kind part)
+            arg (cond
+                  (= k :string) (:expr part)
+                  (= k :value) (name-to-ir (:expr part))
+                  :else (throw (ex-info "open-file expects a string, symbol, or keyword argument" {})))]
+        (form-result (:stmts part) (open-file-to-ir arg) :value (:ctx part))))
+
+    (= op "file-to-strings")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "file-to-strings expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)
+            k (:expr-kind part)]
+        (cond
+          (= k :string)
+          (form-result (:stmts part) (file-to-strings-path-to-ir (:expr part)) :value (:ctx part))
+          (= k :value)
+          (form-result (:stmts part) (file-to-strings-to-ir (:expr part)) :value (:ctx part))
+          :else (throw (ex-info "file-to-strings expects a string, symbol, or keyword argument" {})))))
+
+    (= op "go-fn")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "go-fn expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)
+            k (:expr-kind part)
+            arg (cond
+                  (= k :string) (:expr part)
+                  (= k :value) (name-to-ir (:expr part))
+                  :else (throw (ex-info "go-fn expects a string, symbol, or keyword argument" {})))]
+        (form-result (:stmts part) (go-fn-to-ir arg) :value (:ctx part))))
+
+    (= op "go-fn-args")
+    (if (not (= 1 (count (stmt-list args))))
+      (throw (ex-info "go-fn-args expects exactly one argument" {}))
+      (let [part (compile-form-node :form (first args) ctx)
+            k (:expr-kind part)
+            arg (cond
+                  (= k :string) (:expr part)
+                  (= k :value) (name-to-ir (:expr part))
+                  :else (throw (ex-info "go-fn-args expects a string, symbol, or keyword argument" {})))]
+        (form-result (:stmts part) (go-fn-args-to-ir arg) :value (:ctx part))))
+
+    :else (throw (ex-info "unsupported remaining runtime op" {:op op}))))
+
     (= mode :call)
     (let [elements (:elements node)]
       (if (or (nil? elements) (empty? elements))
@@ -1918,7 +2246,7 @@
                 (= op "ex-data") (compile-form-node :ex-data args ctx)
                 (= op "ex-cause") (compile-form-node :ex-cause args ctx)
                 (= op "println") (compile-form-node :println args ctx)
-
+                (contains? remaining-runtime-ops op) (compile-form-node :runtime-op [op args] ctx)
                 (= op "=")
                 (if (or (nil? args) (empty? args) (empty? (rest args)))
                   (throw (ex-info "= expects at least two arguments" {}))

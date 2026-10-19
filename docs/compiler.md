@@ -83,7 +83,13 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `seq-to-ir`, `drop-to-ir`, `take-to-ir`, `cons-to-ir`, `get-to-ir`, `nth-to-ir`,
 `not-empty-to-ir`, `type-of-to-ir`, `vec-to-ir`, `dissoc-to-ir`,
 `contains-pred-to-ir`, `into-to-ir`, `concat-to-ir`, `ex-message-to-ir`,
-`ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`,
+`ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`, `compare-to-ir`,
+`numeric-eq-to-ir`, `comparison-to-ir`, `symbol-ctor-to-ir`, `name-to-ir`,
+`keyword-ctor-to-ir`, `format-to-ir`, `map-to-ir`, `sort-by-to-ir`,
+`apply-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
+`some-to-ir`, `set-to-ir`, `line-seq-to-ir`, `repeat-to-ir`, `rand-int-to-ir`,
+`to-json-to-ir`, `from-json-to-ir`, `open-file-to-ir`, `file-to-strings-to-ir`,
+`file-to-strings-path-to-ir`, `go-fn-to-ir`, `go-fn-args-to-ir`,
 `symbol-to-ir`, `eval-ast-to-ir`, `if-to-ir`, `let-to-ir`,
 `do-prelude-stmts`, `do-defer-to-ir`, `loop-to-ir`, `recur-to-ir`,
 `defer-to-ir`, `throw-to-ir`, `future-to-ir`, `doto-to-ir`,
@@ -160,6 +166,19 @@ is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
 `ex-data-to-ir` / `ex-cause-to-ir` wrap strings. `println-to-ir` is `str`
 args (`Println`) with result kind `:value`.
 
+`compare-to-ir` is two-arg `Compare` (strings wrapped). `numeric-eq-to-ir` is
+`NewBool(NumericEq(...))` with no string wrap. `comparison-to-ir` chains
+`Lt`/`Le`/`Gt`/`Ge` with `&&`. Compile-form wraps that in `NewBool` so `let`/`and`
+stay Values (Go’s `exprToGo` path still uses a raw `:bool`). `symbol-ctor-to-ir` /
+`name-to-ir` / `keyword-ctor-to-ir` take a string or Value (`Name` is
+`:string`). `format-to-ir` is `NewString(Format(fmt, args…))` with a string
+format. `map`/`sort-by`/`apply`/`pmap`/`filter`/`reduce`/`some` are Value-only
+runtime calls. `doall`/`set`/`line-seq`/`rand-int` are unary strict Values.
+`repeat` wraps strings. `to-json-to-ir` is unary strict with result `:string`;
+`from-json-to-ir` takes a string. `open-file`/`go-fn`/`go-fn-args` pass strings
+through or wrap Values with `Name`. `file-to-strings` uses `FileToStringsPath`
+for strings and `FileToStrings` for Values.
+
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
 `:self-function-name`, `:self-variadic-name`). It matches Go resolution:
@@ -230,9 +249,13 @@ table), `if`, `let` (with `^{:volatile true}`), `fn`, `update!`, `=`,
 `nil?`, `empty?`, `count`, `throw`, `loop`/`recur`, `str`, `ex-info`,
 `assoc`, `conj`, `seq`, `drop`/`take`/`cons`, `get`/`nth`, `not-empty`,
 `type-of`, `vec`, `dissoc`, `contains?`, `list`/`array`/`hash-map`, `into`,
-`concat`, `ex-message`/`ex-data`/`ex-cause`, `println`, folded `+ - * /`,
-and other runtime ops already in FLAG.
-Other special forms (`.method`, `defer`, `map`, …) throw `not handled by FLAG`.
+`concat`, `ex-message`/`ex-data`/`ex-cause`, `println`, `compare`/`==`/`<`/`>` ,
+`symbol`/`name`/`keyword`, `format`, `map`/`filter`/`reduce`/`apply`/`pmap`/
+`sort-by`/`some`/`set`/`doall`, `line-seq`/`repeat`/`rand-int`, `to-json`/
+`from-json`, `open-file`/`file-to-strings`/`go-fn`/`go-fn-args`, folded
+`+ - * /`, and other runtime ops already in FLAG.
+Other special forms (`.method`, `defer`, `try`, `doseq`, `for`, `testing`, …)
+throw `not handled by FLAG`.
 Production `compileDefn` / `compileLambda` / `bindLambdaParamStmts` try
 FLAG first and fall back to Go on those errors. FLAG preserves
 `:mutable-value` locals across nested `fn` parameter binding so `update!`

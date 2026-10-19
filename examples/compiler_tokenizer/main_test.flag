@@ -700,6 +700,85 @@
            (ir/render-ir (:expr out))))
     (is (= :value (:expr-kind out)))))
 
+(deftest lower-remaining-runtime-ops
+  (is (= "flagrt.Compare(a, b)"
+         (ir/render-ir (lower/compare-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.NewBool(flagrt.NumericEq(a, b))"
+         (ir/render-ir (lower/numeric-eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.Lt(a, b) && flagrt.Lt(b, c)"
+         (ir/render-ir (lower/comparison-to-ir "Lt" [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
+  (is (= "flagrt.Symbol(x)"
+         (ir/render-ir (lower/symbol-ctor-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Name(x)"
+         (ir/render-ir (lower/name-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Keyword(x)"
+         (ir/render-ir (lower/keyword-ctor-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.NewString(flagrt.Format(fmt, x))"
+         (ir/render-ir (lower/format-to-ir [(ir/ir-ident "fmt") (ir/ir-ident "x")]))))
+  (is (= "flagrt.Map(f, xs)"
+         (ir/render-ir (lower/map-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.SortBy(f, xs)"
+         (ir/render-ir (lower/sort-by-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Apply(f, xs)"
+         (ir/render-ir (lower/apply-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.PMap(f, xs)"
+         (ir/render-ir (lower/pmap-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Filter(f, xs)"
+         (ir/render-ir (lower/filter-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Reduce(f, xs)"
+         (ir/render-ir (lower/reduce-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.DoAll(xs)"
+         (ir/render-ir (lower/doall-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.Some(f, xs)"
+         (ir/render-ir (lower/some-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Set(xs)"
+         (ir/render-ir (lower/set-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.LineSeq(x)"
+         (ir/render-ir (lower/line-seq-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Repeat(x)"
+         (ir/render-ir (lower/repeat-to-ir [(ir/ir-ident "x")]))))
+  (is (= "flagrt.RandInt(n)"
+         (ir/render-ir (lower/rand-int-to-ir (ir/ir-ident "n")))))
+  (is (= "flagrt.ToJSON(x)"
+         (ir/render-ir (lower/to-json-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.FromJSON(s)"
+         (ir/render-ir (lower/from-json-to-ir (ir/ir-ident "s")))))
+  (is (= "flagrt.OpenFile(p)"
+         (ir/render-ir (lower/open-file-to-ir (ir/ir-ident "p")))))
+  (is (= "flagrt.FileToStrings(f)"
+         (ir/render-ir (lower/file-to-strings-to-ir (ir/ir-ident "f")))))
+  (is (= "flagrt.FileToStringsPath(p)"
+         (ir/render-ir (lower/file-to-strings-path-to-ir (ir/ir-ident "p")))))
+  (is (= "flagrt.GoFunction(n)"
+         (ir/render-ir (lower/go-fn-to-ir (ir/ir-ident "n")))))
+  (is (= "flagrt.GoFunctionArgs(n)"
+         (ir/render-ir (lower/go-fn-args-to-ir (ir/ir-ident "n")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "<"}
+                          {:kind :symbol :name "a"}
+                          {:kind :symbol :name "b"}]}
+              {:locals {"a" :value "b" :value}})]
+    (is (= "flagrt.NewBool(flagrt.Lt(a, b))"
+           (ir/render-ir (:expr out))))
+    (is (= :value (:expr-kind out))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "map"}
+                          {:kind :symbol :name "f"}
+                          {:kind :symbol :name "xs"}]}
+              {:locals {"f" :value "xs" :value}})]
+    (is (= "flagrt.Map(f, xs)"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "name"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.Name(\"x\")"
+           (ir/render-ir (:expr out))))
+    (is (= :string (:expr-kind out)))))
+
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
          (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))

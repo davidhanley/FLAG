@@ -1838,6 +1838,169 @@ func TestFLAGCompileFormExFieldsPrintln(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	vals := map[string]exprKind{"a": exprKindValue, "b": exprKindValue, "f": exprKindValue, "xs": exprKindValue}
+
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "compare"}, StringExpr{Value: "a"}, StringExpr{Value: "b"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Compare(flagrt.NewString("a"), flagrt.NewString("b"))` {
+		t.Fatalf("compare %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "=="}, SymbolExpr{Name: "a"}, SymbolExpr{Name: "b"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.NumericEq(a, b))" {
+		t.Fatalf("== %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "=="}, StringExpr{Value: "a"}, SymbolExpr{Name: "b"},
+	}}, ctx, vals)
+	if err == nil {
+		t.Fatal("expected == string error")
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "<"}, SymbolExpr{Name: "a"}, SymbolExpr{Name: "b"}, SymbolExpr{Name: "a"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Lt(a, b) && flagrt.Lt(b, a))" {
+		t.Fatalf("< %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "name"}, StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindString {
+		t.Fatalf("name kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Name("x")` {
+		t.Fatalf("name %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "keyword"}, StringExpr{Value: "k"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Keyword("k")` {
+		t.Fatalf("keyword %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "format"}, StringExpr{Value: "%s"}, IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewString(flagrt.Format("%s", flagrt.NewLong(1)))` {
+		t.Fatalf("format %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "map"}, SymbolExpr{Name: "f"}, SymbolExpr{Name: "xs"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Map(f, xs)" {
+		t.Fatalf("map %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "filter"}, SymbolExpr{Name: "f"}, SymbolExpr{Name: "xs"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Filter(f, xs)" {
+		t.Fatalf("filter %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "reduce"}, SymbolExpr{Name: "f"}, SymbolExpr{Name: "xs"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Reduce(f, xs)" {
+		t.Fatalf("reduce %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "to-json"}, SymbolExpr{Name: "a"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindString {
+		t.Fatalf("to-json kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.ToJSON(a)" {
+		t.Fatalf("to-json %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "from-json"}, StringExpr{Value: "{}"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.FromJSON("{}")` {
+		t.Fatalf("from-json %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "open-file"}, StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.OpenFile("x")` {
+		t.Fatalf("open-file %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "file-to-strings"}, StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.FileToStringsPath("x")` {
+		t.Fatalf("file-to-strings %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "repeat"}, StringExpr{Value: "x"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Repeat(flagrt.NewString("x"))` {
+		t.Fatalf("repeat %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "map"}, SymbolExpr{Name: "f"}}}, ctx, vals)
+	if err == nil {
+		t.Fatal("expected map arity error")
+	}
+}
+
 func TestFLAGCompileFormThrow(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
@@ -1958,12 +2121,12 @@ func TestFLAGCompileFormUnhandled(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
 	_, err := flagCompileForm(ListExpr{Elements: []Expr{
-		SymbolExpr{Name: "map"},
-		SymbolExpr{Name: "f"},
-		SymbolExpr{Name: "xs"},
-	}}, ctx, map[string]exprKind{"f": exprKindValue, "xs": exprKindValue})
+		SymbolExpr{Name: "testing"},
+		StringExpr{Value: "label"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
 	if !flagUnhandled(err) {
-		t.Fatalf("expected unhandled map, got %v", err)
+		t.Fatalf("expected unhandled testing, got %v", err)
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
