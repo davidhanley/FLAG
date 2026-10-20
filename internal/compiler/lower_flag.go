@@ -1054,6 +1054,49 @@ func flagInternName(c *constantInterner, hint, code string) string {
 	return name
 }
 
+func arityDefToFLAG(a arityDef) flagrt.Value {
+	return flagrt.NewMap(
+		flagKW("arity-name"), flagrt.NewString(a.arityName),
+		flagKW("params"), stringsToFlagVector(a.params),
+		flagKW("local-inits"), stringsToFlagVector(a.localInits),
+		flagKW("body"), flagrt.NewString(a.body),
+		flagKW("body-prelude"), flagrt.NewString(a.bodyPrelude),
+		flagKW("has-rest"), flagrt.NewBool(a.hasRest),
+	)
+}
+
+func functionDefToFLAG(fn functionDef) flagrt.Value {
+	arities := make([]flagrt.Value, 0, len(fn.arities))
+	for _, a := range fn.arities {
+		arities = append(arities, arityDefToFLAG(a))
+	}
+	return flagrt.NewMap(
+		flagKW("flag-name"), flagrt.NewString(fn.flagName),
+		flagKW("go-name"), flagrt.NewString(fn.goName),
+		flagKW("variadic-name"), flagrt.NewString(fn.variadicName),
+		flagKW("arity-name"), flagrt.NewString(fn.arityName),
+		flagKW("has-rest"), flagrt.NewBool(fn.hasRest),
+		flagKW("doc"), flagrt.NewString(fn.doc),
+		flagKW("params"), stringsToFlagVector(fn.params),
+		flagKW("local-inits"), stringsToFlagVector(fn.localInits),
+		flagKW("body"), flagrt.NewString(fn.body),
+		flagKW("body-prelude"), flagrt.NewString(fn.bodyPrelude),
+		flagKW("go-signature"), flagrt.NewString(fn.goSignature),
+		flagKW("arities"), flagrt.NewArray(arities...),
+		flagKW("ir-decls"), irStmtsToFlagVector(fn.irDecls),
+	)
+}
+
+func flagRenderFunctionDef(fn functionDef) (out string, ok bool) {
+	defer func() {
+		if recover() != nil {
+			out = ""
+			ok = false
+		}
+	}()
+	return flagString(flagrt.Call(compiler__render_function_def, functionDefToFLAG(fn))), true
+}
+
 func flagCompileProgram(pkgName string, result compileResult, includeMain bool) (src []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1066,4 +1109,50 @@ func flagCompileProgram(pkgName string, result compileResult, includeMain bool) 
 	}
 	out := flagrt.Call(compiler__compile_program, flagrt.NewString(pkgName), flagResult, flagrt.NewBool(includeMain))
 	return []byte(flagString(out)), nil
+}
+
+func flagResolveImportPath(importerPath, importPath string) (path string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			path = ""
+		}
+	}()
+	out := flagrt.Call(compiler__resolve_import_path, flagrt.NewString(importerPath), flagrt.NewString(importPath))
+	return flagString(out), nil
+}
+
+func flagLoadProgram(entryPath string) (prog *Program, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			prog = nil
+		}
+	}()
+	out := flagrt.Call(compiler__load_program, flagrt.NewString(entryPath))
+	entry := flagString(flagrt.Get(out, flagKW("entry")))
+	mods := flagrt.Get(out, flagKW("modules"))
+	return programFromFLAGPaths(entry, mods)
+}
+
+func programFromFLAGPaths(entry string, modules flagrt.Value) (*Program, error) {
+	prog := &Program{byPath: map[string]*Module{}}
+	order := make([]*Module, 0, 8)
+	if !flagrt.IsNil(modules) {
+		for _, item := range flagrt.Vec(modules).ArrayValues() {
+			path := flagString(item)
+			mod, err := parseModuleTokenStream(path, TokenizeFileToChannel(path))
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", path, err)
+			}
+			prog.byPath[path] = mod
+			order = append(order, mod)
+		}
+	}
+	prog.Modules = order
+	prog.Entry = prog.byPath[entry]
+	if prog.Entry == nil {
+		return nil, fmt.Errorf("load-program: missing entry %s", entry)
+	}
+	return prog, nil
 }

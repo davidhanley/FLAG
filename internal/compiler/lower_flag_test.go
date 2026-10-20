@@ -3140,3 +3140,74 @@ func TestLetExprToGoUsesResultVar(t *testing.T) {
 		t.Fatalf("missing block:\n%s", rendered)
 	}
 }
+
+func TestFLAGRenderIRMatchesGo(t *testing.T) {
+	cases := []IRExpr{
+		IRIdent{Name: "x"},
+		IRString{Value: "hi"},
+		IRString{Value: "a\"b"},
+		IRInt{Value: 42},
+		IRInt{Value: -7},
+		IRSelector{Pkg: "flagrt", Name: "NewLong"},
+		IRSelector{Name: "println"},
+		rtCall("NilValue"),
+		rtCall("NewLong", IRInt{Value: 42}),
+		rtCall("NewString", IRString{Value: "hi"}),
+		IRRaw{Code: "1e2"},
+		IRIndex{X: IRIdent{Name: "args"}, Index: IRInt{Value: 0}},
+		IRSlice{X: IRIdent{Name: "args"}, Low: IRInt{Value: 2}},
+		IRCall{Fun: IRSelector{Pkg: "flagrt", Name: "Call"}, Args: []IRExpr{IRIdent{Name: "f"}, IRSpread{Expr: IRIdent{Name: "xs"}}}},
+		IRUnary{Op: "!", X: rtCall("IsTruthy", IRIdent{Name: "x"})},
+		IRBinary{Op: "!=", Left: identCall("len", IRIdent{Name: "args"}), Right: IRInt{Value: 1}},
+		IRFuncLit{Params: "args ...flagrt.Value", Result: "flagrt.Value", Body: []IRStmt{IRReturn{Expr: IRIdent{Name: "x"}}}},
+	}
+	for _, ir := range cases {
+		got, ok := flagRenderIRExpr(ir)
+		if !ok {
+			t.Fatalf("FLAG render failed for %#v", ir)
+		}
+		want := renderIRExprGo(ir)
+		if got != want {
+			t.Fatalf("FLAG %q want %q for %#v", got, want, ir)
+		}
+	}
+
+	stmts := []IRStmt{
+		IRVar{Name: "x", Type: "flagrt.Value"},
+		IRAssign{Name: "x", Expr: IRIdent{Name: "y"}},
+		IRReturn{Expr: IRIdent{Name: "x"}},
+		IRFuncDecl{Name: "foo_arity_1", Params: "x flagrt.Value", Result: "flagrt.Value", Body: []IRStmt{IRReturn{Expr: IRIdent{Name: "x"}}}},
+	}
+	got, ok := flagRenderIRStmts(stmts, "")
+	if !ok {
+		t.Fatal("FLAG render stmts failed")
+	}
+	want := renderIRStmtsGo(stmts, "")
+	if got != want {
+		t.Fatalf("FLAG stmts %q want %q", got, want)
+	}
+}
+
+func TestFLAGRenderFunctionDefMatchesGo(t *testing.T) {
+	cases := []functionDef{
+		{goName: "wrap", goSignature: "(p1 float64) float64", body: "\treturn p1\n"},
+		{irDecls: []IRStmt{IRFuncDecl{Name: "foo", Result: "flagrt.Value", Body: []IRStmt{IRReturn{Expr: rtCall("NilValue")}}}}},
+		{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"},
+		{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x"},
+		{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
+			{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
+			{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
+		}},
+		{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"},
+	}
+	for i, fn := range cases {
+		got, ok := flagRenderFunctionDef(fn)
+		if !ok {
+			t.Fatalf("case %d FLAG render failed", i)
+		}
+		want := renderFunctionDefGo(fn)
+		if got != want {
+			t.Fatalf("case %d FLAG:\n%s\nwant:\n%s", i, got, want)
+		}
+	}
+}

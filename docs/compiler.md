@@ -66,6 +66,7 @@ Canned fixture tests are `examples/compiler_tokenizer/macros/*.in` vs
 `libraries/compiler/ir.lib` is the FLAG form of `internal/compiler/ir.go`. Nodes
 are maps with a `:kind` keyword. `render-ir` / `render-ir-stmt` /
 `render-ir-stmts` must match `renderIRExpr` / `renderIRStmt` on the same trees.
+`lower.lib` hosts a production copy of that printer (Go does not embed `ir.lib`).
 
 Constructors (`ir-ident`, `ir-call`, `rt-call`, `iife`, …) build those maps.
 Go can ingest them with `flagValueToIRExpr` / `flagValueToIRStmt`.
@@ -102,7 +103,12 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
-`intern-ir`, `intern-decls`, `intern-form-ir`, `emit-go-file`, `compile-program`,
+`intern-ir`, `intern-decls`, `intern-form-ir`,
+`render-ir`, `render-ir-stmt`, `render-ir-stmts`, `render-function-def`,
+`format-go-source`, `abs-path`, `cwd-path`, `path-join`, `path-dir`,
+`path-ext`, `path-abs?`, `path-stat-kind`, `file-exists?`, `dir-exists?`,
+`library-search-roots`, `resolve-import-path`, `module-import-paths`,
+`load-program`, `emit-go-file`, `compile-program`,
 `module-go-ident`, `exported-go-ident`, `def-go-ident`, `bind-module-name`,
 `type-hint-to-go-type`, `exported-record-field-name`,
 `truncate-hint`, `const-form?`, `str-contains?`,
@@ -340,21 +346,31 @@ string becomes `flag`+hint (`flagKw_foo_1` on collision) and later uses reuse
 that var. `intern-decls` is the `{:name :code}` list in first-seen order.
 `sanitize-keyword-ident` keeps letters, digits, and `_`. Go `internIR` renders
 the IR expr, calls `intern-ir`, and returns `IRIdent` when hoisted.
-`intern-form-ir` does the same from an IR map (intern key via a subset of
-`render-ir`: ident/string/int/raw/selector/call). Production
+`intern-form-ir` does the same from an IR map (intern key via FLAG
+`render-ir`, matching Go `renderIRExpr`). Production
 `compile-form-to-ir` hoists `:char`, `:bigint`, `:ratio`, `:keyword`,
 `:quoted-symbol`, and `:quoted-list` when `:constants` is set, and writes the
 updated table back onto ctx so Go `decls()` can emit the vars.
 `compile-module-body` copies `:constants` (and `:if-temps`) from each compiled
 form onto the outer module ctx after `defn`/`def`/`deftest`.
 
+`render-ir` / `render-ir-stmt` / `render-ir-stmts` print IR maps the same way
+Go `renderIRExpr` / `renderIRStmt` / `renderIRStmts` print structs. `render-function-def`
+matches Go `renderFunctionDef`: custom `:go-signature` (using `:body` or
+`:body-source`), `:ir-decls`, multi-arity switch dispatch, `& rest` variadic,
+or arity plus variadic wrapper. `compile-module-body` stores that as `:source`.
 `emit-go-file` / `compile-program` print a compile-result map: package clause,
 imports (`fmt` / `strings` / `os` / extras / `flagrt`), namespace code, type
 decls, function sources (plus doc comments), interned `var`s, the test runner
 when tests are present, and `main` (entry `flag_main`/`main`, or top-level
 stmts). Library emit (`include-main` false) omits `main` and `strings`/`os`.
-Go `emitGoFile` / `CompileProgram` call FLAG then `go/format`. Loading the
-import graph stays in Go. `compileModuleBody` tries FLAG
+`compile-program` runs `format-go-source` (`go/format` via runtime
+`compiler/format-go-source`). `resolve-import-path` / `library-search-roots` /
+`load-program` walk the import graph (runtime path helpers; parse of
+`:imports` via `compiler/module-import-paths`). Go `LoadProgram` /
+`resolveImportPath` / `emitGoFile` call those FLAG functions. Remaining Go
+work is `seedImports` / the per-module compile loop, package-mode emit, and
+REPL/CLI glue. `compileModuleBody` tries FLAG
 `compile-module-body` (including `declare`, `go-interface`, `defrecord`,
 and top-level `println`/`print`/exprs) and falls back to Go only on
 remaining unhandled forms.
@@ -392,9 +408,10 @@ Expression lowering is on IR: literals, calls, collections, `if`/`do`/`let`/
 IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`/`defer`/`throw`/`future`/`doto`/`update!`/
 `try`/`doseq`/`for` MapCat assembly is FLAG, as are `go-interface`,
 `defrecord` type/ctor emit, intern-on-compile-form, leftover `.method`
-errors, and top-level `println`/`print`. Remaining Go IR work is
-`renderFunctionDef` (function printing). The package file printer is FLAG
-`emit-go-file`.
+errors, top-level `println`/`print`, and function printing
+(`render-function-def` / `render-ir*`). The package file printer is FLAG
+`emit-go-file`. Remaining Go work is calling those printers and loading
+the import graph.
 
 ## Package emit (`flag-lang build`)
 

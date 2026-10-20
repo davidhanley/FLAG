@@ -282,6 +282,13 @@ func (ctx compileContext) internIR(hint string, ir IRExpr) IRExpr {
 }
 
 func renderIRExpr(expr IRExpr) string {
+	if src, ok := flagRenderIRExpr(expr); ok {
+		return src
+	}
+	return renderIRExprGo(expr)
+}
+
+func renderIRExprGo(expr IRExpr) string {
 	switch e := expr.(type) {
 	case IRIdent:
 		return e.Name
@@ -298,30 +305,30 @@ func renderIRExpr(expr IRExpr) string {
 		args := make([]string, 0, len(e.Args))
 		for _, arg := range e.Args {
 			if spread, ok := arg.(IRSpread); ok {
-				args = append(args, renderIRExpr(spread.Expr)+"...")
+				args = append(args, renderIRExprGo(spread.Expr)+"...")
 				continue
 			}
-			args = append(args, renderIRExpr(arg))
+			args = append(args, renderIRExprGo(arg))
 		}
-		return fmt.Sprintf("%s(%s)", renderIRExpr(e.Fun), strings.Join(args, ", "))
+		return fmt.Sprintf("%s(%s)", renderIRExprGo(e.Fun), strings.Join(args, ", "))
 	case IRIndex:
-		return renderIRExpr(e.X) + "[" + renderIRExpr(e.Index) + "]"
+		return renderIRExprGo(e.X) + "[" + renderIRExprGo(e.Index) + "]"
 	case IRSlice:
 		low, high := "", ""
 		if e.Low != nil {
-			low = renderIRExpr(e.Low)
+			low = renderIRExprGo(e.Low)
 		}
 		if e.High != nil {
-			high = renderIRExpr(e.High)
+			high = renderIRExprGo(e.High)
 		}
-		return renderIRExpr(e.X) + "[" + low + ":" + high + "]"
+		return renderIRExprGo(e.X) + "[" + low + ":" + high + "]"
 	case IRUnary:
 		if e.Op == "!" {
-			return "!(" + renderIRExpr(e.X) + ")"
+			return "!(" + renderIRExprGo(e.X) + ")"
 		}
-		return e.Op + renderIRExpr(e.X)
+		return e.Op + renderIRExprGo(e.X)
 	case IRBinary:
-		return renderIRExpr(e.Left) + " " + e.Op + " " + renderIRExpr(e.Right)
+		return renderIRExprGo(e.Left) + " " + e.Op + " " + renderIRExprGo(e.Right)
 	case IRFuncLit:
 		var b strings.Builder
 		b.WriteString("func(")
@@ -332,7 +339,7 @@ func renderIRExpr(expr IRExpr) string {
 			b.WriteString(e.Result)
 		}
 		b.WriteString(" {\n")
-		b.WriteString(renderIRStmts(e.Body, "\t"))
+		b.WriteString(renderIRStmtsGo(e.Body, "\t"))
 		b.WriteString("}")
 		return b.String()
 	case IRRaw:
@@ -343,68 +350,82 @@ func renderIRExpr(expr IRExpr) string {
 }
 
 func renderIRStmts(stmts []IRStmt, indent string) string {
+	if src, ok := flagRenderIRStmts(stmts, indent); ok {
+		return src
+	}
+	return renderIRStmtsGo(stmts, indent)
+}
+
+func renderIRStmtsGo(stmts []IRStmt, indent string) string {
 	var b strings.Builder
 	for _, stmt := range stmts {
-		b.WriteString(renderIRStmt(stmt, indent))
+		b.WriteString(renderIRStmtGo(stmt, indent))
 	}
 	return b.String()
 }
 
 func renderIRStmt(stmt IRStmt, indent string) string {
+	if src, ok := flagRenderIRStmt(stmt, indent); ok {
+		return src
+	}
+	return renderIRStmtGo(stmt, indent)
+}
+
+func renderIRStmtGo(stmt IRStmt, indent string) string {
 	switch s := stmt.(type) {
 	case IRRawStmt:
 		return s.Code
 	case IRExprStmt:
 		if s.Discard {
-			return indent + "_ = " + renderIRExpr(s.Expr) + "\n"
+			return indent + "_ = " + renderIRExprGo(s.Expr) + "\n"
 		}
-		return indent + renderIRExpr(s.Expr) + "\n"
+		return indent + renderIRExprGo(s.Expr) + "\n"
 	case IRReturn:
 		if s.Expr == nil {
 			return indent + "return\n"
 		}
-		return indent + "return " + renderIRExpr(s.Expr) + "\n"
+		return indent + "return " + renderIRExprGo(s.Expr) + "\n"
 	case IRDefer:
-		return indent + "defer " + renderIRExpr(s.Expr) + "\n"
+		return indent + "defer " + renderIRExprGo(s.Expr) + "\n"
 	case IRGoStmt:
-		return indent + "go " + renderIRExpr(s.Expr) + "\n"
+		return indent + "go " + renderIRExprGo(s.Expr) + "\n"
 	case IRVar:
 		switch {
 		case s.Type != "" && s.Expr == nil:
 			return indent + "var " + s.Name + " " + s.Type + "\n"
 		case s.Type != "":
-			return indent + "var " + s.Name + " " + s.Type + " = " + renderIRExpr(s.Expr) + "\n"
+			return indent + "var " + s.Name + " " + s.Type + " = " + renderIRExprGo(s.Expr) + "\n"
 		default:
-			return indent + "var " + s.Name + " = " + renderIRExpr(s.Expr) + "\n"
+			return indent + "var " + s.Name + " = " + renderIRExprGo(s.Expr) + "\n"
 		}
 	case IRAssign:
-		return indent + s.Name + " = " + renderIRExpr(s.Expr) + "\n"
+		return indent + s.Name + " = " + renderIRExprGo(s.Expr) + "\n"
 	case IRDefine:
-		return indent + strings.Join(s.Names, ", ") + " := " + renderIRExpr(s.Expr) + "\n"
+		return indent + strings.Join(s.Names, ", ") + " := " + renderIRExprGo(s.Expr) + "\n"
 	case IRIfStmt:
 		var b strings.Builder
 		if s.Init != "" {
-			fmt.Fprintf(&b, "%sif %s; %s {\n", indent, s.Init, renderIRExpr(s.Cond))
+			fmt.Fprintf(&b, "%sif %s; %s {\n", indent, s.Init, renderIRExprGo(s.Cond))
 		} else {
-			fmt.Fprintf(&b, "%sif %s {\n", indent, renderIRExpr(s.Cond))
+			fmt.Fprintf(&b, "%sif %s {\n", indent, renderIRExprGo(s.Cond))
 		}
-		b.WriteString(renderIRStmts(s.Then, indent+"\t"))
+		b.WriteString(renderIRStmtsGo(s.Then, indent+"\t"))
 		if len(s.Else) > 0 {
 			b.WriteString(indent + "} else {\n")
-			b.WriteString(renderIRStmts(s.Else, indent+"\t"))
+			b.WriteString(renderIRStmtsGo(s.Else, indent+"\t"))
 		}
 		b.WriteString(indent + "}\n")
 		return b.String()
 	case IRForStmt:
 		var b strings.Builder
 		b.WriteString(indent + "for {\n")
-		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(renderIRStmtsGo(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()
 	case IRBlock:
 		var b strings.Builder
 		b.WriteString(indent + "{\n")
-		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(renderIRStmtsGo(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()
 	case IRFuncDecl:
@@ -415,7 +436,7 @@ func renderIRStmt(stmt IRStmt, indent string) string {
 			b.WriteString(s.Result)
 		}
 		b.WriteString(" {\n")
-		b.WriteString(renderIRStmts(s.Body, indent+"\t"))
+		b.WriteString(renderIRStmtsGo(s.Body, indent+"\t"))
 		b.WriteString(indent + "}\n")
 		return b.String()
 	default:

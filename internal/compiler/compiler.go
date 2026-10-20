@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"go/format"
 	"go/token"
 	"path/filepath"
 	"sort"
@@ -700,15 +699,7 @@ func emitGoProgram(result compileResult) ([]byte, error) {
 }
 
 func emitGoFile(pkgName string, result compileResult, includeMain bool) ([]byte, error) {
-	src, err := flagCompileProgram(pkgName, result, includeMain)
-	if err != nil {
-		return nil, err
-	}
-	formatted, err := format.Source(src)
-	if err != nil {
-		return nil, fmt.Errorf("format generated Go: %w", err)
-	}
-	return formatted, nil
+	return flagCompileProgram(pkgName, result, includeMain)
 }
 
 func writeDocComment(out *bytes.Buffer, doc string) {
@@ -5227,12 +5218,19 @@ func toGoIdentifier(name string) (string, error) {
 }
 
 func renderFunctionDef(fn functionDef) string {
+	if src, ok := flagRenderFunctionDef(fn); ok {
+		return src
+	}
+	return renderFunctionDefGo(fn)
+}
+
+func renderFunctionDefGo(fn functionDef) string {
 	// Handle go-interface wrappers with custom Go signatures
 	if fn.goSignature != "" {
 		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
 	}
 	if len(fn.irDecls) > 0 {
-		return renderIRStmts(fn.irDecls, "")
+		return renderIRStmtsGo(fn.irDecls, "")
 	}
 	if len(fn.arities) > 0 {
 		var out strings.Builder

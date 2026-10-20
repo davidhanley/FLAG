@@ -385,3 +385,39 @@ func stringsToFlagVector(names []string) flagrt.Value {
 	}
 	return flagrt.NewArray(vals...)
 }
+
+func flagRenderIRExpr(expr IRExpr) (out string, ok bool) {
+	if expr == nil {
+		return "", false
+	}
+	defer func() {
+		if recover() != nil {
+			out = ""
+			ok = false
+		}
+	}()
+	return flagString(flagrt.Call(compiler__render_ir, irExprToFlagValue(expr))), true
+}
+
+func flagRenderIRStmt(stmt IRStmt, indent string) (out string, ok bool) {
+	if stmt == nil {
+		return "", false
+	}
+	defer func() {
+		if recover() != nil {
+			out = ""
+			ok = false
+		}
+	}()
+	return flagString(flagrt.Call(compiler__render_ir_stmt, irStmtToFlagValue(stmt), flagrt.NewString(indent))), true
+}
+
+func flagRenderIRStmts(stmts []IRStmt, indent string) (out string, ok bool) {
+	defer func() {
+		if recover() != nil {
+			out = ""
+			ok = false
+		}
+	}()
+	return flagString(flagrt.Call(compiler__render_ir_stmts, irStmtsToFlagVector(stmts), flagrt.NewString(indent))), true
+}

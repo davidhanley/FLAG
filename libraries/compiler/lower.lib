@@ -29,6 +29,11 @@
              form-defer-result forms-have-defer? list-head-name catch-type-name
              parse-catch-clause split-try-args
              sanitize-keyword-ident intern-ir intern-decls intern-form-ir
+             render-ir render-ir-stmt render-ir-stmts render-function-def
+             format-go-source abs-path cwd-path path-join path-dir path-ext
+             path-abs? path-stat-kind file-exists? dir-exists?
+             library-search-roots resolve-import-path module-import-paths
+             load-program
              emit-go-file compile-program
              module-go-ident exported-go-ident def-go-ident bind-module-name
              type-hint-to-go-type exported-record-field-name
@@ -2023,42 +2028,145 @@
     []
     (or (:order constants) [])))
 
-(defn intern-form-code-node [mode node]
+(defn blank-str? [s]
+  (or (nil? s) (= "" s)))
+
+(defn join-ir-names [names]
+  (loop [remaining (stmt-list names) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [piece (str (first remaining))]
+        (recur (rest remaining)
+               (if (= out "")
+                 piece
+                 (str out ", " piece)))))))
+
+(defn render-ir-node [mode node indent]
   (cond
-    (= mode :args)
-    (loop [remaining (stmt-list node) out "" first? true]
+    (= mode :stmts)
+    (loop [remaining (stmt-list node) out ""]
       (if (or (nil? remaining) (empty? remaining))
         out
-        (let [arg (first remaining)
-              piece (if (= :spread (:kind arg))
-                      (str (intern-form-code-node :expr (:expr arg)) "...")
-                      (intern-form-code-node :expr arg))]
-          (if first?
-            (recur (rest remaining) piece false)
-            (recur (rest remaining) (str out ", " piece) false)))))
+        (recur (rest remaining)
+               (str out (render-ir-node :stmt (first remaining) indent)))))
 
-    :else
+    (= mode :expr)
     (let [kind (:kind node)]
       (cond
         (= kind :ident) (:name node)
         (= kind :string) (format "%q" (:value node))
         (= kind :int) (str (:value node))
-        (= kind :raw) (:code node)
         (= kind :selector)
-        (if (or (nil? (:pkg node)) (= "" (:pkg node)))
+        (if (blank-str? (:pkg node))
           (:name node)
           (str (:pkg node) "." (:name node)))
         (= kind :call)
-        (str (intern-form-code-node :expr (:fun node))
-             "("
-             (intern-form-code-node :args (:args node))
-             ")")
-        :else (throw (ex-info "intern-form-ir: unsupported IR" {:node node}))))))
+        (loop [remaining (stmt-list (:args node)) out "" first? true]
+          (if (or (nil? remaining) (empty? remaining))
+            (str (render-ir-node :expr (:fun node) "") "(" out ")")
+            (let [arg (first remaining)
+                  piece (if (= :spread (:kind arg))
+                          (str (render-ir-node :expr (:expr arg) "") "...")
+                          (render-ir-node :expr arg ""))]
+              (if first?
+                (recur (rest remaining) piece false)
+                (recur (rest remaining) (str out ", " piece) false)))))
+        (= kind :index)
+        (str (render-ir-node :expr (:x node) "") "[" (render-ir-node :expr (:index node) "") "]")
+        (= kind :slice)
+        (let [low (if (nil? (:low node)) "" (render-ir-node :expr (:low node) ""))
+              high (if (nil? (:high node)) "" (render-ir-node :expr (:high node) ""))]
+          (str (render-ir-node :expr (:x node) "") "[" low ":" high "]"))
+        (= kind :unary)
+        (if (= "!" (:op node))
+          (str "!(" (render-ir-node :expr (:x node) "") ")")
+          (str (:op node) (render-ir-node :expr (:x node) "")))
+        (= kind :binary)
+        (str (render-ir-node :expr (:left node) "") " " (:op node) " " (render-ir-node :expr (:right node) ""))
+        (= kind :func-lit)
+        (let [result (:result node)
+              head (if (blank-str? result)
+                     (str "func(" (:params node) ")")
+                     (str "func(" (:params node) ") " result))]
+          (str head " {\n" (render-ir-node :stmts (:body node) "\t") "}"))
+        (= kind :raw) (:code node)
+        :else (throw (ex-info "unsupported IR expression" {:node node}))))
+
+    (= mode :stmt)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :raw-stmt) (:code node)
+        (= kind :expr-stmt)
+        (if (:discard node)
+          (str indent "_ = " (render-ir-node :expr (:expr node) "") "\n")
+          (str indent (render-ir-node :expr (:expr node) "") "\n"))
+        (= kind :return)
+        (if (nil? (:expr node))
+          (str indent "return\n")
+          (str indent "return " (render-ir-node :expr (:expr node) "") "\n"))
+        (= kind :defer)
+        (str indent "defer " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :go)
+        (str indent "go " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :var)
+        (let [name (:name node)
+              type (:type node)
+              expr (:expr node)]
+          (cond
+            (and (not (blank-str? type)) (nil? expr))
+            (str indent "var " name " " type "\n")
+            (not (blank-str? type))
+            (str indent "var " name " " type " = " (render-ir-node :expr expr "") "\n")
+            :else
+            (str indent "var " name " = " (render-ir-node :expr expr "") "\n")))
+        (= kind :assign)
+        (str indent (:name node) " = " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :define)
+        (str indent (join-ir-names (:names node)) " := " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :if)
+        (let [init (:init node)
+              head (if (blank-str? init)
+                     (str indent "if " (render-ir-node :expr (:cond node) "") " {\n")
+                     (str indent "if " init "; " (render-ir-node :expr (:cond node) "") " {\n"))
+              then-block (render-ir-node :stmts (:then node) (str indent "\t"))
+              else-part (if (or (nil? (:else node)) (empty? (:else node)))
+                          ""
+                          (str indent "} else {\n"
+                               (render-ir-node :stmts (:else node) (str indent "\t"))))]
+          (str head then-block else-part indent "}\n"))
+        (= kind :for)
+        (str indent "for {\n"
+             (render-ir-node :stmts (:body node) (str indent "\t"))
+             indent "}\n")
+        (= kind :block)
+        (str indent "{\n"
+             (render-ir-node :stmts (:body node) (str indent "\t"))
+             indent "}\n")
+        (= kind :func-decl)
+        (let [result (:result node)
+              head (if (blank-str? result)
+                     (str indent "func " (:name node) "(" (:params node) ")")
+                     (str indent "func " (:name node) "(" (:params node) ") " result))]
+          (str head " {\n"
+               (render-ir-node :stmts (:body node) (str indent "\t"))
+               indent "}\n"))
+        :else (throw (ex-info "unsupported IR statement" {:node node}))))
+
+    :else (throw (ex-info "unsupported IR render mode" {:mode mode}))))
+
+(defn render-ir [node]
+  (render-ir-node :expr node ""))
+
+(defn render-ir-stmt [node indent]
+  (render-ir-node :stmt node indent))
+
+(defn render-ir-stmts [stmts indent]
+  (render-ir-node :stmts stmts indent))
 
 (defn intern-form-ir [ctx hint ir]
   (if (nil? (:constants ctx))
     {:ir ir :ctx ctx}
-    (let [code (intern-form-code-node :expr ir)
+    (let [code (render-ir ir)
           out (intern-ir (:constants ctx) hint code)]
       {:ir (if (= (:name out) code) ir {:kind :ident :name (:name out)})
        :ctx (assoc ctx :constants (:constants out))})))
@@ -3612,7 +3720,7 @@
            ""))))
 
 (defn compile-program [pkg-name result include-main]
-  (emit-go-file pkg-name result include-main))
+  ((go-fn "compiler/format-go-source") (emit-go-file pkg-name result include-main)))
 
 (defn ast-symbol-name [node]
   (let [n (unwrap-ast node)]
@@ -3946,6 +4054,304 @@
                  item
                  (str out sep item)))))))
 
+(defn space-char? [ch]
+  (or (= ch " ") (= ch "\t") (= ch "\n") (= ch "\r")))
+
+(defn trim-space [s]
+  (loop [text (str s)]
+    (if (or (nil? text) (= 0 (count text)))
+      ""
+      (if (space-char? (subs text 0 1))
+        (recur (subs text 1))
+        (loop [end (count text)]
+          (if (= 0 end)
+            ""
+            (if (space-char? (subs text (- end 1) end))
+              (recur (- end 1))
+              (subs text 0 end))))))))
+
+(defn starts-with-str? [s prefix]
+  (let [text (str s)
+        want (str prefix)
+        n (count want)]
+    (and (>= (count text) n) (= want (subs text 0 n)))))
+
+(defn format-go-source [src]
+  ((go-fn "compiler/format-go-source") src))
+
+(defn abs-path [path]
+  ((go-fn "compiler/abs-path") path))
+
+(defn cwd-path []
+  ((go-fn "compiler/cwd-path")))
+
+(defn path-join [a b]
+  ((go-fn "compiler/path-join") a b))
+
+(defn path-dir [path]
+  ((go-fn "compiler/path-dir") path))
+
+(defn path-ext [path]
+  ((go-fn "compiler/path-ext") path))
+
+(defn path-abs? [path]
+  ((go-fn "compiler/path-abs?") path))
+
+(defn path-stat-kind [path]
+  ((go-fn "compiler/path-stat-kind") path))
+
+(defn file-exists? [path]
+  (= (path-stat-kind path) "file"))
+
+(defn dir-exists? [path]
+  (= (path-stat-kind path) "dir"))
+
+(defn module-import-paths [path]
+  ((go-fn "compiler/module-import-paths") path))
+
+(defn add-library-root [dir seen roots]
+  (let [abs (abs-path dir)]
+    (if (contains? seen abs)
+      {:seen seen :roots roots}
+      {:seen (assoc seen abs true) :roots (conj roots abs)})))
+
+(defn walk-library-root [start seen roots]
+  (loop [dir start seen seen roots roots]
+    (let [lib (path-join dir "libraries")
+          added (if (dir-exists? lib)
+                  (add-library-root dir seen roots)
+                  {:seen seen :roots roots})
+          seen2 (:seen added)
+          roots2 (:roots added)
+          gom (path-join dir "go.mod")]
+      (if (file-exists? gom)
+        (add-library-root dir seen2 roots2)
+        (let [parent (path-dir dir)]
+          (if (= parent dir)
+            {:seen seen2 :roots roots2}
+            (recur parent seen2 roots2)))))))
+
+(defn library-search-roots [importer-path]
+  (let [starts (if (or (nil? importer-path) (= importer-path ""))
+                 [(cwd-path)]
+                 [(path-dir importer-path) (cwd-path)])]
+    (:roots (loop [remaining starts seen {} roots []]
+              (if (or (nil? remaining) (empty? remaining))
+                {:seen seen :roots roots}
+                (let [walked (walk-library-root (first remaining) seen roots)]
+                  (recur (rest remaining) (:seen walked) (:roots walked))))))))
+
+(defn import-path-candidates [importer-path import-path]
+  (if (path-abs? import-path)
+    [import-path]
+    (let [dir (path-dir importer-path)
+          cwd (cwd-path)
+          rel [(path-join dir import-path) (path-join cwd import-path)]]
+      (loop [remaining (library-search-roots importer-path) out rel]
+        (if (or (nil? remaining) (empty? remaining))
+          out
+          (recur (rest remaining)
+                 (conj out (path-join (path-join (first remaining) "libraries") import-path))))))))
+
+(defn try-source-file [abs tried]
+  (if (file-exists? abs)
+    {:path abs :tried tried}
+    (if (= (path-ext abs) "")
+      (loop [exts [".flag" ".lib" ".flaglib"] tried tried]
+        (if (or (nil? exts) (empty? exts))
+          {:path nil :tried tried}
+          (let [with-ext (str abs (first exts))
+                tried2 (conj tried with-ext)]
+            (if (file-exists? with-ext)
+              {:path with-ext :tried tried2}
+              (recur (rest exts) tried2)))))
+      {:path nil :tried tried})))
+
+(defn resolve-import-path [importer-path import-path]
+  (let [trimmed (trim-space import-path)]
+    (if (= trimmed "")
+      (throw (ex-info "empty import path" {}))
+      (loop [cands (import-path-candidates importer-path trimmed) tried []]
+        (if (or (nil? cands) (empty? cands))
+          (throw (ex-info (str "not found (tried " (join-strings tried ", ") ")") {}))
+          (let [abs (abs-path (first cands))
+                hit (try-source-file abs (conj tried abs))]
+            (if (nil? (:path hit))
+              (recur (rest cands) (:tried hit))
+              (:path hit))))))))
+
+(defn load-program-modules [path seen stack order]
+  (let [abs (abs-path path)]
+    (if (contains? seen abs)
+      {:seen seen :order order}
+      (if (contains? stack abs)
+        (throw (ex-info (str "circular import involving " abs) {}))
+        (let [stack2 (assoc stack abs true)
+              loaded (loop [remaining (or (module-import-paths abs) []) seen seen order order]
+                       (if (or (nil? remaining) (empty? remaining))
+                         {:seen seen :order order}
+                         (let [resolved (resolve-import-path abs (str (first remaining)))
+                               nested (load-program-modules resolved seen stack2 order)]
+                           (recur (rest remaining) (:seen nested) (:order nested)))))]
+          {:seen (assoc (:seen loaded) abs true)
+           :order (conj (:order loaded) abs)})))))
+
+(defn load-program [entry-path]
+  (let [abs (abs-path entry-path)
+        kind (path-stat-kind abs)]
+    (cond
+      (= kind "missing")
+      (throw (ex-info (str "stat " entry-path ": file does not exist") {}))
+      (= kind "dir")
+      (throw (ex-info (str "LoadProgram expects a file entry, got directory " abs " (pass main.flag or similar)") {}))
+      :else
+      (let [loaded (load-program-modules abs {} {} [])]
+        {:entry abs :modules (:order loaded)}))))
+
+(defn first-token [s]
+  (loop [remaining (trim-space s) out ""]
+    (if (or (nil? remaining) (= 0 (count remaining)))
+      out
+      (let [ch (subs remaining 0 1)]
+        (if (space-char? ch)
+          out
+          (recur (subs remaining 1) (str out ch)))))))
+
+(defn var-init-name [line]
+  (let [trimmed (trim-space line)]
+    (if (starts-with-str? trimmed "var ")
+      (first-token (subs trimmed 4))
+      "")))
+
+(defn render-local-inits [lines]
+  (loop [remaining (stmt-list lines) out ""]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [line (str (first remaining))
+            name (var-init-name line)
+            extra (if (= name "")
+                    ""
+                    (str "\t_ = " name "\n"))]
+        (recur (rest remaining) (str out line extra))))))
+
+(defn render-direct-param-list [params]
+  (loop [remaining (stmt-list params) parts []]
+    (if (or (nil? remaining) (empty? remaining))
+      (join-strings parts ", ")
+      (recur (rest remaining)
+             (conj parts (str (first remaining) " flagrt.Value"))))))
+
+(defn render-call-args [n]
+  (loop [i 0 parts []]
+    (if (= i n)
+      (join-strings parts ", ")
+      (recur (inc i) (conj parts (str "args[" i "]"))))))
+
+(defn render-variadic-function-body [fn]
+  (let [params (stmt-list (:params fn))
+        n (count params)
+        arity (:arity-name fn)]
+    (str "\tif len(args) != " n " {\n"
+         "\t\tpanic(" (format "%q" (str (:go-name fn) " expects exactly " n " arguments")) ")\n"
+         "\t}\n"
+         (if (= n 0)
+           (str "\treturn " arity "()\n")
+           (str "\treturn " arity "(" (render-call-args n) ")\n")))))
+
+(defn render-standalone-variadic-body [fn]
+  (let [params (stmt-list (:params fn))
+        n (count params)
+        check (if (:has-rest fn)
+                (str "\tif len(args) < " n " {\n"
+                     "\t\tpanic(" (format "%q" (str (:go-name fn) " expects at least " n " arguments")) ")\n"
+                     "\t}\n")
+                (str "\tif len(args) != " n " {\n"
+                     "\t\tpanic(" (format "%q" (str (:go-name fn) " expects exactly " n " arguments")) ")\n"
+                     "\t}\n"))
+        binds (loop [remaining params i 0 out ""]
+                (if (or (nil? remaining) (empty? remaining))
+                  out
+                  (let [param (str (first remaining))
+                        line (if (= param "_")
+                               (str "\t_ = args[" i "]\n")
+                               (str "\t" param " := args[" i "]\n"))]
+                    (recur (rest remaining) (inc i) (str out line)))))]
+    (str check binds (render-local-inits (:local-inits fn)) (or (:body-prelude fn) "")
+         "\treturn " (if (blank-str? (:body fn)) (or (:body-source fn) "") (:body fn)) "\n")))
+
+(defn render-multi-arity-dispatch [fn]
+  (let [arities (stmt-list (:arities fn))
+        counts (loop [remaining arities out []]
+                 (if (or (nil? remaining) (empty? remaining))
+                   out
+                   (recur (rest remaining)
+                          (conj out (count (stmt-list (:params (first remaining))))))))
+        cases (loop [remaining arities out "\tswitch len(args) {\n"]
+                (if (or (nil? remaining) (empty? remaining))
+                  out
+                  (let [a (first remaining)
+                        n (count (stmt-list (:params a)))
+                        call (if (= n 0)
+                               (str "\t\treturn " (:arity-name a) "()\n")
+                               (str "\t\treturn " (:arity-name a) "(" (render-call-args n) ")\n"))]
+                    (recur (rest remaining)
+                           (str out "\tcase " n ":\n" call)))))]
+    (str cases
+         "\tdefault:\n\t\tpanic(" (format "%q" (multi-arity-expects-msg (:flag-name fn) counts)) ")\n"
+         "\t}\n")))
+
+(defn render-arity-function [parent arity]
+  (str "func " (:arity-name arity) "(" (render-direct-param-list (:params arity)) ") flagrt.Value {\n"
+       (render-local-inits (:local-inits arity))
+       (or (:body-prelude arity) "")
+       "\treturn " (:body arity) "\n}\n\n"))
+
+(defn function-body-source [fn]
+  (if (blank-str? (:body fn))
+    (or (:body-source fn) "")
+    (:body fn)))
+
+(defn render-function-def [fn]
+  (cond
+    (not (blank-str? (:go-signature fn)))
+    (str "func " (:go-name fn) (:go-signature fn) " {\n" (function-body-source fn) "}\n")
+
+    (not (or (nil? (:ir-decls fn)) (empty? (:ir-decls fn))))
+    (render-ir-stmts (:ir-decls fn) "")
+
+    (not (or (nil? (:arities fn)) (empty? (:arities fn))))
+    (str (loop [remaining (stmt-list (:arities fn)) out ""]
+           (if (or (nil? remaining) (empty? remaining))
+             out
+             (recur (rest remaining)
+                    (str out (render-arity-function fn (first remaining))))))
+         "func " (:variadic-name fn) "(args ...flagrt.Value) flagrt.Value {\n"
+         (render-multi-arity-dispatch fn)
+         "}\n")
+
+    (:has-rest fn)
+    (str "func " (:variadic-name fn) "(args ...flagrt.Value) flagrt.Value {\n"
+         (render-standalone-variadic-body fn)
+         "}\n")
+
+    :else
+    (str "func " (:arity-name fn) "(" (render-direct-param-list (:params fn)) ") flagrt.Value {\n"
+         (render-local-inits (:local-inits fn))
+         (or (:body-prelude fn) "")
+         "\treturn " (function-body-source fn) "\n}\n\n"
+         "func " (:variadic-name fn) "(args ...flagrt.Value) flagrt.Value {\n"
+         (render-variadic-function-body fn)
+         "}\n")))
+
+(defn function-with-source [fn]
+  (assoc fn :source (render-function-def fn)))
+
+(defn functions-with-source [fns]
+  (loop [remaining (stmt-list fns) out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (conj out (function-with-source (first remaining)))))))
+
 (defn box-go-value [var-name go-type]
   (cond
     (= go-type "float64") (str "flagrt.NewDouble(" var-name ")")
@@ -3992,7 +4398,7 @@
   (let [out (intern-form-ir ctx
                             (str "Kw_" (sanitize-keyword-ident flag-name))
                             (literal-rt-call "NewKeyword" [{:kind :string :value flag-name}]))]
-    {:code (intern-form-code-node :expr (:ir out))
+    {:code (render-ir (:ir out))
      :ctx (:ctx out)}))
 
 (defn parse-record-field [expr]
@@ -4300,7 +4706,7 @@
           (= op :defn)
           (recur (rest remaining)
                  (:ctx item)
-                 (conj functions (:function item))
+                 (conj functions (function-with-source (:function item)))
                  (conj vars (:var item))
                  tests
                  stmts
@@ -4322,7 +4728,7 @@
           (= op :deftest)
           (recur (rest remaining)
                  (:ctx item)
-                 (conj functions (:function item))
+                 (conj functions (function-with-source (:function item)))
                  vars
                  (conj tests (:test item))
                  stmts
@@ -4344,7 +4750,7 @@
           (= op :go-interface)
           (recur (rest remaining)
                  (:ctx item)
-                 (conj functions (:function item))
+                 (conj functions (function-with-source (:function item)))
                  vars
                  tests
                  stmts
@@ -4355,7 +4761,7 @@
           (= op :defrecord)
           (recur (rest remaining)
                  (:ctx item)
-                 (concat-stmts functions (:functions item))
+                 (concat-stmts functions (functions-with-source (:functions item)))
                  (concat-stmts vars (:vars item))
                  tests
                  stmts
