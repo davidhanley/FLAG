@@ -161,11 +161,14 @@ Only **exported** names are visible across the import boundary.
 | `:refer [a b]` | unqualified `a`, `b` in current module |
 | not in `:exports` | never importable |
 
-There is **no** Clojure-style `:refer :all` in v1.
+User headers still list `:refer` names explicitly. The implicit prelude import is the exception (`:refer :all`).
 
 ## Stdlib and non-default packages
 
-Language prelude (core special forms and builtins) needs no import.
+The language prelude is a normal FLAG module (`internal/compiler/prologue.flag`).
+`load-program` loads it first; every other module implicitly imports it
+(`:as ""`, `:refer :all`, no Go import unless the emitted code uses `prologue.`).
+User files do not list it in `:imports`.
 
 Project libraries live under **`libraries/`** as `.lib` modules. Import them explicitly:
 

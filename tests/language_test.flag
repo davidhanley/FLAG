@@ -307,6 +307,9 @@
                (+ a b (first r) (count all)))))
     (is (= 11 (let [{:keys [a b] :or {b 9} :as m} {:a 1}]
                 (+ a b (count m)))))
+    (is (= 3 (let [{:keys [a] :or {a (+ 1 2)}} {}] a)))
+    (is (= 3 (let [(a b) [1 2]] (+ a b))))
+    (is (= 10 (let [#{x} #{10}] x)))
     (is (= 6 (add-pair [1 2] {:x 3})))))
 
 (deftest collections

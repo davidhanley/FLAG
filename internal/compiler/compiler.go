@@ -491,15 +491,19 @@ func allConstExprs(exprs []Expr) bool {
 //go:embed prologue.flag
 var standardPrologueSource string
 
-func newCompileContext() (compileContext, error) {
+func newEmptyCompileContext() compileContext {
 	ifTemps := 0
-	ctx := compileContext{
+	return compileContext{
 		functions:     make(map[string]functionDef),
 		globals:       make(map[string]exprKind),
 		moduleSymbols: make(map[string]string),
 		recordTypes:   make(map[string]string),
 		ifTemps:       &ifTemps,
 	}
+}
+
+func newCompileContext() (compileContext, error) {
+	ctx := newEmptyCompileContext()
 	if err := loadStandardPrologue(&ctx); err != nil {
 		return compileContext{}, err
 	}
@@ -514,6 +518,9 @@ func loadStandardPrologue(ctx *compileContext) error {
 	var seed []Expr
 	var rest []Expr
 	for _, form := range prologueAST.Forms {
+		if _, isMap := form.(MapExpr); isMap {
+			continue
+		}
 		list, ok := form.(ListExpr)
 		if !ok || len(list.Elements) == 0 {
 			return fmt.Errorf("invalid compiler prologue form")
@@ -1137,12 +1144,11 @@ func compileTokenStream(tokens <-chan SourceToken, path string) (compileResult, 
 }
 
 func compileParsedModule(mod *Module, path string) (compileResult, error) {
-	if mod.HasModuleHeader && len(mod.Header.Imports) > 0 {
-		if path == "" {
-			return compileResult{}, fmt.Errorf("module imports require compiling from a file path (use flag-lang build <file.flag>)")
-		}
-		// Single-file compile with imports: load full program from this path.
+	if path != "" {
 		return compileProgram(path, nil)
+	}
+	if mod.HasModuleHeader && len(mod.Header.Imports) > 0 {
+		return compileResult{}, fmt.Errorf("module imports require compiling from a file path (use flag-lang build <file.flag>)")
 	}
 
 	ctx, err := newCompileContext()
@@ -1171,7 +1177,15 @@ func compileParsedModule(mod *Module, path string) (compileResult, error) {
 }
 
 func compileProgram(entryPath string, testPaths []string) (compileResult, error) {
-	prog, err := LoadProgram(entryPath)
+	result, err := flagCompileInlineProgram(entryPath, testPaths)
+	if err == nil || !flagUnhandled(err) {
+		return result, err
+	}
+	return compileProgramGo(entryPath, testPaths)
+}
+
+func compileProgramGo(entryPath string, testPaths []string) (compileResult, error) {
+	prog, err := loadProgramGo(entryPath)
 	if err != nil {
 		return compileResult{}, err
 	}
@@ -1264,6 +1278,14 @@ func compileProgram(entryPath string, testPaths []string) (compileResult, error)
 }
 
 func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]Expr) error {
+	err := flagSeedImports(ctx, mod, byPath, moduleDefs, moduleMacros)
+	if err == nil || !flagUnhandled(err) {
+		return err
+	}
+	return seedImportsGo(ctx, mod, byPath, moduleDefs, moduleMacros)
+}
+
+func seedImportsGo(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]Expr) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
@@ -1359,6 +1381,14 @@ func seedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, mo
 }
 
 func validateExports(mod *Module, defined map[string]string, definedMacros map[string]Expr) error {
+	err := flagValidateExports(mod, defined, definedMacros)
+	if err == nil || !flagUnhandled(err) {
+		return err
+	}
+	return validateExportsGo(mod, defined, definedMacros)
+}
+
+func validateExportsGo(mod *Module, defined map[string]string, definedMacros map[string]Expr) error {
 	if !mod.HasModuleHeader {
 		return nil
 	}
@@ -1424,17 +1454,15 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 		}
 	}
 
-	if !ctx.allowRedefine {
-		if flagResult, flagDefined, flagErr := flagCompileModuleBody(expandedForms, ctx, allowTopLevel); flagErr == nil {
-			for name, goName := range flagDefined {
-				defined[name] = goName
-			}
-			flagResult.vars = append(vars, flagResult.vars...)
-			flagResult.needsFmt = needsFmt || flagResult.needsFmt
-			return flagResult, defined, definedMacros, nil
-		} else if !flagUnhandled(flagErr) {
-			return compileResult{}, nil, nil, flagErr
+	if flagResult, flagDefined, flagErr := flagCompileModuleBody(expandedForms, ctx, allowTopLevel); flagErr == nil {
+		for name, goName := range flagDefined {
+			defined[name] = goName
 		}
+		flagResult.vars = append(vars, flagResult.vars...)
+		flagResult.needsFmt = needsFmt || flagResult.needsFmt
+		return flagResult, defined, definedMacros, nil
+	} else if !flagUnhandled(flagErr) {
+		return compileResult{}, nil, nil, flagErr
 	}
 
 	pendingForms := append([]Expr(nil), expandedForms...)
@@ -1960,6 +1988,13 @@ func strArgExprForGoCall(args []Expr, ctx compileContext, locals map[string]expr
 }
 
 func exprToGo(expr Expr, ctx compileContext, locals map[string]exprKind) (goExpr, error) {
+	got, err := flagCompileForm(expr, ctx, locals)
+	if err == nil {
+		return got, nil
+	}
+	if !flagUnhandled(err) {
+		return goExpr{}, annotateExprError(expr, err)
+	}
 	if isLiteralExpr(expr) {
 		got, err := literalExprToGo(expr, ctx)
 		return got, annotateExprError(expr, err)

@@ -27,7 +27,15 @@ const ProloguePackageName = "prologue"
 // flagbuild/<pkg>. The language prelude is one more library package
 // (flagbuild/prologue); it is not copied into importers.
 func CompileProgramPackages(entryPath string) ([]CompiledPackage, error) {
-	prog, err := LoadProgram(entryPath)
+	pkgs, err := flagCompileProgramPackages(entryPath)
+	if err == nil || !flagUnhandled(err) {
+		return pkgs, err
+	}
+	return compileProgramPackagesGo(entryPath)
+}
+
+func compileProgramPackagesGo(entryPath string) ([]CompiledPackage, error) {
+	prog, err := loadProgramGo(entryPath)
 	if err != nil {
 		return nil, err
 	}
@@ -296,6 +304,13 @@ func emitPrologueFlagI(ctx compileContext) []byte {
 }
 
 func emitFlagI(ns string, exports []string, goExports map[string]string, macros map[string]Expr, defined map[string]string) []byte {
+	if src, err := flagEmitFlagI(ns, exports, goExports, macros, defined); err == nil {
+		return src
+	}
+	return emitFlagIGo(ns, exports, goExports, macros, defined)
+}
+
+func emitFlagIGo(ns string, exports []string, goExports map[string]string, macros map[string]Expr, defined map[string]string) []byte {
 	seen := map[string]bool{}
 	unique := make([]string, 0, len(exports))
 	for _, name := range exports {
@@ -369,6 +384,13 @@ func WriteProgramPackages(dir, entryPath string) error {
 	if err != nil {
 		return err
 	}
+	if err := flagWriteProgramPackages(dir, pkgs, entryPath); err == nil || !flagUnhandled(err) {
+		return err
+	}
+	return writeProgramPackagesGo(dir, pkgs, entryPath)
+}
+
+func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string) error {
 	root, err := findFlagLangRoot(entryPath)
 	if err != nil {
 		return err

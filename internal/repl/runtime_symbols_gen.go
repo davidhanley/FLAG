@@ -182,6 +182,7 @@ func generatedRuntimeSymbols() map[string]reflect.Value {
 		"GoBind_runtime_VectorNSVector":      reflect.ValueOf(flagrt.GoBind_runtime_VectorNSVector),
 		"GoFunction":                         reflect.ValueOf(flagrt.GoFunction),
 		"GoFunctionArgs":                     reflect.ValueOf(flagrt.GoFunctionArgs),
+		"GoModTidy":                          reflect.ValueOf(flagrt.GoModTidy),
 		"GoRun":                              reflect.ValueOf(flagrt.GoRun),
 		"Gt":                                 reflect.ValueOf(flagrt.Gt),
 		"IEEERemainder":                      reflect.ValueOf(flagrt.IEEERemainder),
@@ -213,6 +214,7 @@ func generatedRuntimeSymbols() map[string]reflect.Value {
 		"MapInvert":                          reflect.ValueOf(flagrt.MapInvert),
 		"Max":                                reflect.ValueOf(flagrt.Max),
 		"Min":                                reflect.ValueOf(flagrt.Min),
+		"MkdirAll":                           reflect.ValueOf(flagrt.MkdirAll),
 		"Mod":                                reflect.ValueOf(flagrt.Mod),
 		"Mul":                                reflect.ValueOf(flagrt.Mul),
 		"Name":                               reflect.ValueOf(flagrt.Name),
@@ -263,6 +265,7 @@ func generatedRuntimeSymbols() map[string]reflect.Value {
 		"RandNth":                            reflect.ValueOf(flagrt.RandNth),
 		"Range":                              reflect.ValueOf(flagrt.Range),
 		"ReadLine":                           reflect.ValueOf(flagrt.ReadLine),
+		"ReadTextFile":                       reflect.ValueOf(flagrt.ReadTextFile),
 		"Reduce":                             reflect.ValueOf(flagrt.Reduce),
 		"RegexCompile":                       reflect.ValueOf(flagrt.RegexCompile),
 		"RegexMatches":                       reflect.ValueOf(flagrt.RegexMatches),
@@ -338,5 +341,6 @@ func generatedRuntimeSymbols() map[string]reflect.Value {
 		"VectorNSVector":                     reflect.ValueOf(flagrt.VectorNSVector),
 		"VectorRest":                         reflect.ValueOf(flagrt.VectorRest),
 		"Write":                              reflect.ValueOf(flagrt.Write),
+		"WriteTextFile":                      reflect.ValueOf(flagrt.WriteTextFile),
 	}
 }

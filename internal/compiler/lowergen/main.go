@@ -105,7 +105,7 @@ func keepDecl(decl ast.Decl, existing map[string]bool) bool {
 		if d.Recv != nil {
 			return false
 		}
-		return keepIdent(d.Name.Name, existing) && strings.HasPrefix(d.Name.Name, "compiler__")
+		return keepIdent(d.Name.Name, existing) && (strings.HasPrefix(d.Name.Name, "compiler__") || strings.HasPrefix(d.Name.Name, "prologue__"))
 	case *ast.GenDecl:
 		if d.Tok != token.VAR && d.Tok != token.CONST && d.Tok != token.TYPE {
 			return false
@@ -142,7 +142,7 @@ func keepVar(name string, existing map[string]bool, spec *ast.ValueSpec) bool {
 	if existing[name] {
 		return false
 	}
-	if strings.HasPrefix(name, "compiler__") {
+	if strings.HasPrefix(name, "compiler__") || strings.HasPrefix(name, "prologue__") {
 		return true
 	}
 	if strings.HasPrefix(name, "async__") {

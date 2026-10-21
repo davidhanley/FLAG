@@ -1156,3 +1156,391 @@ func programFromFLAGPaths(entry string, modules flagrt.Value) (*Program, error) 
 	}
 	return prog, nil
 }
+
+func goImportsToFLAG(imports []goImport) flagrt.Value {
+	vals := make([]flagrt.Value, 0, len(imports))
+	for _, imp := range imports {
+		vals = append(vals, flagrt.NewMap(
+			flagKW("name"), flagrt.NewString(imp.Name),
+			flagKW("path"), flagrt.NewString(imp.Path),
+		))
+	}
+	return flagrt.NewArray(vals...)
+}
+
+func flagGoImports(v flagrt.Value) []goImport {
+	if flagrt.IsNil(v) {
+		return nil
+	}
+	items := flagrt.Vec(v).ArrayValues()
+	out := make([]goImport, 0, len(items))
+	for _, item := range items {
+		out = append(out, goImport{
+			Name: flagString(flagrt.Get(item, flagKW("name"))),
+			Path: flagString(flagrt.Get(item, flagKW("path"))),
+		})
+	}
+	return out
+}
+
+func seedCompileContext(ctx compileContext) flagrt.Value {
+	return flagrt.Assoc(
+		moduleCompileContext(ctx, false),
+		flagKW("macro-forms"), exprsToFlagVector(ctx.macroForms),
+		flagKW("go-imports"), goImportsToFLAG(ctx.goImports),
+	)
+}
+
+func applySeededContext(ctx *compileContext, v flagrt.Value) error {
+	if ctx == nil || flagrt.IsNil(v) {
+		return nil
+	}
+	ctx.moduleSymbols = flagStringStringMap(flagMapGet(v, "module"))
+	ctx.packageMode = flagrt.IsTruthy(flagMapGet(v, "package-mode"))
+	ctx.namespace = flagString(flagMapGet(v, "namespace"))
+	macros, err := flagExprSeq(flagMapGet(v, "macro-forms"))
+	if err != nil {
+		return err
+	}
+	ctx.macroForms = macros
+	ctx.goImports = flagGoImports(flagMapGet(v, "go-imports"))
+	return nil
+}
+
+func moduleToFLAG(mod *Module) flagrt.Value {
+	if mod == nil {
+		return flagrt.NilValue()
+	}
+	imports := make([]flagrt.Value, 0, len(mod.Header.Imports))
+	for _, spec := range mod.Header.Imports {
+		refer := make([]flagrt.Value, 0, len(spec.Refer))
+		for _, name := range spec.Refer {
+			refer = append(refer, flagrt.NewString(name))
+		}
+		imports = append(imports, flagrt.NewMap(
+			flagKW("path"), flagrt.NewString(spec.Path),
+			flagKW("as"), flagrt.NewString(spec.As),
+			flagKW("refer"), flagrt.NewArray(refer...),
+		))
+	}
+	exports := make([]flagrt.Value, 0, len(mod.Header.Exports))
+	for _, name := range mod.Header.Exports {
+		exports = append(exports, flagrt.NewString(name))
+	}
+	return flagrt.NewMap(
+		flagKW("path"), flagrt.NewString(mod.Path),
+		flagKW("has-header"), flagrt.NewBool(mod.HasModuleHeader),
+		flagKW("namespace"), flagrt.NewString(mod.Header.Namespace),
+		flagKW("legacy-ns"), flagrt.NewString(mod.LegacyNS),
+		flagKW("exports"), flagrt.NewArray(exports...),
+		flagKW("imports"), flagrt.NewArray(imports...),
+		flagKW("go-exports"), stringMapToFLAG(mod.Header.GoExports),
+		flagKW("forms"), exprsToFlagVector(mod.Forms),
+	)
+}
+
+func modulesToFLAG(mods []*Module) flagrt.Value {
+	vals := make([]flagrt.Value, 0, len(mods))
+	for _, mod := range mods {
+		vals = append(vals, moduleToFLAG(mod))
+	}
+	return flagrt.NewArray(vals...)
+}
+
+func modulesByPathToFLAG(byPath map[string]*Module) flagrt.Value {
+	pairs := make([]flagrt.Value, 0, len(byPath)*2)
+	for path, mod := range byPath {
+		pairs = append(pairs, flagrt.NewString(path), moduleToFLAG(mod))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func nestedStringMapsToFLAG(m map[string]map[string]string) flagrt.Value {
+	pairs := make([]flagrt.Value, 0, len(m)*2)
+	for path, defs := range m {
+		pairs = append(pairs, flagrt.NewString(path), stringMapToFLAG(defs))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func moduleMacrosToFLAG(m map[string]map[string]Expr) flagrt.Value {
+	pairs := make([]flagrt.Value, 0, len(m)*2)
+	for path, macros := range m {
+		inner := make([]flagrt.Value, 0, len(macros)*2)
+		for name, form := range macros {
+			inner = append(inner, flagrt.NewString(name), exprToFlagValue(form))
+		}
+		pairs = append(pairs, flagrt.NewString(path), flagrt.NewMap(inner...))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func macrosToFLAG(m map[string]Expr) flagrt.Value {
+	pairs := make([]flagrt.Value, 0, len(m)*2)
+	for name, form := range m {
+		pairs = append(pairs, flagrt.NewString(name), exprToFlagValue(form))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func prologueNamesToFLAG(ctx compileContext) flagrt.Value {
+	vals := make([]flagrt.Value, 0, len(ctx.prologueFns)+len(ctx.prologueVars))
+	for _, fn := range ctx.prologueFns {
+		vals = append(vals, flagrt.NewMap(
+			flagKW("flag-name"), flagrt.NewString(fn.flagName),
+			flagKW("go-name"), flagrt.NewString(fn.goName),
+		))
+	}
+	for _, v := range ctx.prologueVars {
+		vals = append(vals, flagrt.NewMap(
+			flagKW("flag-name"), flagrt.NewString(v.flagName),
+			flagKW("go-name"), flagrt.NewString(v.goName),
+		))
+	}
+	return flagrt.NewArray(vals...)
+}
+
+func flagGoPackageName(namespace string) (name string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			name = ""
+		}
+	}()
+	return flagString(flagrt.Call(compiler__go_package_name, flagrt.NewString(namespace))), nil
+}
+
+func flagValidateExports(mod *Module, defined map[string]string, definedMacros map[string]Expr) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	flagrt.Call(compiler__validate_exports, moduleToFLAG(mod), stringMapToFLAG(defined), macrosToFLAG(definedMacros))
+	return nil
+}
+
+func flagSeedImports(ctx *compileContext, mod *Module, byPath map[string]*Module, moduleDefs map[string]map[string]string, moduleMacros map[string]map[string]Expr) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	out := flagrt.Call(
+		compiler__seed_imports,
+		seedCompileContext(*ctx),
+		moduleToFLAG(mod),
+		modulesByPathToFLAG(byPath),
+		nestedStringMapsToFLAG(moduleDefs),
+		moduleMacrosToFLAG(moduleMacros),
+	)
+	return applySeededContext(ctx, out)
+}
+
+func flagEmitFlagI(ns string, exports []string, goExports map[string]string, macros map[string]Expr, defined map[string]string) (out []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			out = nil
+		}
+	}()
+	src := flagrt.Call(
+		compiler__emit_flagi,
+		flagrt.NewString(ns),
+		flagStringValues(exports),
+		stringMapToFLAG(goExports),
+		macrosToFLAG(macros),
+		stringMapToFLAG(defined),
+	)
+	return []byte(flagString(src)), nil
+}
+
+func flagCompiledVar(item flagrt.Value) (varDef, error) {
+	expr := flagMapGet(item, "expr")
+	if !flagrt.IsNil(expr) && flagrt.Name(flagrt.TypeOf(expr)) == "string" {
+		return varDef{
+			flagName: flagString(flagMapGet(item, "flag-name")),
+			goName:   flagString(flagMapGet(item, "go-name")),
+			doc:      flagString(flagMapGet(item, "doc")),
+			expr:     flagString(expr),
+		}, nil
+	}
+	return flagModuleVar(item)
+}
+
+func compileResultFromFLAG(out flagrt.Value) (compileResult, error) {
+	fns := make([]functionDef, 0)
+	if raw := flagMapGet(out, "functions"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			fn, err := flagModuleFunction(item)
+			if err != nil {
+				return compileResult{}, err
+			}
+			fns = append(fns, fn)
+		}
+	}
+	vars := make([]varDef, 0)
+	if raw := flagMapGet(out, "vars"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			v, err := flagCompiledVar(item)
+			if err != nil {
+				return compileResult{}, err
+			}
+			vars = append(vars, v)
+		}
+	}
+	tests := make([]testCase, 0)
+	if raw := flagMapGet(out, "tests"); !flagrt.IsNil(raw) {
+		for _, item := range flagrt.Vec(raw).ArrayValues() {
+			line := 0
+			if n := flagMapGet(item, "line"); !flagrt.IsNil(n) {
+				line = int(n.Long())
+			}
+			tests = append(tests, testCase{
+				goName:     flagString(flagMapGet(item, "go-name")),
+				label:      flagString(flagMapGet(item, "label")),
+				line:       line,
+				bodySource: flagString(flagMapGet(item, "body-source")),
+			})
+		}
+	}
+	stmts, err := flagMainStmts(flagMapGet(out, "stmts"))
+	if err != nil {
+		return compileResult{}, err
+	}
+	decls, err := flagIRStringSeq(flagMapGet(out, "type-decls"))
+	if err != nil {
+		return compileResult{}, err
+	}
+	return compileResult{
+		namespace: flagString(flagMapGet(out, "namespace")),
+		typeDecls: decls,
+		functions: fns,
+		vars:      vars,
+		stmts:     stmts,
+		tests:     tests,
+		needsFmt:  flagrt.IsTruthy(flagMapGet(out, "needs-fmt")),
+	}, nil
+}
+
+func flagCompileInlineProgram(entryPath string, testPaths []string) (result compileResult, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			result = compileResult{}
+		}
+	}()
+	prog, err := LoadProgram(entryPath)
+	if err != nil {
+		return compileResult{}, err
+	}
+	if len(testPaths) > 0 {
+		if err := appendTestForms(prog.Entry, testPaths); err != nil {
+			return compileResult{}, err
+		}
+	}
+	shared := newEmptyCompileContext()
+	shared.constants = newConstantInterner()
+	out := flagrt.Call(
+		compiler__compile_inline_modules,
+		modulesToFLAG(prog.Modules),
+		seedCompileContext(shared),
+		flagrt.NewString(prog.Entry.Path),
+	)
+	return compileResultFromFLAG(out)
+}
+
+func flagCompileProgramPackages(entryPath string) (pkgs []CompiledPackage, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			pkgs = nil
+		}
+	}()
+	prog, err := LoadProgram(entryPath)
+	if err != nil {
+		return nil, err
+	}
+	shared := newEmptyCompileContext()
+	shared.packageMode = true
+	out := flagrt.Call(
+		compiler__compile_package_modules,
+		modulesToFLAG(prog.Modules),
+		seedCompileContext(shared),
+		stringMapToFLAG(nil),
+		flagrt.NewString(prog.Entry.Path),
+		prologueNamesToFLAG(shared),
+	)
+	if flagrt.IsNil(out) {
+		return nil, nil
+	}
+	pkgs = []CompiledPackage{}
+	for _, item := range flagrt.Vec(out).ArrayValues() {
+		src := flagString(flagMapGet(item, "source"))
+		flagi := flagString(flagMapGet(item, "flagi"))
+		pkg := CompiledPackage{
+			Dir:    flagString(flagMapGet(item, "dir")),
+			Name:   flagString(flagMapGet(item, "name")),
+			Source: []byte(src),
+			IsMain: flagrt.IsTruthy(flagMapGet(item, "main?")),
+		}
+		if flagi != "" {
+			pkg.FlagI = []byte(flagi)
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs, nil
+}
+
+func compiledPackagesToFLAG(pkgs []CompiledPackage) flagrt.Value {
+	vals := make([]flagrt.Value, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		flagi := ""
+		if len(pkg.FlagI) > 0 {
+			flagi = string(pkg.FlagI)
+		}
+		vals = append(vals, flagrt.NewMap(
+			flagKW("dir"), flagrt.NewString(pkg.Dir),
+			flagKW("name"), flagrt.NewString(pkg.Name),
+			flagKW("source"), flagrt.NewString(string(pkg.Source)),
+			flagKW("flagi"), flagrt.NewString(flagi),
+			flagKW("main?"), flagrt.NewBool(pkg.IsMain),
+		))
+	}
+	return flagrt.NewArray(vals...)
+}
+
+func flagFindFlagLangRoot(start string) (root string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+			root = ""
+		}
+	}()
+	return flagString(flagrt.Call(compiler__find_flag_lang_root, flagrt.NewString(start))), nil
+}
+
+func flagWriteCompiledPackages(dir string, pkgs []CompiledPackage) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	flagrt.Call(compiler__write_compiled_packages, flagrt.NewString(dir), compiledPackagesToFLAG(pkgs))
+	return nil
+}
+
+func flagWriteProgramPackages(dir string, pkgs []CompiledPackage, entryPath string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
+		}
+	}()
+	flagrt.Call(
+		compiler__write_program_packages,
+		flagrt.NewString(dir),
+		compiledPackagesToFLAG(pkgs),
+		flagrt.NewString(entryPath),
+	)
+	return nil
+}

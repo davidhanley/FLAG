@@ -269,6 +269,31 @@ func TestCompileDefnDashRejected(t *testing.T) {
 	}
 }
 
+func TestCompileLetOrDefaultAndListDestructure(t *testing.T) {
+	output, err := Compile(`
+(defn use-or []
+  (let [{:keys [a] :or {a (+ 1 2)}} {}]
+    a))
+(defn use-list []
+  (let [(a b) [1 2]]
+    (+ a b)))
+`)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"flagrt.Get(",
+		"flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2))",
+		"flagrt.SeqFirst(",
+		"flagrt.SeqRest(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestCompileDeclareThenDefn(t *testing.T) {
 	out, err := Compile(`
 (declare later)
@@ -1196,6 +1221,32 @@ func TestReplCompilerDefnBinding(t *testing.T) {
 	}
 	if defn.ResultExpr != `"sq"` {
 		t.Fatalf("unexpected defn result expr: %s", defn.ResultExpr)
+	}
+
+	call, err := c.CompileLine(`(sq 4)`)
+	if err != nil {
+		t.Fatalf("CompileLine function call returned error: %v", err)
+	}
+	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
+	}
+}
+
+func TestReplCompilerDefnRedef(t *testing.T) {
+	c := NewReplCompiler()
+
+	if _, err := c.CompileLine(`(defn sq [x] (* x x))`); err != nil {
+		t.Fatalf("CompileLine defn returned error: %v", err)
+	}
+	redef, err := c.CompileLine(`(defn sq [x] (+ x x))`)
+	if err != nil {
+		t.Fatalf("CompileLine defn redef returned error: %v", err)
+	}
+	if strings.Contains(redef.Setup, "var sq_arity_1") {
+		t.Fatalf("redef should not redeclare sq_arity_1:\n%s", redef.Setup)
+	}
+	if !strings.Contains(redef.Setup, "return flagrt.Add(x, x)") {
+		t.Fatalf("redef setup missing new body:\n%s", redef.Setup)
 	}
 
 	call, err := c.CompileLine(`(sq 4)`)

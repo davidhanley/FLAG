@@ -278,6 +278,15 @@ var goKeywords = map[string]bool{
 
 // goPackageName maps a FLAG :namespace to a Go package identifier.
 func goPackageName(namespace string) (string, error) {
+	if name, err := flagGoPackageName(namespace); err == nil {
+		return name, nil
+	} else if !flagUnhandled(err) {
+		return "", err
+	}
+	return goPackageNameGo(namespace)
+}
+
+func goPackageNameGo(namespace string) (string, error) {
 	ident, err := toGoIdentifier(strings.ReplaceAll(namespace, ".", "_"))
 	if err != nil {
 		return "", fmt.Errorf("namespace %q: %w", namespace, err)

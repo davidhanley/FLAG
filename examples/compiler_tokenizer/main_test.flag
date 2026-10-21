@@ -901,7 +901,8 @@
                                 {:kind :symbol :name "%2"}]}}
              {})]
     (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p1 := args[0]"))))
-    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p2 := args[1]")))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p2 := args[1]"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "#() expects exactly 2 arguments")))))
   (let [bound (lower/bind-params-to-ir
                {:kind :vector
                 :elements [{:kind :map
@@ -911,7 +912,54 @@
                {})]
     (is (= "__arg0" (first (:params bound))))
     (is (not (nil? (str/index-of (ir/render-ir-stmts (:init-stmts bound) "")
-                                "flagrt.NewKeyword(\"a\")"))))))
+                                "flagrt.NewKeyword(\"a\")")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :map
+                                      :entries [{:kind :keyword :name "keys"}
+                                                {:kind :vector :elements [{:kind :symbol :name "a"}]}
+                                                {:kind :keyword :name "or"}
+                                                {:kind :map
+                                                 :entries [{:kind :symbol :name "a"}
+                                                           {:kind :list
+                                                            :elements [{:kind :symbol :name "+"}
+                                                                       {:kind :int :value 1}
+                                                                       {:kind :int :value 2}]}]}]}
+                                     {:kind :map :entries []}]}
+                         {:kind :symbol :name "a"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.Get("))))
+    (is (not (nil? (str/index-of src "flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2))")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :list
+                                      :elements [{:kind :symbol :name "a"}
+                                                 {:kind :symbol :name "b"}]}
+                                     {:kind :vector
+                                      :elements [{:kind :int :value 1}
+                                                 {:kind :int :value 2}]}]}
+                         {:kind :symbol :name "a"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.SeqFirst("))))
+    (is (not (nil? (str/index-of src "flagrt.SeqRest(")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :set
+                                      :elements [{:kind :symbol :name "x"}]}
+                                     {:kind :set
+                                      :elements [{:kind :int :value 10}]}]}
+                         {:kind :symbol :name "x"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.SeqFirst("))))))
 
 (deftest lower-ctor-runtime-and-symbols
   (is (= "flagrt.NewArray(flagrt.NewLong(1))"
@@ -1357,6 +1405,51 @@
                 (do (lower/compile-module-body [ns-form] ctx) false)
                 (catch Throwable t true))]
     (is threw))
+  (let [empty {:locals {} :globals {} :functions {} :module {} :go-fns {}
+              :self-function-name "" :self-variadic-name "" :self-arity-name ""
+              :self-function-rest false :self-function-arity 0
+              :self-arity-names {} :loop-binding-names [] :if-temps 0
+              :namespace "compiler" :package-mode false :exported-names {}
+              :allow-redefine false}
+       add {:kind :list
+            :elements [{:kind :symbol :name "defn"}
+                       {:kind :symbol :name "add"}
+                       {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                       {:kind :symbol :name "x"}]}
+       add2 {:kind :list
+             :elements [{:kind :symbol :name "defn"}
+                        {:kind :symbol :name "add"}
+                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                        {:kind :int :value 1}]}
+       out1 (lower/compile-module-body [add] empty)
+       blocked (try
+                 (do (lower/compile-module-body [add2] (:ctx out1)) false)
+                 (catch Throwable t true))
+       redef-ctx (assoc (:ctx out1) :allow-redefine true)
+       out2 (lower/compile-module-body [add2] redef-ctx)
+       def1 {:kind :list
+             :elements [{:kind :symbol :name "def"}
+                        {:kind :symbol :name "answer"}
+                        {:kind :int :value 1}]}
+       def2 {:kind :list
+             :elements [{:kind :symbol :name "def"}
+                        {:kind :symbol :name "answer"}
+                        {:kind :int :value 2}]}
+       def-ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+                :self-function-name "" :self-variadic-name "" :self-arity-name ""
+                :self-function-rest false :self-function-arity 0
+                :self-arity-names {} :loop-binding-names [] :if-temps 0
+                :namespace "compiler" :package-mode false :exported-names {}
+                :allow-redefine true}
+       d1 (lower/compile-module-body [def1] def-ctx)
+       d2 (lower/compile-module-body [def2] (:ctx d1))]
+    (is blocked)
+    (is (= "compiler__add" (get (:defined out2) "add")))
+    (is (= 1 (count (:functions out2))))
+    (is (not (nil? (str/index-of (ir/render-ir-stmts (:ir-decls (first (:functions out2))) "")
+                                 "return flagrt.NewLong(1)"))))
+    (is (= "compiler__answer" (get (:defined d2) "answer")))
+    (is (= "compiler__answer" (get (:module (:ctx d2)) "answer"))))
    (is (= "int64" (lower/type-hint-to-go-type "long")))
    (is (= "float64" (lower/type-hint-to-go-type "double")))
    (is (= "string" (lower/type-hint-to-go-type "string")))
@@ -1638,6 +1731,137 @@
   (let [cwd (lower/cwd-path)
         roots (lower/library-search-roots "examples/modules/main.flag")]
     (is (not (nil? (some (fn [root] (= root cwd)) roots))))))
+
+(deftest lower-seed-imports-and-package-helpers
+  (is (= "math" (lower/go-package-name "math")))
+  (is (= "type_" (lower/go-package-name "type")))
+  (is (= "c_frs_core" (lower/go-package-name "c.frs.core")))
+  (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")
+        by-path {resolved {:path resolved :has-header true :namespace "math" :exports ["add" "double"]}}
+        defs {resolved {"add" "math__add" "double" "math__double"}}
+        seeded (lower/seed-imports {:namespace "main" :module {} :package-mode false :macro-forms []}
+                                   {:path "examples/modules/main.flag"
+                                    :has-header true
+                                    :imports [{:path "math.flag" :as "" :refer ["add"]}]}
+                                   by-path
+                                   defs
+                                   {})]
+    (is (= "math__add" (get (:module seeded) "math/add")))
+    (is (= "math__double" (get (:module seeded) "math/double")))
+    (is (= "math__add" (get (:module seeded) "add"))))
+  (let [pro "/tmp/prologue.flag"
+       spec (lower/implicit-prologue-spec pro)]
+    (is (= pro (:path spec)))
+    (is (= "" (:as spec)))
+    (is (= :all (:refer spec)))
+    (is (:skip-go-import spec)))
+  (let [pro (lower/abs-path "internal/compiler/prologue.flag")
+       other {:path "examples/modules/main.flag" :imports [{:path "math.flag"}]}
+       same {:path pro :imports []}
+       prefixed (lower/with-implicit-prologue-import other pro)]
+    (is (= same (lower/with-implicit-prologue-import same pro)))
+    (is (= pro (:path (first (:imports prefixed)))))
+    (is (= "math.flag" (:path (first (rest (:imports prefixed))))))
+    (is (= pro (lower/program-prologue-path [{:namespace "prologue" :path pro}
+                                            {:namespace "main" :path "x"}])))
+    (is (nil? (lower/program-prologue-path [{:namespace "main" :path "x"}]))))
+  (let [pro (lower/prologue-path)]
+    (is (lower/file-exists? pro))
+    (is (not (nil? (str/index-of pro "prologue.flag")))))
+  (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")
+       by-path {resolved {:path resolved :has-header true :namespace "math" :exports ["add" "double"]}}
+       defs {resolved {"add" "Add" "double" "Double"}}
+       seeded (lower/seed-imports {:namespace "main" :module {} :package-mode true :macro-forms [] :go-imports []}
+                                  {:path "examples/modules/main.flag"
+                                   :imports [{:path "math.flag" :as "" :refer :all :skip-go-import true}]}
+                                  by-path
+                                  defs
+                                  {})]
+    (is (= "math.Add" (get (:module seeded) "add")))
+    (is (= "math.Double" (get (:module seeded) "double")))
+    (is (= 0 (count (or (:go-imports seeded) [])))))
+  (is (lower/prelude-go-name? "prologue__second"))
+  (is (lower/prelude-go-name? "prologue.Second"))
+  (is (not (lower/prelude-go-name? "stdlib__second")))
+  (let [rebound (lower/bind-module-name {:namespace "main" :module {"second" "prologue__second"}}
+                                       "second"
+                                       "stdlib__second")]
+    (is (= "stdlib__second" (get (:module rebound) "second"))))
+  (let [threw (try
+                (do (lower/validate-exports {:has-header true :namespace "hello" :exports ["missing"]}
+                                            {"greet" "hello__greet"}
+                                            {})
+                    false)
+                (catch Throwable t
+                  (not (nil? (str/index-of (ex-message t) "export \"missing\"")))))]
+    (is threw))
+  (is (nil? (lower/validate-exports {:has-header true :namespace "hello" :exports ["greet"]}
+                                    {"greet" "hello__greet"}
+                                    {})))
+  (let [ctx (lower/add-go-import {:go-imports []} "math")
+        again (lower/add-go-import ctx "math")]
+    (is (= 1 (count (:go-imports ctx))))
+    (is (= 1 (count (:go-imports again))))
+    (is (= "flagbuild/math" (:path (first (:go-imports ctx))))))
+  (let [flagi (lower/emit-flagi "math" ["double" "add"] {} {} {"add" "Add" "double" "Double"})]
+    (is (not (nil? (str/index-of flagi "{:namespace \"math\""))))
+    (is (not (nil? (str/index-of flagi ":exports"))))
+    (is (not (nil? (str/index-of flagi "add"))))
+    (is (not (nil? (str/index-of flagi "double"))))
+    (is (not (nil? (str/index-of flagi "(declare add double)")))) )
+  (let [renamed (lower/rename-defmacro {:kind :list
+                                        :elements [{:kind :symbol :name "defmacro"}
+                                                   {:kind :symbol :name "when"}
+                                                   {:kind :vector :elements []}
+                                                   {:kind :symbol :name "body"}]}
+                                       "lib/when")]
+    (is (= "lib/when" (:name (first (rest (:elements renamed))))))))
+
+(deftest lower-write-program-packages-helpers
+  (is (= "module flag-lang" (lower/file-first-line (lower/read-text-file "go.mod"))))
+  (is (= "abc" (lower/file-first-line "abc")))
+  (is (= "" (lower/file-first-line "")))
+  (is (= "" (lower/file-first-line "\nrest")))
+  (is (= "a" (lower/file-first-line "a\nb")))
+  (is (= "a\r" (lower/file-first-line "a\r\nb")))
+  (is (nil? (lower/write-compiled-packages "." [])))
+  (let [root (lower/find-flag-lang-root "examples/modules/main.flag")]
+    (is (lower/file-exists? (lower/path-join root "go.mod")))
+    (is (not (nil? (str/index-of (lower/read-text-file (lower/path-join root "go.mod")) "module flag-lang"))))))
+
+(deftest lower-emit-vars-and-stmts-render-ir-or-source
+  (is (= "y" (lower/emitted-var-expr {:kind :ident :name "y"})))
+  (is (= "flagrt.Foo" (lower/emitted-var-expr "flagrt.Foo")))
+  (is (= "" (lower/emitted-var-expr nil)))
+  (is (= "flagrt.NewLong(1)" (lower/emitted-var-expr (lower/ast-node-to-ir {:kind :int :value 1}))))
+  (is (= "\tx := 1\n" (lower/emitted-stmt-prelude {:prelude-stmts [{:kind :define :names ["x"] :expr {:kind :int :value 1}}]})))
+  (is (= "pre\n" (lower/emitted-stmt-prelude {:prelude "pre"})))
+  (is (= "" (lower/emitted-stmt-prelude {:prelude ""})))
+  (is (= "z" (lower/emitted-stmt-code {:expr {:kind :ident :name "z"}})))
+  (is (= "fmt.Println(1)" (lower/emitted-stmt-code {:code "fmt.Println(1)"})))
+  (is (= "defer close()\n" (lower/emitted-stmt-code {:defer-stmt {:kind :defer :expr {:kind :call :fun {:kind :ident :name "close"} :args []}}})))
+  (let [src (lower/emit-go-file "p"
+                                {:functions []
+                                 :vars [{:go-name "x" :doc "" :expr {:kind :ident :name "y"}}
+                                        {:go-name "interned" :doc "" :expr "flagrt.NewString(\"hi\")"}]
+                                 :stmts []
+                                 :tests []
+                                 :needs-fmt false
+                                 :namespace-code "// Source namespace: p\n"
+                                 :type-decls []
+                                 :extra-imports []}
+                                false)]
+    (is (not (nil? (str/index-of src "package p"))))
+    (is (not (nil? (str/index-of src "var x = y"))))
+    (is (not (nil? (str/index-of src "var interned = flagrt.NewString(\"hi\")"))))
+    (is (not (nil? (str/index-of src "// Source namespace: p")))))
+  (is (lower/result-refs-package? {:functions []
+                                   :vars []
+                                   :stmts [{:expr {:kind :selector :pkg "prologue" :name "Inc"}}]
+                                   :type-decls []}
+                                  "prologue."))
+  (is (not (lower/result-refs-package? {:functions [] :vars [] :stmts [{:code "fmt.Println(1)"}] :type-decls []}
+                                       "prologue."))))
 
 (deftest codegen-emits-ir-binary-for-square
   (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")

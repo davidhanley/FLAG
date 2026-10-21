@@ -32,10 +32,20 @@
              render-ir render-ir-stmt render-ir-stmts render-function-def
              format-go-source abs-path cwd-path path-join path-dir path-ext
              path-abs? path-stat-kind file-exists? dir-exists?
+             write-text-file read-text-file mkdir-all go-mod-tidy
+             file-first-line find-flag-lang-root
+             write-compiled-packages write-program-packages
              library-search-roots resolve-import-path module-import-paths
-             load-program
+             load-program prologue-path
+             implicit-prologue-spec with-implicit-prologue-import program-prologue-path
+             go-package-name validate-exports add-go-import seed-imports
+             rename-defmacro
+             emit-flagi seed-prologue-package-refs strip-inlined-prologue
+             result-refs-package? compile-inline-modules compile-package-modules
+             emitted-var-expr emitted-stmt-prelude emitted-stmt-code
              emit-go-file compile-program
              module-go-ident exported-go-ident def-go-ident bind-module-name
+             prelude-go-name? can-rebind-module-name?
              type-hint-to-go-type exported-record-field-name
              truncate-hint const-form? str-contains?
              compile-module-body]}
@@ -1221,11 +1231,21 @@
        (str-has-char? prev ".")
        (not (str-has-char? go-name "."))))
 
+(defn prelude-go-name? [go-name]
+  (let [s (str go-name)
+        n (count s)]
+    (or (and (>= n 10) (= "prologue__" (subs s 0 10)))
+        (and (>= n 9) (= "prologue." (subs s 0 9))))))
+
+(defn can-rebind-module-name? [ctx prev go-name]
+  (or (local-def-replaces-import? ctx prev go-name)
+      (prelude-go-name? prev)))
+
 (defn bind-module-name [ctx flag-name go-name]
   (let [mod (if (nil? (:module ctx)) {} (:module ctx))
         prev (get mod flag-name)]
     (if (and prev (not (= prev go-name)))
-      (if (local-def-replaces-import? ctx prev go-name)
+      (if (can-rebind-module-name? ctx prev go-name)
         (bind-module-name (assoc ctx :module (map-put mod flag-name go-name)) flag-name go-name)
         (throw (ex-info (str "symbol \"" flag-name "\" already bound to " prev) {})))
       (let [mod1 (map-put mod flag-name go-name)
@@ -1235,7 +1255,7 @@
           (let [qualified (str ns "/" flag-name)
                 qprev (get mod1 qualified)]
             (if (and qprev (not (= qprev go-name)))
-              (if (local-def-replaces-import? ctx qprev go-name)
+              (if (can-rebind-module-name? ctx qprev go-name)
                 (assoc ctx :module (map-put mod1 qualified go-name))
                 (throw (ex-info (str "symbol \"" qualified "\" already bound to " qprev) {})))
               (assoc ctx :module (map-put mod1 qualified go-name)))))))))
@@ -1423,7 +1443,51 @@
                   (if (= "" (:name key-node))
                     (throw (ex-info "map destructuring :or key cannot be empty" {:node key-node}))
                     (recur (rest (rest remaining))
-                           (assoc out (:name key-node) (literal-default-ir (first (rest remaining)))))))))))))))
+                           (conj out {:name (:name key-node)
+                                      :node (first (rest remaining))}))))))))))))
+
+(defn or-default-node [defaults name]
+  (loop [remaining defaults found nil]
+    (if (or (nil? remaining) (empty? remaining))
+      found
+      (let [item (first remaining)]
+        (if (= name (:name item))
+          (recur (rest remaining) (:node item))
+          (recur (rest remaining) found))))))
+
+(defn has-or-default? [defaults name]
+  (loop [remaining defaults]
+    (if (or (nil? remaining) (empty? remaining))
+      false
+      (if (= name (:name (first remaining)))
+        true
+        (recur (rest remaining))))))
+
+(defn sequential-binding? [kind]
+  (or (= kind :vector) (= kind :list) (= kind :set)))
+
+(defn compile-or-default-in-state [state name node]
+  (let [cf (:compile-form state)
+        form-ctx (assoc (or (:form-ctx state) {}) :locals (:locals state))]
+    (if (nil? cf)
+      {:stmts [] :expr (literal-default-ir node) :expr-kind :value :defer? false :ctx form-ctx}
+      (let [compiled (cf node form-ctx)]
+        (if (not (= :value (:expr-kind compiled)))
+          (throw (ex-info (str "map destructuring default for \"" name "\" must evaluate to Value") {}))
+          compiled)))))
+
+(defn apply-or-default [state source key-ir name node]
+  (let [compiled (compile-or-default-in-state state name node)
+        stmts (loop [out (stmt-list (:init-stmts state)) remaining (stmt-list (:stmts compiled))]
+                (if (or (nil? remaining) (empty? remaining))
+                  out
+                  (recur (conj out (first remaining)) (rest remaining))))
+        st (-> state
+               (assoc :init-stmts stmts)
+               (assoc :form-ctx (:ctx compiled))
+               (assoc :locals (or (:locals (:ctx compiled)) (:locals state))))]
+    {:state st
+     :expr (literal-rt-call "Get" [source key-ir (:expr compiled)])}))
 
 (defn append-bindings [left right]
   (loop [remaining right out left]
@@ -1474,7 +1538,7 @@
             (throw (ex-info "binding symbol cannot be empty" {:node node}))
             (bind-symbol-to state (:name node) source :value)))
 
-        (= kind :vector)
+        (sequential-binding? kind)
         (bind-pattern-node :vector state node source)
 
         (= kind :map)
@@ -1542,7 +1606,7 @@
         (loop [remaining entries
                bindings []
                as-pat nil
-               defaults {}]
+               defaults []]
           (if (or (nil? remaining) (empty? remaining))
             (let [with-as (if (nil? as-pat)
                             state
@@ -1552,13 +1616,16 @@
                   st
                   (let [b (first remaining)
                         binding (:binding b)
-                        binding-node (unwrap-ast binding)
-                        value-expr (if (and (= :symbol (:kind binding-node))
-                                            (contains? defaults (:name binding-node)))
-                                     (literal-rt-call "Get" [source (:key b) (get defaults (:name binding-node))])
-                                     (literal-rt-call "Get" [source (:key b)]))]
-                    (recur (rest remaining)
-                           (bind-pattern-node :pattern st binding value-expr))))))
+                        binding-node (unwrap-ast binding)]
+                    (if (and (= :symbol (:kind binding-node))
+                             (has-or-default? defaults (:name binding-node)))
+                      (let [out (apply-or-default st source (:key b) (:name binding-node)
+                                                  (or-default-node defaults (:name binding-node)))]
+                        (recur (rest remaining)
+                               (bind-pattern-node :pattern (:state out) binding (:expr out))))
+                      (recur (rest remaining)
+                             (bind-pattern-node :pattern st binding
+                                                (literal-rt-call "Get" [source (:key b)]))))))))
             (let [key (first remaining)
                   value (first (rest remaining))
                   key-node (unwrap-ast key)]
@@ -1590,7 +1657,10 @@
 (defn bind-pattern [state pattern source]
   (bind-pattern-node :pattern state pattern source))
 
-(defn bind-params-to-ir [params-ast label locals]
+(defn bind-params-to-ir
+  ([params-ast label locals]
+   (bind-params-to-ir params-ast label locals {} nil))
+  ([params-ast label locals ctx compile-form]
   (loop [remaining (ast-seq params-ast)
          idx 0
          state {:params []
@@ -1598,12 +1668,15 @@
                 :locals (if (or (nil? locals) (empty? locals)) {} locals)
                 :declared {}
                 :temp 0
-                :has-rest false}]
+                :has-rest false
+                :form-ctx ctx
+                :compile-form compile-form}]
     (if (or (nil? remaining) (empty? remaining))
       {:params (:params state)
        :init-stmts (:init-stmts state)
        :locals (:locals state)
-       :has-rest (:has-rest state)}
+       :has-rest (:has-rest state)
+       :ctx (:form-ctx state)}
       (let [node (unwrap-ast (first remaining))]
         (if (and (= :symbol (:kind node)) (= "&" (:name node)))
           (if (:has-rest state)
@@ -1631,15 +1704,16 @@
                 {:params (:params st5)
                  :init-stmts (:init-stmts st5)
                  :locals (:locals st5)
-                 :has-rest true})))
+                 :has-rest true
+                 :ctx (:form-ctx st5)})))
           (if (and (= :symbol (:kind node)) (not (= "" (:name node))))
             (recur (rest remaining) (inc idx) (bind-symbol-param state (:name node)))
-            (if (or (= :vector (:kind node)) (= :map (:kind node)))
+            (if (or (sequential-binding? (:kind node)) (= :map (:kind node)))
               (let [param-name (str "__arg" idx)
                     st1 (assoc state :params (conj (:params state) param-name))
                     st2 (bind-pattern st1 node {:kind :ident :name param-name})]
                 (recur (rest remaining) (inc idx) st2))
-              (unhandled-param node))))))))
+              (unhandled-param node)))))))))
 
 (defn form-result [stmts expr kind ctx]
   {:stmts (stmt-list stmts)
@@ -2406,7 +2480,7 @@
                   (if (not (= :symbol (:kind pat)))
                     (if (:volatile? parsed)
                       (throw (ex-info "volatile let binding currently supports symbol bindings only" {:node pat}))
-                      (if (or (= :vector (:kind pat)) (= :map (:kind pat)))
+                      (if (or (sequential-binding? (:kind pat)) (= :map (:kind pat)))
                         (let [part (compile-form-node :form val-node ctx)]
                           (if (not (= :value (:expr-kind part)))
                             (throw (ex-info "let binding value must evaluate to Value" {}))
@@ -2416,13 +2490,15 @@
                                        :locals (if (nil? (:locals (:ctx part))) {} (:locals (:ctx part)))
                                        :declared declared
                                        :temp (inc bind-temp)
-                                       :has-rest false}
+                                       :has-rest false
+                                       :form-ctx (:ctx part)
+                                       :compile-form (fn [n c] (compile-form-node :form n c))}
                                   st1 (assoc st0 :init-stmts
                                              (conj (:init-stmts st0)
                                                    {:kind :var :name source-name :type "" :expr (:expr part)}))
                                   st2 (bind-pattern st1 pat {:kind :ident :name source-name})]
                               (recur (rest (rest remaining))
-                                     (assoc (:ctx part) :locals (:locals st2))
+                                     (assoc (or (:form-ctx st2) (:ctx part)) :locals (:locals st2))
                                      (:init-stmts st2)
                                      (:declared st2)
                                      (:temp st2)))))
@@ -2476,8 +2552,10 @@
               body (first (rest args))]
           (if (not (= :vector (:kind params)))
             (throw (ex-info "fn expects a parameter vector" {:node params}))
-            (let [bound (bind-params-to-ir params "fn" (:locals ctx))
-                  inner (assoc ctx :locals (:locals bound) :loop-binding-names [])
+            (let [bound (bind-params-to-ir params "fn" (:locals ctx) ctx (fn [n c] (compile-form-node :form n c)))
+                  inner (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
+                            (assoc :locals (:locals bound))
+                            (assoc :loop-binding-names []))
                   compiled0 (compile-form-node :form body inner)
                   compiled (if (:defer? compiled0)
                              (form-result [] (do-defer-to-ir "flagrt.Value" [compiled0]) :value (:ctx compiled0))
@@ -3309,8 +3387,22 @@
         (let [body (:body form)
               n (hash-fn-node :max body 0)
               params (hash-fn-param-vector n)
-              rewritten (hash-fn-node :replace body 0)]
-          (compile-form-node :fn [params rewritten] ctx))
+              rewritten (hash-fn-node :replace body 0)
+              bound (bind-params-to-ir params "#()" (:locals ctx) ctx (fn [n c] (compile-form-node :form n c)))
+              inner (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
+                        (assoc :locals (:locals bound))
+                        (assoc :loop-binding-names []))
+              compiled0 (compile-form-node :form rewritten inner)
+              compiled (if (:defer? compiled0)
+                         (form-result [] (do-defer-to-ir "flagrt.Value" [compiled0]) :value (:ctx compiled0))
+                         (coerce-form-value compiled0))
+              ir (fn-to-ir "#()"
+                           (:params bound)
+                           (:has-rest bound)
+                           (:init-stmts bound)
+                           (:stmts compiled)
+                           (:expr compiled))]
+          (form-result [] ir :value (restore-outer-scope (:ctx compiled) ctx)))
 
         :else (throw (ex-info "not handled by FLAG form lowering" {:node form})))
       (catch Throwable t
@@ -3572,6 +3664,13 @@
         (recur (rest remaining)
                (str out (emit-doc-comment (:doc item)) (:source item) "\n"))))))
 
+(defn emitted-var-expr [expr]
+  (if (nil? expr)
+    ""
+    (if (:kind expr)
+      (render-ir expr)
+      (str expr))))
+
 (defn emit-vars [vars]
   (loop [remaining (stmt-list vars) out ""]
     (if (or (nil? remaining) (empty? remaining))
@@ -3580,7 +3679,7 @@
         (recur (rest remaining)
                (str out
                     (emit-doc-comment (:doc item))
-                    "var " (:go-name item) " = " (:expr item) "\n"))))))
+                    "var " (:go-name item) " = " (emitted-var-expr (:expr item)) "\n"))))))
 
 (defn find-named-function [fns want]
   (loop [remaining (stmt-list fns)]
@@ -3649,18 +3748,31 @@
                     ", body: " (format "%q" (:body-source tc))
                     ", fn: " (:go-name tc) "},\n"))))))
 
+(defn emitted-stmt-prelude [stmt]
+  (if (not (nil? (:prelude-stmts stmt)))
+    (render-ir-stmts (:prelude-stmts stmt) "\t")
+    (let [prelude (or (:prelude stmt) "")]
+      (if (or (nil? prelude) (= "" prelude))
+        ""
+        (if (ends-with-newline? prelude) prelude (str prelude "\n"))))))
+
+(defn emitted-stmt-code [stmt]
+  (if (not (nil? (:defer-stmt stmt)))
+    (render-ir-stmt (:defer-stmt stmt) "")
+    (if (:kind (:expr stmt))
+      (render-ir (:expr stmt))
+      (or (:code stmt) ""))))
+
 (defn emit-main-stmts [stmts]
   (loop [remaining (stmt-list stmts) out ""]
     (if (or (nil? remaining) (empty? remaining))
       out
       (let [stmt (first remaining)
-            prelude (:prelude stmt)
-            prelude-out (if (or (nil? prelude) (= "" prelude))
-                          ""
-                          (if (ends-with-newline? prelude) prelude (str prelude "\n")))
+            prelude-out (emitted-stmt-prelude stmt)
+            code (emitted-stmt-code stmt)
             line (if (= 0 (:kind stmt))
-                   (str "\t" (:code stmt) "\n")
-                   (str "\t_ = " (:code stmt) "\n"))]
+                   (str "\t" code "\n")
+                   (str "\t_ = " code "\n"))]
         (recur (rest remaining) (str out prelude-out line))))))
 
 (defn emit-entry-call [entry]
@@ -3788,13 +3900,13 @@
       (let [body-els (rest rest-els)]
         (if (or (nil? body-els) (empty? body-els))
           (throw (ex-info "defn expects name, optional docstring, vector params, and body" {}))
-          (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx))
+          (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx) ctx compile-form-to-ir)
                 params (:params bound)
                 has-rest (:has-rest bound)
                 n (count (stmt-list params))
                 variadic (str go-name "_variadic")
                 arity-name (if has-rest variadic (str go-name "_arity_" n))
-                fn-ctx (-> ctx
+                fn-ctx (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
                            (assoc :locals (:locals bound))
                            (assoc :self-function-name name)
                            (assoc :self-function-arity n)
@@ -3833,7 +3945,7 @@
           (let [params-ast (unwrap-ast (first (ast-elements list)))]
             (if (not (= :vector (:kind params-ast)))
               (throw (ex-info "defn arity expects a parameter vector" {}))
-              (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx))]
+              (let [bound (bind-params-to-ir params-ast "defn" (:locals ctx) ctx compile-form-to-ir)]
                 (if (:has-rest bound)
                   (throw (ex-info "multi-arity defn does not yet support & rest" {}))
                   (let [params (:params bound)
@@ -4106,6 +4218,18 @@
 (defn dir-exists? [path]
   (= (path-stat-kind path) "dir"))
 
+(defn write-text-file [path contents]
+  ((go-fn "compiler/write-text-file") path contents))
+
+(defn read-text-file [path]
+  ((go-fn "compiler/read-text-file") path))
+
+(defn mkdir-all [path]
+  ((go-fn "compiler/mkdir-all") path))
+
+(defn go-mod-tidy [dir]
+  ((go-fn "compiler/go-mod-tidy") dir))
+
 (defn module-import-paths [path]
   ((go-fn "compiler/module-import-paths") path))
 
@@ -4196,6 +4320,16 @@
           {:seen (assoc (:seen loaded) abs true)
            :order (conj (:order loaded) abs)})))))
 
+(defn prologue-path []
+  (let [cands [(path-join (cwd-path) "internal/compiler/prologue.flag")
+               (path-join (cwd-path) "prologue.flag")]]
+    (loop [remaining cands]
+      (if (or (nil? remaining) (empty? remaining))
+        ((go-fn "compiler/prologue-path"))
+        (if (file-exists? (first remaining))
+          (abs-path (first remaining))
+          (recur (rest remaining)))))))
+
 (defn load-program [entry-path]
   (let [abs (abs-path entry-path)
         kind (path-stat-kind abs)]
@@ -4205,8 +4339,328 @@
       (= kind "dir")
       (throw (ex-info (str "LoadProgram expects a file entry, got directory " abs " (pass main.flag or similar)") {}))
       :else
-      (let [loaded (load-program-modules abs {} {} [])]
+      (let [pro (prologue-path)
+            base (if (= abs pro)
+                   {:seen {} :order []}
+                   (load-program-modules pro {} {} []))
+            loaded (load-program-modules abs (:seen base) {} (:order base))]
         {:entry abs :modules (:order loaded)}))))
+
+(defn go-package-name [namespace]
+  (go-ident (ident-replace-char (str namespace) "." "_")))
+
+(defn module-export-set [exports]
+  (loop [remaining (or exports []) out {}]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (assoc out (as-value (str (first remaining))) true)))))
+
+(defn validate-exports [mod defined defined-macros]
+  (if (not (:has-header mod))
+    nil
+    (loop [remaining (or (:exports mod) [])]
+      (if (or (nil? remaining) (empty? remaining))
+        nil
+        (let [name (as-value (str (first remaining)))]
+          (if (or (contains? defined name) (contains? defined-macros name))
+            (recur (rest remaining))
+            (throw (ex-info (str "export \"" name "\" is not defined in module \"" (:namespace mod) "\"") {}))))))))
+
+(defn add-go-import [ctx pkg-name]
+  (let [path (str "flagbuild/" pkg-name)
+        imports (or (:go-imports ctx) [])]
+    (if (some (fn [imp] (= (:path imp) path)) imports)
+      ctx
+      (assoc ctx :go-imports (conj imports {:name pkg-name :path path})))))
+
+(defn replace-nth [xs i value]
+  (loop [remaining xs n 0 out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (inc n) (conj out (if (= n i) value (first remaining)))))))
+
+(defn rename-defmacro [form name]
+  (let [node (unwrap-ast form)
+        els (or (:elements node) [])]
+    (if (< (count els) 2)
+      form
+      (assoc node :elements (replace-nth els 1 {:kind :symbol
+                                                :name name
+                                                :line (:line node)
+                                                :col (:col node)})))))
+
+(defn defmacro-form-name [form]
+  (let [els (ast-elements form)
+        head (ast-symbol-name (first els))]
+    (if (= head "defmacro")
+      (ast-symbol-name (first (rest els)))
+      nil)))
+
+(defn collect-defmacros [forms]
+  (loop [remaining (or forms []) out {}]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [name (defmacro-form-name (first remaining))]
+        (if (nil? name)
+          (recur (rest remaining) out)
+          (recur (rest remaining) (assoc out name (first remaining))))))))
+
+(defn seed-one-export [ctx prefix pkg-name package-mode? exp defs macros spec-path]
+  (let [go-name (get defs exp)]
+    (if go-name
+      (let [ref (if package-mode? (str pkg-name "." go-name) go-name)]
+        (bind-module-name ctx (as-value (str prefix "/" exp)) ref))
+      (let [mac (get macros exp)]
+        (if mac
+          (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac (as-value (str prefix "/" exp)))))
+          (throw (ex-info (str "import \"" spec-path "\": exported \"" exp "\" has no definition") {})))))))
+
+(defn seed-one-refer [ctx pkg-name package-mode? ref-name exports defs macros spec-path]
+  (if (not (contains? exports ref-name))
+    (throw (ex-info (str "import \"" spec-path "\": cannot :refer \"" ref-name "\" (not in :exports)") {}))
+    (let [go-name (get defs ref-name)]
+      (if go-name
+        (let [ref (if package-mode? (str pkg-name "." go-name) go-name)
+              ns (:namespace ctx)
+              mod0 (or (:module ctx) {})
+              mod1 (dissoc mod0 ref-name)
+              mod2 (if (or (nil? ns) (= "" ns))
+                     mod1
+                     (dissoc mod1 (as-value (str ns "/" ref-name))))
+              ctx1 (assoc ctx :module mod2)]
+          (try
+            (bind-module-name ctx1 ref-name ref)
+            (catch Throwable t
+              (throw (ex-info (str "import \"" spec-path "\": :refer \"" ref-name "\": " (ex-message t)) {})))))
+        (let [mac (get macros ref-name)]
+          (if mac
+            (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac ref-name)))
+            (throw (ex-info (str "import \"" spec-path "\": referred \"" ref-name "\" has no definition") {}))))))))
+
+(defn seed-one-import [ctx importer-path spec by-path module-defs module-macros used-prefixes]
+  (let [spec-path (str (:path spec))
+        resolved (resolve-import-path importer-path spec-path)
+        provider (get by-path resolved)]
+    (if (nil? provider)
+      (throw (ex-info (str "import \"" spec-path "\": module not loaded") {}))
+      (if (not (:has-header provider))
+        (throw (ex-info (str "import \"" spec-path "\": target " resolved " has no module header") {}))
+        (let [prefix (if (or (nil? (:as spec)) (= "" (:as spec)))
+                       (:namespace provider)
+                       (as-value (str (:as spec))))
+              prev (get used-prefixes prefix)]
+          (if (and prev (not (= prev resolved)))
+            (throw (ex-info (str "import prefix \"" prefix "\" already used by " prev) {}))
+            (let [exports (module-export-set (:exports provider))
+                  defs (get module-defs resolved)
+                  macros (or (get module-macros resolved) {})]
+              (if (nil? defs)
+                (throw (ex-info (str "import \"" spec-path "\": provider not compiled yet") {}))
+                (let [package-mode? (if (:package-mode ctx) true false)
+                      pkg-name (if package-mode? (go-package-name (:namespace provider)) "")
+                      ctx1 (if (and package-mode?
+                                    (not (:skip-go-import spec))
+                                    (some (fn [exp] (get defs (str exp))) (or (:exports provider) [])))
+                             (add-go-import ctx pkg-name)
+                             ctx)
+                      ctx2 (loop [remaining (or (:exports provider) []) ctx ctx1]
+                             (if (or (nil? remaining) (empty? remaining))
+                               ctx
+                               (recur (rest remaining)
+                                      (seed-one-export ctx prefix pkg-name package-mode?
+                                                       (as-value (str (first remaining))) defs macros spec-path))))
+                      refer-names (if (or (= :all (:refer spec)) (= "all" (:refer spec)))
+                                    (or (:exports provider) [])
+                                    (or (:refer spec) []))
+                      ctx3 (loop [remaining refer-names ctx ctx2]
+                             (if (or (nil? remaining) (empty? remaining))
+                               ctx
+                               (recur (rest remaining)
+                                      (seed-one-refer ctx pkg-name package-mode?
+                                                      (as-value (str (first remaining))) exports defs macros spec-path))))]
+                  {:ctx ctx3 :used-prefixes (assoc used-prefixes prefix resolved)})))))))))
+
+(defn seed-imports [ctx mod by-path module-defs module-macros]
+  (loop [remaining (or (:imports mod) []) ctx ctx used {}]
+    (if (or (nil? remaining) (empty? remaining))
+      ctx
+      (let [out (seed-one-import ctx (:path mod) (first remaining) by-path module-defs module-macros used)]
+        (recur (rest remaining) (:ctx out) (:used-prefixes out))))))
+
+(defn implicit-prologue-spec [prologue-path]
+  {:path prologue-path :as "" :refer :all :skip-go-import true})
+
+(defn with-implicit-prologue-import [mod prologue-path]
+  (if (or (nil? prologue-path) (= "" prologue-path) (= (:path mod) prologue-path))
+    mod
+    (assoc mod :imports (into [(implicit-prologue-spec prologue-path)] (or (:imports mod) [])))))
+
+(defn program-prologue-path [modules]
+  (let [mod (first modules)]
+    (if (and mod (= "prologue" (:namespace mod)))
+      (:path mod)
+      nil)))
+
+(defn insert-sorted-string [xs s]
+  (loop [remaining xs out []]
+    (if (or (nil? remaining) (empty? remaining))
+      (conj out s)
+      (if (< (compare s (str (first remaining))) 0)
+        (loop [more remaining acc (conj out s)]
+          (if (or (nil? more) (empty? more))
+            acc
+            (recur (rest more) (conj acc (first more)))))
+        (recur (rest remaining) (conj out (first remaining)))))))
+
+(defn sort-strings [xs]
+  (loop [remaining xs out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (recur (rest remaining) (insert-sorted-string out (str (first remaining)))))))
+
+(defn unique-strings [xs]
+  (loop [remaining xs seen {} out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [name (as-value (str (first remaining)))]
+        (if (or (= name "") (contains? seen name))
+          (recur (rest remaining) seen out)
+          (recur (rest remaining) (assoc seen name true) (conj out name)))))))
+
+(defn emit-flagi-go-exports [go-exports]
+  (if (or (nil? go-exports) (empty? go-exports))
+    ""
+    (let [keys (sort-strings (keys go-exports))]
+      (str "\n :go-exports {"
+           (join-strings (loop [remaining keys out []]
+                           (if (or (nil? remaining) (empty? remaining))
+                             out
+                             (let [k (str (first remaining))]
+                               (recur (rest remaining)
+                                      (conj out (str k " " (format "%q" (get go-exports k))))))))
+                         " ")
+           "}"))))
+
+(defn emit-flagi [ns exports go-exports macros defined]
+  (let [unique (sort-strings (unique-strings exports))
+        header (str "{:namespace " (format "%q" ns)
+                    (if (empty? unique)
+                      ""
+                      (str "\n :exports   [" (join-strings unique " ") "]"))
+                    (emit-flagi-go-exports go-exports)
+                    "}\n")
+        macro-names (sort-strings (keys (or macros {})))
+        macro-src (loop [remaining macro-names out ""]
+                    (if (or (nil? remaining) (empty? remaining))
+                      out
+                      (recur (rest remaining)
+                             (str out "\n" (ast-form-source (get macros (first remaining))) "\n"))))
+        decls (loop [remaining unique out []]
+                (if (or (nil? remaining) (empty? remaining))
+                  out
+                  (let [name (str (first remaining))]
+                    (if (get macros name)
+                      (recur (rest remaining) out)
+                      (if (or (get defined name) (not (nil? (get go-exports name))))
+                        (recur (rest remaining) (conj out name))
+                        (recur (rest remaining) out))))))]
+    (str header macro-src
+         (if (empty? decls)
+           ""
+           (str "\n(declare " (join-strings decls " ") ")\n")))))
+
+(defn seed-prologue-package-refs [ctx exports]
+  (loop [remaining (keys (or exports {})) ctx ctx]
+    (if (or (nil? remaining) (empty? remaining))
+      ctx
+      (let [name (as-value (str (first remaining)))
+            prev (get (or (:module ctx) {}) name)]
+        (if (and prev (str-contains? prev "."))
+          (recur (rest remaining) ctx)
+          (let [ref (as-value (str "prologue." (get exports name)))
+                mod1 (assoc (or (:module ctx) {}) name ref)
+                ns (:namespace ctx)
+                mod2 (if (or (nil? ns) (= ns ""))
+                       mod1
+                      (assoc mod1 (as-value (str ns "/" name)) ref))]
+            (recur (rest remaining) (assoc ctx :module mod2))))))))
+
+(defn strip-inlined-prologue-name [ctx flag-name go-name]
+  (let [fns (dissoc (or (:functions ctx) {}) go-name)
+        globs (dissoc (or (:globals ctx) {}) go-name)
+        mod (or (:module ctx) {})
+        prev (get mod flag-name)
+        mod1 (if (or (nil? flag-name) (= flag-name "")
+                     (and prev (str-contains? prev ".")))
+               mod
+               (dissoc mod flag-name))
+        ns (:namespace ctx)
+        qual (if (or (nil? ns) (= ns "") (nil? flag-name) (= flag-name ""))
+               ""
+               (as-value (str ns "/" flag-name)))
+        qprev (if (= qual "") nil (get mod1 qual))
+        mod2 (if (or (= qual "") (and qprev (str-contains? qprev ".")))
+               mod1
+               (dissoc mod1 qual))]
+    (-> ctx (assoc :functions fns) (assoc :globals globs) (assoc :module mod2))))
+
+(defn strip-inlined-prologue [ctx names]
+  (loop [remaining (or names []) ctx ctx]
+    (if (or (nil? remaining) (empty? remaining))
+      (-> ctx (assoc :prologue-fns []) (assoc :prologue-vars []))
+      (let [item (first remaining)]
+        (recur (rest remaining)
+               (strip-inlined-prologue-name ctx (:flag-name item) (:go-name item)))))))
+
+(defn result-refs-package? [result prefix]
+  (or (some (fn [fn] (str-contains? (or (:source fn) "") prefix))
+            (or (:functions result) []))
+      (some (fn [v] (str-contains? (emitted-var-expr (:expr v)) prefix)) (or (:vars result) []))
+      (some (fn [stmt] (or (str-contains? (emitted-stmt-code stmt) prefix)
+                           (str-contains? (emitted-stmt-prelude stmt) prefix)))
+            (or (:stmts result) []))
+      (some (fn [decl] (str-contains? (str decl) prefix)) (or (:type-decls result) []))))
+
+(defn expand-module-forms [seed forms]
+  ((go-fn "compiler/expand-forms") (or seed []) (or forms [])))
+
+(defn apply-go-exports [mod ctx]
+  (loop [remaining (keys (or (:go-exports mod) {})) ctx ctx vars [] defined {}]
+    (if (or (nil? remaining) (empty? remaining))
+      {:ctx ctx :vars vars :defined defined}
+      (let [local (as-value (str (first remaining)))
+            host (as-value (str (get (:go-exports mod) local)))
+            rt ((go-fn "compiler/go-bind-ident") host)
+            go-name (as-value (def-go-ident ctx local))]
+        (if (get (:globals ctx) go-name)
+          (throw (ex-info (str "symbol \"" local "\" already defined") {}))
+          (let [ctx1 (bind-module-name ctx local go-name)
+                ctx2 (assoc ctx1 :globals (assoc (or (:globals ctx1) {}) go-name :value))]
+            (recur (rest remaining)
+                   ctx2
+                   (conj vars {:flag-name local :go-name go-name :expr (as-value (str "flagrt." rt))})
+                   (assoc defined local go-name))))))))
+
+(defn intern-var-defs [constants]
+  (loop [remaining (or (:order constants) []) out []]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [item (first remaining)]
+        (recur (rest remaining)
+               (conj out {:doc ""
+                          :go-name (:name item)
+                          :expr (:code item)}))))))
+
+(defn merge-compile-defined [exported compiled]
+  (into (or (:defined exported) {}) (or (:defined compiled) {})))
+
+(defn append-compile-acc [acc compiled]
+  {:type-decls (into (or (:type-decls acc) []) (or (:type-decls compiled) []))
+   :functions (into (or (:functions acc) []) (or (:functions compiled) []))
+   :vars (into (or (:vars acc) []) (or (:vars compiled) []))
+   :stmts (into (or (:stmts acc) []) (or (:stmts compiled) []))
+   :tests (into (or (:tests acc) []) (or (:tests compiled) []))
+   :needs-fmt (if (or (:needs-fmt acc) (:needs-fmt compiled)) true false)})
 
 (defn first-token [s]
   (loop [remaining (trim-space s) out ""]
@@ -4782,3 +5236,199 @@
 
           :else
           (throw (ex-info "not handled by FLAG form lowering" {:node (first remaining)})))))))
+
+(defn compile-inline-modules [modules ctx entry-path]
+  (let [by-path (loop [remaining modules out {}]
+                  (if (or (nil? remaining) (empty? remaining))
+                    out
+                    (recur (rest remaining)
+                           (assoc out (:path (first remaining)) (first remaining)))))
+        prologue-path (program-prologue-path modules)]
+    (loop [remaining modules
+           shared ctx
+           module-defs {}
+           module-macros {}
+           acc {:type-decls [] :functions [] :vars [] :stmts [] :tests [] :needs-fmt false}]
+      (if (or (nil? remaining) (empty? remaining))
+        (assoc acc
+               :ctx shared
+               :namespace (or (:namespace (get by-path entry-path))
+                              (:legacy-ns (get by-path entry-path))
+                              "")
+               :defined module-defs
+               :vars (into (or (:vars acc) []) (intern-var-defs (:constants shared))))
+        (let [mod (with-implicit-prologue-import (first remaining) prologue-path)
+              ctx0 (-> shared
+                       (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
+                       (assoc :module (or (:module shared) {}))
+                       (assoc :go-imports []))
+              seeded (seed-imports ctx0 mod by-path module-defs module-macros)
+              exported (apply-go-exports mod (assoc seeded :allow-top-level (= (:path mod) entry-path)))
+              expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
+              compiled (compile-module-body expanded (:ctx exported))
+              compiled-vars (into (or (:vars exported) []) (or (:vars compiled) []))
+              compiled1 (-> compiled
+                            (assoc :vars compiled-vars)
+                            (assoc :defined (merge-compile-defined exported compiled)))
+              macros (collect-defmacros (:forms mod))]
+          (do
+            (if (:has-header mod)
+              (validate-exports mod (:defined compiled1) macros)
+              nil)
+            (recur (rest remaining)
+                   (-> (:ctx compiled1)
+                       (assoc :module (or (:module shared) {}))
+                       (assoc :go-imports []))
+                   (assoc module-defs (:path mod) (:defined compiled1))
+                   (assoc module-macros (:path mod) macros)
+                   (append-compile-acc acc compiled1))))))))
+
+(defn compile-package-modules [modules ctx prologue-exports entry-path prologue-names]
+  (let [by-path (loop [remaining modules out {}]
+                  (if (or (nil? remaining) (empty? remaining))
+                    out
+                    (recur (rest remaining)
+                           (assoc out (:path (first remaining)) (first remaining)))))
+        prologue-path (program-prologue-path modules)]
+    (loop [remaining modules used-pkgs {} out []]
+      (if (or (nil? remaining) (empty? remaining))
+        out
+        (let [mod (with-implicit-prologue-import (first remaining) prologue-path)
+              is-entry (= (:path mod) entry-path)
+              ctx0 (-> ctx
+                       (assoc :package-mode true)
+                       (assoc :constants {:by-code {} :used {} :order []})
+                       (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
+                       (assoc :exported-names (module-export-set (:exports mod)))
+                       (assoc :module {})
+                       (assoc :go-imports []))
+              seeded (seed-imports ctx0 mod by-path
+                                   (loop [pkgs out defs {}]
+                                     (if (or (nil? pkgs) (empty? pkgs))
+                                       defs
+                                       (recur (rest pkgs)
+                                              (assoc defs (:path (first pkgs)) (:defined (first pkgs))))))
+                                   (loop [pkgs out macros {}]
+                                     (if (or (nil? pkgs) (empty? pkgs))
+                                       macros
+                                       (recur (rest pkgs)
+                                              (assoc macros (:path (first pkgs)) (:macros (first pkgs)))))))
+              exported (apply-go-exports mod (assoc seeded :allow-top-level is-entry))
+              expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
+              compiled (compile-module-body expanded (:ctx exported))
+              compiled1 (-> compiled
+                            (assoc :vars (into (into (or (:vars exported) []) (or (:vars compiled) []))
+                                               (intern-var-defs (:constants (:ctx compiled)))))
+                            (assoc :defined (merge-compile-defined exported compiled)))
+              macros (collect-defmacros (:forms mod))]
+          (do
+            (if (:has-header mod)
+              (validate-exports mod (:defined compiled1) macros)
+              nil)
+            (let [compiled2 (if (result-refs-package? compiled1 "prologue.")
+                            (assoc compiled1 :ctx (add-go-import (:ctx compiled1) "prologue"))
+                            compiled1)
+                ns (or (:namespace mod) (:legacy-ns mod) "")
+                compiled3 (-> compiled2
+                              (assoc :namespace ns)
+                              (assoc :namespace-code (if (or (nil? ns) (= ns ""))
+                                                      ""
+                                                      (render-ir-stmt (ns-to-ir ns) "")))
+                              (assoc :extra-imports (or (:go-imports (:ctx compiled2)) [])))
+                pkg-name (if is-entry "main" (go-package-name ns))
+                used (if is-entry
+                       used-pkgs
+                       (if (get used-pkgs pkg-name)
+                         (throw (ex-info (str "duplicate Go package name \"" pkg-name "\" from "
+                                              (get used-pkgs pkg-name) " and " (:path mod)) {}))
+                         (assoc used-pkgs (as-value pkg-name) (:path mod))))
+                src (compile-program pkg-name compiled3 is-entry)
+                flagi (if is-entry
+                        ""
+                        (emit-flagi ns
+                                    (or (:exports mod) (into (keys (:defined compiled3)) (keys macros)))
+                                    (:go-exports mod)
+                                    macros
+                                    (:defined compiled3)))]
+            (recur (rest remaining)
+                   used
+                   (conj out {:dir (if is-entry "" pkg-name)
+                              :name pkg-name
+                              :source src
+                              :flagi flagi
+                              :main? is-entry
+                              :path (:path mod)
+                              :defined (:defined compiled3)
+                              :macros macros})))))))))
+
+(defn file-first-line [s]
+  (let [text (str s)
+        n (count text)]
+    (loop [i 0]
+      (if (>= i n)
+        text
+        (if (= (subs text i (+ i 1)) "\n")
+          (subs text 0 i)
+          (recur (inc i)))))))
+
+(defn go-mod-is-flag-lang? [dir]
+  (let [p (path-join dir "go.mod")]
+    (if (file-exists? p)
+      (= (trim-space (file-first-line (read-text-file p))) "module flag-lang")
+      false)))
+
+(defn walk-flag-lang-root [start seen]
+  (loop [dir start seen seen]
+    (if (contains? seen (as-value dir))
+      {:path nil :seen seen}
+      (let [seen1 (assoc seen (as-value dir) true)]
+        (if (go-mod-is-flag-lang? dir)
+          {:path dir :seen seen1}
+          (let [parent (path-dir dir)]
+            (if (= parent dir)
+              {:path nil :seen seen1}
+              (recur parent seen1))))))))
+
+(defn find-flag-lang-root [start]
+  (let [abs (abs-path start)
+        dir (if (= (path-stat-kind abs) "dir") abs (path-dir abs))
+        first (walk-flag-lang-root dir {})]
+    (if (:path first)
+      (:path first)
+      (let [second (walk-flag-lang-root (cwd-path) (:seen first))]
+        (if (:path second)
+          (:path second)
+          (throw (ex-info "could not find flag-lang module root (go.mod with module flag-lang)" {})))))))
+
+(defn write-one-compiled-package [dir pkg]
+  (if (:main? pkg)
+    (write-text-file (path-join dir "main.go") (or (:source pkg) ""))
+    (let [pdir (path-join dir (:dir pkg))]
+      (do
+        (mkdir-all pdir)
+        (write-text-file (path-join pdir (str (:name pkg) ".go")) (or (:source pkg) ""))
+        (if (or (nil? (:flagi pkg)) (= (:flagi pkg) ""))
+          nil
+          (write-text-file (path-join pdir (str (:name pkg) ".flagi")) (:flagi pkg)))))))
+
+(defn write-compiled-packages [dir pkgs]
+  (loop [remaining (or pkgs [])]
+    (if (or (nil? remaining) (empty? remaining))
+      nil
+      (do
+        (write-one-compiled-package dir (first remaining))
+        (recur (rest remaining))))))
+
+(defn write-program-packages [dir pkgs entry-path]
+  (let [root (find-flag-lang-root entry-path)
+        go-mod (str "module flagbuild\n\ngo 1.26.4\n\nrequire flag-lang v0.0.0\n\nreplace flag-lang => " root "\n")]
+    (do
+      (write-text-file (path-join dir "go.mod") go-mod)
+      (let [sum-path (path-join root "go.sum")]
+        (if (file-exists? sum-path)
+          (write-text-file (path-join dir "go.sum") (read-text-file sum-path))
+          nil))
+      (write-compiled-packages dir pkgs)
+      (go-mod-tidy dir)
+      nil)))
+

@@ -878,8 +878,14 @@ func First(coll Value) Value {
 		}
 		_, size := utf8.DecodeRuneInString(value)
 		return NewString(value[:size])
+	case TagSet:
+		values := coll.SetValues()
+		if len(values) == 0 {
+			return NilValue()
+		}
+		return values[0]
 	default:
-		panic("first expects nil, list, array, vector, lazy-list, or string Value")
+		panic("first expects nil, list, array, vector, lazy-list, set, or string Value")
 	}
 }
 
@@ -909,8 +915,14 @@ func Rest(coll Value) Value {
 		}
 		_, size := utf8.DecodeRuneInString(value)
 		return Vec(NewString(value[size:]))
+	case TagSet:
+		values := coll.SetValues()
+		if len(values) <= 1 {
+			return NewArray()
+		}
+		return NewArray(values[1:]...)
 	default:
-		panic("rest expects list, array, vector, lazy-list, or string Value")
+		panic("rest expects list, array, vector, lazy-list, set, or string Value")
 	}
 }
 
@@ -1254,8 +1266,16 @@ func newSeqCursor(coll Value) seqCursor {
 			strIndex:  0,
 			hasLength: false,
 		}
+	case TagSet:
+		values := coll.SetValues()
+		return seqCursor{
+			kind:      TagArray,
+			arrayVals: values,
+			length:    len(values),
+			hasLength: true,
+		}
 	default:
-		panic("sequence expects list, array, vector, lazy-list, map, string, or nil Value")
+		panic("sequence expects list, array, vector, lazy-list, map, set, string, or nil Value")
 	}
 }
 

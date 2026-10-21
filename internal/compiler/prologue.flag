@@ -1,3 +1,20 @@
+{:namespace "prologue"
+ :exports [when when-not or and inc dec not= cond case -> ->>
+           some-> some->> cond-> cond->> as-> condp dotimes
+           when-let if-let if-not if-some when-some with-open with-channel
+           close not identity constantly
+           second third fourth fifth sixth seventh eighth ninth tenth val
+           some? true? false? boolean number? int? float? string? symbol?
+           keyword? map? vector? set? sequential? coll? empty
+           zero? pos? neg? even? odd? not-empty? not-any? remove
+           update get-in update-in assoc-in dissoc-in
+           juxt partial complement fnil comp iterate range repeatedly
+           take-while drop-while take-last drop-last take-nth
+           keep map-indexed keep-indexed reduce-kv
+           every? every-pred some-fn max-key zipmap group-by select-keys
+           merge merge-with mapcat distinct flatten interpose interleave
+           partition partition-all partition-by sort]}
+
 (defmacro when [test & body]
   (if test (do body)))
 

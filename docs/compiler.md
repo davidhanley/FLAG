@@ -108,8 +108,17 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `format-go-source`, `abs-path`, `cwd-path`, `path-join`, `path-dir`,
 `path-ext`, `path-abs?`, `path-stat-kind`, `file-exists?`, `dir-exists?`,
 `library-search-roots`, `resolve-import-path`, `module-import-paths`,
-`load-program`, `emit-go-file`, `compile-program`,
+`load-program`, `prologue-path`, `implicit-prologue-spec`,
+`with-implicit-prologue-import`, `program-prologue-path`,
+`write-text-file`, `read-text-file`, `mkdir-all`, `go-mod-tidy`,
+`file-first-line`, `find-flag-lang-root`,
+`write-compiled-packages`, `write-program-packages`,
+`go-package-name`, `validate-exports`, `add-go-import`,
+`seed-imports`, `rename-defmacro`, `emit-flagi`, `compile-inline-modules`,
+`compile-package-modules`, `emitted-var-expr`, `emitted-stmt-prelude`,
+`emitted-stmt-code`, `emit-go-file`, `compile-program`,
 `module-go-ident`, `exported-go-ident`, `def-go-ident`, `bind-module-name`,
+`prelude-go-name?`, `can-rebind-module-name?`,
 `type-hint-to-go-type`, `exported-record-field-name`,
 `truncate-hint`, `const-form?`, `str-contains?`,
 and `compile-module-body`.
@@ -123,7 +132,7 @@ literals (plus quoted lists as `List`) when ctx has `:constants`. String
 literals stay `:string` (`exprKindString`); wrapping them as Values interns
 `flagrt.NewString` as `flagStr_*` (`truncate-hint` 24 chars, same sanitizing as
 keywords). Constant vectors/maps/sets intern as `Vec`/`Map`/`Set`/`PipeVec`.
-Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-form-error` match Go). `intern-string-part` only hoists literal `:string` IR (not `(str …)`).
+Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-form-error` match Go). `intern-string-part` only hoists literal `:string` IR (not `(str …)`). `#()` reader fns lower with Go's `"#()"` arity panic (not `"fn"`).
 
 `quoted-ast-to-ir` lowers quoted collections: `:quoted-list` / `:list` →
 `NewList`, `:vector` → `NewArray`, `:pipe-vector` → `NewVector`, `:map` →
@@ -274,10 +283,12 @@ truthy (optional string message; default is `ast-form-source`).
 `!` → `_bang`, `>` → `_gt`, `<` → `_lt`, `main` → `flag_main`, keywords
 get a trailing `_`). `bind-params-to-ir` binds `fn`/`defn` parameter
 vectors: symbols, unused `_`, `& rest` (`NewArray`, or `NewMap` for a
-map rest pattern), vector destructure (`SeqFirst` / `SeqRest`), and map
-destructure (`Get` with `:as` / `:or` / `:keys` / `:syms` / `:strs`).
-`:or` defaults must be literals (`map-destructure-key-ir` uses
-`NewKeyword`, not interned idents). `let` uses the same patterns.
+map rest pattern), sequential destructure (`SeqFirst` / `SeqRest` for
+vectors, lists, and sets), and map destructure (`Get` with `:as` / `:or`
+/ `:keys` / `:syms` / `:strs`). `:or` defaults compile via
+`compile-form-to-ir` (must be Value, same as Go `exprToGo`); last `:or`
+entry for a name wins. `map-destructure-key-ir` uses `NewKeyword`, not
+interned idents. `let` uses the same patterns.
 
 `compile-form-to-ir` / `compile-forms-to-ir` lower a form or `do` body:
 literals, collections, symbols (including `pkg/name` via the module
@@ -367,13 +378,37 @@ stmts). Library emit (`include-main` false) omits `main` and `strings`/`os`.
 `compile-program` runs `format-go-source` (`go/format` via runtime
 `compiler/format-go-source`). `resolve-import-path` / `library-search-roots` /
 `load-program` walk the import graph (runtime path helpers; parse of
-`:imports` via `compiler/module-import-paths`). Go `LoadProgram` /
-`resolveImportPath` / `emitGoFile` call those FLAG functions. Remaining Go
-work is `seedImports` / the per-module compile loop, package-mode emit, and
-REPL/CLI glue. `compileModuleBody` tries FLAG
-`compile-module-body` (including `declare`, `go-interface`, `defrecord`,
-and top-level `println`/`print`/exprs) and falls back to Go only on
-remaining unhandled forms.
+`:imports` via `compiler/module-import-paths`). `prologue-path` locates
+`internal/compiler/prologue.flag` (`compiler/prologue-path`). `load-program`
+prepends that file as the first module unless it is the entry.
+`with-implicit-prologue-import` adds `{:path pro :as "" :refer :all
+:skip-go-import true}` so every other module sees prelude names unqualified
+without a `flagbuild/prologue` import unless generated code references
+`prologue.`. `seed-imports` binds
+imported defs/macros (`:as` / `:refer`, package-mode `pkg.Name` plus
+`flagbuild/` imports). Later `:refer` of `second`/`third` overwrites
+implicit prelude bindings (`prelude-go-name?` / `can-rebind-module-name?`). `compile-inline-modules` is the inlined
+`compileProgram` loop (expand via `compiler/expand-forms`, `:go-exports`
+via `compiler/go-bind-ident`, then `compile-module-body`).
+`compile-package-modules` emits per-module Go + `.flagi` (`emit-flagi`,
+`go-package-name`). Package-mode vars/stmts still have IR `:expr` /
+`:prelude-stmts`; `emitted-var-expr` / `emitted-stmt-*` render those maps
+(or pass through already-stringified Go from `compileResultToFLAG`).
+`result-refs-package?` searches that rendered source so `prologue.` refs
+add `flagbuild/prologue`. Go `compileProgram` / `CompileProgramPackages` /
+`seedImports` / `emitGoFile` / `WriteProgramPackages` call the FLAG loops first.
+`write-program-packages` writes `go.mod` (`module flagbuild`, replace
+`flag-lang`), copies `go.sum`, emits `main.go` / `<pkg>/<pkg>.go` /
+`.flagi`, then `go mod tidy` (runtime `compiler/write-text-file`,
+`mkdir-all`, `read-text-file`, `go-mod-tidy`). `find-flag-lang-root`
+walks from the entry path and cwd for `module flag-lang`.
+REPL/`CompileExpression` still inline the prelude via `loadStandardPrologue`.
+`compileModuleBody` (including REPL `allow-redefine`) always tries FLAG
+`compile-module-body` first (`declare`, `go-interface`, `defrecord`,
+top-level `println`/`print`/exprs). `ensure-unique-fn` honors
+`:allow-redefine`. `exprToGo` / `CompileExpression` also try FLAG
+`compile-form-to-ir` first. Go lowering runs only on remaining unhandled
+forms. Remaining Go is CLI/REPL host glue.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
@@ -410,8 +445,9 @@ IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`/`defer
 `defrecord` type/ctor emit, intern-on-compile-form, leftover `.method`
 errors, top-level `println`/`print`, and function printing
 (`render-function-def` / `render-ir*`). The package file printer is FLAG
-`emit-go-file`. Remaining Go work is calling those printers and loading
-the import graph.
+`emit-go-file`. Inline and package compile loops are FLAG
+(`compile-inline-modules` / `compile-package-modules`). REPL
+`compileModuleBody` and `exprToGo` are FLAG-first; remaining Go is CLI/REPL host glue.
 
 ## Package emit (`flag-lang build`)
 
