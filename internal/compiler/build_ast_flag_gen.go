@@ -9,10 +9,8 @@ import (
 
 func compiler__parse_error_arity_3(line flagrt.Value, col flagrt.Value, msg flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			flagrt.Throw(flagrt.NewString(flagrt.Str("parse error at ", line, ":", col, ": ", msg)))
-			return flagrt.NilValue()
-		}()
+		flagrt.Throw(flagrt.NewString(flagrt.Str("parse error at ", line, ":", col, ": ", msg)))
+		return flagrt.NilValue()
 	}()
 }
 
@@ -24,9 +22,7 @@ func compiler__parse_error_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__token_line_arity_1(tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.Call(astflagKw_line, tok)
-	}()
+	return flagrt.Call(astflagKw_line, tok)
 }
 
 func compiler__token_line_variadic(args ...flagrt.Value) flagrt.Value {
@@ -37,9 +33,7 @@ func compiler__token_line_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__token_col_arity_1(tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.Call(astflagKw_offset, tok)
-	}()
+	return flagrt.Call(astflagKw_offset, tok)
 }
 
 func compiler__token_col_variadic(args ...flagrt.Value) flagrt.Value {
@@ -50,9 +44,7 @@ func compiler__token_col_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__make_parser_arity_1(in flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.NewMap(astflagKw_in, in, astflagKw_la, flagrt.Call(async__atom, astflagKw_none), astflagKw_last, flagrt.Call(async__atom, flagrt.NilValue()))
-	}()
+	return flagrt.NewMap(astflagKw_in, in, astflagKw_la, flagrt.Call(async__atom, astflagKw_none), astflagKw_last, flagrt.Call(async__atom, flagrt.NilValue()))
 }
 
 func compiler__make_parser_variadic(args ...flagrt.Value) flagrt.Value {
@@ -63,32 +55,32 @@ func compiler__make_parser_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__peek_arity_1(p flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var la = flagrt.Call(async__deref, flagrt.Call(astflagKw_la, p))
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_none, la))) {
-					return func() flagrt.Value {
-						var t = flagrt.Call(async__channel_receive, flagrt.Call(astflagKw_in, p))
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(t))) {
-								return func() flagrt.Value {
-									_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), astflagKw_eof)
-									return astflagKw_eof
-								}()
-							}
-							return func() flagrt.Value {
-								_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_last, p), t)
-								_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), t)
-								return t
-							}()
-						}()
-					}()
+	var let_result_188 flagrt.Value
+	{
+		var la = flagrt.Call(async__deref, flagrt.Call(astflagKw_la, p))
+		var if_result_187 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_none, la))) {
+			var let_result_186 flagrt.Value
+			{
+				var t = flagrt.Call(async__channel_receive, flagrt.Call(astflagKw_in, p))
+				var if_result_185 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(t))) {
+					_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), astflagKw_eof)
+					if_result_185 = astflagKw_eof
+				} else {
+					_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_last, p), t)
+					_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), t)
+					if_result_185 = t
 				}
-				return la
-			}()
-		}()
-	}()
+				let_result_186 = if_result_185
+			}
+			if_result_187 = let_result_186
+		} else {
+			if_result_187 = la
+		}
+		let_result_188 = if_result_187
+	}
+	return let_result_188
 }
 
 func compiler__peek_variadic(args ...flagrt.Value) flagrt.Value {
@@ -99,13 +91,13 @@ func compiler__peek_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__next_tok_arity_1(p flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var t = flagrt.Call(compiler__peek, p)
-			_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), astflagKw_none)
-			return t
-		}()
-	}()
+	var let_result_189 flagrt.Value
+	{
+		var t = flagrt.Call(compiler__peek, p)
+		_ = flagrt.Call(async__reset_bang, flagrt.Call(astflagKw_la, p), astflagKw_none)
+		let_result_189 = t
+	}
+	return let_result_189
 }
 
 func compiler__next_tok_variadic(args ...flagrt.Value) flagrt.Value {
@@ -116,17 +108,18 @@ func compiler__next_tok_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__eof_line_col_arity_1(p flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var last = flagrt.Call(async__deref, flagrt.Call(astflagKw_last, p))
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(last))) {
-					return astflagVec
-				}
-				return flagrt.NewArray(flagrt.Call(astflagKw_line, last), flagrt.Add(flagrt.Call(astflagKw_offset, last), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(astflagKw_token, last))))))
-			}()
-		}()
-	}()
+	var let_result_191 flagrt.Value
+	{
+		var last = flagrt.Call(async__deref, flagrt.Call(astflagKw_last, p))
+		var if_result_190 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(last))) {
+			if_result_190 = astflagVec
+		} else {
+			if_result_190 = flagrt.NewArray(flagrt.Call(astflagKw_line, last), flagrt.Add(flagrt.Call(astflagKw_offset, last), flagrt.NewLong(int64(flagrt.Count(flagrt.Call(astflagKw_token, last))))))
+		}
+		let_result_191 = if_result_190
+	}
+	return let_result_191
 }
 
 func compiler__eof_line_col_variadic(args ...flagrt.Value) flagrt.Value {
@@ -137,24 +130,24 @@ func compiler__eof_line_col_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__starts_with_char_q_arity_2(token flagrt.Value, ch flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if !(flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-					return flagrt.NewBool(false)
-				}
-				return flagrt.NewBool(true)
-			}())) {
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-						return flagrt.NewBool(false)
-					}
-					return flagrt.NewBool(true)
-				}()
-			}
-			return flagrt.NewBool(flagrt.Eq(ch, flagrt.First(flagrt.Seq(token))))
-		}()
-	}()
+	var let_result_194 flagrt.Value
+	{
+		var if_result_192 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
+			if_result_192 = flagrt.NewBool(false)
+		} else {
+			if_result_192 = flagrt.NewBool(true)
+		}
+		var and_tmp = if_result_192
+		var if_result_193 flagrt.Value
+		if flagrt.IsTruthy(and_tmp) {
+			if_result_193 = flagrt.NewBool(flagrt.Eq(ch, flagrt.First(flagrt.Seq(token))))
+		} else {
+			if_result_193 = and_tmp
+		}
+		let_result_194 = if_result_193
+	}
+	return let_result_194
 }
 
 func compiler__starts_with_char_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -165,24 +158,24 @@ func compiler__starts_with_char_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ends_with_char_q_arity_2(token flagrt.Value, ch flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if !(flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-					return flagrt.NewBool(false)
-				}
-				return flagrt.NewBool(true)
-			}())) {
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-						return flagrt.NewBool(false)
-					}
-					return flagrt.NewBool(true)
-				}()
-			}
-			return flagrt.NewBool(flagrt.Eq(ch, flagrt.Last(flagrt.Seq(token))))
-		}()
-	}()
+	var let_result_197 flagrt.Value
+	{
+		var if_result_195 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
+			if_result_195 = flagrt.NewBool(false)
+		} else {
+			if_result_195 = flagrt.NewBool(true)
+		}
+		var and_tmp = if_result_195
+		var if_result_196 flagrt.Value
+		if flagrt.IsTruthy(and_tmp) {
+			if_result_196 = flagrt.NewBool(flagrt.Eq(ch, flagrt.Last(flagrt.Seq(token))))
+		} else {
+			if_result_196 = and_tmp
+		}
+		let_result_197 = if_result_196
+	}
+	return let_result_197
 }
 
 func compiler__ends_with_char_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -194,43 +187,57 @@ func compiler__ends_with_char_q_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__contains_float_mark_q_arity_1(token flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var cs = flagrt.Seq(token)
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-							return flagrt.NewBool(false)
-						}
-						return func() flagrt.Value {
-							var ch = flagrt.First(cs)
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString(".")))) {
-										return flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString(".")))
-									}
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("e")))) {
-										return flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("e")))
-									}
-									return flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("E")))
-								}()) {
-									return flagrt.NewBool(true)
+		var cs = flagrt.Seq(token)
+		for {
+			var if_result_204 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
+				if_result_204 = flagrt.NewBool(false)
+			} else {
+				var let_result_203 flagrt.Value
+				{
+					var ch = flagrt.First(cs)
+					var let_result_201 flagrt.Value
+					{
+						var or_tmp = flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString(".")))
+						var if_result_200 flagrt.Value
+						if flagrt.IsTruthy(or_tmp) {
+							if_result_200 = or_tmp
+						} else {
+							var let_result_199 flagrt.Value
+							{
+								var or_tmp = flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("e")))
+								var if_result_198 flagrt.Value
+								if flagrt.IsTruthy(or_tmp) {
+									if_result_198 = or_tmp
+								} else {
+									if_result_198 = flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("E")))
 								}
-								return flagrt.NewRecur(flagrt.Rest(cs))
-							}()
-						}()
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 1 {
-						panic("internal error: recur arity mismatch")
+								let_result_199 = if_result_198
+							}
+							if_result_200 = let_result_199
+						}
+						let_result_201 = if_result_200
 					}
-					cs = __recurValues[0]
-					continue
+					var if_result_202 flagrt.Value
+					if flagrt.IsTruthy(let_result_201) {
+						if_result_202 = flagrt.NewBool(true)
+					} else {
+						if_result_202 = flagrt.NewRecur(flagrt.Rest(cs))
+					}
+					let_result_203 = if_result_202
 				}
-				return __loopResult
+				if_result_204 = let_result_203
 			}
-		}()
+			__loopResult := if_result_204
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 1 {
+					panic("internal error: recur arity mismatch")
+				}
+				cs = __recurValues[0]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -243,34 +250,32 @@ func compiler__contains_float_mark_q_variadic(args ...flagrt.Value) flagrt.Value
 
 func compiler__slash_count_arity_1(token flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var cs = flagrt.Seq(token)
-			var n = flagrt.NewLong(0)
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-							return n
-						}
-						return flagrt.NewRecur(flagrt.Rest(cs), func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("/"), flagrt.First(cs)))) {
-								return flagrt.Add(n, flagrt.NewLong(1))
-							}
-							return n
-						}())
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 2 {
-						panic("internal error: recur arity mismatch")
-					}
-					cs = __recurValues[0]
-					n = __recurValues[1]
-					continue
+		var cs = flagrt.Seq(token)
+		var n = flagrt.NewLong(0)
+		for {
+			var if_result_206 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
+				if_result_206 = n
+			} else {
+				var if_result_205 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("/"), flagrt.First(cs)))) {
+					if_result_205 = flagrt.Add(n, flagrt.NewLong(1))
+				} else {
+					if_result_205 = n
 				}
-				return __loopResult
+				if_result_206 = flagrt.NewRecur(flagrt.Rest(cs), if_result_205)
 			}
-		}()
+			__loopResult := if_result_206
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				cs = __recurValues[0]
+				n = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -283,56 +288,53 @@ func compiler__slash_count_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__split_once_arity_2(token flagrt.Value, sep flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var cs = flagrt.Seq(token)
-			var left = astflagStr_
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-							return flagrt.NilValue()
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(sep, flagrt.First(cs)))) {
-								return func() flagrt.Value {
-									var r = flagrt.Rest(cs)
-									var right = astflagStr_
-									for {
-										__loopResult := func() flagrt.Value {
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(r))) {
-													return flagrt.NewArray(left, right)
-												}
-												return flagrt.NewRecur(flagrt.Rest(r), flagrt.NewString(flagrt.Str(right, flagrt.First(r))))
-											}()
-										}()
-										if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-											if len(__recurValues) != 2 {
-												panic("internal error: recur arity mismatch")
-											}
-											r = __recurValues[0]
-											right = __recurValues[1]
-											continue
-										}
-										return __loopResult
-									}
-								}()
+		var cs = flagrt.Seq(token)
+		var left = astflagStr_
+		for {
+			var if_result_209 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
+				if_result_209 = flagrt.NilValue()
+			} else {
+				var if_result_208 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(sep, flagrt.First(cs)))) {
+					if_result_208 = func() flagrt.Value {
+						var r = flagrt.Rest(cs)
+						var right = astflagStr_
+						for {
+							var if_result_207 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(r))) {
+								if_result_207 = flagrt.NewArray(left, right)
+							} else {
+								if_result_207 = flagrt.NewRecur(flagrt.Rest(r), flagrt.NewString(flagrt.Str(right, flagrt.First(r))))
 							}
-							return flagrt.NewRecur(flagrt.Rest(cs), flagrt.NewString(flagrt.Str(left, flagrt.First(cs))))
-						}()
+							__loopResult := if_result_207
+							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+								if len(__recurValues) != 2 {
+									panic("internal error: recur arity mismatch")
+								}
+								r = __recurValues[0]
+								right = __recurValues[1]
+								continue
+							}
+							return __loopResult
+						}
 					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 2 {
-						panic("internal error: recur arity mismatch")
-					}
-					cs = __recurValues[0]
-					left = __recurValues[1]
-					continue
+				} else {
+					if_result_208 = flagrt.NewRecur(flagrt.Rest(cs), flagrt.NewString(flagrt.Str(left, flagrt.First(cs))))
 				}
-				return __loopResult
+				if_result_209 = if_result_208
 			}
-		}()
+			__loopResult := if_result_209
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 2 {
+					panic("internal error: recur arity mismatch")
+				}
+				cs = __recurValues[0]
+				left = __recurValues[1]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -344,29 +346,31 @@ func compiler__split_once_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__unescape_char_arity_1(ch flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("n")))) {
-				return astflagStr___2
-			}
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("t")))) {
-					return astflagStr___1
+	var if_result_213 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("n")))) {
+		if_result_213 = astflagStr___2
+	} else {
+		var if_result_212 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("t")))) {
+			if_result_212 = astflagStr___1
+		} else {
+			var if_result_211 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("r")))) {
+				if_result_211 = astflagStr__
+			} else {
+				var if_result_210 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(true)) {
+					if_result_210 = ch
+				} else {
+					if_result_210 = flagrt.NilValue()
 				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("r")))) {
-						return astflagStr__
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(true)) {
-							return ch
-						}
-						return flagrt.NilValue()
-					}()
-				}()
-			}()
-		}()
-	}()
+				if_result_211 = if_result_210
+			}
+			if_result_212 = if_result_211
+		}
+		if_result_213 = if_result_212
+	}
+	return if_result_213
 }
 
 func compiler__unescape_char_variadic(args ...flagrt.Value) flagrt.Value {
@@ -377,88 +381,105 @@ func compiler__unescape_char_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__unquote_go_string_arity_1(token flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var chars = flagrt.Seq(token)
-			var n = flagrt.NewLong(int64(flagrt.Count(chars)))
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(func() flagrt.Value {
-					if flagrt.Lt(n, flagrt.NewLong(2)) {
-						return flagrt.NewBool(flagrt.Lt(n, flagrt.NewLong(2)))
+	var let_result_227 flagrt.Value
+	{
+		var chars = flagrt.Seq(token)
+		var n = flagrt.NewLong(int64(flagrt.Count(chars)))
+		var let_result_219 flagrt.Value
+		{
+			var or_tmp = flagrt.Lt(n, flagrt.NewLong(2))
+			var if_result_218 flagrt.Value
+			if or_tmp {
+				if_result_218 = flagrt.NewBool(or_tmp)
+			} else {
+				var let_result_217 flagrt.Value
+				{
+					var if_result_214 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(chars)))) {
+						if_result_214 = flagrt.NewBool(false)
+					} else {
+						if_result_214 = flagrt.NewBool(true)
 					}
-					if flagrt.IsTruthy(func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(chars)))) {
-							return flagrt.NewBool(false)
-						}
-						return flagrt.NewBool(true)
-					}()) {
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.First(chars)))) {
-								return flagrt.NewBool(false)
-							}
-							return flagrt.NewBool(true)
-						}()
-					}
-					return func() flagrt.Value {
+					var or_tmp = if_result_214
+					var if_result_216 flagrt.Value
+					if flagrt.IsTruthy(or_tmp) {
+						if_result_216 = or_tmp
+					} else {
+						var if_result_215 flagrt.Value
 						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Last(chars)))) {
-							return flagrt.NewBool(false)
+							if_result_215 = flagrt.NewBool(false)
+						} else {
+							if_result_215 = flagrt.NewBool(true)
 						}
-						return flagrt.NewBool(true)
-					}()
-				}()) {
-					return astflagKw_error
-				}
-				return func() flagrt.Value {
-					var remaining = flagrt.Take(flagrt.Sub(n, flagrt.NewLong(2)), flagrt.Drop(flagrt.NewLong(1), chars))
-					var out = astflagStr_
-					var escaped = flagrt.NewBool(false)
-					for {
-						__loopResult := func() flagrt.Value {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(escaped) {
-											return astflagKw_error
-										}
-										return out
-									}()
-								}
-								return func() flagrt.Value {
-									var ch = flagrt.First(remaining)
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(escaped) {
-											return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, flagrt.Call(compiler__unescape_char, ch))), flagrt.NewBool(false))
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("\\")))) {
-												return flagrt.NewRecur(flagrt.Rest(remaining), out, flagrt.NewBool(true))
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("\"")))) {
-													return astflagKw_error
-												}
-												return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, ch)), flagrt.NewBool(false))
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-							if len(__recurValues) != 3 {
-								panic("internal error: recur arity mismatch")
-							}
-							remaining = __recurValues[0]
-							out = __recurValues[1]
-							escaped = __recurValues[2]
-							continue
-						}
-						return __loopResult
+						if_result_216 = if_result_215
 					}
-				}()
+					let_result_217 = if_result_216
+				}
+				if_result_218 = let_result_217
+			}
+			let_result_219 = if_result_218
+		}
+		var if_result_226 flagrt.Value
+		if flagrt.IsTruthy(let_result_219) {
+			if_result_226 = astflagKw_error
+		} else {
+			if_result_226 = func() flagrt.Value {
+				var remaining = flagrt.Take(flagrt.Sub(n, flagrt.NewLong(2)), flagrt.Drop(flagrt.NewLong(1), chars))
+				var out = astflagStr_
+				var escaped = flagrt.NewBool(false)
+				for {
+					var if_result_225 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						var if_result_220 flagrt.Value
+						if flagrt.IsTruthy(escaped) {
+							if_result_220 = astflagKw_error
+						} else {
+							if_result_220 = out
+						}
+						if_result_225 = if_result_220
+					} else {
+						var let_result_224 flagrt.Value
+						{
+							var ch = flagrt.First(remaining)
+							var if_result_223 flagrt.Value
+							if flagrt.IsTruthy(escaped) {
+								if_result_223 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, flagrt.Call(compiler__unescape_char, ch))), flagrt.NewBool(false))
+							} else {
+								var if_result_222 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("\\")))) {
+									if_result_222 = flagrt.NewRecur(flagrt.Rest(remaining), out, flagrt.NewBool(true))
+								} else {
+									var if_result_221 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("\"")))) {
+										if_result_221 = astflagKw_error
+									} else {
+										if_result_221 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, ch)), flagrt.NewBool(false))
+									}
+									if_result_222 = if_result_221
+								}
+								if_result_223 = if_result_222
+							}
+							let_result_224 = if_result_223
+						}
+						if_result_225 = let_result_224
+					}
+					__loopResult := if_result_225
+					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+						if len(__recurValues) != 3 {
+							panic("internal error: recur arity mismatch")
+						}
+						remaining = __recurValues[0]
+						out = __recurValues[1]
+						escaped = __recurValues[2]
+						continue
+					}
+					return __loopResult
+				}
 			}()
-		}()
-	}()
+		}
+		let_result_227 = if_result_226
+	}
+	return let_result_227
 }
 
 func compiler__unquote_go_string_variadic(args ...flagrt.Value) flagrt.Value {
@@ -469,9 +490,7 @@ func compiler__unquote_go_string_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__string_token_q_arity_1(tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return flagrt.Call(compiler__starts_with_char_q, flagrt.Call(astflagKw_token, tok), astflagStr___3)
-	}()
+	return flagrt.Call(compiler__starts_with_char_q, flagrt.Call(astflagKw_token, tok), astflagStr___3)
 }
 
 func compiler__string_token_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -482,40 +501,40 @@ func compiler__string_token_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__strip_edges_arity_3(token flagrt.Value, left flagrt.Value, right flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var chars = flagrt.Seq(token)
-			var n = flagrt.NewLong(int64(flagrt.Count(chars)))
-			return func() flagrt.Value {
-				if flagrt.Le(n, flagrt.Add(left, right)) {
-					return astflagStr_
-				}
-				return func() flagrt.Value {
-					var remaining = flagrt.Take(flagrt.Sub(flagrt.Sub(n, left), right), flagrt.Drop(left, chars))
-					var out = astflagStr_
-					for {
-						__loopResult := func() flagrt.Value {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-									return out
-								}
-								return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, flagrt.First(remaining))))
-							}()
-						}()
-						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-							if len(__recurValues) != 2 {
-								panic("internal error: recur arity mismatch")
-							}
-							remaining = __recurValues[0]
-							out = __recurValues[1]
-							continue
-						}
-						return __loopResult
+	var let_result_230 flagrt.Value
+	{
+		var chars = flagrt.Seq(token)
+		var n = flagrt.NewLong(int64(flagrt.Count(chars)))
+		var if_result_229 flagrt.Value
+		if flagrt.Le(n, flagrt.Add(left, right)) {
+			if_result_229 = astflagStr_
+		} else {
+			if_result_229 = func() flagrt.Value {
+				var remaining = flagrt.Take(flagrt.Sub(flagrt.Sub(n, left), right), flagrt.Drop(left, chars))
+				var out = astflagStr_
+				for {
+					var if_result_228 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						if_result_228 = out
+					} else {
+						if_result_228 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, flagrt.First(remaining))))
 					}
-				}()
+					__loopResult := if_result_228
+					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+						if len(__recurValues) != 2 {
+							panic("internal error: recur arity mismatch")
+						}
+						remaining = __recurValues[0]
+						out = __recurValues[1]
+						continue
+					}
+					return __loopResult
+				}
 			}()
-		}()
-	}()
+		}
+		let_result_230 = if_result_229
+	}
+	return let_result_230
 }
 
 func compiler__strip_edges_variadic(args ...flagrt.Value) flagrt.Value {
@@ -526,24 +545,46 @@ func compiler__strip_edges_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__triple_quoted_q_arity_1(token flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var chars = flagrt.Seq(token)
-			var n = flagrt.NewLong(int64(flagrt.Count(chars)))
-			return func() flagrt.Value {
-				if !(flagrt.Ge(n, flagrt.NewLong(6))) {
-					return flagrt.NewBool(flagrt.Ge(n, flagrt.NewLong(6)))
+	var let_result_237 flagrt.Value
+	{
+		var chars = flagrt.Seq(token)
+		var n = flagrt.NewLong(int64(flagrt.Count(chars)))
+		var let_result_236 flagrt.Value
+		{
+			var and_tmp = flagrt.Ge(n, flagrt.NewLong(6))
+			var if_result_235 flagrt.Value
+			if and_tmp {
+				var let_result_234 flagrt.Value
+				{
+					var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(0))))
+					var if_result_233 flagrt.Value
+					if flagrt.IsTruthy(and_tmp) {
+						var let_result_232 flagrt.Value
+						{
+							var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(1))))
+							var if_result_231 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								if_result_231 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(2))))
+							} else {
+								if_result_231 = and_tmp
+							}
+							let_result_232 = if_result_231
+						}
+						if_result_233 = let_result_232
+					} else {
+						if_result_233 = and_tmp
+					}
+					let_result_234 = if_result_233
 				}
-				if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(0)))))) {
-					return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(0))))
-				}
-				if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(1)))))) {
-					return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(1))))
-				}
-				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.NewLong(2))))
-			}()
-		}()
-	}()
+				if_result_235 = let_result_234
+			} else {
+				if_result_235 = flagrt.NewBool(and_tmp)
+			}
+			let_result_236 = if_result_235
+		}
+		let_result_237 = let_result_236
+	}
+	return let_result_237
 }
 
 func compiler__triple_quoted_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -554,24 +595,46 @@ func compiler__triple_quoted_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__triple_quoted_closed_q_arity_1(token flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var chars = flagrt.Seq(token)
-			var n = flagrt.NewLong(int64(flagrt.Count(chars)))
-			return func() flagrt.Value {
-				if !(flagrt.Ge(n, flagrt.NewLong(6))) {
-					return flagrt.NewBool(flagrt.Ge(n, flagrt.NewLong(6)))
+	var let_result_244 flagrt.Value
+	{
+		var chars = flagrt.Seq(token)
+		var n = flagrt.NewLong(int64(flagrt.Count(chars)))
+		var let_result_243 flagrt.Value
+		{
+			var and_tmp = flagrt.Ge(n, flagrt.NewLong(6))
+			var if_result_242 flagrt.Value
+			if and_tmp {
+				var let_result_241 flagrt.Value
+				{
+					var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(1)))))
+					var if_result_240 flagrt.Value
+					if flagrt.IsTruthy(and_tmp) {
+						var let_result_239 flagrt.Value
+						{
+							var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(2)))))
+							var if_result_238 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								if_result_238 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(3)))))
+							} else {
+								if_result_238 = and_tmp
+							}
+							let_result_239 = if_result_238
+						}
+						if_result_240 = let_result_239
+					} else {
+						if_result_240 = and_tmp
+					}
+					let_result_241 = if_result_240
 				}
-				if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(1))))))) {
-					return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(1)))))
-				}
-				if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(2))))))) {
-					return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(2)))))
-				}
-				return flagrt.NewBool(flagrt.Eq(flagrt.NewString("\""), flagrt.Call(flagrt.BuiltinFunction("nth"), chars, flagrt.Sub(n, flagrt.NewLong(3)))))
-			}()
-		}()
-	}()
+				if_result_242 = let_result_241
+			} else {
+				if_result_242 = flagrt.NewBool(and_tmp)
+			}
+			let_result_243 = if_result_242
+		}
+		let_result_244 = let_result_243
+	}
+	return let_result_244
 }
 
 func compiler__triple_quoted_closed_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -582,37 +645,42 @@ func compiler__triple_quoted_closed_q_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__parse_char_token_arity_3(token flagrt.Value, line flagrt.Value, col flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var text = flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(1))
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("space")))) {
-					return flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString(" "), astflagKw_line, line, astflagKw_col, col)
-				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("newline")))) {
-						return flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString("\n"), astflagKw_line, line, astflagKw_col, col)
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("tab")))) {
-							return flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString("\t"), astflagKw_line, line, astflagKw_col, col)
+	var let_result_250 flagrt.Value
+	{
+		var text = flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(1))
+		var if_result_249 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("space")))) {
+			if_result_249 = flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString(" "), astflagKw_line, line, astflagKw_col, col)
+		} else {
+			var if_result_248 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("newline")))) {
+				if_result_248 = flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString("\n"), astflagKw_line, line, astflagKw_col, col)
+			} else {
+				var if_result_247 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(text, flagrt.NewString("tab")))) {
+					if_result_247 = flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, flagrt.NewString("\t"), astflagKw_line, line, astflagKw_col, col)
+				} else {
+					var if_result_246 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(flagrt.Seq(text))))))) {
+						if_result_246 = flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, text, astflagKw_line, line, astflagKw_col, col)
+					} else {
+						var if_result_245 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(true)) {
+							if_result_245 = flagrt.Call(compiler__parse_error, line, col, astflagStr_unsupported_character_li)
+						} else {
+							if_result_245 = flagrt.NilValue()
 						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(int64(flagrt.Count(flagrt.Seq(text))))))) {
-								return flagrt.NewMap(astflagKw_kind, astflagKw_char, astflagKw_value, text, astflagKw_line, line, astflagKw_col, col)
-							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(true)) {
-									return flagrt.Call(compiler__parse_error, line, col, astflagStr_unsupported_character_li)
-								}
-								return flagrt.NilValue()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+						if_result_246 = if_result_245
+					}
+					if_result_247 = if_result_246
+				}
+				if_result_248 = if_result_247
+			}
+			if_result_249 = if_result_248
+		}
+		let_result_250 = if_result_249
+	}
+	return let_result_250
 }
 
 func compiler__parse_char_token_variadic(args ...flagrt.Value) flagrt.Value {
@@ -623,66 +691,79 @@ func compiler__parse_char_token_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__signed_decimal_int_q_arity_1(token flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if !(flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-					return flagrt.NewBool(false)
-				}
-				return flagrt.NewBool(true)
-			}())) {
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-						return flagrt.NewBool(false)
-					}
-					return flagrt.NewBool(true)
-				}()
-			}
-			return func() flagrt.Value {
+	var let_result_263 flagrt.Value
+	{
+		var if_result_251 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
+			if_result_251 = flagrt.NewBool(false)
+		} else {
+			if_result_251 = flagrt.NewBool(true)
+		}
+		var and_tmp = if_result_251
+		var if_result_262 flagrt.Value
+		if flagrt.IsTruthy(and_tmp) {
+			if_result_262 = func() flagrt.Value {
 				var cs = flagrt.Seq(token)
 				var idx = flagrt.NewLong(0)
 				for {
-					__loopResult := func() flagrt.Value {
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-								return flagrt.NewBool(flagrt.Gt(idx, flagrt.NewLong(0)))
-							}
-							return func() flagrt.Value {
-								var ch = flagrt.First(cs)
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(func() flagrt.Value {
-										if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(idx, flagrt.NewLong(0))))) {
-											return flagrt.NewBool(flagrt.Eq(idx, flagrt.NewLong(0)))
+					var if_result_261 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
+						if_result_261 = flagrt.NewBool(flagrt.Gt(idx, flagrt.NewLong(0)))
+					} else {
+						var let_result_260 flagrt.Value
+						{
+							var ch = flagrt.First(cs)
+							var let_result_255 flagrt.Value
+							{
+								var and_tmp = flagrt.NewBool(flagrt.Eq(idx, flagrt.NewLong(0)))
+								var if_result_254 flagrt.Value
+								if flagrt.IsTruthy(and_tmp) {
+									var let_result_253 flagrt.Value
+									{
+										var or_tmp = flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("+")))
+										var if_result_252 flagrt.Value
+										if flagrt.IsTruthy(or_tmp) {
+											if_result_252 = or_tmp
+										} else {
+											if_result_252 = flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("-")))
 										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("+")))) {
-												return flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("+")))
-											}
-											return flagrt.NewBool(flagrt.Eq(ch, flagrt.NewString("-")))
-										}()
-									}()) {
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Rest(cs)))) {
-												return flagrt.NewBool(false)
-											}
-											return flagrt.NewRecur(flagrt.Rest(cs), flagrt.Add(idx, flagrt.NewLong(1)))
-										}()
+										let_result_253 = if_result_252
 									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(flagrt.GoBind_packages_LongParse, ch)))) {
-												return flagrt.NewBool(false)
-											}
-											return flagrt.NewBool(true)
-										}()) {
-											return flagrt.NewRecur(flagrt.Rest(cs), flagrt.Add(idx, flagrt.NewLong(1)))
-										}
-										return flagrt.NewBool(false)
-									}()
-								}()
-							}()
-						}()
-					}()
+									if_result_254 = let_result_253
+								} else {
+									if_result_254 = and_tmp
+								}
+								let_result_255 = if_result_254
+							}
+							var if_result_259 flagrt.Value
+							if flagrt.IsTruthy(let_result_255) {
+								var if_result_256 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(flagrt.Rest(cs)))) {
+									if_result_256 = flagrt.NewBool(false)
+								} else {
+									if_result_256 = flagrt.NewRecur(flagrt.Rest(cs), flagrt.Add(idx, flagrt.NewLong(1)))
+								}
+								if_result_259 = if_result_256
+							} else {
+								var if_result_257 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(flagrt.GoBind_packages_LongParse, ch)))) {
+									if_result_257 = flagrt.NewBool(false)
+								} else {
+									if_result_257 = flagrt.NewBool(true)
+								}
+								var if_result_258 flagrt.Value
+								if flagrt.IsTruthy(if_result_257) {
+									if_result_258 = flagrt.NewRecur(flagrt.Rest(cs), flagrt.Add(idx, flagrt.NewLong(1)))
+								} else {
+									if_result_258 = flagrt.NewBool(false)
+								}
+								if_result_259 = if_result_258
+							}
+							let_result_260 = if_result_259
+						}
+						if_result_261 = let_result_260
+					}
+					__loopResult := if_result_261
 					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
 						if len(__recurValues) != 2 {
 							panic("internal error: recur arity mismatch")
@@ -694,8 +775,12 @@ func compiler__signed_decimal_int_q_arity_1(token flagrt.Value) flagrt.Value {
 					return __loopResult
 				}
 			}()
-		}()
-	}()
+		} else {
+			if_result_262 = and_tmp
+		}
+		let_result_263 = if_result_262
+	}
+	return let_result_263
 }
 
 func compiler__signed_decimal_int_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -706,166 +791,209 @@ func compiler__signed_decimal_int_q_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__parse_atom_token_arity_1(tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var token = flagrt.Call(astflagKw_token, tok)
-			var line = flagrt.Call(compiler__token_line, tok)
-			var col = flagrt.Call(compiler__token_col, tok)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(func() flagrt.Value {
-					if !(flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___4))) {
-						return flagrt.Call(compiler__starts_with_char_q, token, astflagStr___4)
-					}
-					return flagrt.NewBool(flagrt.Gt(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1)))
-				}()) {
-					return flagrt.NewMap(astflagKw_kind, astflagKw_keyword, astflagKw_name, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(1)), astflagKw_line, line, astflagKw_col, col)
+	var let_result_294 flagrt.Value
+	{
+		var token = flagrt.Call(astflagKw_token, tok)
+		var line = flagrt.Call(compiler__token_line, tok)
+		var col = flagrt.Call(compiler__token_col, tok)
+		var let_result_265 flagrt.Value
+		{
+			var and_tmp = flagrt.Call(compiler__starts_with_char_q, token, astflagStr___4)
+			var if_result_264 flagrt.Value
+			if flagrt.IsTruthy(and_tmp) {
+				if_result_264 = flagrt.NewBool(flagrt.Gt(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1)))
+			} else {
+				if_result_264 = and_tmp
+			}
+			let_result_265 = if_result_264
+		}
+		var if_result_293 flagrt.Value
+		if flagrt.IsTruthy(let_result_265) {
+			if_result_293 = flagrt.NewMap(astflagKw_kind, astflagKw_keyword, astflagKw_name, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(1)), astflagKw_line, line, astflagKw_col, col)
+		} else {
+			var let_result_267 flagrt.Value
+			{
+				var and_tmp = flagrt.Call(compiler__starts_with_char_q, token, astflagStr___5)
+				var if_result_266 flagrt.Value
+				if flagrt.IsTruthy(and_tmp) {
+					if_result_266 = flagrt.NewBool(flagrt.Gt(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1)))
+				} else {
+					if_result_266 = and_tmp
 				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(func() flagrt.Value {
-						if !(flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___5))) {
-							return flagrt.Call(compiler__starts_with_char_q, token, astflagStr___5)
-						}
-						return flagrt.NewBool(flagrt.Gt(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1)))
-					}()) {
-						return flagrt.Call(compiler__parse_char_token, token, line, col)
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(func() flagrt.Value {
-							if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.Call(compiler__slash_count, token))))) {
-								return flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.Call(compiler__slash_count, token)))
+				let_result_267 = if_result_266
+			}
+			var if_result_292 flagrt.Value
+			if flagrt.IsTruthy(let_result_267) {
+				if_result_292 = flagrt.Call(compiler__parse_char_token, token, line, col)
+			} else {
+				var let_result_273 flagrt.Value
+				{
+					var and_tmp = flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.Call(compiler__slash_count, token)))
+					var if_result_272 flagrt.Value
+					if flagrt.IsTruthy(and_tmp) {
+						var let_result_271 flagrt.Value
+						{
+							var if_result_268 flagrt.Value
+							if flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___6)) {
+								if_result_268 = flagrt.NewBool(false)
+							} else {
+								if_result_268 = flagrt.NewBool(true)
 							}
-							if !(flagrt.IsTruthy(func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___6)) {
-									return flagrt.NewBool(false)
-								}
-								return flagrt.NewBool(true)
-							}())) {
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___6)) {
-										return flagrt.NewBool(false)
-									}
-									return flagrt.NewBool(true)
-								}()
-							}
-							return func() flagrt.Value {
+							var and_tmp = if_result_268
+							var if_result_270 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								var if_result_269 flagrt.Value
 								if flagrt.IsTruthy(flagrt.Call(compiler__ends_with_char_q, token, astflagStr___6)) {
-									return flagrt.NewBool(false)
+									if_result_269 = flagrt.NewBool(false)
+								} else {
+									if_result_269 = flagrt.NewBool(true)
 								}
-								return flagrt.NewBool(true)
-							}()
-						}()) {
-							return func() flagrt.Value {
-								var parts = flagrt.Call(compiler__split_once, token, astflagStr___6)
-								var numerator = flagrt.Call(flagrt.GoBind_packages_LongParse, flagrt.First(parts))
-								var denominator = flagrt.Call(flagrt.GoBind_packages_LongParse, flagrt.First(flagrt.Rest(parts)))
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(func() flagrt.Value {
-										if !(flagrt.IsTruthy(func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(numerator))) {
-												return flagrt.NewBool(false)
-											}
-											return flagrt.NewBool(true)
-										}())) {
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(numerator))) {
-													return flagrt.NewBool(false)
-												}
-												return flagrt.NewBool(true)
-											}()
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(denominator))) {
-												return flagrt.NewBool(false)
-											}
-											return flagrt.NewBool(true)
-										}()
-									}()) {
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(0), denominator))) {
-												return flagrt.Call(compiler__parse_error, line, col, astflagStr_ratio_denominator_cannot)
-											}
-											return flagrt.NewMap(astflagKw_kind, astflagKw_ratio, astflagKw_numerator, numerator, astflagKw_denominator, denominator, astflagKw_line, line, astflagKw_col, col)
-										}()
-									}
-									return flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
-								}()
-							}()
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(func() flagrt.Value {
-								if !(flagrt.IsTruthy(flagrt.Call(compiler__ends_with_char_q, token, astflagStr_N))) {
-									return flagrt.Call(compiler__ends_with_char_q, token, astflagStr_N)
-								}
-								return flagrt.Call(compiler__signed_decimal_int_q, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(0), flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1))))
-							}()) {
-								return flagrt.NewMap(astflagKw_kind, astflagKw_bigint, astflagKw_value, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(0), flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1))), astflagKw_line, line, astflagKw_col, col)
+								if_result_270 = if_result_269
+							} else {
+								if_result_270 = and_tmp
 							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(true)) {
-									return func() flagrt.Value {
-										var as_int = flagrt.Call(flagrt.GoBind_packages_LongParse, token)
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(func() flagrt.Value {
-												if !(flagrt.IsTruthy(func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(as_int))) {
-														return flagrt.NewBool(false)
-													}
-													return flagrt.NewBool(true)
-												}())) {
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(as_int))) {
-															return flagrt.NewBool(false)
-														}
-														return flagrt.NewBool(true)
-													}()
-												}
-												return flagrt.Call(compiler__signed_decimal_int_q, token)
-											}()) {
-												return flagrt.NewMap(astflagKw_kind, astflagKw_int, astflagKw_value, as_int, astflagKw_line, line, astflagKw_col, col)
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.Call(compiler__contains_float_mark_q, token)) {
-													return func() flagrt.Value {
-														var __flag_try_result flagrt.Value
-														func() {
-															defer func() {
-																r := recover()
-																if r == nil {
-																	return
-																}
-																__flag_thrown := flagrt.PanicValue(r)
-																if flagrt.CatchMatches("Exception", __flag_thrown) {
-																	__flag_try_result = func() flagrt.Value {
-																		var e = __flag_thrown
-																		_ = e
-																		return func() flagrt.Value {
-																			return flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
-																		}()
-																	}()
-																	return
-																}
-																panic(r)
-															}()
-															__flag_try_result = func() flagrt.Value {
-																return flagrt.NewMap(astflagKw_kind, astflagKw_float, astflagKw_value, flagrt.Double(flagrt.Call(flagrt.GoBind_runtime_JSONReadStr, token)), astflagKw_raw, token, astflagKw_line, line, astflagKw_col, col)
-															}()
-														}()
-														return __flag_try_result
-													}()
-												}
-												return flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
-											}()
-										}()
-									}()
+							let_result_271 = if_result_270
+						}
+						if_result_272 = let_result_271
+					} else {
+						if_result_272 = and_tmp
+					}
+					let_result_273 = if_result_272
+				}
+				var if_result_291 flagrt.Value
+				if flagrt.IsTruthy(let_result_273) {
+					var let_result_280 flagrt.Value
+					{
+						var parts = flagrt.Call(compiler__split_once, token, astflagStr___6)
+						var numerator = flagrt.Call(flagrt.GoBind_packages_LongParse, flagrt.First(parts))
+						var denominator = flagrt.Call(flagrt.GoBind_packages_LongParse, flagrt.First(flagrt.Rest(parts)))
+						var let_result_277 flagrt.Value
+						{
+							var if_result_274 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(numerator))) {
+								if_result_274 = flagrt.NewBool(false)
+							} else {
+								if_result_274 = flagrt.NewBool(true)
+							}
+							var and_tmp = if_result_274
+							var if_result_276 flagrt.Value
+							if flagrt.IsTruthy(and_tmp) {
+								var if_result_275 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(denominator))) {
+									if_result_275 = flagrt.NewBool(false)
+								} else {
+									if_result_275 = flagrt.NewBool(true)
 								}
-								return flagrt.NilValue()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+								if_result_276 = if_result_275
+							} else {
+								if_result_276 = and_tmp
+							}
+							let_result_277 = if_result_276
+						}
+						var if_result_279 flagrt.Value
+						if flagrt.IsTruthy(let_result_277) {
+							var if_result_278 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(0), denominator))) {
+								if_result_278 = flagrt.Call(compiler__parse_error, line, col, astflagStr_ratio_denominator_cannot)
+							} else {
+								if_result_278 = flagrt.NewMap(astflagKw_kind, astflagKw_ratio, astflagKw_numerator, numerator, astflagKw_denominator, denominator, astflagKw_line, line, astflagKw_col, col)
+							}
+							if_result_279 = if_result_278
+						} else {
+							if_result_279 = flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
+						}
+						let_result_280 = if_result_279
+					}
+					if_result_291 = let_result_280
+				} else {
+					var let_result_282 flagrt.Value
+					{
+						var and_tmp = flagrt.Call(compiler__ends_with_char_q, token, astflagStr_N)
+						var if_result_281 flagrt.Value
+						if flagrt.IsTruthy(and_tmp) {
+							if_result_281 = flagrt.Call(compiler__signed_decimal_int_q, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(0), flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1))))
+						} else {
+							if_result_281 = and_tmp
+						}
+						let_result_282 = if_result_281
+					}
+					var if_result_290 flagrt.Value
+					if flagrt.IsTruthy(let_result_282) {
+						if_result_290 = flagrt.NewMap(astflagKw_kind, astflagKw_bigint, astflagKw_value, flagrt.Call(flagrt.BuiltinFunction("subs"), token, flagrt.NewLong(0), flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(token))), flagrt.NewLong(1))), astflagKw_line, line, astflagKw_col, col)
+					} else {
+						var if_result_289 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(true)) {
+							var let_result_288 flagrt.Value
+							{
+								var as_int = flagrt.Call(flagrt.GoBind_packages_LongParse, token)
+								var let_result_285 flagrt.Value
+								{
+									var if_result_283 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(as_int))) {
+										if_result_283 = flagrt.NewBool(false)
+									} else {
+										if_result_283 = flagrt.NewBool(true)
+									}
+									var and_tmp = if_result_283
+									var if_result_284 flagrt.Value
+									if flagrt.IsTruthy(and_tmp) {
+										if_result_284 = flagrt.Call(compiler__signed_decimal_int_q, token)
+									} else {
+										if_result_284 = and_tmp
+									}
+									let_result_285 = if_result_284
+								}
+								var if_result_287 flagrt.Value
+								if flagrt.IsTruthy(let_result_285) {
+									if_result_287 = flagrt.NewMap(astflagKw_kind, astflagKw_int, astflagKw_value, as_int, astflagKw_line, line, astflagKw_col, col)
+								} else {
+									var if_result_286 flagrt.Value
+									if flagrt.IsTruthy(flagrt.Call(compiler__contains_float_mark_q, token)) {
+										if_result_286 = func() flagrt.Value {
+											var __flag_try_result flagrt.Value
+											func() {
+												defer func() {
+													r := recover()
+													if r == nil {
+														return
+													}
+													__flag_thrown := flagrt.PanicValue(r)
+													if flagrt.CatchMatches("Exception", __flag_thrown) {
+														__flag_try_result = func() flagrt.Value {
+															var e = __flag_thrown
+															_ = e
+															return flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
+														}()
+														return
+													}
+													panic(r)
+												}()
+												__flag_try_result = flagrt.NewMap(astflagKw_kind, astflagKw_float, astflagKw_value, flagrt.Double(flagrt.Call(flagrt.GoBind_runtime_JSONReadStr, token)), astflagKw_raw, token, astflagKw_line, line, astflagKw_col, col)
+											}()
+											return __flag_try_result
+										}()
+									} else {
+										if_result_286 = flagrt.NewMap(astflagKw_kind, astflagKw_symbol, astflagKw_name, token, astflagKw_line, line, astflagKw_col, col)
+									}
+									if_result_287 = if_result_286
+								}
+								let_result_288 = if_result_287
+							}
+							if_result_289 = let_result_288
+						} else {
+							if_result_289 = flagrt.NilValue()
+						}
+						if_result_290 = if_result_289
+					}
+					if_result_291 = if_result_290
+				}
+				if_result_292 = if_result_291
+			}
+			if_result_293 = if_result_292
+		}
+		let_result_294 = if_result_293
+	}
+	return let_result_294
 }
 
 func compiler__parse_atom_token_variadic(args ...flagrt.Value) flagrt.Value {
@@ -876,27 +1004,35 @@ func compiler__parse_atom_token_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__comment_list_q_arity_1(elements flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if !(flagrt.IsTruthy(func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(elements))) {
-					return flagrt.NewBool(false)
+	var let_result_299 flagrt.Value
+	{
+		var if_result_295 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(elements))) {
+			if_result_295 = flagrt.NewBool(false)
+		} else {
+			if_result_295 = flagrt.NewBool(true)
+		}
+		var and_tmp = if_result_295
+		var if_result_298 flagrt.Value
+		if flagrt.IsTruthy(and_tmp) {
+			var let_result_297 flagrt.Value
+			{
+				var and_tmp = flagrt.NewBool(flagrt.Eq(astflagKw_symbol, flagrt.Call(astflagKw_kind, flagrt.First(elements))))
+				var if_result_296 flagrt.Value
+				if flagrt.IsTruthy(and_tmp) {
+					if_result_296 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("comment"), flagrt.Call(astflagKw_name, flagrt.First(elements))))
+				} else {
+					if_result_296 = and_tmp
 				}
-				return flagrt.NewBool(true)
-			}())) {
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(elements))) {
-						return flagrt.NewBool(false)
-					}
-					return flagrt.NewBool(true)
-				}()
+				let_result_297 = if_result_296
 			}
-			if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_symbol, flagrt.Call(astflagKw_kind, flagrt.First(elements)))))) {
-				return flagrt.NewBool(flagrt.Eq(astflagKw_symbol, flagrt.Call(astflagKw_kind, flagrt.First(elements))))
-			}
-			return flagrt.NewBool(flagrt.Eq(flagrt.NewString("comment"), flagrt.Call(astflagKw_name, flagrt.First(elements))))
-		}()
-	}()
+			if_result_298 = let_result_297
+		} else {
+			if_result_298 = and_tmp
+		}
+		let_result_299 = if_result_298
+	}
+	return let_result_299
 }
 
 func compiler__comment_list_q_variadic(args ...flagrt.Value) flagrt.Value {
@@ -907,14 +1043,13 @@ func compiler__comment_list_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__collection_node_arity_3(kind flagrt.Value, elements flagrt.Value, tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_map))) {
-				return flagrt.NewMap(astflagKw_kind, astflagKw_map, astflagKw_entries, elements, astflagKw_line, flagrt.Call(compiler__token_line, tok), astflagKw_col, flagrt.Call(compiler__token_col, tok))
-			}
-			return flagrt.NewMap(astflagKw_kind, kind, astflagKw_elements, elements, astflagKw_line, flagrt.Call(compiler__token_line, tok), astflagKw_col, flagrt.Call(compiler__token_col, tok))
-		}()
-	}()
+	var if_result_300 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_map))) {
+		if_result_300 = flagrt.NewMap(astflagKw_kind, astflagKw_map, astflagKw_entries, elements, astflagKw_line, flagrt.Call(compiler__token_line, tok), astflagKw_col, flagrt.Call(compiler__token_col, tok))
+	} else {
+		if_result_300 = flagrt.NewMap(astflagKw_kind, kind, astflagKw_elements, elements, astflagKw_line, flagrt.Call(compiler__token_line, tok), astflagKw_col, flagrt.Call(compiler__token_col, tok))
+	}
+	return if_result_300
 }
 
 func compiler__collection_node_variadic(args ...flagrt.Value) flagrt.Value {
@@ -925,14 +1060,13 @@ func compiler__collection_node_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__dispatch_error_arity_1(tok flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.Call(astflagKw_token, tok)))) {
-				return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_unexpected_end_after__)
-			}
-			return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_unsupported_reader_dispa)
-		}()
-	}()
+	var if_result_301 flagrt.Value
+	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("#"), flagrt.Call(astflagKw_token, tok)))) {
+		if_result_301 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_unexpected_end_after__)
+	} else {
+		if_result_301 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_unsupported_reader_dispa)
+	}
+	return if_result_301
 }
 
 func compiler__dispatch_error_variadic(args ...flagrt.Value) flagrt.Value {
@@ -943,33 +1077,38 @@ func compiler__dispatch_error_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__read_string_token_arity_1(p flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var tok = flagrt.Call(compiler__next_tok, p)
-			var token = flagrt.Call(astflagKw_token, tok)
-			var line = flagrt.Call(compiler__token_line, tok)
-			var col = flagrt.Call(compiler__token_col, tok)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.Call(compiler__triple_quoted_q, token)) {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.Call(compiler__triple_quoted_closed_q, token)) {
-							return flagrt.NewMap(astflagKw_kind, astflagKw_string, astflagKw_value, flagrt.Call(compiler__strip_edges, token, flagrt.NewLong(3), flagrt.NewLong(3)), astflagKw_line, line, astflagKw_col, col)
-						}
-						return flagrt.Call(compiler__parse_error, line, col, astflagStr_unterminated_string_lite)
-					}()
+	var let_result_306 flagrt.Value
+	{
+		var tok = flagrt.Call(compiler__next_tok, p)
+		var token = flagrt.Call(astflagKw_token, tok)
+		var line = flagrt.Call(compiler__token_line, tok)
+		var col = flagrt.Call(compiler__token_col, tok)
+		var if_result_305 flagrt.Value
+		if flagrt.IsTruthy(flagrt.Call(compiler__triple_quoted_q, token)) {
+			var if_result_302 flagrt.Value
+			if flagrt.IsTruthy(flagrt.Call(compiler__triple_quoted_closed_q, token)) {
+				if_result_302 = flagrt.NewMap(astflagKw_kind, astflagKw_string, astflagKw_value, flagrt.Call(compiler__strip_edges, token, flagrt.NewLong(3), flagrt.NewLong(3)), astflagKw_line, line, astflagKw_col, col)
+			} else {
+				if_result_302 = flagrt.Call(compiler__parse_error, line, col, astflagStr_unterminated_string_lite)
+			}
+			if_result_305 = if_result_302
+		} else {
+			var let_result_304 flagrt.Value
+			{
+				var unquoted = flagrt.Call(compiler__unquote_go_string, token)
+				var if_result_303 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_error, unquoted))) {
+					if_result_303 = flagrt.Call(compiler__parse_error, line, col, astflagStr_unterminated_string_lite)
+				} else {
+					if_result_303 = flagrt.NewMap(astflagKw_kind, astflagKw_string, astflagKw_value, unquoted, astflagKw_line, line, astflagKw_col, col)
 				}
-				return func() flagrt.Value {
-					var unquoted = flagrt.Call(compiler__unquote_go_string, token)
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_error, unquoted))) {
-							return flagrt.Call(compiler__parse_error, line, col, astflagStr_unterminated_string_lite)
-						}
-						return flagrt.NewMap(astflagKw_kind, astflagKw_string, astflagKw_value, unquoted, astflagKw_line, line, astflagKw_col, col)
-					}()
-				}()
-			}()
-		}()
-	}()
+				let_result_304 = if_result_303
+			}
+			if_result_305 = let_result_304
+		}
+		let_result_306 = if_result_305
+	}
+	return let_result_306
 }
 
 func compiler__read_string_token_variadic(args ...flagrt.Value) flagrt.Value {
@@ -980,277 +1119,367 @@ func compiler__read_string_token_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var tok = flagrt.Call(compiler__peek, p)
-			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, tok))) {
-					return func() flagrt.Value {
-						var pos = flagrt.Call(compiler__eof_line_col, p)
-						return flagrt.Call(compiler__parse_error, flagrt.First(pos), flagrt.First(flagrt.Rest(pos)), astflagStr_unexpected_end_of_input)
-					}()
+	var let_result_363 flagrt.Value
+	{
+		var tok = flagrt.Call(compiler__peek, p)
+		var if_result_362 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, tok))) {
+			var let_result_307 flagrt.Value
+			{
+				var pos = flagrt.Call(compiler__eof_line_col, p)
+				let_result_307 = flagrt.Call(compiler__parse_error, flagrt.First(pos), flagrt.First(flagrt.Rest(pos)), astflagStr_unexpected_end_of_input)
+			}
+			if_result_362 = let_result_307
+		} else {
+			var let_result_361 flagrt.Value
+			{
+				var token = flagrt.Call(astflagKw_token, tok)
+				var let_result_315 flagrt.Value
+				{
+					var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))
+					var if_result_314 flagrt.Value
+					if flagrt.IsTruthy(or_tmp) {
+						if_result_314 = or_tmp
+					} else {
+						var let_result_313 flagrt.Value
+						{
+							var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))
+							var if_result_312 flagrt.Value
+							if flagrt.IsTruthy(or_tmp) {
+								if_result_312 = or_tmp
+							} else {
+								var let_result_311 flagrt.Value
+								{
+									var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))
+									var if_result_310 flagrt.Value
+									if flagrt.IsTruthy(or_tmp) {
+										if_result_310 = or_tmp
+									} else {
+										var let_result_309 flagrt.Value
+										{
+											var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("{")))
+											var if_result_308 flagrt.Value
+											if flagrt.IsTruthy(or_tmp) {
+												if_result_308 = or_tmp
+											} else {
+												if_result_308 = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("#{")))
+											}
+											let_result_309 = if_result_308
+										}
+										if_result_310 = let_result_309
+									}
+									let_result_311 = if_result_310
+								}
+								if_result_312 = let_result_311
+							}
+							let_result_313 = if_result_312
+						}
+						if_result_314 = let_result_313
+					}
+					let_result_315 = if_result_314
 				}
-				return func() flagrt.Value {
-					var token = flagrt.Call(astflagKw_token, tok)
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
-								return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))
-							}
+				var if_result_360 flagrt.Value
+				if flagrt.IsTruthy(let_result_315) {
+					var let_result_337 flagrt.Value
+					{
+						var if_result_320 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
+							if_result_320 = astflagKw_list
+						} else {
+							var if_result_319 flagrt.Value
 							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
-								return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))
-							}
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
-								return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))
-							}
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("{")))) {
-								return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("{")))
-							}
-							return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("#{")))
-						}()) {
-							return func() flagrt.Value {
-								var kind = func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
-										return astflagKw_list
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
-											return astflagKw_vector
+								if_result_319 = astflagKw_vector
+							} else {
+								var if_result_318 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
+									if_result_318 = astflagKw_pipe_vector
+								} else {
+									var if_result_317 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("{")))) {
+										if_result_317 = astflagKw_map
+									} else {
+										var if_result_316 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(true)) {
+											if_result_316 = astflagKw_set
+										} else {
+											if_result_316 = flagrt.NilValue()
 										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
-												return astflagKw_pipe_vector
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("{")))) {
-													return astflagKw_map
+										if_result_317 = if_result_316
+									}
+									if_result_318 = if_result_317
+								}
+								if_result_319 = if_result_318
+							}
+							if_result_320 = if_result_319
+						}
+						var kind = if_result_320
+						var if_result_324 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
+							if_result_324 = astflagStr___10
+						} else {
+							var if_result_323 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
+								if_result_323 = astflagStr___9
+							} else {
+								var if_result_322 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
+									if_result_322 = astflagStr___8
+								} else {
+									var if_result_321 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(true)) {
+										if_result_321 = astflagStr___7
+									} else {
+										if_result_321 = flagrt.NilValue()
+									}
+									if_result_322 = if_result_321
+								}
+								if_result_323 = if_result_322
+							}
+							if_result_324 = if_result_323
+						}
+						var closer = if_result_324
+						var if_result_328 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
+							if_result_328 = astflagStr_missing_closing_____3
+						} else {
+							var if_result_327 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
+								if_result_327 = astflagStr_missing_closing_____2
+							} else {
+								var if_result_326 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
+									if_result_326 = astflagStr_missing_closing_____1
+								} else {
+									var if_result_325 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(true)) {
+										if_result_325 = astflagStr_missing_closing____
+									} else {
+										if_result_325 = flagrt.NilValue()
+									}
+									if_result_326 = if_result_325
+								}
+								if_result_327 = if_result_326
+							}
+							if_result_328 = if_result_327
+						}
+						var missing = if_result_328
+						var open = flagrt.Call(compiler__next_tok, p)
+						let_result_337 = func() flagrt.Value {
+							var elements = astflagVec_1
+							for {
+								var let_result_336 flagrt.Value
+								{
+									var cur = flagrt.Call(compiler__peek, p)
+									var if_result_335 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, cur))) {
+										if_result_335 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, open), flagrt.Call(compiler__token_col, open), missing)
+									} else {
+										var if_result_334 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(closer, flagrt.Call(astflagKw_token, cur)))) {
+											_ = flagrt.Call(compiler__next_tok, p)
+											var let_result_330 flagrt.Value
+											{
+												var and_tmp = flagrt.NewBool(flagrt.Eq(kind, astflagKw_list))
+												var if_result_329 flagrt.Value
+												if flagrt.IsTruthy(and_tmp) {
+													if_result_329 = flagrt.Call(compiler__comment_list_q, elements)
+												} else {
+													if_result_329 = and_tmp
 												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(true)) {
-														return astflagKw_set
+												let_result_330 = if_result_329
+											}
+											var if_result_331 flagrt.Value
+											if flagrt.IsTruthy(let_result_330) {
+												if_result_331 = flagrt.NilValue()
+											} else {
+												if_result_331 = flagrt.Call(compiler__collection_node, kind, elements, open)
+											}
+											if_result_334 = if_result_331
+										} else {
+											var let_result_333 flagrt.Value
+											{
+												var item = compiler__read_expr_arity_1(p)
+												var if_result_332 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(item))) {
+													if_result_332 = flagrt.NewRecur(elements)
+												} else {
+													if_result_332 = flagrt.NewRecur(flagrt.Conj(elements, item))
+												}
+												let_result_333 = if_result_332
+											}
+											if_result_334 = let_result_333
+										}
+										if_result_335 = if_result_334
+									}
+									let_result_336 = if_result_335
+								}
+								__loopResult := let_result_336
+								if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+									if len(__recurValues) != 1 {
+										panic("internal error: recur arity mismatch")
+									}
+									elements = __recurValues[0]
+									continue
+								}
+								return __loopResult
+							}
+						}()
+					}
+					if_result_360 = let_result_337
+				} else {
+					var if_result_359 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("#(")))) {
+						var let_result_343 flagrt.Value
+						{
+							var open = flagrt.Call(compiler__next_tok, p)
+							let_result_343 = func() flagrt.Value {
+								var elements = astflagVec_1
+								for {
+									var let_result_342 flagrt.Value
+									{
+										var cur = flagrt.Call(compiler__peek, p)
+										var if_result_341 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, cur))) {
+											if_result_341 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, open), flagrt.Call(compiler__token_col, open), astflagStr_missing_closing_____3)
+										} else {
+											var if_result_340 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString(")"), flagrt.Call(astflagKw_token, cur)))) {
+												_ = flagrt.Call(compiler__next_tok, p)
+												if_result_340 = flagrt.NewMap(astflagKw_kind, astflagKw_hash_fn, astflagKw_body, flagrt.NewMap(astflagKw_kind, astflagKw_list, astflagKw_elements, elements, astflagKw_line, flagrt.Call(compiler__token_line, open), astflagKw_col, flagrt.Call(compiler__token_col, open)), astflagKw_line, flagrt.Call(compiler__token_line, open), astflagKw_col, flagrt.Call(compiler__token_col, open))
+											} else {
+												var let_result_339 flagrt.Value
+												{
+													var item = compiler__read_expr_arity_1(p)
+													var if_result_338 flagrt.Value
+													if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(item))) {
+														if_result_338 = flagrt.NewRecur(elements)
+													} else {
+														if_result_338 = flagrt.NewRecur(flagrt.Conj(elements, item))
 													}
-													return flagrt.NilValue()
-												}()
-											}()
-										}()
-									}()
-								}()
-								var closer = func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
-										return astflagStr___10
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
-											return astflagStr___9
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
-												return astflagStr___8
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(true)) {
-													return astflagStr___7
+													let_result_339 = if_result_338
 												}
-												return flagrt.NilValue()
-											}()
-										}()
-									}()
-								}()
-								var missing = func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("(")))) {
-										return astflagStr_missing_closing_____3
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("[")))) {
-											return astflagStr_missing_closing_____2
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("|")))) {
-												return astflagStr_missing_closing_____1
+												if_result_340 = let_result_339
 											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(true)) {
-													return astflagStr_missing_closing____
-												}
-												return flagrt.NilValue()
-											}()
-										}()
-									}()
-								}()
-								var open = flagrt.Call(compiler__next_tok, p)
-								return func() flagrt.Value {
-									var elements = astflagVec_1
-									for {
-										__loopResult := func() flagrt.Value {
-											return func() flagrt.Value {
-												var cur = flagrt.Call(compiler__peek, p)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, cur))) {
-														return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, open), flagrt.Call(compiler__token_col, open), missing)
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(closer, flagrt.Call(astflagKw_token, cur)))) {
-															return func() flagrt.Value {
-																_ = flagrt.Call(compiler__next_tok, p)
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(func() flagrt.Value {
-																		if !(flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_list)))) {
-																			return flagrt.NewBool(flagrt.Eq(kind, astflagKw_list))
-																		}
-																		return flagrt.Call(compiler__comment_list_q, elements)
-																	}()) {
-																		return flagrt.NilValue()
-																	}
-																	return flagrt.Call(compiler__collection_node, kind, elements, open)
-																}()
-															}()
-														}
-														return func() flagrt.Value {
-															var item = compiler__read_expr_arity_1(p)
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(item))) {
-																	return flagrt.NewRecur(elements)
-																}
-																return flagrt.NewRecur(flagrt.Conj(elements, item))
-															}()
-														}()
-													}()
-												}()
-											}()
-										}()
-										if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-											if len(__recurValues) != 1 {
-												panic("internal error: recur arity mismatch")
-											}
-											elements = __recurValues[0]
-											continue
+											if_result_341 = if_result_340
 										}
-										return __loopResult
+										let_result_342 = if_result_341
 									}
-								}()
+									__loopResult := let_result_342
+									if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+										if len(__recurValues) != 1 {
+											panic("internal error: recur arity mismatch")
+										}
+										elements = __recurValues[0]
+										continue
+									}
+									return __loopResult
+								}
 							}()
 						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("#(")))) {
-								return func() flagrt.Value {
-									var open = flagrt.Call(compiler__next_tok, p)
-									return func() flagrt.Value {
-										var elements = astflagVec_1
-										for {
-											__loopResult := func() flagrt.Value {
-												return func() flagrt.Value {
-													var cur = flagrt.Call(compiler__peek, p)
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, cur))) {
-															return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, open), flagrt.Call(compiler__token_col, open), astflagStr_missing_closing_____3)
-														}
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString(")"), flagrt.Call(astflagKw_token, cur)))) {
-																return func() flagrt.Value {
-																	_ = flagrt.Call(compiler__next_tok, p)
-																	return flagrt.NewMap(astflagKw_kind, astflagKw_hash_fn, astflagKw_body, flagrt.NewMap(astflagKw_kind, astflagKw_list, astflagKw_elements, elements, astflagKw_line, flagrt.Call(compiler__token_line, open), astflagKw_col, flagrt.Call(compiler__token_col, open)), astflagKw_line, flagrt.Call(compiler__token_line, open), astflagKw_col, flagrt.Call(compiler__token_col, open))
-																}()
-															}
-															return func() flagrt.Value {
-																var item = compiler__read_expr_arity_1(p)
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(item))) {
-																		return flagrt.NewRecur(elements)
-																	}
-																	return flagrt.NewRecur(flagrt.Conj(elements, item))
-																}()
-															}()
-														}()
-													}()
-												}()
-											}()
-											if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-												if len(__recurValues) != 1 {
-													panic("internal error: recur arity mismatch")
-												}
-												elements = __recurValues[0]
-												continue
-											}
-											return __loopResult
-										}
-									}()
-								}()
+						if_result_359 = let_result_343
+					} else {
+						var if_result_358 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("^")))) {
+							var let_result_344 flagrt.Value
+							{
+								var meta_tok = flagrt.Call(compiler__next_tok, p)
+								var meta = compiler__read_expr_arity_1(p)
+								var target = compiler__read_expr_arity_1(p)
+								let_result_344 = flagrt.NewMap(astflagKw_kind, astflagKw_meta, astflagKw_meta, meta, astflagKw_target, target, astflagKw_line, flagrt.Call(compiler__token_line, meta_tok), astflagKw_col, flagrt.Call(compiler__token_col, meta_tok))
 							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("^")))) {
-									return func() flagrt.Value {
-										var meta_tok = flagrt.Call(compiler__next_tok, p)
-										var meta = compiler__read_expr_arity_1(p)
-										var target = compiler__read_expr_arity_1(p)
-										return flagrt.NewMap(astflagKw_kind, astflagKw_meta, astflagKw_meta, meta, astflagKw_target, target, astflagKw_line, flagrt.Call(compiler__token_line, meta_tok), astflagKw_col, flagrt.Call(compiler__token_col, meta_tok))
-									}()
-								}
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("'")))) {
-										return func() flagrt.Value {
-											var quote_tok = flagrt.Call(compiler__next_tok, p)
-											var quoted = compiler__read_expr_arity_1(p)
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_symbol, flagrt.Call(astflagKw_kind, quoted)))) {
-													return flagrt.NewMap(astflagKw_kind, astflagKw_quoted_symbol, astflagKw_name, flagrt.Call(astflagKw_name, quoted), astflagKw_line, flagrt.Call(compiler__token_line, quote_tok), astflagKw_col, flagrt.Call(compiler__token_col, quote_tok))
-												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_list, flagrt.Call(astflagKw_kind, quoted)))) {
-														return flagrt.NewMap(astflagKw_kind, astflagKw_quoted_list, astflagKw_elements, flagrt.Call(astflagKw_elements, quoted), astflagKw_line, flagrt.Call(compiler__token_line, quote_tok), astflagKw_col, flagrt.Call(compiler__token_col, quote_tok))
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(true)) {
-															return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, quote_tok), flagrt.Call(compiler__token_col, quote_tok), astflagStr_quote_currently_supports)
-														}
-														return flagrt.NilValue()
-													}()
-												}()
-											}()
-										}()
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.Call(compiler__string_token_q, tok)) {
-											return flagrt.Call(compiler__read_string_token, p)
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString(")")))) {
-													return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString(")")))
-												}
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("]")))) {
-													return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("]")))
-												}
-												return flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("}")))
-											}()) {
-												return flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_expected_expression)
+							if_result_358 = let_result_344
+						} else {
+							var if_result_357 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("'")))) {
+								var let_result_348 flagrt.Value
+								{
+									var quote_tok = flagrt.Call(compiler__next_tok, p)
+									var quoted = compiler__read_expr_arity_1(p)
+									var if_result_347 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_symbol, flagrt.Call(astflagKw_kind, quoted)))) {
+										if_result_347 = flagrt.NewMap(astflagKw_kind, astflagKw_quoted_symbol, astflagKw_name, flagrt.Call(astflagKw_name, quoted), astflagKw_line, flagrt.Call(compiler__token_line, quote_tok), astflagKw_col, flagrt.Call(compiler__token_col, quote_tok))
+									} else {
+										var if_result_346 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_list, flagrt.Call(astflagKw_kind, quoted)))) {
+											if_result_346 = flagrt.NewMap(astflagKw_kind, astflagKw_quoted_list, astflagKw_elements, flagrt.Call(astflagKw_elements, quoted), astflagKw_line, flagrt.Call(compiler__token_line, quote_tok), astflagKw_col, flagrt.Call(compiler__token_col, quote_tok))
+										} else {
+											var if_result_345 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(true)) {
+												if_result_345 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, quote_tok), flagrt.Call(compiler__token_col, quote_tok), astflagStr_quote_currently_supports)
+											} else {
+												if_result_345 = flagrt.NilValue()
 											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___11)) {
-													return func() flagrt.Value {
-														_ = flagrt.Call(compiler__next_tok, p)
-														return flagrt.Call(compiler__dispatch_error, tok)
-													}()
+											if_result_346 = if_result_345
+										}
+										if_result_347 = if_result_346
+									}
+									let_result_348 = if_result_347
+								}
+								if_result_357 = let_result_348
+							} else {
+								var if_result_356 flagrt.Value
+								if flagrt.IsTruthy(flagrt.Call(compiler__string_token_q, tok)) {
+									if_result_356 = flagrt.Call(compiler__read_string_token, p)
+								} else {
+									var let_result_352 flagrt.Value
+									{
+										var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString(")")))
+										var if_result_351 flagrt.Value
+										if flagrt.IsTruthy(or_tmp) {
+											if_result_351 = or_tmp
+										} else {
+											var let_result_350 flagrt.Value
+											{
+												var or_tmp = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("]")))
+												var if_result_349 flagrt.Value
+												if flagrt.IsTruthy(or_tmp) {
+													if_result_349 = or_tmp
+												} else {
+													if_result_349 = flagrt.NewBool(flagrt.Eq(token, flagrt.NewString("}")))
 												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(true)) {
-														return func() flagrt.Value {
-															_ = flagrt.Call(compiler__next_tok, p)
-															return flagrt.Call(compiler__parse_atom_token, tok)
-														}()
-													}
-													return flagrt.NilValue()
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+												let_result_350 = if_result_349
+											}
+											if_result_351 = let_result_350
+										}
+										let_result_352 = if_result_351
+									}
+									var if_result_355 flagrt.Value
+									if flagrt.IsTruthy(let_result_352) {
+										if_result_355 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, tok), flagrt.Call(compiler__token_col, tok), astflagStr_expected_expression)
+									} else {
+										var if_result_354 flagrt.Value
+										if flagrt.IsTruthy(flagrt.Call(compiler__starts_with_char_q, token, astflagStr___11)) {
+											_ = flagrt.Call(compiler__next_tok, p)
+											if_result_354 = flagrt.Call(compiler__dispatch_error, tok)
+										} else {
+											var if_result_353 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(true)) {
+												_ = flagrt.Call(compiler__next_tok, p)
+												if_result_353 = flagrt.Call(compiler__parse_atom_token, tok)
+											} else {
+												if_result_353 = flagrt.NilValue()
+											}
+											if_result_354 = if_result_353
+										}
+										if_result_355 = if_result_354
+									}
+									if_result_356 = if_result_355
+								}
+								if_result_357 = if_result_356
+							}
+							if_result_358 = if_result_357
+						}
+						if_result_359 = if_result_358
+					}
+					if_result_360 = if_result_359
+				}
+				let_result_361 = if_result_360
+			}
+			if_result_362 = let_result_361
+		}
+		let_result_363 = if_result_362
+	}
+	return let_result_363
 }
 
 func compiler__read_expr_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1261,146 +1490,166 @@ func compiler__read_expr_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ast_node__gtcanonical_arity_1(expr flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var kind = flagrt.Call(astflagKw_kind, expr)
-			var line = flagrt.Call(astflagKw_line, expr)
-			var col = flagrt.Call(astflagKw_col, expr)
-			var join = flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-				if len(args) != 1 {
-					panic("fn expects exactly 1 arguments")
-				}
-				nodes := args[0]
-				return func() flagrt.Value {
-					var remaining = nodes
-					var out = astflagStr_
-					var first_q = flagrt.NewBool(true)
-					for {
-						__loopResult := func() flagrt.Value {
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-									return out
-								}
-								return func() flagrt.Value {
-									var piece = compiler__ast_node__gtcanonical_arity_1(flagrt.First(remaining))
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(first_q) {
-											return flagrt.NewRecur(flagrt.Rest(remaining), piece, flagrt.NewBool(false))
-										}
-										return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, " ", piece)), flagrt.NewBool(false))
-									}()
-								}()
-							}()
-						}()
-						if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-							if len(__recurValues) != 3 {
-								panic("internal error: recur arity mismatch")
-							}
-							remaining = __recurValues[0]
-							out = __recurValues[1]
-							first_q = __recurValues[2]
-							continue
-						}
-						return __loopResult
-					}
-				}()
-			})
+	var let_result_385 flagrt.Value
+	{
+		var kind = flagrt.Call(astflagKw_kind, expr)
+		var line = flagrt.Call(astflagKw_line, expr)
+		var col = flagrt.Call(astflagKw_col, expr)
+		var join = flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if len(args) != 1 {
+				panic("fn expects exactly 1 arguments")
+			}
+			nodes := args[0]
 			return func() flagrt.Value {
-				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_list))) {
-					return flagrt.NewString(flagrt.Str("(:list :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
-				}
-				return func() flagrt.Value {
-					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_vector))) {
-						return flagrt.NewString(flagrt.Str("(:vector :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
-					}
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_pipe_vector))) {
-							return flagrt.NewString(flagrt.Str("(:pipe-vector :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
-						}
-						return func() flagrt.Value {
-							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_map))) {
-								return flagrt.NewString(flagrt.Str("(:map :line ", line, " :col ", col, " :entries [", flagrt.Call(join, flagrt.Call(astflagKw_entries, expr)), "])"))
+				var remaining = nodes
+				var out = astflagStr_
+				var first_q = flagrt.NewBool(true)
+				for {
+					var if_result_366 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+						if_result_366 = out
+					} else {
+						var let_result_365 flagrt.Value
+						{
+							var piece = compiler__ast_node__gtcanonical_arity_1(flagrt.First(remaining))
+							var if_result_364 flagrt.Value
+							if flagrt.IsTruthy(first_q) {
+								if_result_364 = flagrt.NewRecur(flagrt.Rest(remaining), piece, flagrt.NewBool(false))
+							} else {
+								if_result_364 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, " ", piece)), flagrt.NewBool(false))
 							}
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_set))) {
-									return flagrt.NewString(flagrt.Str("(:set :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
-								}
-								return func() flagrt.Value {
-									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_hash_fn))) {
-										return flagrt.NewString(flagrt.Str("(:hash-fn :line ", line, " :col ", col, " :body ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_body, expr)), ")"))
-									}
-									return func() flagrt.Value {
-										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_meta))) {
-											return flagrt.NewString(flagrt.Str("(:meta :line ", line, " :col ", col, " :meta ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_meta, expr)), " :target ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_target, expr)), ")"))
-										}
-										return func() flagrt.Value {
-											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_symbol))) {
-												return flagrt.NewString(flagrt.Str("(:symbol :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
-											}
-											return func() flagrt.Value {
-												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_keyword))) {
-													return flagrt.NewString(flagrt.Str("(:keyword :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
-												}
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_quoted_symbol))) {
-														return flagrt.NewString(flagrt.Str("(:quoted-symbol :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
-													}
-													return func() flagrt.Value {
-														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_quoted_list))) {
-															return flagrt.NewString(flagrt.Str("(:quoted-list :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
-														}
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_string))) {
-																return flagrt.NewString(flagrt.Str("(:string :value ", flagrt.NewString(flagrt.Format("%q", flagrt.Call(astflagKw_value, expr))), " :line ", line, " :col ", col, ")"))
-															}
-															return func() flagrt.Value {
-																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_char))) {
-																	return flagrt.NewString(flagrt.Str("(:char :value ", flagrt.NewString(flagrt.Format("%q", flagrt.Call(astflagKw_value, expr))), " :line ", line, " :col ", col, ")"))
-																}
-																return func() flagrt.Value {
-																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_int))) {
-																		return flagrt.NewString(flagrt.Str("(:int :value ", flagrt.Call(astflagKw_value, expr), " :line ", line, " :col ", col, ")"))
-																	}
-																	return func() flagrt.Value {
-																		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_bigint))) {
-																			return flagrt.NewString(flagrt.Str("(:bigint :value ", flagrt.Call(astflagKw_value, expr), " :line ", line, " :col ", col, ")"))
-																		}
-																		return func() flagrt.Value {
-																			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_float))) {
-																				return flagrt.NewString(flagrt.Str("(:float :value ", flagrt.Call(astflagKw_value, expr), " :raw ", flagrt.Call(astflagKw_raw, expr), " :line ", line, " :col ", col, ")"))
-																			}
-																			return func() flagrt.Value {
-																				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_ratio))) {
-																					return flagrt.NewString(flagrt.Str("(:ratio :numerator ", flagrt.Call(astflagKw_numerator, expr), " :denominator ", flagrt.Call(astflagKw_denominator, expr), " :line ", line, " :col ", col, ")"))
-																				}
-																				return func() flagrt.Value {
-																					if flagrt.IsTruthy(flagrt.NewBool(true)) {
-																						return func() flagrt.Value {
-																							flagrt.Throw(flagrt.NewString(flagrt.Str("unsupported AST node ", kind)))
-																							return flagrt.NilValue()
-																						}()
-																					}
+							let_result_365 = if_result_364
+						}
+						if_result_366 = let_result_365
+					}
+					__loopResult := if_result_366
+					if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+						if len(__recurValues) != 3 {
+							panic("internal error: recur arity mismatch")
+						}
+						remaining = __recurValues[0]
+						out = __recurValues[1]
+						first_q = __recurValues[2]
+						continue
+					}
+					return __loopResult
+				}
+			}()
+		})
+		var if_result_384 flagrt.Value
+		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_list))) {
+			if_result_384 = flagrt.NewString(flagrt.Str("(:list :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
+		} else {
+			var if_result_383 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_vector))) {
+				if_result_383 = flagrt.NewString(flagrt.Str("(:vector :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
+			} else {
+				var if_result_382 flagrt.Value
+				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_pipe_vector))) {
+					if_result_382 = flagrt.NewString(flagrt.Str("(:pipe-vector :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
+				} else {
+					var if_result_381 flagrt.Value
+					if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_map))) {
+						if_result_381 = flagrt.NewString(flagrt.Str("(:map :line ", line, " :col ", col, " :entries [", flagrt.Call(join, flagrt.Call(astflagKw_entries, expr)), "])"))
+					} else {
+						var if_result_380 flagrt.Value
+						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_set))) {
+							if_result_380 = flagrt.NewString(flagrt.Str("(:set :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
+						} else {
+							var if_result_379 flagrt.Value
+							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_hash_fn))) {
+								if_result_379 = flagrt.NewString(flagrt.Str("(:hash-fn :line ", line, " :col ", col, " :body ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_body, expr)), ")"))
+							} else {
+								var if_result_378 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_meta))) {
+									if_result_378 = flagrt.NewString(flagrt.Str("(:meta :line ", line, " :col ", col, " :meta ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_meta, expr)), " :target ", compiler__ast_node__gtcanonical_arity_1(flagrt.Call(astflagKw_target, expr)), ")"))
+								} else {
+									var if_result_377 flagrt.Value
+									if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_symbol))) {
+										if_result_377 = flagrt.NewString(flagrt.Str("(:symbol :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
+									} else {
+										var if_result_376 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_keyword))) {
+											if_result_376 = flagrt.NewString(flagrt.Str("(:keyword :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
+										} else {
+											var if_result_375 flagrt.Value
+											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_quoted_symbol))) {
+												if_result_375 = flagrt.NewString(flagrt.Str("(:quoted-symbol :name ", flagrt.Call(astflagKw_name, expr), " :line ", line, " :col ", col, ")"))
+											} else {
+												var if_result_374 flagrt.Value
+												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_quoted_list))) {
+													if_result_374 = flagrt.NewString(flagrt.Str("(:quoted-list :line ", line, " :col ", col, " :elements [", flagrt.Call(join, flagrt.Call(astflagKw_elements, expr)), "])"))
+												} else {
+													var if_result_373 flagrt.Value
+													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_string))) {
+														if_result_373 = flagrt.NewString(flagrt.Str("(:string :value ", flagrt.NewString(flagrt.Format("%q", flagrt.Call(astflagKw_value, expr))), " :line ", line, " :col ", col, ")"))
+													} else {
+														var if_result_372 flagrt.Value
+														if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_char))) {
+															if_result_372 = flagrt.NewString(flagrt.Str("(:char :value ", flagrt.NewString(flagrt.Format("%q", flagrt.Call(astflagKw_value, expr))), " :line ", line, " :col ", col, ")"))
+														} else {
+															var if_result_371 flagrt.Value
+															if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_int))) {
+																if_result_371 = flagrt.NewString(flagrt.Str("(:int :value ", flagrt.Call(astflagKw_value, expr), " :line ", line, " :col ", col, ")"))
+															} else {
+																var if_result_370 flagrt.Value
+																if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_bigint))) {
+																	if_result_370 = flagrt.NewString(flagrt.Str("(:bigint :value ", flagrt.Call(astflagKw_value, expr), " :line ", line, " :col ", col, ")"))
+																} else {
+																	var if_result_369 flagrt.Value
+																	if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_float))) {
+																		if_result_369 = flagrt.NewString(flagrt.Str("(:float :value ", flagrt.Call(astflagKw_value, expr), " :raw ", flagrt.Call(astflagKw_raw, expr), " :line ", line, " :col ", col, ")"))
+																	} else {
+																		var if_result_368 flagrt.Value
+																		if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(kind, astflagKw_ratio))) {
+																			if_result_368 = flagrt.NewString(flagrt.Str("(:ratio :numerator ", flagrt.Call(astflagKw_numerator, expr), " :denominator ", flagrt.Call(astflagKw_denominator, expr), " :line ", line, " :col ", col, ")"))
+																		} else {
+																			var if_result_367 flagrt.Value
+																			if flagrt.IsTruthy(flagrt.NewBool(true)) {
+																				if_result_367 = func() flagrt.Value {
+																					flagrt.Throw(flagrt.NewString(flagrt.Str("unsupported AST node ", kind)))
 																					return flagrt.NilValue()
 																				}()
-																			}()
-																		}()
-																	}()
-																}()
-															}()
-														}()
-													}()
-												}()
-											}()
-										}()
-									}()
-								}()
-							}()
-						}()
-					}()
-				}()
-			}()
-		}()
-	}()
+																			} else {
+																				if_result_367 = flagrt.NilValue()
+																			}
+																			if_result_368 = if_result_367
+																		}
+																		if_result_369 = if_result_368
+																	}
+																	if_result_370 = if_result_369
+																}
+																if_result_371 = if_result_370
+															}
+															if_result_372 = if_result_371
+														}
+														if_result_373 = if_result_372
+													}
+													if_result_374 = if_result_373
+												}
+												if_result_375 = if_result_374
+											}
+											if_result_376 = if_result_375
+										}
+										if_result_377 = if_result_376
+									}
+									if_result_378 = if_result_377
+								}
+								if_result_379 = if_result_378
+							}
+							if_result_380 = if_result_379
+						}
+						if_result_381 = if_result_380
+					}
+					if_result_382 = if_result_381
+				}
+				if_result_383 = if_result_382
+			}
+			if_result_384 = if_result_383
+		}
+		let_result_385 = if_result_384
+	}
+	return let_result_385
 }
 
 func compiler__ast_node__gtcanonical_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1412,39 +1661,39 @@ func compiler__ast_node__gtcanonical_variadic(args ...flagrt.Value) flagrt.Value
 
 func compiler__asts__gtcanonical_arity_1(exprs flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var remaining = exprs
-			var out = astflagStr_
-			var first_q = flagrt.NewBool(true)
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-							return out
-						}
-						return func() flagrt.Value {
-							var piece = flagrt.Call(compiler__ast_node__gtcanonical, flagrt.First(remaining))
-							return func() flagrt.Value {
-								if flagrt.IsTruthy(first_q) {
-									return flagrt.NewRecur(flagrt.Rest(remaining), piece, flagrt.NewBool(false))
-								}
-								return flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, "\n", piece)), flagrt.NewBool(false))
-							}()
-						}()
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 3 {
-						panic("internal error: recur arity mismatch")
+		var remaining = exprs
+		var out = astflagStr_
+		var first_q = flagrt.NewBool(true)
+		for {
+			var if_result_388 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
+				if_result_388 = out
+			} else {
+				var let_result_387 flagrt.Value
+				{
+					var piece = flagrt.Call(compiler__ast_node__gtcanonical, flagrt.First(remaining))
+					var if_result_386 flagrt.Value
+					if flagrt.IsTruthy(first_q) {
+						if_result_386 = flagrt.NewRecur(flagrt.Rest(remaining), piece, flagrt.NewBool(false))
+					} else {
+						if_result_386 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.NewString(flagrt.Str(out, "\n", piece)), flagrt.NewBool(false))
 					}
-					remaining = __recurValues[0]
-					out = __recurValues[1]
-					first_q = __recurValues[2]
-					continue
+					let_result_387 = if_result_386
 				}
-				return __loopResult
+				if_result_388 = let_result_387
 			}
-		}()
+			__loopResult := if_result_388
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 3 {
+					panic("internal error: recur arity mismatch")
+				}
+				remaining = __recurValues[0]
+				out = __recurValues[1]
+				first_q = __recurValues[2]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -1457,28 +1706,25 @@ func compiler__asts__gtcanonical_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__drain_remaining_arity_1(in flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var _more = flagrt.NewBool(true)
-			_ = _more
-			for {
-				__loopResult := func() flagrt.Value {
-					return func() flagrt.Value {
-						if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(async__channel_receive, in)))) {
-							return flagrt.NilValue()
-						}
-						return flagrt.NewRecur(flagrt.NewBool(true))
-					}()
-				}()
-				if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-					if len(__recurValues) != 1 {
-						panic("internal error: recur arity mismatch")
-					}
-					_more = __recurValues[0]
-					continue
-				}
-				return __loopResult
+		var _more = flagrt.NewBool(true)
+		_ = _more
+		for {
+			var if_result_389 flagrt.Value
+			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(async__channel_receive, in)))) {
+				if_result_389 = flagrt.NilValue()
+			} else {
+				if_result_389 = flagrt.NewRecur(flagrt.NewBool(true))
 			}
-		}()
+			__loopResult := if_result_389
+			if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+				if len(__recurValues) != 1 {
+					panic("internal error: recur arity mismatch")
+				}
+				_more = __recurValues[0]
+				continue
+			}
+			return __loopResult
+		}
 	}()
 }
 
@@ -1490,88 +1736,82 @@ func compiler__drain_remaining_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__build_ast_from_tokens_arity_1(in flagrt.Value) flagrt.Value {
-	return func() flagrt.Value {
-		return func() flagrt.Value {
-			var out = flagrt.Call(async__make_channel, flagrt.NewLong(64))
-			var p = flagrt.Call(compiler__make_parser, in)
-			_ = flagrt.Call(async__go_run, flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-				if len(args) != 0 {
-					panic("fn expects exactly 0 arguments")
-				}
-				return func() flagrt.Value {
-					return func() flagrt.Value {
-						var __flag_try_result flagrt.Value
-						defer func() {
-							_ = func() flagrt.Value {
-								_ = flagrt.Call(async__channel_close, out)
-								return flagrt.Call(compiler__drain_remaining, in)
-							}()
-						}()
-						func() {
-							defer func() {
-								r := recover()
-								if r == nil {
-									return
-								}
-								__flag_thrown := flagrt.PanicValue(r)
-								if flagrt.CatchMatches("Exception", __flag_thrown) {
-									__flag_try_result = func() flagrt.Value {
-										var e = __flag_thrown
-										_ = e
-										return func() flagrt.Value {
-											return flagrt.Call(async__channel_send, out, flagrt.NewMap(astflagKw_kind, astflagKw_error, astflagKw_message, flagrt.ExMessage(e)))
-										}()
-									}()
-									return
-								}
-								panic(r)
-							}()
+	var let_result_394 flagrt.Value
+	{
+		var out = flagrt.Call(async__make_channel, flagrt.NewLong(64))
+		var p = flagrt.Call(compiler__make_parser, in)
+		_ = flagrt.Call(async__go_run, flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if len(args) != 0 {
+				panic("fn expects exactly 0 arguments")
+			}
+			return func() flagrt.Value {
+				var __flag_try_result flagrt.Value
+				defer func() {
+					_ = flagrt.Call(async__channel_close, out)
+					_ = flagrt.Call(compiler__drain_remaining, in)
+				}()
+				func() {
+					defer func() {
+						r := recover()
+						if r == nil {
+							return
+						}
+						__flag_thrown := flagrt.PanicValue(r)
+						if flagrt.CatchMatches("Exception", __flag_thrown) {
 							__flag_try_result = func() flagrt.Value {
-								return func() flagrt.Value {
-									var _more = flagrt.NewBool(true)
-									_ = _more
-									for {
-										__loopResult := func() flagrt.Value {
-											return func() flagrt.Value {
-												var tok = flagrt.Call(compiler__peek, p)
-												return func() flagrt.Value {
-													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, tok))) {
-														return flagrt.NilValue()
-													}
-													return func() flagrt.Value {
-														var form = flagrt.Call(compiler__read_expr, p)
-														return func() flagrt.Value {
-															if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(form))) {
-																return flagrt.NewRecur(flagrt.NewBool(true))
-															}
-															return func() flagrt.Value {
-																_ = flagrt.Call(async__channel_send, out, form)
-																return flagrt.NewRecur(flagrt.NewBool(true))
-															}()
-														}()
-													}()
-												}()
-											}()
-										}()
-										if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
-											if len(__recurValues) != 1 {
-												panic("internal error: recur arity mismatch")
-											}
-											_more = __recurValues[0]
-											continue
-										}
-										return __loopResult
-									}
-								}()
+								var e = __flag_thrown
+								_ = e
+								return flagrt.Call(async__channel_send, out, flagrt.NewMap(astflagKw_kind, astflagKw_error, astflagKw_message, flagrt.ExMessage(e)))
 							}()
-						}()
-						return __flag_try_result
+							return
+						}
+						panic(r)
+					}()
+					__flag_try_result = func() flagrt.Value {
+						var _more = flagrt.NewBool(true)
+						_ = _more
+						for {
+							var let_result_393 flagrt.Value
+							{
+								var tok = flagrt.Call(compiler__peek, p)
+								var if_result_392 flagrt.Value
+								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, tok))) {
+									if_result_392 = flagrt.NilValue()
+								} else {
+									var let_result_391 flagrt.Value
+									{
+										var form = flagrt.Call(compiler__read_expr, p)
+										var if_result_390 flagrt.Value
+										if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(form))) {
+											if_result_390 = flagrt.NewRecur(flagrt.NewBool(true))
+										} else {
+											_ = flagrt.Call(async__channel_send, out, form)
+											if_result_390 = flagrt.NewRecur(flagrt.NewBool(true))
+										}
+										let_result_391 = if_result_390
+									}
+									if_result_392 = let_result_391
+								}
+								let_result_393 = if_result_392
+							}
+							__loopResult := let_result_393
+							if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
+								if len(__recurValues) != 1 {
+									panic("internal error: recur arity mismatch")
+								}
+								_more = __recurValues[0]
+								continue
+							}
+							return __loopResult
+						}
 					}()
 				}()
-			}))
-			return out
-		}()
-	}()
+				return __flag_try_result
+			}()
+		}))
+		let_result_394 = out
+	}
+	return let_result_394
 }
 
 func compiler__build_ast_from_tokens_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1581,11 +1821,22 @@ func compiler__build_ast_from_tokens_variadic(args ...flagrt.Value) flagrt.Value
 	return compiler__build_ast_from_tokens_arity_1(args[0])
 }
 
-var async__deref = flagrt.GoBind_async_Deref
+var async__future_piped_run = flagrt.GoBind_async_FuturePipeRun
+
+var async__select_ = flagrt.GoBind_async_Select
+var async__channel_map = flagrt.GoBind_async_PipeMap
+var async__atom = flagrt.GoBind_async_Atom
 var async__reset_bang = flagrt.GoBind_async_Reset
 
-var async__atom = flagrt.GoBind_async_Atom
 var async__swap_bang = flagrt.GoBind_async_Swap
+var async__future_run = flagrt.GoBind_async_FutureRun
+var async__sleep = flagrt.GoBind_async_Sleep
+
+var async__channel_lines = flagrt.GoBind_async_LinesPipe
+var async__deref = flagrt.GoBind_async_Deref
+
+var async__channel_filter = flagrt.GoBind_async_PipeFilter
+var async__channel_reduce = flagrt.GoBind_async_PipeReduce
 
 var compiler__parse_error = flagrt.NewFunction(compiler__parse_error_variadic)
 var compiler__token_line = flagrt.NewFunction(compiler__token_line_variadic)

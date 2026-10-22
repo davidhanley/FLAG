@@ -88,6 +88,15 @@ func TestRunBuildCreatesRunnableBinary(t *testing.T) {
 	if strings.TrimSpace(string(result)) != "13" {
 		t.Fatalf("unexpected output from built binary: %q", result)
 	}
+
+	inspect := filepath.Join(dir, ".flag-build", "main.go")
+	if _, err := os.Stat(inspect); err != nil {
+		t.Fatalf("expected generated Go at %s: %v", inspect, err)
+	}
+	sidecar := filepath.Join(dir, "fib.go")
+	if _, err := os.Stat(sidecar); err != nil {
+		t.Fatalf("expected sidecar Go at %s: %v", sidecar, err)
+	}
 }
 
 func TestRunBuildDirectoryCreatesRunnableBinary(t *testing.T) {

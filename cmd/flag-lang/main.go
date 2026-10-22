@@ -133,37 +133,110 @@ func runBuild(args []string) error {
 		return usageError("build expects exactly one input file or directory")
 	}
 
-	goSource, err := compileBuildInput(inputPath)
-	if err != nil {
-		return err
-	}
-
 	if outputPath == "" {
 		base := filepath.Base(inputPath)
 		outputPath = strings.TrimSuffix(base, filepath.Ext(base))
 	}
+	absOut, err := filepath.Abs(outputPath)
+	if err != nil {
+		return fmt.Errorf("resolve output path: %w", err)
+	}
 
-	// Persist generated Go next to the source for inspection (best-effort).
-	_, _ = writeGeneratedGo(inputPath, goSource)
+	entryPath, ok, err := resolvePackageBuildEntry(inputPath)
+	if err != nil {
+		return err
+	}
+	if ok {
+		inspectDir, err := generatedInspectDir(inputPath)
+		if err != nil {
+			return err
+		}
+		if err := os.RemoveAll(inspectDir); err != nil {
+			return fmt.Errorf("clear generated Go dir: %w", err)
+		}
+		if err := os.MkdirAll(inspectDir, 0o755); err != nil {
+			return fmt.Errorf("create generated Go dir: %w", err)
+		}
+		if err := compiler.WriteProgramPackages(inspectDir, entryPath); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", inspectDir)
+		if mainSrc, err := os.ReadFile(filepath.Join(inspectDir, "main.go")); err == nil {
+			_, _ = writeGeneratedGo(inputPath, mainSrc)
+		}
+		cmd := exec.Command("go", "build", "-o", absOut)
+		cmd.Dir = inspectDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
+		}
+		return nil
+	}
 
-	// Always build from a temp file so multi-file module projects do not leave
-	// multiple package-main .go files that break `go test ./...`.
 	tempDir, err := os.MkdirTemp(".", ".flag-build-*")
 	if err != nil {
 		return fmt.Errorf("create temp build dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
+
+	goSource, err := compileBuildInput(inputPath)
+	if err != nil {
+		return err
+	}
+
+	// Persist generated Go next to the source for inspection (best-effort).
+	_, _ = writeGeneratedGo(inputPath, goSource)
+
 	goPath := filepath.Join(tempDir, "main.go")
 	if err := os.WriteFile(goPath, goSource, 0o644); err != nil {
 		return fmt.Errorf("write generated Go: %w", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", outputPath, goPath)
+	cmd := exec.Command("go", "build", "-o", absOut, goPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
 	}
 
 	return nil
+}
+
+// resolvePackageBuildEntry returns the FLAG entry file for one-package-per-module
+// emit. ok is false for legacy directory concatenations.
+func resolvePackageBuildEntry(inputPath string) (string, bool, error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return "", false, fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+	if !stat.IsDir() {
+		return inputPath, true, nil
+	}
+	for _, name := range []string{"main.flag", "main.clj", "main.cljc"} {
+		candidate := filepath.Join(inputPath, name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, true, nil
+		}
+	}
+	sourceFiles, err := findBuildSourceFiles(inputPath)
+	if err != nil {
+		return "", false, err
+	}
+	if len(sourceFiles) == 1 {
+		return sourceFiles[0], true, nil
+	}
+	return "", false, nil
+}
+
+// generatedInspectDir is the persistent directory for `flag-lang build` output.
+// A leading dot keeps `go test ./...` from treating it as a package.
+func generatedInspectDir(inputPath string) (string, error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return "", fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+	dir := inputPath
+	if !stat.IsDir() {
+		dir = filepath.Dir(inputPath)
+	}
+	return filepath.Join(dir, ".flag-build"), nil
 }
 
 func runTest(args []string) error {

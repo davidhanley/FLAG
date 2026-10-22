@@ -392,6 +392,42 @@ func TestFirstStringReturnsFirstRune(t *testing.T) {
 	}
 }
 
+func TestFirstRestAndVecForSet(t *testing.T) {
+	if got := First(NewSet()); got.tag != TagNil {
+		t.Fatalf("expected nil for empty set, got %#v", got)
+	}
+	if got := Rest(NewSet()); got.tag != TagArray || got.ArrayLen() != 0 {
+		t.Fatalf("expected empty array rest for empty set, got %#v", got)
+	}
+
+	one := NewSet(NewLong(10))
+	if got := First(one); got.tag != TagLong || got.Long() != 10 {
+		t.Fatalf("expected singleton set first 10, got %#v", got)
+	}
+	if got := Rest(one); got.tag != TagArray || got.ArrayLen() != 0 {
+		t.Fatalf("expected empty rest for singleton set, got %#v", got)
+	}
+	if got := SeqFirst(one); got.tag != TagLong || got.Long() != 10 {
+		t.Fatalf("expected SeqFirst 10, got %#v", got)
+	}
+
+	two := NewSet(NewLong(1), NewLong(2))
+	first := First(two)
+	rest := Rest(two)
+	if first.tag != TagLong || (first.Long() != 1 && first.Long() != 2) {
+		t.Fatalf("expected set first to be 1 or 2, got %#v", first)
+	}
+	if rest.tag != TagArray || rest.ArrayLen() != 1 {
+		t.Fatalf("expected set rest length 1, got %#v", rest)
+	}
+	if Eq(ArrayGet(rest, 0), first) {
+		t.Fatalf("rest should not contain first: first=%#v rest=%#v", first, rest)
+	}
+	if got := Vec(two); got.tag != TagArray || got.ArrayLen() != 2 {
+		t.Fatalf("expected vec of set length 2, got %#v", got)
+	}
+}
+
 func TestDoAllRealizesLazyList(t *testing.T) {
 	count := int64(0)
 	lazy := NewLazyList(func() (Value, bool) {

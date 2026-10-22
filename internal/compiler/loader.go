@@ -16,6 +16,11 @@ type Program struct {
 
 // LoadProgram loads entryPath and its import closure.
 func LoadProgram(entryPath string) (*Program, error) {
+	return flagLoadProgram(entryPath)
+}
+
+// loadProgramGo is the Go implementation kept for parity tests.
+func loadProgramGo(entryPath string) (*Program, error) {
 	abs, err := filepath.Abs(entryPath)
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", entryPath, err)
@@ -55,7 +60,7 @@ func LoadProgram(entryPath string) (*Program, error) {
 		}
 		if mod.HasModuleHeader {
 			for _, spec := range mod.Header.Imports {
-				resolved, err := resolveImportPath(absPath, spec.Path)
+				resolved, err := resolveImportPathGo(absPath, spec.Path)
 				if err != nil {
 					return nil, fmt.Errorf("%s: import %q: %w", absPath, spec.Path, err)
 				}
@@ -83,6 +88,10 @@ func LoadProgram(entryPath string) (*Program, error) {
 // resolveImportPath resolves an import path relative to the importing file,
 // the working directory, and project libraries/ directories (for "burp.lib").
 func resolveImportPath(importerPath, importPath string) (string, error) {
+	return flagResolveImportPath(importerPath, importPath)
+}
+
+func resolveImportPathGo(importerPath, importPath string) (string, error) {
 	importPath = strings.TrimSpace(importPath)
 	if importPath == "" {
 		return "", fmt.Errorf("empty import path")

@@ -145,9 +145,8 @@ func TestCompileMultiArityDefn(t *testing.T) {
 		"func add_m_arity_1(",
 		"func add_m_arity_2(",
 		"func add_m_variadic(args ...flagrt.Value)",
-		"switch len(args)",
-		"case 1:",
-		"case 2:",
+		"len(args) == 1",
+		"len(args) == 2",
 		"add-m expects 1 or 2 arguments",
 	} {
 		if !strings.Contains(got, want) {
@@ -267,6 +266,60 @@ func TestCompileDefnDashRejected(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "defn- is not supported") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCompileLetOrDefaultAndListDestructure(t *testing.T) {
+	output, err := Compile(`
+(defn use-or []
+  (let [{:keys [a] :or {a (+ 1 2)}} {}]
+    a))
+(defn use-list []
+  (let [(a b) [1 2]]
+    (+ a b)))
+`)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"flagrt.Get(",
+		"flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2))",
+		"flagrt.SeqFirst(",
+		"flagrt.SeqRest(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestCompileDeclareThenDefn(t *testing.T) {
+	out, err := Compile(`
+(declare later)
+(defn later [] 7)
+(println (later))
+`)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "func later_arity_0") {
+		t.Fatalf("missing later fn:\n%s", got)
+	}
+}
+
+func TestCompileDeclareRejectsNonSymbol(t *testing.T) {
+	_, err := Compile(`(declare 1)`)
+	if err == nil || !strings.Contains(err.Error(), "declare expects symbols") {
+		t.Fatalf("expected symbol error, got %v", err)
+	}
+}
+
+func TestCompileDeclareRejectsEmpty(t *testing.T) {
+	_, err := Compile(`(declare)`)
+	if err == nil || !strings.Contains(err.Error(), "declare expects one or more names") {
+		t.Fatalf("expected empty declare error, got %v", err)
 	}
 }
 
@@ -418,11 +471,39 @@ func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, "return countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
+	if !strings.Contains(got, "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
 		t.Fatalf("expected direct variadic self-call lowering:\n%s", got)
 	}
 	if strings.Contains(got, "flagrt.Call(countdown,") {
 		t.Fatalf("expected no runtime self-call through value var:\n%s", got)
+	}
+}
+
+func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x]
+  (if x 1 2))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "var if_result_1 flagrt.Value") {
+		t.Fatalf("expected if result var:\n%s", got)
+	}
+	if !strings.Contains(got, "if flagrt.IsTruthy(x)") {
+		t.Fatalf("expected Go if:\n%s", got)
+	}
+	arityStart := strings.Index(got, "func choose_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("if still compiled as IIFE:\n%s", arity)
 	}
 }
 
@@ -444,6 +525,213 @@ func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "map literal entries must evaluate to Value at 1:") {
 		t.Fatalf("expected location in error, got: %v", err)
+	}
+}
+
+func TestCompileOrExpandsToLetIf(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x y]
+  (or x y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func choose_arity_2")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "or_tmp") {
+		t.Fatalf("expected or macro to bind or-tmp:\n%s", arity)
+	}
+	if !strings.Contains(arity, "if flagrt.IsTruthy(or_tmp)") {
+		t.Fatalf("expected or macro to expand to if:\n%s", arity)
+	}
+	if !strings.Contains(arity, "var let_result_") {
+		t.Fatalf("expected flattened let result var:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("or/let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileAndExpandsToLetIf(t *testing.T) {
+	output, err := Compile(`
+(defn choose [x y]
+  (and x y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func choose_arity_2")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "and_tmp") {
+		t.Fatalf("expected and macro to bind and-tmp:\n%s", arity)
+	}
+	if !strings.Contains(arity, "if flagrt.IsTruthy(and_tmp)") {
+		t.Fatalf("expected and macro to expand to if:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("and/let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileLetUsesResultVarNotIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn wrap [x]
+  (let [y x]
+    y))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func wrap_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "var let_result_") {
+		t.Fatalf("expected let result var:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileLetShadowsParam(t *testing.T) {
+	output, err := Compile(`
+(defn shadow [x]
+  (let [x 1]
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func shadow_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "{\n") {
+		t.Fatalf("expected Go block so let can shadow the parameter:\n%s", arity)
+	}
+	if strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("shadowing let still compiled as IIFE:\n%s", arity)
+	}
+}
+
+func TestCompileForBodyLetStmtsStayInCallback(t *testing.T) {
+	output, err := Compile(`
+(defn cells [xs]
+  (for [cell xs]
+    (or cell "")))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	bindAt := strings.Index(got, "cell := args[0]")
+	if bindAt < 0 {
+		t.Fatalf("missing for binding:\n%s", got)
+	}
+	useAt := strings.Index(got[bindAt:], "or_tmp = cell")
+	if useAt < 0 {
+		useAt = strings.Index(got[bindAt:], "var or_tmp = cell")
+	}
+	if useAt < 0 {
+		t.Fatalf("expected or/let to use cell inside the for callback:\n%s", got)
+	}
+	if strings.Contains(got[:bindAt], "or_tmp = cell") || strings.Contains(got[:bindAt], "var or_tmp = cell") {
+		t.Fatalf("for body let stmts leaked out of the MapCat callback:\n%s", got)
+	}
+}
+
+func TestCompileLetWithDeferStillIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn work []
+  (let [x 1]
+    (defer (fn [] x))
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "defer flagrt.Call(") {
+		t.Fatalf("expected defer in generated Go:\n%s", got)
+	}
+	arityStart := strings.Index(got, "func work_arity_0")
+	if arityStart < 0 {
+		t.Fatalf("missing arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "func() flagrt.Value") {
+		t.Fatalf("let containing defer should still compile as IIFE so the thunk runs when let returns:\n%s", arity)
+	}
+}
+
+func TestCompileDoWithDeferStillIIFE(t *testing.T) {
+	output, err := Compile(`
+(defn work []
+  (let [x (do (defer (fn [] 1)) 2)]
+    x))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "defer flagrt.Call(") {
+		t.Fatalf("expected defer in generated Go:\n%s", got)
+	}
+	if !strings.Contains(got, "func() flagrt.Value") {
+		t.Fatalf("do containing defer should still compile as IIFE so the thunk runs when do returns:\n%s", got)
+	}
+}
+
+func TestCompileIfInsideEqualityEmitsResultVar(t *testing.T) {
+	output, err := Compile(`
+(defn work [x]
+  (= (if x 1 2) 1))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	arityStart := strings.Index(got, "func work_arity_1")
+	if arityStart < 0 {
+		t.Fatalf("missing work arity function:\n%s", got)
+	}
+	arity := got[arityStart:]
+	if end := strings.Index(arity[1:], "\nfunc "); end >= 0 {
+		arity = arity[:end+1]
+	}
+	if !strings.Contains(arity, "var if_result_") {
+		t.Fatalf("expected if result var before equality:\n%s", arity)
+	}
+	if !strings.Contains(arity, "flagrt.Eq(if_result_") {
+		t.Fatalf("expected equality to use if result var:\n%s", arity)
 	}
 }
 
@@ -933,6 +1221,32 @@ func TestReplCompilerDefnBinding(t *testing.T) {
 	}
 	if defn.ResultExpr != `"sq"` {
 		t.Fatalf("unexpected defn result expr: %s", defn.ResultExpr)
+	}
+
+	call, err := c.CompileLine(`(sq 4)`)
+	if err != nil {
+		t.Fatalf("CompileLine function call returned error: %v", err)
+	}
+	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
+	}
+}
+
+func TestReplCompilerDefnRedef(t *testing.T) {
+	c := NewReplCompiler()
+
+	if _, err := c.CompileLine(`(defn sq [x] (* x x))`); err != nil {
+		t.Fatalf("CompileLine defn returned error: %v", err)
+	}
+	redef, err := c.CompileLine(`(defn sq [x] (+ x x))`)
+	if err != nil {
+		t.Fatalf("CompileLine defn redef returned error: %v", err)
+	}
+	if strings.Contains(redef.Setup, "var sq_arity_1") {
+		t.Fatalf("redef should not redeclare sq_arity_1:\n%s", redef.Setup)
+	}
+	if !strings.Contains(redef.Setup, "return flagrt.Add(x, x)") {
+		t.Fatalf("redef setup missing new body:\n%s", redef.Setup)
 	}
 
 	call, err := c.CompileLine(`(sq 4)`)

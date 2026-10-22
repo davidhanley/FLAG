@@ -5,6 +5,8 @@
            ["compiler/expand-macros.lib" :as "expand-macros"]
            ["compiler/lift.lib" :as "lift"]
            ["compiler/codegen.lib" :as "codegen"]
+           ["compiler/ir.lib" :as "ir"]
+           ["compiler/lower.lib" :as "lower"]
            ["compiler/ast-source.lib" :as "ast-source"]
            ["async.lib" :refer [channel-receive]]]}
 

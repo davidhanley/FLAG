@@ -1,0 +1,248 @@
+{:namespace "compiler-ir"
+ :exports   [render-ir render-ir-stmt render-ir-stmts
+             ir-ident ir-string ir-int ir-selector ir-call ir-raw
+             ir-index ir-slice ir-spread ir-unary ir-binary ir-func-lit
+             ir-expr-stmt ir-return ir-defer ir-go ir-var ir-assign ir-define
+             ir-if ir-if-init ir-for ir-block ir-func-decl ir-raw-stmt
+             rt-call ident-call selector-call parse-go-fun iife value-iife]}
+
+(def runtime-alias "flagrt")
+
+(defn ir-ident [name]
+  {:kind :ident :name name})
+
+(defn ir-string [value]
+  {:kind :string :value value})
+
+(defn ir-int [value]
+  {:kind :int :value value})
+
+(defn ir-selector [pkg name]
+  {:kind :selector :pkg pkg :name name})
+
+(defn ir-call [fun args]
+  {:kind :call :fun fun :args args})
+
+(defn ir-raw [code]
+  {:kind :raw :code code})
+
+(defn ir-index [x index]
+  {:kind :index :x x :index index})
+
+(defn ir-slice [x low high]
+  {:kind :slice :x x :low low :high high})
+
+(defn ir-spread [expr]
+  {:kind :spread :expr expr})
+
+(defn ir-unary [op x]
+  {:kind :unary :op op :x x})
+
+(defn ir-binary [op left right]
+  {:kind :binary :op op :left left :right right})
+
+(defn ir-func-lit [params result body]
+  {:kind :func-lit :params params :result result :body body})
+
+(defn ir-expr-stmt [expr discard]
+  {:kind :expr-stmt :expr expr :discard discard})
+
+(defn ir-return [expr]
+  {:kind :return :expr expr})
+
+(defn ir-defer [expr]
+  {:kind :defer :expr expr})
+
+(defn ir-go [expr]
+  {:kind :go :expr expr})
+
+(defn ir-var [name type expr]
+  {:kind :var :name name :type type :expr expr})
+
+(defn ir-assign [name expr]
+  {:kind :assign :name name :expr expr})
+
+(defn ir-define [names expr]
+  {:kind :define :names names :expr expr})
+
+(defn ir-if [cond then else]
+  {:kind :if :init "" :cond cond :then then :else else})
+
+(defn ir-if-init [init cond then else]
+  {:kind :if :init init :cond cond :then then :else else})
+
+(defn ir-for [body]
+  {:kind :for :body body})
+
+(defn ir-block [body]
+  {:kind :block :body body})
+
+(defn ir-func-decl [name params result body]
+  {:kind :func-decl :name name :params params :result result :body body})
+
+(defn ir-raw-stmt [code]
+  {:kind :raw-stmt :code code})
+
+(defn rt-call [name args]
+  (ir-call (ir-selector runtime-alias name) args))
+
+(defn ident-call [name args]
+  (ir-call (ir-ident name) args))
+
+(defn selector-call [pkg name args]
+  (ir-call (ir-selector pkg name) args))
+
+(defn parse-go-fun [go-name]
+  (let [idx (str/index-of go-name ".")]
+    (if (nil? idx)
+      (ir-ident go-name)
+      (let [pkg (subs go-name 0 idx)
+            name (subs go-name (inc idx))]
+        (if (or (= pkg "")
+                (= name "")
+                (not (nil? (str/index-of name "."))))
+          (ir-ident go-name)
+          (ir-selector pkg name))))))
+
+(defn iife [result body]
+  (ir-call (ir-func-lit "" result body) []))
+
+(defn value-iife [body]
+  (iife (str runtime-alias ".Value") body))
+
+(defn blank? [s]
+  (or (nil? s) (= "" s)))
+
+(defn empty-seq? [xs]
+  (or (nil? xs) (empty? xs)))
+
+(defn join-names [names]
+  (loop [remaining names out "" first? true]
+    (if (empty-seq? remaining)
+      out
+      (let [piece (str (first remaining))]
+        (if first?
+          (recur (rest remaining) piece false)
+          (recur (rest remaining) (str out ", " piece) false))))))
+
+(defn render-ir-node [mode node indent]
+  (cond
+    (= mode :stmts)
+    (loop [remaining node out ""]
+      (if (empty-seq? remaining)
+        out
+        (recur (rest remaining)
+               (str out (render-ir-node :stmt (first remaining) indent)))))
+
+    (= mode :expr)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :ident) (:name node)
+        (= kind :string) (format "%q" (:value node))
+        (= kind :int) (str (:value node))
+        (= kind :selector)
+        (if (blank? (:pkg node))
+          (:name node)
+          (str (:pkg node) "." (:name node)))
+        (= kind :call)
+        (loop [remaining (:args node) out "" first? true]
+          (if (empty-seq? remaining)
+            (str (render-ir-node :expr (:fun node) "") "(" out ")")
+            (let [arg (first remaining)
+                  piece (if (= :spread (:kind arg))
+                          (str (render-ir-node :expr (:expr arg) "") "...")
+                          (render-ir-node :expr arg ""))]
+              (if first?
+                (recur (rest remaining) piece false)
+                (recur (rest remaining) (str out ", " piece) false)))))
+        (= kind :index)
+        (str (render-ir-node :expr (:x node) "") "[" (render-ir-node :expr (:index node) "") "]")
+        (= kind :slice)
+        (let [low (if (nil? (:low node)) "" (render-ir-node :expr (:low node) ""))
+              high (if (nil? (:high node)) "" (render-ir-node :expr (:high node) ""))]
+          (str (render-ir-node :expr (:x node) "") "[" low ":" high "]"))
+        (= kind :unary)
+        (if (= "!" (:op node))
+          (str "!(" (render-ir-node :expr (:x node) "") ")")
+          (str (:op node) (render-ir-node :expr (:x node) "")))
+        (= kind :binary)
+        (str (render-ir-node :expr (:left node) "") " " (:op node) " " (render-ir-node :expr (:right node) ""))
+        (= kind :func-lit)
+        (let [result (:result node)
+              head (if (blank? result)
+                     (str "func(" (:params node) ")")
+                     (str "func(" (:params node) ") " result))]
+          (str head " {\n" (render-ir-node :stmts (:body node) "\t") "}"))
+        (= kind :raw) (:code node)
+        :else (throw (ex-info "unsupported IR expression" {:node node}))))
+
+    (= mode :stmt)
+    (let [kind (:kind node)]
+      (cond
+        (= kind :raw-stmt) (:code node)
+        (= kind :expr-stmt)
+        (if (:discard node)
+          (str indent "_ = " (render-ir-node :expr (:expr node) "") "\n")
+          (str indent (render-ir-node :expr (:expr node) "") "\n"))
+        (= kind :return)
+        (if (nil? (:expr node))
+          (str indent "return\n")
+          (str indent "return " (render-ir-node :expr (:expr node) "") "\n"))
+        (= kind :defer)
+        (str indent "defer " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :go)
+        (str indent "go " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :var)
+        (let [name (:name node)
+              type (:type node)
+              expr (:expr node)]
+          (cond
+            (and (not (blank? type)) (nil? expr))
+            (str indent "var " name " " type "\n")
+            (not (blank? type))
+            (str indent "var " name " " type " = " (render-ir-node :expr expr "") "\n")
+            :else
+            (str indent "var " name " = " (render-ir-node :expr expr "") "\n")))
+        (= kind :assign)
+        (str indent (:name node) " = " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :define)
+        (str indent (join-names (:names node)) " := " (render-ir-node :expr (:expr node) "") "\n")
+        (= kind :if)
+        (let [init (:init node)
+              head (if (blank? init)
+                     (str indent "if " (render-ir-node :expr (:cond node) "") " {\n")
+                     (str indent "if " init "; " (render-ir-node :expr (:cond node) "") " {\n"))
+              then-block (render-ir-node :stmts (:then node) (str indent "\t"))
+              else-part (if (empty-seq? (:else node))
+                          ""
+                          (str indent "} else {\n"
+                               (render-ir-node :stmts (:else node) (str indent "\t"))))]
+          (str head then-block else-part indent "}\n"))
+        (= kind :for)
+        (str indent "for {\n"
+             (render-ir-node :stmts (:body node) (str indent "\t"))
+             indent "}\n")
+        (= kind :block)
+        (str indent "{\n"
+             (render-ir-node :stmts (:body node) (str indent "\t"))
+             indent "}\n")
+        (= kind :func-decl)
+        (let [result (:result node)
+              head (if (blank? result)
+                     (str indent "func " (:name node) "(" (:params node) ")")
+                     (str indent "func " (:name node) "(" (:params node) ") " result))]
+          (str head " {\n"
+               (render-ir-node :stmts (:body node) (str indent "\t"))
+               indent "}\n"))
+        :else (throw (ex-info "unsupported IR statement" {:node node}))))
+
+    :else (throw (ex-info "unsupported IR render mode" {:mode mode}))))
+
+(defn render-ir [node]
+  (render-ir-node :expr node ""))
+
+(defn render-ir-stmt [node indent]
+  (render-ir-node :stmt node indent))
+
+(defn render-ir-stmts [stmts indent]
+  (render-ir-node :stmts stmts indent))

@@ -1,0 +1,4 @@
+nil
+a
+(let [or-tmp a] (if or-tmp or-tmp []))
+(let [or-tmp a] (if or-tmp or-tmp (let [or-tmp b] (if or-tmp or-tmp c))))

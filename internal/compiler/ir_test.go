@@ -1,6 +1,9 @@
 package compiler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRenderIRExpr(t *testing.T) {
 	cases := []struct {
@@ -171,6 +174,20 @@ func TestRenderIIFEAndStatements(t *testing.T) {
 	}
 }
 
+func TestRenderIRBlock(t *testing.T) {
+	got := renderIRStmts([]IRStmt{
+		IRVar{Name: "let_result_1", Type: "flagrt.Value"},
+		IRBlock{Body: []IRStmt{
+			IRVar{Name: "x", Expr: IRIdent{Name: "y"}},
+			IRAssign{Name: "let_result_1", Expr: IRIdent{Name: "x"}},
+		}},
+	}, "\t")
+	want := "\tvar let_result_1 flagrt.Value\n\t{\n\t\tvar x = y\n\t\tlet_result_1 = x\n\t}\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
 func TestRenderSequentialDo(t *testing.T) {
 	got := renderIRExpr(valueIIFE(
 		IRExprStmt{Expr: IRIdent{Name: "a"}, Discard: true},
@@ -297,11 +314,68 @@ func TestRenderFuncLitParams(t *testing.T) {
 	}
 }
 
+func TestRenderFuncDecl(t *testing.T) {
+	got := renderIRStmt(IRFuncDecl{
+		Name:   "foo_arity_1",
+		Params: "x flagrt.Value",
+		Result: "flagrt.Value",
+		Body: []IRStmt{
+			IRReturn{Expr: IRIdent{Name: "x"}},
+		},
+	}, "")
+	want := "func foo_arity_1(x flagrt.Value) flagrt.Value {\n\treturn x\n}\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
 func TestRenderMapCatBinding(t *testing.T) {
-	got := renderIRExpr(mapCatBindingIR("x", "x", "for binding expects exactly one value", IRIdent{Name: "rest"}, IRIdent{Name: "coll"}))
+	ir, err := flagMapCatBindingToIR("x", false, "for binding expects exactly one value", IRIdent{Name: "rest"}, nil, IRIdent{Name: "coll"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
 	want := "func() flagrt.Value {\n\treturn flagrt.MapCat(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 1 {\n\t\tpanic(\"for binding expects exactly one value\")\n\t}\n\tx := args[0]\n\treturn rest\n}), coll)\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderFnToIR(t *testing.T) {
+	ir, err := flagFnToIR("fn", []string{"x", "_"}, false, nil, nil, IRIdent{Name: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	want := "flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 2 {\n\t\tpanic(\"fn expects exactly 2 arguments\")\n\t}\n\tx := args[0]\n\t_ = args[1]\n\treturn x\n})"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRenderMapCatBindingIncludesBodyStmts(t *testing.T) {
+	ir, err := flagMapCatBindingToIR(
+		"cell",
+		false,
+		"for binding expects exactly one value",
+		IRIdent{Name: "let_result_1"},
+		[]IRStmt{
+			IRVar{Name: "let_result_1", Type: "flagrt.Value"},
+			IRAssign{Name: "let_result_1", Expr: IRIdent{Name: "cell"}},
+		},
+		IRIdent{Name: "coll"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := renderIRExpr(ir)
+	if !strings.Contains(got, "cell := args[0]") {
+		t.Fatalf("missing binding:\n%s", got)
+	}
+	bindAt := strings.Index(got, "cell := args[0]")
+	stmtAt := strings.Index(got, "let_result_1 = cell")
+	if stmtAt < 0 || stmtAt < bindAt {
+		t.Fatalf("body stmts must run after the for binding inside the callback:\n%s", got)
 	}
 }
 

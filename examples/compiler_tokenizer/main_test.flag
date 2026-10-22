@@ -263,3 +263,1647 @@
     (is (= :quoted-list (:kind quoted)))
     (is (= 3 (count (:elements quoted))))))
 
+(deftest ir-renders-atoms-and-calls
+  (is (= "x" (ir/render-ir (ir/ir-ident "x"))))
+  (is (= "\"hi\"" (ir/render-ir (ir/ir-string "hi"))))
+  (is (= "\"a\\\"b\"" (ir/render-ir (ir/ir-string "a\"b"))))
+  (is (= "42" (ir/render-ir (ir/ir-int 42))))
+  (is (= "-7" (ir/render-ir (ir/ir-int -7))))
+  (is (= "flagrt.NewLong" (ir/render-ir (ir/ir-selector "flagrt" "NewLong"))))
+  (is (= "println" (ir/render-ir (ir/ir-selector "" "println"))))
+  (is (= "flagrt.NilValue()" (ir/render-ir (ir/rt-call "NilValue" []))))
+  (is (= "flagrt.NewLong(42)" (ir/render-ir (ir/rt-call "NewLong" [(ir/ir-int 42)]))))
+  (is (= "flagrt.NewBool(true)" (ir/render-ir (ir/rt-call "NewBool" [(ir/ir-raw "true")]))))
+  (is (= "flagrt.NewString(\"hi\")" (ir/render-ir (ir/rt-call "NewString" [(ir/ir-string "hi")]))))
+  (is (= "flagrt.NewRatio(5, 6)" (ir/render-ir (ir/rt-call "NewRatio" [(ir/ir-int 5) (ir/ir-int 6)]))))
+  (is (= "1e2" (ir/render-ir (ir/ir-raw "1e2"))))
+  (is (= "flagrt.NewDouble(1e2)" (ir/render-ir (ir/rt-call "NewDouble" [(ir/ir-raw "1e2")]))))
+  (is (= "flagrt.Add(flagrt.Add(a, b), c)"
+         (ir/render-ir (ir/ir-call (ir/parse-go-fun "flagrt.Add")
+                                  [(ir/rt-call "Add" [(ir/ir-ident "a") (ir/ir-ident "b")])
+                                   (ir/ir-ident "c")]))))
+  (is (= "flagrt.Call(f, x)" (ir/render-ir (ir/rt-call "Call" [(ir/ir-ident "f") (ir/ir-ident "x")]))))
+  (is (= "flagFoo_1(x)" (ir/render-ir (ir/ident-call "flagFoo_1" [(ir/ir-ident "x")]))))
+  (is (= "flagrt.NewBool(flagrt.IsEmpty(xs))"
+         (ir/render-ir (ir/rt-call "NewBool" [(ir/rt-call "IsEmpty" [(ir/ir-ident "xs")])]))))
+  (is (= "flagrt.NewLong(int64(flagrt.Count(xs)))"
+         (ir/render-ir (ir/rt-call "NewLong" [(ir/ident-call "int64" [(ir/rt-call "Count" [(ir/ir-ident "xs")])])]))))
+  (is (= "strings.HasSuffix(s, \".go\")"
+         (ir/render-ir (ir/selector-call "strings" "HasSuffix" [(ir/ir-ident "s") (ir/ir-string ".go")]))))
+  (is (= "flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2))"
+         (ir/render-ir (ir/rt-call "NewArray" [(ir/rt-call "NewLong" [(ir/ir-int 1)])
+                                              (ir/rt-call "NewLong" [(ir/ir-int 2)])]))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (ir/rt-call "NewMap" [(ir/rt-call "NewKeyword" [(ir/ir-string "a")])
+                                            (ir/rt-call "NewLong" [(ir/ir-int 1)])])))))
+
+(deftest ir-renders-index-slice-spread-ops
+  (is (= "args[0]" (ir/render-ir (ir/ir-index (ir/ir-ident "args") (ir/ir-int 0)))))
+  (is (= "args[2:]" (ir/render-ir (ir/ir-slice (ir/ir-ident "args") (ir/ir-int 2) nil))))
+  (is (= "flagrt.NewArray(args[1:]...)"
+         (ir/render-ir (ir/rt-call "NewArray" [(ir/ir-spread (ir/ir-slice (ir/ir-ident "args") (ir/ir-int 1) nil))]))))
+  (is (= "!(flagrt.IsTruthy(x))"
+         (ir/render-ir (ir/ir-unary "!" (ir/rt-call "IsTruthy" [(ir/ir-ident "x")])))))
+  (is (= "len(args) != 1"
+         (ir/render-ir (ir/ir-binary "!=" (ir/ident-call "len" [(ir/ir-ident "args")]) (ir/ir-int 1))))))
+
+(deftest ir-renders-func-lits-and-statements
+  (is (= "func() bool {\n\tif ok {\n\t\treturn true\n\t}\n\treturn false\n}()"
+         (ir/render-ir (ir/iife "bool"
+                               [(ir/ir-if (ir/ir-ident "ok")
+                                          [(ir/ir-return (ir/ir-raw "true"))]
+                                          [])
+                                (ir/ir-return (ir/ir-raw "false"))]))))
+  (is (= "func() flagrt.Value {\n\t_ = a\n\treturn b\n}()"
+         (ir/render-ir (ir/value-iife [(ir/ir-expr-stmt (ir/ir-ident "a") true)
+                                      (ir/ir-return (ir/ir-ident "b"))]))))
+  (is (= "\tvar x flagrt.Value\n\tdefer flagrt.Call(f)\n\tx = y\n\treturn x\n"
+         (ir/render-ir-stmts [(ir/ir-var "x" "flagrt.Value" nil)
+                             (ir/ir-defer (ir/rt-call "Call" [(ir/ir-ident "f")]))
+                             (ir/ir-assign "x" (ir/ir-ident "y"))
+                             (ir/ir-return (ir/ir-ident "x"))]
+                            "\t")))
+  (is (= "func(args ...flagrt.Value) flagrt.Value {\n\tx := args[0]\n\treturn x\n}"
+         (ir/render-ir (ir/ir-func-lit "args ...flagrt.Value" "flagrt.Value"
+                                      [(ir/ir-define ["x"] (ir/ir-index (ir/ir-ident "args") (ir/ir-int 0)))
+                                       (ir/ir-return (ir/ir-ident "x"))]))))
+  (is (= "\tif err := open(); err != nil {\n\t\treturn\n\t} else {\n\t\tuse()\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-if-init "err := open()"
+                                          (ir/ir-ident "err != nil")
+                                          [(ir/ir-return nil)]
+                                          [(ir/ir-expr-stmt (ir/ident-call "use" []) false)])
+                           "\t")))
+  (is (= "\tfor {\n\t\tbreak\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-for [(ir/ir-raw-stmt "\t\tbreak\n")]) "\t")))
+  (is (= "\t{\n\t\tvar x = y\n\t}\n"
+         (ir/render-ir-stmt (ir/ir-block [(ir/ir-var "x" "" (ir/ir-ident "y"))]) "\t")))
+  (is (= "func foo_arity_1(x flagrt.Value) flagrt.Value {\n\treturn x\n}\n"
+         (ir/render-ir-stmt (ir/ir-func-decl "foo_arity_1" "x flagrt.Value" "flagrt.Value"
+                                            [(ir/ir-return (ir/ir-ident "x"))]) ""))))
+
+(deftest ir-parse-go-fun
+  (let [sel (ir/parse-go-fun "flagrt.Add")
+        ident (ir/parse-go-fun "flagFoo_1")
+        dotted (ir/parse-go-fun "a.b.c")]
+    (is (= :selector (:kind sel)))
+    (is (= "flagrt" (:pkg sel)))
+    (is (= "Add" (:name sel)))
+    (is (= :ident (:kind ident)))
+    (is (= "flagFoo_1" (:name ident)))
+    (is (= :ident (:kind dotted)))
+    (is (= "a.b.c" (:name dotted)))))
+
+(deftest lower-literals-to-ir
+  (is (= "\"hi\"" (ir/render-ir (lower/ast-node-to-ir {:kind :string :value "hi"}))))
+  (is (= "flagrt.NewString(\"x\")" (ir/render-ir (lower/ast-node-to-ir {:kind :char :value "x"}))))
+  (is (= "flagrt.NewLong(42)" (ir/render-ir (lower/ast-node-to-ir {:kind :int :value 42}))))
+  (is (= "flagrt.NewLong(-7)" (ir/render-ir (lower/ast-node-to-ir {:kind :int :value -7}))))
+  (is (= "flagrt.NewBigIntFromString(\"10\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :bigint :value "10"}))))
+  (is (= "flagrt.NewRatio(5, 6)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :ratio :numerator 5 :denominator 6}))))
+  (is (= "flagrt.NewDouble(1.5)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :float :value 1.5 :raw "1.5"}))))
+  (is (= "flagrt.NewDouble(1e2)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :float :value 100.0 :raw "1e2"}))))
+  (is (= "flagrt.NewKeyword(\"xyz\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :keyword :name "xyz"}))))
+  (is (= "flagrt.NewSymbol(\"abc\")"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :quoted-symbol :name "abc"}))))
+  (is (= "flagrt.NewBool(true)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "true"}))))
+  (is (= "flagrt.NewBool(false)"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "false"}))))
+  (is (= "flagrt.NilValue()"
+         (ir/render-ir (lower/ast-node-to-ir {:kind :symbol :name "nil"})))))
+
+(deftest lower-quoted-ast-to-ir
+  (is (= "flagrt.NewList(flagrt.NewLong(1), flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :quoted-list
+                          :elements [{:kind :int :value 1}
+                                     {:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.NewList()"
+         (ir/render-ir (lower/quoted-ast-to-ir {:kind :quoted-list :elements []}))))
+  (is (= "flagrt.NewList(flagrt.NewSymbol(\"true\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :quoted-list
+                          :elements [{:kind :symbol :name "true"}]}))))
+  (is (= "flagrt.NewArray(flagrt.NewList(flagrt.NewSymbol(\"x\")))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :vector
+                          :elements [{:kind :quoted-list
+                                      :elements [{:kind :symbol :name "x"}]}]}))))
+  (is (= "flagrt.NewVector(flagrt.NewLong(1))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :pipe-vector
+                          :elements [{:kind :int :value 1}]}))))
+  (is (= "flagrt.NewSet(flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :set
+                          :elements [{:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :map
+                          :entries [{:kind :keyword :name "a"}
+                                    {:kind :int :value 1}]})))))
+
+(deftest lower-call-ast-to-ir
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :int :value 1}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}]}))))
+  (is (= "flagrt.Call(f, flagrt.NewLong(1))"
+         (ir/render-ir (lower/call-to-ir
+                         (ir/ir-ident "f")
+                         [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.Call(flagrt.NewKeyword(\"b\"), flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :list
+                                      :elements [{:kind :keyword :name "b"}
+                                                 {:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewArray(flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :vector
+                                      :elements [{:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewList(flagrt.NewLong(1)))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :quoted-list
+                                      :elements [{:kind :int :value 1}]}]}))))
+  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewBool(true))"
+         (ir/render-ir (lower/call-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :keyword :name "a"}
+                                     {:kind :symbol :name "true"}]})))))
+
+(deftest lower-eq-to-ir
+  (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))"
+         (ir/render-ir (lower/eq-to-ir [(ir/rt-call "NewLong" [(ir/ir-int 1)])
+                                        (ir/rt-call "NewLong" [(ir/ir-int 2)])]))))
+  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+         (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
+  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c) && flagrt.Eq(c, d))"
+         (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c") (ir/ir-ident "d")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "="}
+                          {:kind :int :value 1}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewString(\"x\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "="}
+                          {:kind :symbol :name "a"}
+                          {:kind :symbol :name "b"}
+                          {:kind :symbol :name "c"}]}
+              {:locals {"a" :value "b" :value "c" :value}})]
+    (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "countdown"}
+                          {:kind :list
+                           :elements [{:kind :symbol :name "-"}
+                                      {:kind :symbol :name "n"}
+                                      {:kind :int :value 1}]}]}
+              {:locals {"n" :value}
+               :self-function-name "countdown"
+               :self-variadic-name "countdown_variadic"
+               :self-arity-name "countdown_variadic"
+               :self-function-rest true
+               :self-function-arity 1})]
+    (is (= "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))"
+           (ir/render-ir (:expr out))))))
+
+(deftest lower-nil-empty-count-throw-loop
+  (is (= "flagrt.NewBool(flagrt.IsNil(x))"
+         (ir/render-ir (lower/nil-pred-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.NewBool(flagrt.IsEmpty(xs))"
+         (ir/render-ir (lower/empty-pred-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.NewLong(int64(flagrt.Count(xs)))"
+         (ir/render-ir (lower/count-to-ir (ir/ir-ident "xs")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "nil?"}
+                          {:kind :symbol :name "nil"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.IsNil(flagrt.NilValue()))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "empty?"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.NewBool(flagrt.IsEmpty(flagrt.NewString(\"x\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "count"}
+                          {:kind :vector
+                           :elements [{:kind :int :value 1}
+                                      {:kind :int :value 2}]}]}
+              {})]
+    (is (= "flagrt.NewLong(int64(flagrt.Count(flagrt.NewArray(flagrt.NewLong(1), flagrt.NewLong(2)))))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "throw"}
+                          {:kind :string :value "boom"}]}
+              {})]
+    (is (= "func() flagrt.Value {\n\tflagrt.Throw(flagrt.NewString(\"boom\"))\n\treturn flagrt.NilValue()\n}()"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "loop"}
+                          {:kind :vector :elements []}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= :call (:kind (:expr out))))
+    (is (= :func-lit (:kind (:fun (:expr out))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "loop"}
+                          {:kind :vector
+                           :elements [{:kind :symbol :name "n"}
+                                      {:kind :int :value 0}]}
+                          {:kind :symbol :name "n"}]}
+              {})]
+    (is (= :call (:kind (:expr out))))
+    (is (= :func-lit (:kind (:fun (:expr out)))))))
+
+(deftest lower-str-ex-info-assoc-conj
+  (is (= "flagrt.Str()"
+         (ir/render-ir (lower/str-to-ir []))))
+  (is (= "flagrt.Str(\"a\", x)"
+         (ir/render-ir (lower/str-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
+  (is (= "flagrt.NewMap(flagrt.NewKeyword(\"message\"), flagrt.NewString(\"boom\"), flagrt.NewKeyword(\"data\"), m)"
+         (ir/render-ir (lower/ex-info-to-ir (ir/ir-string "boom") (ir/ir-ident "m") nil))))
+  (is (= "flagrt.Assoc(m, k, v)"
+         (ir/render-ir (lower/assoc-to-ir [(ir/ir-ident "m") (ir/ir-ident "k") (ir/ir-ident "v")]))))
+  (is (= "flagrt.Conj(xs, x)"
+         (ir/render-ir (lower/conj-to-ir [(ir/ir-ident "xs") (ir/ir-ident "x")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "str"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.Str(\"a\", flagrt.NewLong(1))"
+           (ir/render-ir (:expr out))))
+    (is (= :string (:expr-kind out))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "ex-info"}
+                          {:kind :string :value "boom"}
+                          {:kind :map :entries []}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"message\"), flagrt.NewString(\"boom\"), flagrt.NewKeyword(\"data\"), flagrt.NewMap())"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "assoc"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}
+                          {:kind :int :value 1}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.Assoc(m, flagrt.NewKeyword(\"k\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "conj"}
+                          {:kind :symbol :name "xs"}
+                          {:kind :string :value "x"}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Conj(xs, flagrt.NewString(\"x\"))"
+           (ir/render-ir (:expr out))))))
+
+(deftest lower-seq-drop-take-cons-get-nth
+  (is (= "flagrt.Seq(xs)"
+         (ir/render-ir (lower/seq-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.Drop(n, xs)"
+         (ir/render-ir (lower/drop-to-ir [(ir/ir-ident "n") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Take(n, xs)"
+         (ir/render-ir (lower/take-to-ir [(ir/ir-ident "n") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Cons(x, xs)"
+         (ir/render-ir (lower/cons-to-ir [(ir/ir-ident "x") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Get(m, k)"
+         (ir/render-ir (lower/get-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.Nth(xs, i, d)"
+         (ir/render-ir (lower/nth-to-ir [(ir/ir-ident "xs") (ir/ir-ident "i") (ir/ir-ident "d")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "seq"}
+                          {:kind :string :value "ab"}]}
+              {})]
+    (is (= "flagrt.Seq(flagrt.NewString(\"ab\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "drop"}
+                          {:kind :int :value 1}
+                          {:kind :symbol :name "xs"}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Drop(flagrt.NewLong(1), xs)"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "get"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}
+                          {:kind :string :value "d"}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.Get(m, flagrt.NewKeyword(\"k\"), flagrt.NewString(\"d\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "nth"}
+                          {:kind :symbol :name "xs"}
+                          {:kind :int :value 0}]}
+              {:locals {"xs" :value}})]
+    (is (= "flagrt.Nth(xs, flagrt.NewLong(0))"
+           (ir/render-ir (:expr out))))))
+
+(deftest lower-not-empty-through-println
+  (is (= "flagrt.NotEmpty(xs)"
+         (ir/render-ir (lower/not-empty-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.TypeOf(x)"
+         (ir/render-ir (lower/type-of-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Vec(xs)"
+         (ir/render-ir (lower/vec-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.MapDissoc(m, k)"
+         (ir/render-ir (lower/dissoc-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.NewBool(flagrt.Contains(m, k))"
+         (ir/render-ir (lower/contains-pred-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
+  (is (= "flagrt.Into(to, from)"
+         (ir/render-ir (lower/into-to-ir [(ir/ir-ident "to") (ir/ir-ident "from")]))))
+  (is (= "flagrt.Concat(a, b)"
+         (ir/render-ir (lower/concat-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.ExMessage(e)"
+         (ir/render-ir (lower/ex-message-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.ExData(e)"
+         (ir/render-ir (lower/ex-data-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.ExCause(e)"
+         (ir/render-ir (lower/ex-cause-to-ir (ir/ir-ident "e")))))
+  (is (= "flagrt.Println(\"a\", x)"
+         (ir/render-ir (lower/println-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "type-of"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.TypeOf(flagrt.NewString(\"x\"))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "list"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewList(flagrt.NewString(\"a\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "hash-map"}
+                          {:kind :keyword :name "k"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"k\"), flagrt.NewLong(1))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "contains?"}
+                          {:kind :symbol :name "m"}
+                          {:kind :keyword :name "k"}]}
+              {:locals {"m" :value}})]
+    (is (= "flagrt.NewBool(flagrt.Contains(m, flagrt.NewKeyword(\"k\")))"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "println"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.Println(\"a\", flagrt.NewLong(1))"
+           (ir/render-ir (:expr out))))
+    (is (= :value (:expr-kind out)))))
+
+(deftest lower-remaining-runtime-ops
+  (is (= "flagrt.Compare(a, b)"
+         (ir/render-ir (lower/compare-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.NewBool(flagrt.NumericEq(a, b))"
+         (ir/render-ir (lower/numeric-eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
+  (is (= "flagrt.Lt(a, b) && flagrt.Lt(b, c)"
+         (ir/render-ir (lower/comparison-to-ir "Lt" [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
+  (is (= "flagrt.Symbol(x)"
+         (ir/render-ir (lower/symbol-ctor-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Name(x)"
+         (ir/render-ir (lower/name-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Keyword(x)"
+         (ir/render-ir (lower/keyword-ctor-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.NewString(flagrt.Format(fmt, x))"
+         (ir/render-ir (lower/format-to-ir [(ir/ir-ident "fmt") (ir/ir-ident "x")]))))
+  (is (= "flagrt.Map(f, xs)"
+         (ir/render-ir (lower/map-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.SortBy(f, xs)"
+         (ir/render-ir (lower/sort-by-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Apply(f, xs)"
+         (ir/render-ir (lower/apply-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.PMap(f, xs)"
+         (ir/render-ir (lower/pmap-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Filter(f, xs)"
+         (ir/render-ir (lower/filter-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Reduce(f, xs)"
+         (ir/render-ir (lower/reduce-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.DoAll(xs)"
+         (ir/render-ir (lower/doall-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.Some(f, xs)"
+         (ir/render-ir (lower/some-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.Set(xs)"
+         (ir/render-ir (lower/set-to-ir (ir/ir-ident "xs")))))
+  (is (= "flagrt.LineSeq(x)"
+         (ir/render-ir (lower/line-seq-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.Repeat(x)"
+         (ir/render-ir (lower/repeat-to-ir [(ir/ir-ident "x")]))))
+  (is (= "flagrt.RandInt(n)"
+         (ir/render-ir (lower/rand-int-to-ir (ir/ir-ident "n")))))
+  (is (= "flagrt.ToJSON(x)"
+         (ir/render-ir (lower/to-json-to-ir (ir/ir-ident "x")))))
+  (is (= "flagrt.FromJSON(s)"
+         (ir/render-ir (lower/from-json-to-ir (ir/ir-ident "s")))))
+  (is (= "flagrt.OpenFile(p)"
+         (ir/render-ir (lower/open-file-to-ir (ir/ir-ident "p")))))
+  (is (= "flagrt.FileToStrings(f)"
+         (ir/render-ir (lower/file-to-strings-to-ir (ir/ir-ident "f")))))
+  (is (= "flagrt.FileToStringsPath(p)"
+         (ir/render-ir (lower/file-to-strings-path-to-ir (ir/ir-ident "p")))))
+  (is (= "flagrt.GoFunction(n)"
+         (ir/render-ir (lower/go-fn-to-ir (ir/ir-ident "n")))))
+  (is (= "flagrt.GoFunctionArgs(n)"
+         (ir/render-ir (lower/go-fn-args-to-ir (ir/ir-ident "n")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "<"}
+                          {:kind :symbol :name "a"}
+                          {:kind :symbol :name "b"}]}
+              {:locals {"a" :value "b" :value}})]
+    (is (= "flagrt.Lt(a, b)"
+           (ir/render-ir (:expr out))))
+    (is (= :bool (:expr-kind out))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "map"}
+                          {:kind :symbol :name "f"}
+                          {:kind :symbol :name "xs"}]}
+              {:locals {"f" :value "xs" :value}})]
+    (is (= "flagrt.Map(f, xs)"
+           (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "name"}
+                          {:kind :string :value "x"}]}
+              {})]
+    (is (= "flagrt.Name(\"x\")"
+           (ir/render-ir (:expr out))))
+    (is (= :string (:expr-kind out)))))
+
+(deftest lower-defer-doto-try-doseq
+  (is (= "catch" (lower/list-head-name
+                   {:kind :list
+                    :elements [{:kind :symbol :name "catch"}
+                               {:kind :symbol :name "Exception"}]})))
+  (is (nil? (lower/list-head-name {:kind :symbol :name "x"})))
+  (is (= "ExceptionInfo" (lower/catch-type-name {:kind :symbol :name "ExceptionInfo"})))
+  (is (= "Exception" (lower/catch-type-name {:kind :symbol :name "Exception"})))
+  (is (= "Throwable" (lower/catch-type-name {:kind :symbol :name "Throwable"})))
+  (is (= ":default" (lower/catch-type-name {:kind :keyword :name "default"})))
+  (let [clause (lower/parse-catch-clause
+                 {:kind :list
+                  :elements [{:kind :symbol :name "catch"}
+                             {:kind :symbol :name "Exception"}
+                             {:kind :symbol :name "e"}
+                             {:kind :symbol :name "e"}]})]
+    (is (= "Exception" (:class clause)))
+    (is (= "e" (:name (:name clause)))))
+  (let [parsed (lower/split-try-args
+                 [{:kind :int :value 1}
+                  {:kind :list
+                   :elements [{:kind :symbol :name "catch"}
+                              {:kind :symbol :name "Exception"}
+                              {:kind :symbol :name "e"}]}
+                  {:kind :list
+                   :elements [{:kind :symbol :name "finally"}
+                              {:kind :int :value 2}]}])]
+    (is (= 1 (count (:body parsed))))
+    (is (= 1 (count (:catches parsed))))
+    (is (= 1 (count (:finally parsed)))))
+  (is (lower/forms-have-defer? [{:defer? false} {:defer? true}]))
+  (is (not (lower/forms-have-defer? [{:defer? false}])))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "defer"}
+                          {:kind :symbol :name "f"}]}
+              {:locals {"f" :value}})]
+    (is (:defer? out))
+    (is (= :defer (:expr-kind out)))
+    (is (= "\tdefer flagrt.Call(f)\n" (ir/render-ir-stmt (:stmt out) "\t"))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "doto"}
+                          {:kind :symbol :name "obj"}
+                          {:kind :symbol :name "step"}]}
+              {:locals {"obj" :value "step" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__doto := obj"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.Call(step, __doto)")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "try"}
+                          {:kind :int :value 1}
+                          {:kind :list
+                           :elements [{:kind :symbol :name "catch"}
+                                      {:kind :symbol :name "Exception"}
+                                      {:kind :symbol :name "e"}
+                                      {:kind :symbol :name "e"}]}]}
+              {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "CatchMatches(\"Exception\", __flag_thrown)")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "doseq"}
+                          {:kind :vector
+                           :elements [{:kind :symbol :name "x"}
+                                      {:kind :symbol :name "xs"}]}
+                          {:kind :symbol :name "x"}]}
+              {:locals {"xs" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.DoAll"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.MapCat")))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "for"}
+                          {:kind :vector :elements []}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.NewArray(flagrt.NewLong(1))" (ir/render-ir (:expr out))))))
+
+(deftest lower-dot-testing-hash-destructure
+  (is (= 1 (lower/hash-fn-placeholder-index "%")))
+  (is (= 2 (lower/hash-fn-placeholder-index "%2")))
+  (is (nil? (lower/hash-fn-placeholder-index "%0")))
+  (is (= "flagrt.NewKeyword(\"a\")" (ir/render-ir (lower/map-destructure-key-ir {:kind :keyword :name "a"}))))
+  (is (= "x" (lower/ast-form-source {:kind :symbol :name "x"})))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name ".write"}
+                         {:kind :symbol :name "f"}
+                         {:kind :string :value "hi"}]}
+             {:locals {"f" :value}})]
+    (is (= "flagrt.Write(f, \"hi\")" (ir/render-ir (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name ".endsWith"}
+                         {:kind :symbol :name "s"}
+                         {:kind :string :value "ing"}]}
+             {:locals {"s" :value}})]
+    (is (= :bool (:expr-kind out)))
+    (is (= "strings.HasSuffix(flagrt.Str(s), \"ing\")" (ir/render-ir (:expr out)))))
+  (let [threw (try
+                (do (lower/compile-form-to-ir
+                      {:kind :list
+                       :elements [{:kind :symbol :name ".Foo"}
+                                  {:kind :symbol :name "x"}]}
+                      {:locals {"x" :value}})
+                    false)
+                (catch Throwable t true))]
+    (is threw))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "is"}
+                         {:kind :symbol :name "true"}
+                         {:kind :string :value "ok"}]}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "panic(\"ok\")")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :hash-fn
+              :body {:kind :list
+                     :elements [{:kind :symbol :name "+"}
+                                {:kind :symbol :name "%"}
+                                {:kind :symbol :name "%2"}]}}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p1 := args[0]"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "__p2 := args[1]"))))
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "#() expects exactly 2 arguments")))))
+  (let [bound (lower/bind-params-to-ir
+               {:kind :vector
+                :elements [{:kind :map
+                            :entries [{:kind :keyword :name "a"}
+                                      {:kind :symbol :name "a"}]}]}
+               "fn"
+               {})]
+    (is (= "__arg0" (first (:params bound))))
+    (is (not (nil? (str/index-of (ir/render-ir-stmts (:init-stmts bound) "")
+                                "flagrt.NewKeyword(\"a\")")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :map
+                                      :entries [{:kind :keyword :name "keys"}
+                                                {:kind :vector :elements [{:kind :symbol :name "a"}]}
+                                                {:kind :keyword :name "or"}
+                                                {:kind :map
+                                                 :entries [{:kind :symbol :name "a"}
+                                                           {:kind :list
+                                                            :elements [{:kind :symbol :name "+"}
+                                                                       {:kind :int :value 1}
+                                                                       {:kind :int :value 2}]}]}]}
+                                     {:kind :map :entries []}]}
+                         {:kind :symbol :name "a"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.Get("))))
+    (is (not (nil? (str/index-of src "flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2))")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :list
+                                      :elements [{:kind :symbol :name "a"}
+                                                 {:kind :symbol :name "b"}]}
+                                     {:kind :vector
+                                      :elements [{:kind :int :value 1}
+                                                 {:kind :int :value 2}]}]}
+                         {:kind :symbol :name "a"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.SeqFirst("))))
+    (is (not (nil? (str/index-of src "flagrt.SeqRest(")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "let"}
+                         {:kind :vector
+                          :elements [{:kind :set
+                                      :elements [{:kind :symbol :name "x"}]}
+                                     {:kind :set
+                                      :elements [{:kind :int :value 10}]}]}
+                         {:kind :symbol :name "x"}]}
+             {})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "flagrt.SeqFirst("))))))
+
+(deftest lower-ctor-runtime-and-symbols
+  (is (= "flagrt.NewArray(flagrt.NewLong(1))"
+         (ir/render-ir (lower/ctor-to-ir "NewArray" [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (is (= "flagrt.First(xs)"
+         (ir/render-ir (lower/runtime-call-to-ir "First" [(ir/ir-ident "xs")]))))
+  (is (= "flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewLong(3))"
+         (ir/render-ir (lower/fold-call-to-ir "Add"
+                         [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])
+                          (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)])
+                          (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 3)])]))))
+  (is (= "x" (ir/render-ir (:ir (lower/symbol-to-ir "x" "x" {:locals {"x" :value}})))))
+  (is (= "flagrt.BuiltinFunction(\"first\")"
+         (ir/render-ir (:ir (lower/symbol-to-ir "first" "first" {})))))
+  (is (= "flagrt.NewArray(x, flagrt.NewLong(1))"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :vector
+                          :elements [{:kind :symbol :name "x"}
+                                     {:kind :int :value 1}]}
+                         {:locals {"x" :value}}))))
+  (is (= "flagrt.First(x)"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :symbol :name "first"}
+                                     {:kind :symbol :name "x"}]}
+                         {:locals {"x" :value}}))))
+  (is (= "flagrt.Add(flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2)), flagrt.NewLong(3))"
+         (ir/render-ir (lower/eval-ast-to-ir
+                         {:kind :list
+                          :elements [{:kind :symbol :name "+"}
+                                     {:kind :int :value 1}
+                                     {:kind :int :value 2}
+                                     {:kind :int :value 3}]}
+                         {}))))
+  (is (= "\tvar if_result_1 flagrt.Value\n\tif ok {\n\t\tif_result_1 = flagrt.NewLong(1)\n\t} else {\n\t\tif_result_1 = flagrt.NewLong(2)\n\t}\n"
+         (ir/render-ir-stmts (lower/if-to-ir "if_result_1" "flagrt.Value"
+                                            (ir/ir-ident "ok")
+                                            []
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])
+                                            []
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)]))
+                           "\t")))
+  (is (= "\tvar let_result_1 flagrt.Value\n\t{\n\t\tvar x = flagrt.NewLong(1)\n\t\t_ = x\n\t\tlet_result_1 = x\n\t}\n"
+         (ir/render-ir-stmts (lower/let-to-ir "let_result_1" "flagrt.Value"
+                                            [(ir/ir-var "x" "" (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)]))]
+                                            [(ir/ir-expr-stmt (ir/ir-ident "x") true)]
+                                            (ir/ir-ident "x"))
+                           "\t")))
+  (is (= "\tvar let_result_1 flagrt.Value\n\t{\n\t\tlet_result_1 = flagrt.NewLong(1)\n\t}\n"
+         (ir/render-ir-stmts (lower/let-to-ir "let_result_1" "flagrt.Value"
+                                            []
+                                            nil
+                                            (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)]))
+                           "\t"))))
+
+(deftest lower-do-loop-to-ir
+  (is (= "\t_ = a\n"
+         (ir/render-ir-stmts (lower/do-prelude-stmts
+                               [{:stmts [] :expr (ir/ir-ident "a")}
+                                {:stmts [] :expr (ir/ir-ident "b")}])
+                             "\t")))
+  (is (= "flagrt.NewRecur(x, flagrt.NewLong(1))"
+         (ir/render-ir (lower/recur-to-ir [(ir/ir-ident "x")
+                                           (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
+  (let [defer-src (ir/render-ir (lower/do-defer-to-ir "flagrt.Value"
+                               [{:stmts [] :expr (ir/ir-ident "a")}
+                                {:stmts []
+                                 :expr nil
+                                 :defer? true
+                                 :stmt (ir/ir-defer (ir/rt-call "Call" [(ir/ir-ident "f")]))}]))]
+    (is (not (nil? (str/index-of defer-src "func() flagrt.Value"))))
+    (is (not (nil? (str/index-of defer-src "_ = a"))))
+    (is (not (nil? (str/index-of defer-src "defer flagrt.Call(f)"))))
+    (is (not (nil? (str/index-of defer-src "return flagrt.NilValue()"))))
+  )
+  (let [loop-src (ir/render-ir (lower/loop-to-ir
+                                 []
+                                 [{:name "n" :init (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])}]
+                                 []
+                                 (ir/ir-ident "n")))]
+    (is (not (nil? (str/index-of loop-src "var n = flagrt.NewLong(1)"))))
+    (is (not (nil? (str/index-of loop-src "UnwrapRecur(__loopResult)"))))
+    (is (not (nil? (str/index-of loop-src "n = __recurValues[0]"))))
+    (is (not (nil? (str/index-of loop-src "continue")))))
+  (is (= "\tdefer flagrt.Call(f)\n"
+         (ir/render-ir-stmt (lower/defer-to-ir (ir/ir-ident "f")) "\t")))
+  (is (= "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue()\n}()"
+         (ir/render-ir (lower/throw-to-ir [] (ir/ir-ident "err")))))
+  (is (= "flagrt.NewFuture(func() flagrt.Value {\n\treturn x\n})"
+         (ir/render-ir (lower/future-to-ir [] (ir/ir-ident "x")))))
+  (is (= "func() flagrt.Value {\n\tn = flagrt.NewLong(1)\n\treturn n\n}()"
+         (ir/render-ir (lower/update-bang-to-ir "n" [] (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])))))
+  (is (= "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue()\n}()"
+         (ir/render-ir (lower/doseq-to-ir (ir/ir-ident "loop")))))
+  (is (= "func() flagrt.Value {\n\t_ = x\n\treturn flagrt.NewArray()\n}()"
+         (ir/render-ir (lower/doseq-body-to-ir [] (ir/ir-ident "x")))))
+  (is (= "func() flagrt.Value {\n\tvar e = __flag_thrown\n\t_ = e\n\treturn e\n}()"
+         (ir/render-ir (lower/catch-handler-to-ir "e" [] (ir/ir-ident "e")))))
+  (let [doto-src (ir/render-ir (lower/doto-to-ir [] (ir/ir-ident "obj")
+                                                [{:stmts [] :expr (ir/ir-ident "step")}]))]
+    (is (not (nil? (str/index-of doto-src "__doto := obj"))))
+    (is (not (nil? (str/index-of doto-src "flagrt.Call(step, __doto)")))))
+  (let [try-src (ir/render-ir (lower/try-to-ir [] (ir/ir-ident "body")
+                                              [{:class "Exception"
+                                                :handler (ir/ir-ident "handler")}]
+                                              nil))]
+    (is (not (nil? (str/index-of try-src "var __flag_try_result flagrt.Value"))))
+    (is (not (nil? (str/index-of try-src "CatchMatches(\"Exception\", __flag_thrown)"))))
+    (is (not (nil? (str/index-of try-src "return __flag_try_result"))))
+  )
+  (let [mapcat-src (ir/render-ir (lower/mapcat-binding-to-ir "x" false
+                                                            "for binding expects exactly one value"
+                                                            (ir/ir-ident "rest")
+                                                            []
+                                                            (ir/ir-ident "xs")))]
+    (is (not (nil? (str/index-of mapcat-src "flagrt.MapCat"))))
+    (is (not (nil? (str/index-of mapcat-src "x := args[0]"))))
+    (is (not (nil? (str/index-of mapcat-src "return rest")))))
+  (let [fn-src (ir/render-ir (lower/fn-to-ir "fn" ["x"] false [] [] (ir/ir-ident "x")))]
+    (is (not (nil? (str/index-of fn-src "flagrt.NewFunction"))))
+    (is (not (nil? (str/index-of fn-src "x := args[0]"))))
+    (is (not (nil? (str/index-of fn-src "fn expects exactly 1 arguments"))))
+    (is (not (nil? (str/index-of fn-src "return x")))))
+  (let [rest-src (ir/render-ir (lower/fn-to-ir "fn" ["_"] true [] [] (ir/ir-ident "xs")))]
+    (is (not (nil? (str/index-of rest-src "fn expects at least 1 arguments"))))
+    (is (not (nil? (str/index-of rest-src "_ = args[0]"))))
+    (is (not (nil? (str/index-of rest-src "return xs")))))
+  (is (= "// Source namespace: hello.core\n"
+         (ir/render-ir-stmt (lower/ns-to-ir "hello.core") "")))
+  (is (= "var x = flagrt.NewLong(1)\n"
+         (ir/render-ir-stmt (lower/def-to-ir "x" (ir/rt-call "NewLong" [(ir/ir-int 1)])) "")))
+  (let [defn-src (ir/render-ir-stmts (lower/defn-to-ir "foo_arity_1" "foo_variadic" "foo"
+                                                      ["x"] false [] [] (ir/ir-ident "x"))
+                                    "")]
+    (is (not (nil? (str/index-of defn-src "func foo_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of defn-src "func foo_variadic(args ...flagrt.Value)"))))
+    (is (not (nil? (str/index-of defn-src "return foo_arity_1(args[0])")))))
+  (let [rest-defn (ir/render-ir-stmts (lower/defn-to-ir "ignored" "foo_variadic" "foo"
+                                                       ["x"] true [] [] (ir/ir-ident "x"))
+                                     "")]
+    (is (not (nil? (str/index-of rest-defn "foo expects at least 1 arguments"))))
+    (is (not (nil? (str/index-of rest-defn "x := args[0]"))))))
+
+(deftest lower-intern-ir-and-emit-go-file
+  (is (= "foo_bar" (lower/sanitize-keyword-ident "foo-bar")))
+  (is (= "a_b" (lower/sanitize-keyword-ident "a.b")))
+  (is (= "foo" (lower/sanitize-keyword-ident "foo")))
+  (let [inline (lower/intern-ir nil "Kw_foo" "flagrt.NewKeyword(\"foo\")")]
+    (is (= "flagrt.NewKeyword(\"foo\")" (:name inline)))
+    (is (nil? (:constants inline))))
+  (let [first (lower/intern-ir {:by-code {} :used {} :order []}
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"foo\")")
+        again (lower/intern-ir (:constants first)
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"foo\")")
+        other (lower/intern-ir (:constants again)
+                               "Kw_foo"
+                               "flagrt.NewKeyword(\"bar\")")]
+    (is (= "flagKw_foo" (:name first)))
+    (is (= "flagKw_foo" (:name again)))
+    (is (= "flagKw_foo_1" (:name other)))
+    (is (= 2 (count (lower/intern-decls (:constants other)))))
+    (is (= "flagKw_foo" (:name (first (lower/intern-decls (:constants other))))))
+    (is (= "flagrt.NewKeyword(\"foo\")" (:code (first (lower/intern-decls (:constants other)))))))
+  (let [out (lower/intern-form-ir {:constants {:by-code {} :used {} :order []}}
+                                  "Kw_foo"
+                                  (lower/ast-node-to-ir {:kind :keyword :name "foo"}))]
+    (is (= :ident (:kind (:ir out))))
+    (is (= "flagKw_foo" (:name (:ir out)))))
+  (is (= "short" (lower/truncate-hint "short")))
+  (is (= 24 (count (lower/truncate-hint "abcdefghijklmnopqrstuvwxyz"))))
+  (is (lower/str-contains? "unknown symbol \"nope\" at 2:1" " at "))
+  (is (not (lower/str-contains? "unknown symbol" " at ")))
+  (is (lower/const-form? {:kind :int :value 1}))
+  (is (lower/const-form? {:kind :vector :elements [{:kind :string :value "Ada"}]}))
+  (is (not (lower/const-form? {:kind :symbol :name "x"})))
+  (let [out (lower/compile-form-to-ir {:kind :keyword :name "foo"}
+                                      {:constants {:by-code {} :used {} :order []}})]
+    (is (= :ident (:kind (:expr out))))
+    (is (= "flagKw_foo" (:name (:expr out))))
+    (is (= "flagKw_foo" (:name (first (lower/intern-decls (:constants (:ctx out))))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "f"}
+                          {:kind :string :value "Ada"}]}
+              {:constants {:by-code {} :used {} :order []}
+               :locals {"f" :value}})]
+    (is (= "flagStr_Ada" (:name (first (lower/intern-decls (:constants (:ctx out))))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :vector :elements [{:kind :int :value 1} {:kind :int :value 2}]}
+              {:constants {:by-code {} :used {} :order []}})]
+    (is (= "flagVec" (:name (:expr out)))))
+  (let [threw (try
+                (do (lower/compile-form-to-ir {:kind :symbol :name "nope" :line 2 :col 1}
+                                              {:locals {}})
+                    false)
+                (catch Throwable t
+                  (str/index-of (ex-message t) "at 2:")))]
+    (is threw))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false
+             :constants {:by-code {} :used {} :order []}}
+        form {:kind :list
+              :elements [{:kind :symbol :name "defn"}
+                         {:kind :symbol :name "kw"}
+                         {:kind :vector :elements []}
+                         {:kind :keyword :name "foo"}]}
+        out (lower/compile-module-body [form] ctx)
+        decls (lower/intern-decls (:constants (:ctx out)))]
+    (is (= "flagKw_foo" (:name (first decls)))))
+  (let [src (lower/compile-program
+              "main"
+              {:functions [{:flag-name "flag_main"
+                            :go-name "flag_main"
+                            :source "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"
+                            :param-count 0}]
+               :vars [{:go-name "flagKw_foo" :expr "flagrt.NewKeyword(\"foo\")"}]
+               :stmts [{:code "flagrt.NewLong(1)" :kind 1}]
+               :needs-fmt false}
+              true)]
+    (is (not (nil? (str/index-of src "package main"))))
+    (is (not (nil? (str/index-of src "import ("))))
+    (is (not (nil? (str/index-of src "\"strings\""))))
+    (is (not (nil? (str/index-of src "\"os\""))))
+    (is (not (nil? (str/index-of src "flagrt \"flag-lang/runtime\""))))
+    (is (not (nil? (str/index-of src "var flagKw_foo = flagrt.NewKeyword(\"foo\")"))))
+    (is (not (nil? (str/index-of src "func flag_main()"))))
+    (is (not (nil? (str/index-of src "_ = flagrt.NewLong(1)"))))
+    (is (not (nil? (str/index-of src "_ = flagrt.Call(flag_main)"))))
+    (is (not (nil? (str/index-of src "_ = strings.HasSuffix")))))
+  (let [lib (lower/emit-go-file
+              "pkg"
+              {:functions [{:source "func Add() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"
+                            :doc "add two numbers"}]
+               :needs-fmt false}
+              false)]
+    (is (not (nil? (str/index-of lib "package pkg"))))
+    (is (nil? (str/index-of lib "func main()")))
+    (is (nil? (str/index-of lib "\"strings\"")))
+    (is (not (nil? (str/index-of lib "// add two numbers"))))
+    (is (not (nil? (str/index-of lib "func Add()")))) )
+  (let [tested (lower/emit-go-file
+                 "main"
+                 {:tests [{:label "ok" :line 3 :body-source "(is true)" :go-name "test_ok"}]
+                  :functions [{:source "func test_ok() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}]}
+                 true)]
+    (is (not (nil? (str/index-of tested "\"fmt\""))))
+    (is (not (nil? (str/index-of tested "type flagTestCase struct"))))
+    (is (not (nil? (str/index-of tested "runFlagTestCase"))))
+    (is (not (nil? (str/index-of tested "fn: test_ok"))))))
+
+(deftest lower-compile-module-body-defn-def-deftest
+  (is (= "foo" (lower/module-go-ident "" "foo")))
+  (is (= "compiler__foo_bar" (lower/module-go-ident "compiler" "foo-bar")))
+  (is (= "a_b__x" (lower/module-go-ident "a.b" "x")))
+  (is (= "Add" (lower/exported-go-ident "add")))
+  (is (= "compiler__add"
+         (lower/def-go-ident {:namespace "compiler" :package-mode false} "add")))
+  (is (= "Add"
+         (lower/def-go-ident {:package-mode true :exported-names {"add" true}} "add")))
+  (is (= "add"
+         (lower/def-go-ident {:package-mode true :exported-names {}} "add")))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        defn-form {:kind :list
+                   :elements [{:kind :symbol :name "defn"}
+                              {:kind :symbol :name "add"}
+                              {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                              {:kind :symbol :name "x"}]}
+        out (lower/compile-module-body [defn-form] ctx)
+        fn0 (first (:functions out))
+        src (ir/render-ir-stmts (:ir-decls fn0) "")]
+    (is (= "add" (:flag-name fn0)))
+    (is (= "compiler__add" (:go-name fn0)))
+    (is (= "compiler__add_arity_1" (:arity-name fn0)))
+    (is (= :ident (:kind (:body-expr fn0))))
+    (is (= "x" (:name (:body-expr fn0))))
+    (is (= "compiler__add" (get (:defined out) "add")))
+    (is (= "compiler__add" (get (:module (:ctx out)) "add")))
+    (is (= "compiler__add" (get (:module (:ctx out)) "compiler/add")))
+    (is (not (nil? (str/index-of src "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func compiler__add_variadic(args ...flagrt.Value)"))))
+    (is (= "compiler__add" (:go-name (first (:vars out))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        rec {:kind :list
+             :elements [{:kind :symbol :name "defn"}
+                        {:kind :symbol :name "walk"}
+                        {:kind :vector :elements [{:kind :symbol :name "n"}]}
+                        {:kind :list :elements [{:kind :symbol :name "walk"}
+                                                {:kind :symbol :name "n"}]}]}
+        src (ir/render-ir-stmts (:ir-decls (first (:functions (lower/compile-module-body [rec] ctx)))) "")]
+    (is (not (nil? (str/index-of src "return compiler__walk_arity_1(n)")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        multi {:kind :list
+               :elements [{:kind :symbol :name "defn"}
+                          {:kind :symbol :name "add"}
+                          {:kind :list
+                           :elements [{:kind :vector :elements []}
+                                      {:kind :int :value 0}]}
+                          {:kind :list
+                           :elements [{:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                      {:kind :symbol :name "x"}]}]}
+        src (ir/render-ir-stmts (:ir-decls (first (:functions (lower/compile-module-body [multi] ctx)))) "")]
+    (is (not (nil? (str/index-of src "func compiler__add_arity_0() flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "add expects 0 or 1 arguments")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        def-form {:kind :list
+                  :elements [{:kind :symbol :name "def"}
+                             {:kind :symbol :name "answer"}
+                             {:kind :int :value 42}]}
+        out (lower/compile-module-body [def-form] ctx)
+        v0 (first (:vars out))]
+    (is (= "answer" (:flag-name v0)))
+    (is (= "compiler__answer" (:go-name v0)))
+    (is (= "flagrt.NewLong(42)" (ir/render-ir (:expr v0))))
+    (is (= "compiler__answer" (get (:defined out) "answer"))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        test-form {:kind :list
+                   :line 7
+                   :elements [{:kind :symbol :name "deftest"}
+                              {:kind :symbol :name "ok"}
+                              {:kind :list :elements [{:kind :symbol :name "is"}
+                                                      {:kind :symbol :name "true"}]}]}
+        out (lower/compile-module-body [test-form] ctx)
+        fn0 (first (:functions out))
+        tc (first (:tests out))
+        src (ir/render-ir-stmts (:ir-decls fn0) "")]
+    (is (= "ok" (:flag-name fn0)))
+    (is (= "compiler__ok" (:arity-name fn0)))
+    (is (= "ok" (:label tc)))
+    (is (= 7 (:line tc)))
+    (is (= "((is true))" (:body-source tc)))
+    (is (not (nil? (str/index-of src "func compiler__ok() flagrt.Value"))))
+    (is (= 0 (count (:vars out)))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        mac {:kind :list
+             :elements [{:kind :symbol :name "defmacro"}
+                        {:kind :symbol :name "m"}
+                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                        {:kind :symbol :name "x"}]}
+        id {:kind :list
+            :elements [{:kind :symbol :name "defn"}
+                       {:kind :symbol :name "id"}
+                       {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                       {:kind :symbol :name "x"}]}
+        out (lower/compile-module-body [mac id] ctx)]
+    (is (= 1 (count (:functions out))))
+    (is (= "id" (:flag-name (first (:functions out))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        spliced {:kind :list
+                 :elements [{:kind :symbol :name "do"}
+                            {:kind :list
+                             :elements [{:kind :symbol :name "defn"}
+                                        {:kind :symbol :name "a"}
+                                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                        {:kind :symbol :name "x"}]}
+                            {:kind :list
+                             :elements [{:kind :symbol :name "defn"}
+                                        {:kind :symbol :name "b"}
+                                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                                        {:kind :symbol :name "x"}]}]}
+        out (lower/compile-module-body [spliced] ctx)]
+    (is (= 2 (count (:functions out))))
+    (is (= "a" (:flag-name (first (:functions out)))))
+    (is (= "b" (:flag-name (first (rest (:functions out)))))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        rec {:kind :list :elements [{:kind :symbol :name "defrecord"}
+                                    {:kind :symbol :name "Point"}
+                                    {:kind :vector :elements [{:kind :symbol :name "x"}
+                                                              {:kind :symbol :name "y"}]}]}
+        out (lower/compile-module-body [rec] ctx)
+        src (ir/render-ir-stmts (:ir-decls (first (:functions out))) "")]
+    (is (= 1 (count (:type-decls out))))
+    (is (not (nil? (str/index-of (first (:type-decls out)) "type Point struct"))))
+    (is (not (nil? (str/index-of src "flagrt.NewRecord(Point{X: x, Y: y})"))))
+    (is (not (nil? (get (:defined out) "->Point"))))
+    (is (not (nil? (get (:defined out) "map->Point")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        decl {:kind :list :elements [{:kind :symbol :name "declare"}
+                                     {:kind :symbol :name "foo"}]}
+        out (lower/compile-module-body [decl] ctx)]
+    (is (= "compiler__foo" (get (:defined out) "foo")))
+    (is (= "compiler__foo" (get (:module (:ctx out)) "foo"))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        ns-form {:kind :list :elements [{:kind :symbol :name "ns"}
+                                        {:kind :symbol :name "demo"}]}
+        threw (try
+                (do (lower/compile-module-body [ns-form] ctx) false)
+                (catch Throwable t true))]
+    (is threw))
+  (let [empty {:locals {} :globals {} :functions {} :module {} :go-fns {}
+              :self-function-name "" :self-variadic-name "" :self-arity-name ""
+              :self-function-rest false :self-function-arity 0
+              :self-arity-names {} :loop-binding-names [] :if-temps 0
+              :namespace "compiler" :package-mode false :exported-names {}
+              :allow-redefine false}
+       add {:kind :list
+            :elements [{:kind :symbol :name "defn"}
+                       {:kind :symbol :name "add"}
+                       {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                       {:kind :symbol :name "x"}]}
+       add2 {:kind :list
+             :elements [{:kind :symbol :name "defn"}
+                        {:kind :symbol :name "add"}
+                        {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                        {:kind :int :value 1}]}
+       out1 (lower/compile-module-body [add] empty)
+       blocked (try
+                 (do (lower/compile-module-body [add2] (:ctx out1)) false)
+                 (catch Throwable t true))
+       redef-ctx (assoc (:ctx out1) :allow-redefine true)
+       out2 (lower/compile-module-body [add2] redef-ctx)
+       def1 {:kind :list
+             :elements [{:kind :symbol :name "def"}
+                        {:kind :symbol :name "answer"}
+                        {:kind :int :value 1}]}
+       def2 {:kind :list
+             :elements [{:kind :symbol :name "def"}
+                        {:kind :symbol :name "answer"}
+                        {:kind :int :value 2}]}
+       def-ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+                :self-function-name "" :self-variadic-name "" :self-arity-name ""
+                :self-function-rest false :self-function-arity 0
+                :self-arity-names {} :loop-binding-names [] :if-temps 0
+                :namespace "compiler" :package-mode false :exported-names {}
+                :allow-redefine true}
+       d1 (lower/compile-module-body [def1] def-ctx)
+       d2 (lower/compile-module-body [def2] (:ctx d1))]
+    (is blocked)
+    (is (= "compiler__add" (get (:defined out2) "add")))
+    (is (= 1 (count (:functions out2))))
+    (is (not (nil? (str/index-of (ir/render-ir-stmts (:ir-decls (first (:functions out2))) "")
+                                 "return flagrt.NewLong(1)"))))
+    (is (= "compiler__answer" (get (:defined d2) "answer")))
+    (is (= "compiler__answer" (get (:module (:ctx d2)) "answer"))))
+   (is (= "int64" (lower/type-hint-to-go-type "long")))
+   (is (= "float64" (lower/type-hint-to-go-type "double")))
+   (is (= "string" (lower/type-hint-to-go-type "string")))
+   (is (= "bool" (lower/type-hint-to-go-type "bool")))
+   (is (nil? (lower/type-hint-to-go-type "error")))
+   (is (= "StartLine" (lower/exported-record-field-name "start-line")))
+   (is (= "EOF" (lower/exported-record-field-name "eof")))
+   (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false :allow-top-level true}
+        printed (lower/compile-module-body
+                  [{:kind :list :elements [{:kind :symbol :name "println"}
+                                           {:kind :string :value "Hello"}]}]
+                  ctx)
+        print-form {:kind :list :elements [{:kind :symbol :name "print"}
+                                           {:kind :int :value 42}]}
+        printed2 (lower/compile-module-body [print-form] ctx)]
+    (is (:needs-fmt printed))
+    (is (= :call (:kind (:expr (first (:stmts printed))))))
+    (is (= "Println" (:name (:fun (:expr (first (:stmts printed)))))))
+    (is (:needs-fmt printed2))
+    (is (= "Print" (:name (:fun (:expr (first (:stmts printed2))))))))
+   (let [ctx {:locals {} :globals {} :functions {} :module {"square" "compiler__square"} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        form {:kind :list
+              :elements [{:kind :symbol :name "go-interface"}
+                         {:kind :symbol :name "square"}
+                         {:kind :symbol :name "double"}
+                         {:kind :vector :elements [{:kind :symbol :name "double"}]}]}
+        out (lower/compile-module-body [form] ctx)
+        fn0 (first (:functions out))]
+    (is (= "square_go" (:go-name fn0)))
+    (is (= "(p1 float64) float64" (:go-signature fn0)))
+    (is (not (nil? (str/index-of (:body-source fn0) "flagrt.NewDouble(p1)"))))))
+
+(deftest lower-form-loop-fn-and-map-bool
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "loop"}
+                         {:kind :vector
+                          :elements [{:kind :symbol :name "i"}
+                                     {:kind :int :value 0}]}
+                         {:kind :list
+                          :elements [{:kind :symbol :name "do"}
+                                     {:kind :list
+                                      :elements [{:kind :symbol :name "fn"}
+                                                 {:kind :vector :elements []}
+                                                 {:kind :symbol :name "i"}]}
+                                     {:kind :list
+                                      :elements [{:kind :symbol :name "recur"}
+                                                 {:kind :list
+                                                  :elements [{:kind :symbol :name "+"}
+                                                             {:kind :symbol :name "i"}
+                                                             {:kind :int :value 1}]}]}]}]}
+             {})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.NewRecur")))))
+  (let [threw (try
+               (do (lower/compile-form-to-ir
+                     {:kind :map
+                      :entries [{:kind :keyword :name "a"}
+                                {:kind :list
+                                 :line 3
+                                 :col 16
+                                 :elements [{:kind :symbol :name "<"}
+                                            {:kind :int :value 1}
+                                            {:kind :int :value 2}]}]}
+                     {})
+                   false)
+               (catch Throwable t
+                 (ex-message t)))]
+    (is (not (nil? (str/index-of threw "map literal entries must evaluate to Value at 3:"))))))
+
+(deftest lower-render-ir-and-function-def
+  (is (= "x" (lower/render-ir {:kind :ident :name "x"})))
+  (is (= "\"hi\"" (lower/render-ir {:kind :string :value "hi"})))
+  (is (= "\"a\\\"b\"" (lower/render-ir {:kind :string :value "a\"b"})))
+  (is (= "42" (lower/render-ir {:kind :int :value 42})))
+  (is (= "-7" (lower/render-ir {:kind :int :value -7})))
+  (is (= "flagrt.NewLong" (lower/render-ir {:kind :selector :pkg "flagrt" :name "NewLong"})))
+  (is (= "println" (lower/render-ir {:kind :selector :pkg "" :name "println"})))
+  (is (= "flagrt.NilValue()"
+         (lower/render-ir {:kind :call
+                           :fun {:kind :selector :pkg "flagrt" :name "NilValue"}
+                           :args []})))
+  (is (= "flagrt.NewLong(42)"
+         (lower/render-ir {:kind :call
+                           :fun {:kind :selector :pkg "flagrt" :name "NewLong"}
+                           :args [{:kind :int :value 42}]})))
+  (is (= "args[0]"
+         (lower/render-ir {:kind :index
+                           :x {:kind :ident :name "args"}
+                           :index {:kind :int :value 0}})))
+  (is (= "args[2:]"
+         (lower/render-ir {:kind :slice
+                           :x {:kind :ident :name "args"}
+                           :low {:kind :int :value 2}
+                           :high nil})))
+  (is (= "flagrt.Call(f, xs...)"
+         (lower/render-ir {:kind :call
+                           :fun {:kind :selector :pkg "flagrt" :name "Call"}
+                           :args [{:kind :ident :name "f"}
+                                  {:kind :spread :expr {:kind :ident :name "xs"}}]})))
+  (is (= "!(flagrt.IsTruthy(x))"
+         (lower/render-ir {:kind :unary
+                           :op "!"
+                           :x {:kind :call
+                               :fun {:kind :selector :pkg "flagrt" :name "IsTruthy"}
+                               :args [{:kind :ident :name "x"}]}})))
+  (is (= "len(args) != 1"
+         (lower/render-ir {:kind :binary
+                           :op "!="
+                           :left {:kind :call
+                                  :fun {:kind :ident :name "len"}
+                                  :args [{:kind :ident :name "args"}]}
+                           :right {:kind :int :value 1}})))
+  (is (= "1e2" (lower/render-ir {:kind :raw :code "1e2"})))
+  (is (= "func(args ...flagrt.Value) flagrt.Value {\n\treturn x\n}"
+         (lower/render-ir {:kind :func-lit
+                           :params "args ...flagrt.Value"
+                           :result "flagrt.Value"
+                           :body [{:kind :return :expr {:kind :ident :name "x"}}]})))
+  (is (= "return\n" (lower/render-ir-stmt {:kind :return :expr nil} "")))
+  (is (= "\t_ = flagrt.NewLong(1)\n"
+         (lower/render-ir-stmt {:kind :expr-stmt
+                                :expr {:kind :call
+                                       :fun {:kind :selector :pkg "flagrt" :name "NewLong"}
+                                       :args [{:kind :int :value 1}]}
+                                :discard true}
+                               "\t")))
+  (is (= "defer close(ch)\n"
+         (lower/render-ir-stmt {:kind :defer :expr {:kind :ident :name "close(ch)"}} "")))
+  (is (= "go work()\n"
+         (lower/render-ir-stmt {:kind :go
+                                :expr {:kind :call
+                                       :fun {:kind :ident :name "work"}
+                                       :args []}}
+                               "")))
+  (is (= "var x flagrt.Value\n"
+         (lower/render-ir-stmt {:kind :var :name "x" :type "flagrt.Value" :expr nil} "")))
+  (is (= "var y = 1\n"
+         (lower/render-ir-stmt {:kind :var :name "y" :type "" :expr {:kind :int :value 1}} "")))
+  (is (= "x = y\n"
+         (lower/render-ir-stmt {:kind :assign :name "x" :expr {:kind :ident :name "y"}} "")))
+  (is (= "a, b := pair()\n"
+         (lower/render-ir-stmt {:kind :define
+                                :names ["a" "b"]
+                                :expr {:kind :call :fun {:kind :ident :name "pair"} :args []}}
+                               "")))
+  (is (= "if err := open(); ok {\n\treturn\n} else {\n\tpanic(err)\n}\n"
+         (lower/render-ir-stmt {:kind :if
+                                :init "err := open()"
+                                :cond {:kind :ident :name "ok"}
+                                :then [{:kind :return :expr nil}]
+                                :else [{:kind :expr-stmt
+                                        :expr {:kind :call
+                                               :fun {:kind :ident :name "panic"}
+                                               :args [{:kind :ident :name "err"}]}
+                                        :discard false}]}
+                               "")))
+  (is (= "for {\n\tbreak\n}\n"
+         (lower/render-ir-stmt {:kind :for :body [{:kind :raw-stmt :code "\tbreak\n"}]} "")))
+  (is (= "{\n\tvar x = y\n}\n"
+         (lower/render-ir-stmt {:kind :block
+                                :body [{:kind :var :name "x" :type "" :expr {:kind :ident :name "y"}}]}
+                               "")))
+  (is (= "func foo_arity_1(x flagrt.Value) flagrt.Value {\n\treturn x\n}\n"
+         (lower/render-ir-stmt {:kind :func-decl
+                                :name "foo_arity_1"
+                                :params "x flagrt.Value"
+                                :result "flagrt.Value"
+                                :body [{:kind :return :expr {:kind :ident :name "x"}}]}
+                               "")))
+  (is (= "raw line\n" (lower/render-ir-stmt {:kind :raw-stmt :code "raw line\n"} "")))
+  (is (= "func wrap(p1 float64) float64 {\n\treturn p1\n}\n"
+         (lower/render-function-def {:go-name "wrap"
+                                     :go-signature "(p1 float64) float64"
+                                     :body-source "\treturn p1\n"})))
+  (is (= "func foo() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"
+         (lower/render-function-def
+           {:ir-decls [{:kind :func-decl
+                        :name "foo"
+                        :params ""
+                        :result "flagrt.Value"
+                        :body [{:kind :return
+                                :expr {:kind :call
+                                       :fun {:kind :selector :pkg "flagrt" :name "NilValue"}
+                                       :args []}}]}]})))
+  (let [rest-src (lower/render-function-def
+                   {:go-name "sum"
+                    :variadic-name "sum_variadic"
+                    :has-rest true
+                    :params ["xs"]
+                    :body "xs"})]
+    (is (not (nil? (str/index-of rest-src "func sum_variadic(args ...flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of rest-src "sum expects at least 1 arguments"))))
+    (is (not (nil? (str/index-of rest-src "xs := args[0]"))))
+    (is (not (nil? (str/index-of rest-src "return xs")))))
+  (let [src (lower/render-function-def
+              {:go-name "add"
+               :arity-name "add_arity_1"
+               :variadic-name "add_variadic"
+               :params ["x"]
+               :body "x"})]
+    (is (not (nil? (str/index-of src "func add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func add_variadic(args ...flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "add expects exactly 1 arguments"))))
+    (is (not (nil? (str/index-of src "return add_arity_1(args[0])")))))
+  (let [src (lower/render-function-def
+              {:flag-name "add"
+               :variadic-name "add_variadic"
+               :arities [{:arity-name "add_arity_0" :params [] :body "flagrt.NewLong(0)"}
+                         {:arity-name "add_arity_1" :params ["x"] :body "x"}]})]
+    (is (not (nil? (str/index-of src "func add_arity_0() flagrt.Value"))))
+    (is (not (nil? (str/index-of src "func add_arity_1(x flagrt.Value) flagrt.Value"))))
+    (is (not (nil? (str/index-of src "add expects 0 or 1 arguments"))))
+    (is (not (nil? (str/index-of src "case 0:"))))
+    (is (not (nil? (str/index-of src "return add_arity_0()")))))
+  (let [unused (lower/render-function-def
+                 {:go-name "drop"
+                  :variadic-name "drop_variadic"
+                  :has-rest true
+                  :params ["_"]
+                  :local-inits ["\tvar tmp flagrt.Value\n"]
+                  :body "flagrt.NilValue()"})]
+    (is (not (nil? (str/index-of unused "\t_ = args[0]\n"))))
+    (is (not (nil? (str/index-of unused "\tvar tmp flagrt.Value\n"))))
+    (is (not (nil? (str/index-of unused "\t_ = tmp\n")))))
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        form {:kind :list
+              :elements [{:kind :symbol :name "defn"}
+                         {:kind :symbol :name "add"}
+                         {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                         {:kind :symbol :name "x"}]}
+        fn0 (first (:functions (lower/compile-module-body [form] ctx)))]
+    (is (= (lower/render-function-def fn0) (:source fn0)))
+    (is (not (nil? (str/index-of (:source fn0) "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))))
+
+(deftest lower-render-function-literals
+  (let [zero {:go-name "id" :arity-name "id_arity_0" :variadic-name "id_variadic" :params [] :body "flagrt.NilValue()"}
+        one {:go-name "add" :arity-name "add_arity_1" :variadic-name "add_variadic" :params ["x"] :body "x" :body-prelude "\t_ = x\n"}
+        rest {:go-name "sum" :variadic-name "sum_variadic" :has-rest true :params ["xs"] :body "xs"}
+        unused {:go-name "drop" :variadic-name "drop_variadic" :has-rest true :params ["_"]
+                :local-inits ["\tvar tmp flagrt.Value\n"] :body "flagrt.NilValue()"}
+        multi {:flag-name "add" :variadic-name "add_variadic"
+               :arities [{:arity-name "add_arity_0" :params [] :body "flagrt.NewLong(0)"}
+                         {:arity-name "add_arity_1" :params ["x"] :body "x"}
+                         {:arity-name "add_arity_2" :params ["x" "y"] :body "y"}]}]
+    (is (= "func() flagrt.Value" (lower/render-direct-function-type zero)))
+    (is (= "func(flagrt.Value) flagrt.Value" (lower/render-direct-function-type one)))
+    (is (= "" (lower/render-direct-param-types [])))
+    (is (= "flagrt.Value, flagrt.Value" (lower/render-direct-param-types ["x" "y"])))
+    (is (= "func(x flagrt.Value) flagrt.Value {\n\t_ = x\n\treturn x\n}"
+           (lower/render-direct-function-literal one)))
+    (is (= "func() flagrt.Value {\n\treturn flagrt.NilValue()\n}"
+           (lower/render-direct-function-literal zero)))
+    (let [v (lower/render-variadic-function-literal one)]
+      (is (not (nil? (str/index-of v "func(args ...flagrt.Value) flagrt.Value"))))
+      (is (not (nil? (str/index-of v "add expects exactly 1 arguments"))))
+      (is (not (nil? (str/index-of v "return add_arity_1(args[0])")))))
+    (let [z (lower/render-variadic-function-literal zero)]
+      (is (not (nil? (str/index-of z "return id_arity_0()")))))
+    (let [lit (lower/render-function-literal rest)]
+      (is (not (nil? (str/index-of lit "sum expects at least 1 arguments"))))
+      (is (not (nil? (str/index-of lit "xs := args[0]"))))
+      (is (not (nil? (str/index-of lit "return xs")))))
+    (let [u (lower/render-function-literal unused)]
+      (is (not (nil? (str/index-of u "\t_ = args[0]\n"))))
+      (is (not (nil? (str/index-of u "\t_ = tmp\n")))))
+    (let [m (lower/render-multi-arity-variadic-literal multi)]
+      (is (not (nil? (str/index-of m "add expects 0, 1, or 2 arguments"))))
+      (is (not (nil? (str/index-of m "case 2:"))))
+      (is (not (nil? (str/index-of m "return add_arity_2(args[0], args[1])")))))))
+
+(deftest lower-format-go-source-and-import-graph
+  (let [cwd (lower/cwd-path)
+        abs (lower/abs-path ".")]
+    (is (= cwd abs)))
+  (is (= "file" (lower/path-stat-kind "libraries/compiler/lower.lib")))
+  (is (lower/file-exists? "libraries/compiler/lower.lib"))
+  (is (lower/dir-exists? "libraries"))
+  (is (= ".lib" (lower/path-ext "libraries/compiler/lower.lib")))
+  (is (not (lower/path-abs? "libraries/compiler/lower.lib")))
+  (is (lower/path-abs? (lower/abs-path "libraries/compiler/lower.lib")))
+  (is (not (nil? (str/index-of (lower/path-join "a" "b.flag") "b.flag"))))
+  (let [formatted (lower/format-go-source "package p\nfunc F( x int ){ _ = x }\n")]
+    (is (not (nil? (str/index-of formatted "func F(x int)")))))
+  (let [threw (try
+                (do (lower/format-go-source "not go") false)
+                (catch Throwable t true))]
+    (is threw))
+  (let [threw (try
+                (do (lower/resolve-import-path "examples/modules/main.flag" "") false)
+                (catch Throwable t
+                  (not (nil? (str/index-of (ex-message t) "empty import path")))))]
+    (is threw))
+  (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")]
+    (is (lower/file-exists? resolved))
+    (is (not (nil? (str/index-of resolved "math.flag")))))
+  (let [no-ext (lower/resolve-import-path "examples/modules/main.flag" "math")]
+    (is (not (nil? (str/index-of no-ext "math.flag")))))
+  (let [lib (lower/resolve-import-path "examples/compiler_tokenizer/main.flag" "compiler/lower.lib")]
+    (is (not (nil? (str/index-of lib "libraries/compiler/lower.lib")))))
+  (let [cwd (lower/cwd-path)
+        roots (lower/library-search-roots "examples/modules/main.flag")]
+    (is (not (nil? (some (fn [root] (= root cwd)) roots))))))
+
+(deftest lower-seed-imports-and-package-helpers
+  (is (= "math" (lower/go-package-name "math")))
+  (is (= "type_" (lower/go-package-name "type")))
+  (is (= "c_frs_core" (lower/go-package-name "c.frs.core")))
+  (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")
+        by-path {resolved {:path resolved :has-header true :namespace "math" :exports ["add" "double"]}}
+        defs {resolved {"add" "math__add" "double" "math__double"}}
+        seeded (lower/seed-imports {:namespace "main" :module {} :package-mode false :macro-forms []}
+                                   {:path "examples/modules/main.flag"
+                                    :has-header true
+                                    :imports [{:path "math.flag" :as "" :refer ["add"]}]}
+                                   by-path
+                                   defs
+                                   {})]
+    (is (= "math__add" (get (:module seeded) "math/add")))
+    (is (= "math__double" (get (:module seeded) "math/double")))
+    (is (= "math__add" (get (:module seeded) "add"))))
+  (let [pro "/tmp/prologue.flag"
+       spec (lower/implicit-prologue-spec pro)]
+    (is (= pro (:path spec)))
+    (is (= "" (:as spec)))
+    (is (= :all (:refer spec)))
+    (is (:skip-go-import spec)))
+  (let [pro (lower/abs-path "internal/compiler/prologue.flag")
+       other {:path "examples/modules/main.flag" :imports [{:path "math.flag"}]}
+       same {:path pro :imports []}
+       prefixed (lower/with-implicit-prologue-import other pro)]
+    (is (= same (lower/with-implicit-prologue-import same pro)))
+    (is (= pro (:path (first (:imports prefixed)))))
+    (is (= "math.flag" (:path (first (rest (:imports prefixed))))))
+    (is (= pro (lower/program-prologue-path [{:namespace "prologue" :path pro}
+                                            {:namespace "main" :path "x"}])))
+    (is (nil? (lower/program-prologue-path [{:namespace "main" :path "x"}]))))
+  (let [pro (lower/prologue-path)]
+    (is (lower/file-exists? pro))
+    (is (not (nil? (str/index-of pro "prologue.flag")))))
+  (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")
+       by-path {resolved {:path resolved :has-header true :namespace "math" :exports ["add" "double"]}}
+       defs {resolved {"add" "Add" "double" "Double"}}
+       seeded (lower/seed-imports {:namespace "main" :module {} :package-mode true :macro-forms [] :go-imports []}
+                                  {:path "examples/modules/main.flag"
+                                   :imports [{:path "math.flag" :as "" :refer :all :skip-go-import true}]}
+                                  by-path
+                                  defs
+                                  {})]
+    (is (= "math.Add" (get (:module seeded) "add")))
+    (is (= "math.Double" (get (:module seeded) "double")))
+    (is (= 0 (count (or (:go-imports seeded) [])))))
+  (is (lower/prelude-go-name? "prologue__second"))
+  (is (lower/prelude-go-name? "prologue.Second"))
+  (is (not (lower/prelude-go-name? "stdlib__second")))
+  (let [rebound (lower/bind-module-name {:namespace "main" :module {"second" "prologue__second"}}
+                                       "second"
+                                       "stdlib__second")]
+    (is (= "stdlib__second" (get (:module rebound) "second"))))
+  (let [threw (try
+                (do (lower/validate-exports {:has-header true :namespace "hello" :exports ["missing"]}
+                                            {"greet" "hello__greet"}
+                                            {})
+                    false)
+                (catch Throwable t
+                  (not (nil? (str/index-of (ex-message t) "export \"missing\"")))))]
+    (is threw))
+  (is (nil? (lower/validate-exports {:has-header true :namespace "hello" :exports ["greet"]}
+                                    {"greet" "hello__greet"}
+                                    {})))
+  (let [ctx (lower/add-go-import {:go-imports []} "math")
+        again (lower/add-go-import ctx "math")]
+    (is (= 1 (count (:go-imports ctx))))
+    (is (= 1 (count (:go-imports again))))
+    (is (= "flagbuild/math" (:path (first (:go-imports ctx))))))
+  (let [flagi (lower/emit-flagi "math" ["double" "add"] {} {} {"add" "Add" "double" "Double"})]
+    (is (not (nil? (str/index-of flagi "{:namespace \"math\""))))
+    (is (not (nil? (str/index-of flagi ":exports"))))
+    (is (not (nil? (str/index-of flagi "add"))))
+    (is (not (nil? (str/index-of flagi "double"))))
+    (is (not (nil? (str/index-of flagi "(declare add double)")))) )
+  (let [renamed (lower/rename-defmacro {:kind :list
+                                        :elements [{:kind :symbol :name "defmacro"}
+                                                   {:kind :symbol :name "when"}
+                                                   {:kind :vector :elements []}
+                                                   {:kind :symbol :name "body"}]}
+                                       "lib/when")]
+    (is (= "lib/when" (:name (first (rest (:elements renamed))))))))
+
+(deftest lower-write-program-packages-helpers
+  (is (= "module flag-lang" (lower/file-first-line (lower/read-text-file "go.mod"))))
+  (is (= "abc" (lower/file-first-line "abc")))
+  (is (= "" (lower/file-first-line "")))
+  (is (= "" (lower/file-first-line "\nrest")))
+  (is (= "a" (lower/file-first-line "a\nb")))
+  (is (= "a\r" (lower/file-first-line "a\r\nb")))
+  (is (nil? (lower/write-compiled-packages "." [])))
+  (let [root (lower/find-flag-lang-root "examples/modules/main.flag")]
+    (is (lower/file-exists? (lower/path-join root "go.mod")))
+    (is (not (nil? (str/index-of (lower/read-text-file (lower/path-join root "go.mod")) "module flag-lang"))))))
+
+(deftest lower-emit-vars-and-stmts-render-ir-or-source
+  (is (= "y" (lower/emitted-var-expr {:kind :ident :name "y"})))
+  (is (= "flagrt.Foo" (lower/emitted-var-expr "flagrt.Foo")))
+  (is (= "" (lower/emitted-var-expr nil)))
+  (is (= "flagrt.NewLong(1)" (lower/emitted-var-expr (lower/ast-node-to-ir {:kind :int :value 1}))))
+  (is (= "\tx := 1\n" (lower/emitted-stmt-prelude {:prelude-stmts [{:kind :define :names ["x"] :expr {:kind :int :value 1}}]})))
+  (is (= "pre\n" (lower/emitted-stmt-prelude {:prelude "pre"})))
+  (is (= "" (lower/emitted-stmt-prelude {:prelude ""})))
+  (is (= "z" (lower/emitted-stmt-code {:expr {:kind :ident :name "z"}})))
+  (is (= "fmt.Println(1)" (lower/emitted-stmt-code {:code "fmt.Println(1)"})))
+  (is (= "defer close()\n" (lower/emitted-stmt-code {:defer-stmt {:kind :defer :expr {:kind :call :fun {:kind :ident :name "close"} :args []}}})))
+  (let [src (lower/emit-go-file "p"
+                                {:functions []
+                                 :vars [{:go-name "x" :doc "" :expr {:kind :ident :name "y"}}
+                                        {:go-name "interned" :doc "" :expr "flagrt.NewString(\"hi\")"}]
+                                 :stmts []
+                                 :tests []
+                                 :needs-fmt false
+                                 :namespace-code "// Source namespace: p\n"
+                                 :type-decls []
+                                 :extra-imports []}
+                                false)]
+    (is (not (nil? (str/index-of src "package p"))))
+    (is (not (nil? (str/index-of src "var x = y"))))
+    (is (not (nil? (str/index-of src "var interned = flagrt.NewString(\"hi\")"))))
+    (is (not (nil? (str/index-of src "// Source namespace: p")))))
+  (is (lower/result-refs-package? {:functions []
+                                   :vars []
+                                   :stmts [{:expr {:kind :selector :pkg "prologue" :name "Inc"}}]
+                                   :type-decls []}
+                                  "prologue."))
+  (is (not (lower/result-refs-package? {:functions [] :vars [] :stmts [{:code "fmt.Println(1)"}] :type-decls []}
+                                       "prologue."))))
+
+(deftest codegen-emits-ir-binary-for-square
+  (let [exprs (lift-file-to-array "examples/compiler_tokenizer/square_expr.txt")
+        node (codegen/emit-ir-expr (nth-token exprs 0))]
+    (is (= :binary (:kind node)))
+    (is (= "*" (:op node)))
+    (is (= "x" (:name (:left node))))
+    (is (= "x" (:name (:right node))))))
+

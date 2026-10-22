@@ -1,0 +1,14 @@
+(defmacro or [& exprs]
+  (macro-case (do exprs)
+    ([] nil)
+    ([x] x)
+    ([x y]
+     (let [or-tmp x]
+       (if or-tmp or-tmp y)))
+    ([x y & rest]
+     (let [or-tmp x]
+       (if or-tmp or-tmp (or y rest))))))
+(or)
+(or a)
+(or a [])
+(or a b c)

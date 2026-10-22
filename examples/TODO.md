@@ -144,3 +144,6 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 - Concurrency lives in `async.lib`, not `clojure.core` / `core.async`.
 - `[1 2 3]` is an array; FLAG vectors are `| 1 2 3 |`.
 - Modules use a header map (`:namespace` / `:exports` / `:imports`), not `(ns … :require …)`.
+
+
+- [] Functions in the prelude are compiled to go eliminate.
