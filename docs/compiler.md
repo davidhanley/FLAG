@@ -395,20 +395,20 @@ via `compiler/go-bind-ident`, then `compile-module-body`).
 `:prelude-stmts`; `emitted-var-expr` / `emitted-stmt-*` render those maps
 (or pass through already-stringified Go from `compileResultToFLAG`).
 `result-refs-package?` searches that rendered source so `prologue.` refs
-add `flagbuild/prologue`. Go `compileProgram` / `CompileProgramPackages` /
-`seedImports` / `emitGoFile` / `WriteProgramPackages` call the FLAG loops first.
+add `flagbuild/prologue`. Production `compileProgram` /
+`CompileProgramPackages` / `seedImports` / `validateExports` /
+`compileModuleBody` / `exprToGo` / `goPackageName` /
+`WriteProgramPackages` are FLAG-only (no Go form-lowering fallback).
 `write-program-packages` writes `go.mod` (`module flagbuild`, replace
 `flag-lang`), copies `go.sum`, emits `main.go` / `<pkg>/<pkg>.go` /
 `.flagi`, then `go mod tidy` (runtime `compiler/write-text-file`,
 `mkdir-all`, `read-text-file`, `go-mod-tidy`). `find-flag-lang-root`
 walks from the entry path and cwd for `module flag-lang`.
 REPL/`CompileExpression` still inline the prelude via `loadStandardPrologue`.
-`compileModuleBody` (including REPL `allow-redefine`) always tries FLAG
-`compile-module-body` first (`declare`, `go-interface`, `defrecord`,
-top-level `println`/`print`/exprs). `ensure-unique-fn` honors
-`:allow-redefine`. `exprToGo` / `CompileExpression` also try FLAG
-`compile-form-to-ir` first. Go lowering runs only on remaining unhandled
-forms. Remaining Go is CLI/REPL host glue.
+REPL `CompileLine` / `LoadFile` share `compileModuleBody` with batch compile
+(`allow-redefine` for REPL). Yaegi emit (`ReplCompiled` Setup/ResultExpr)
+stays Go. `ensure-unique-fn` honors `:allow-redefine`. Remaining Go is
+CLI/REPL host glue, parser/tokenizer, and `*Go` parity goldens.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
@@ -426,10 +426,9 @@ Go tests in `internal/compiler/ir_test.go`.
 
 ## Go lowering IR
 
-After expansion, the Go compiler still lowers FLAG forms to Go. Expression
-nodes are maps in FLAG (`compiler/ir.lib`) and structs in Go (`ir.go`). The
-goal is for FLAG lowering to emit the same trees instead of concatenating Go
-source.
+After expansion, FLAG (`compiler/lower.lib`) lowers forms to IR maps; the Go
+host converts those maps to structs (`ir.go`) and renders them. There is no
+Go form-lowering fallback for unhandled lists.
 
 `IRExpr` nodes today: ident, string, int, `pkg.Name` selector, call, index,
 slice, spread (`expr...`), unary `!(x)`, binary `left op right`, anonymous
@@ -447,7 +446,7 @@ errors, top-level `println`/`print`, and function printing
 (`render-function-def` / `render-ir*`). The package file printer is FLAG
 `emit-go-file`. Inline and package compile loops are FLAG
 (`compile-inline-modules` / `compile-package-modules`). REPL
-`compileModuleBody` and `exprToGo` are FLAG-first; remaining Go is CLI/REPL host glue.
+`compileModuleBody` and `exprToGo` are FLAG-only; remaining Go is CLI/REPL host glue.
 
 ## Package emit (`flag-lang build`)
 

@@ -27,11 +27,7 @@ const ProloguePackageName = "prologue"
 // flagbuild/<pkg>. The language prelude is one more library package
 // (flagbuild/prologue); it is not copied into importers.
 func CompileProgramPackages(entryPath string) ([]CompiledPackage, error) {
-	pkgs, err := flagCompileProgramPackages(entryPath)
-	if err == nil || !flagUnhandled(err) {
-		return pkgs, err
-	}
-	return compileProgramPackagesGo(entryPath)
+	return flagCompileProgramPackages(entryPath)
 }
 
 func compileProgramPackagesGo(entryPath string) ([]CompiledPackage, error) {
@@ -384,10 +380,7 @@ func WriteProgramPackages(dir, entryPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := flagWriteProgramPackages(dir, pkgs, entryPath); err == nil || !flagUnhandled(err) {
-		return err
-	}
-	return writeProgramPackagesGo(dir, pkgs, entryPath)
+	return flagWriteProgramPackages(dir, pkgs, entryPath)
 }
 
 func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string) error {
