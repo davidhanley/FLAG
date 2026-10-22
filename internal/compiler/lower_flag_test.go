@@ -3188,26 +3188,172 @@ func TestFLAGRenderIRMatchesGo(t *testing.T) {
 	}
 }
 
-func TestFLAGRenderFunctionDefMatchesGo(t *testing.T) {
-	cases := []functionDef{
-		{goName: "wrap", goSignature: "(p1 float64) float64", body: "\treturn p1\n"},
-		{irDecls: []IRStmt{IRFuncDecl{Name: "foo", Result: "flagrt.Value", Body: []IRStmt{IRReturn{Expr: rtCall("NilValue")}}}}},
-		{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"},
-		{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x"},
-		{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
-			{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
-			{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
-		}},
-		{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"},
+func TestFLAGRenderFunctionDef(t *testing.T) {
+	cases := []struct {
+		name string
+		fn   functionDef
+		want string
+	}{
+		{
+			name: "go-signature",
+			fn:   functionDef{goName: "wrap", goSignature: "(p1 float64) float64", body: "\treturn p1\n"},
+			want: "func wrap(p1 float64) float64 {\n\treturn p1\n}\n",
+		},
+		{
+			name: "ir-decls",
+			fn: functionDef{irDecls: []IRStmt{IRFuncDecl{
+				Name: "foo", Result: "flagrt.Value",
+				Body: []IRStmt{IRReturn{Expr: rtCall("NilValue")}},
+			}}},
+			want: "func foo() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n",
+		},
+		{
+			name: "rest",
+			fn:   functionDef{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"},
+			want: "func sum_variadic(args ...flagrt.Value) flagrt.Value {\n" +
+				"\tif len(args) < 1 {\n" +
+				"\t\tpanic(\"sum expects at least 1 arguments\")\n" +
+				"\t}\n" +
+				"\txs := args[0]\n" +
+				"\treturn xs\n" +
+				"}\n",
+		},
+		{
+			name: "arity-plus-variadic",
+			fn:   functionDef{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x"},
+			want: "func add_arity_1(x flagrt.Value) flagrt.Value {\n" +
+				"\treturn x\n" +
+				"}\n\n" +
+				"func add_variadic(args ...flagrt.Value) flagrt.Value {\n" +
+				"\tif len(args) != 1 {\n" +
+				"\t\tpanic(\"add expects exactly 1 arguments\")\n" +
+				"\t}\n" +
+				"\treturn add_arity_1(args[0])\n" +
+				"}\n",
+		},
+		{
+			name: "multi-arity",
+			fn: functionDef{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
+				{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
+				{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
+			}},
+			want: "func add_arity_0() flagrt.Value {\n" +
+				"\treturn flagrt.NewLong(0)\n" +
+				"}\n\n" +
+				"func add_arity_1(x flagrt.Value) flagrt.Value {\n" +
+				"\treturn x\n" +
+				"}\n\n" +
+				"func add_variadic(args ...flagrt.Value) flagrt.Value {\n" +
+				"\tswitch len(args) {\n" +
+				"\tcase 0:\n" +
+				"\t\treturn add_arity_0()\n" +
+				"\tcase 1:\n" +
+				"\t\treturn add_arity_1(args[0])\n" +
+				"\tdefault:\n" +
+				"\t\tpanic(\"add expects 0 or 1 arguments\")\n" +
+				"\t}\n" +
+				"}\n",
+		},
+		{
+			name: "unused-rest-local-init",
+			fn:   functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"},
+			want: "func drop_variadic(args ...flagrt.Value) flagrt.Value {\n" +
+				"\tif len(args) < 1 {\n" +
+				"\t\tpanic(\"drop expects at least 1 arguments\")\n" +
+				"\t}\n" +
+				"\t_ = args[0]\n" +
+				"\tvar tmp flagrt.Value\n" +
+				"\t_ = tmp\n" +
+				"\treturn flagrt.NilValue()\n" +
+				"}\n",
+		},
 	}
-	for i, fn := range cases {
-		got, ok := flagRenderFunctionDef(fn)
-		if !ok {
-			t.Fatalf("case %d FLAG render failed", i)
-		}
-		want := renderFunctionDefGo(fn)
-		if got != want {
-			t.Fatalf("case %d FLAG:\n%s\nwant:\n%s", i, got, want)
-		}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := flagRenderFunctionDef(tc.fn)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
+			}
+			if renderFunctionDef(tc.fn) != tc.want {
+				t.Fatalf("production printer:\n%s\nwant:\n%s", renderFunctionDef(tc.fn), tc.want)
+			}
+		})
+	}
+}
+
+func TestFLAGRenderFunctionLiterals(t *testing.T) {
+	zero := functionDef{goName: "id", arityName: "id_arity_0", variadicName: "id_variadic", body: "flagrt.NilValue()"}
+	one := functionDef{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x", bodyPrelude: "\t_ = x\n"}
+	rest := functionDef{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"}
+	unused := functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"}
+	multi := functionDef{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
+		{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
+		{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
+		{arityName: "add_arity_2", params: []string{"x", "y"}, body: "y"},
+	}}
+	if got, want := renderDirectFunctionType(zero), "func() flagrt.Value"; got != want {
+		t.Fatalf("zero type %q want %q", got, want)
+	}
+	if got, want := renderDirectFunctionType(one), "func(flagrt.Value) flagrt.Value"; got != want {
+		t.Fatalf("one type %q want %q", got, want)
+	}
+	if got, want := renderDirectFunctionLiteral(one), "func(x flagrt.Value) flagrt.Value {\n\t_ = x\n\treturn x\n}"; got != want {
+		t.Fatalf("literal got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderDirectFunctionLiteral(zero), "func() flagrt.Value {\n\treturn flagrt.NilValue()\n}"; got != want {
+		t.Fatalf("zero literal got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderVariadicFunctionLiteral(one), "func(args ...flagrt.Value) flagrt.Value {\n"+
+		"\tif len(args) != 1 {\n"+
+		"\t\tpanic(\"add expects exactly 1 arguments\")\n"+
+		"\t}\n"+
+		"\treturn add_arity_1(args[0])\n"+
+		"}"; got != want {
+		t.Fatalf("variadic got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderVariadicFunctionLiteral(zero), "func(args ...flagrt.Value) flagrt.Value {\n"+
+		"\tif len(args) != 0 {\n"+
+		"\t\tpanic(\"id expects exactly 0 arguments\")\n"+
+		"\t}\n"+
+		"\treturn id_arity_0()\n"+
+		"}"; got != want {
+		t.Fatalf("zero variadic got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderFunctionLiteral(rest), "func(args ...flagrt.Value) flagrt.Value {\n"+
+		"\tif len(args) < 1 {\n"+
+		"\t\tpanic(\"sum expects at least 1 arguments\")\n"+
+		"\t}\n"+
+		"\txs := args[0]\n"+
+		"\treturn xs\n"+
+		"}"; got != want {
+		t.Fatalf("fn literal rest got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderFunctionLiteral(unused), "func(args ...flagrt.Value) flagrt.Value {\n"+
+		"\tif len(args) < 1 {\n"+
+		"\t\tpanic(\"drop expects at least 1 arguments\")\n"+
+		"\t}\n"+
+		"\t_ = args[0]\n"+
+		"\tvar tmp flagrt.Value\n"+
+		"\t_ = tmp\n"+
+		"\treturn flagrt.NilValue()\n"+
+		"}"; got != want {
+		t.Fatalf("fn literal unused got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, want := renderMultiArityVariadicLiteral(multi), "func(args ...flagrt.Value) flagrt.Value {\n"+
+		"\tswitch len(args) {\n"+
+		"\tcase 0:\n"+
+		"\t\treturn add_arity_0()\n"+
+		"\tcase 1:\n"+
+		"\t\treturn add_arity_1(args[0])\n"+
+		"\tcase 2:\n"+
+		"\t\treturn add_arity_2(args[0], args[1])\n"+
+		"\tdefault:\n"+
+		"\t\tpanic(\"add expects 0, 1, or 2 arguments\")\n"+
+		"\t}\n"+
+		"}"; got != want {
+		t.Fatalf("multi got:\n%s\nwant:\n%s", got, want)
 	}
 }

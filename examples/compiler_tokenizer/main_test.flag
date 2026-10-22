@@ -1699,6 +1699,42 @@
     (is (= (lower/render-function-def fn0) (:source fn0)))
     (is (not (nil? (str/index-of (:source fn0) "func compiler__add_arity_1(x flagrt.Value) flagrt.Value"))))))
 
+(deftest lower-render-function-literals
+  (let [zero {:go-name "id" :arity-name "id_arity_0" :variadic-name "id_variadic" :params [] :body "flagrt.NilValue()"}
+        one {:go-name "add" :arity-name "add_arity_1" :variadic-name "add_variadic" :params ["x"] :body "x" :body-prelude "\t_ = x\n"}
+        rest {:go-name "sum" :variadic-name "sum_variadic" :has-rest true :params ["xs"] :body "xs"}
+        unused {:go-name "drop" :variadic-name "drop_variadic" :has-rest true :params ["_"]
+                :local-inits ["\tvar tmp flagrt.Value\n"] :body "flagrt.NilValue()"}
+        multi {:flag-name "add" :variadic-name "add_variadic"
+               :arities [{:arity-name "add_arity_0" :params [] :body "flagrt.NewLong(0)"}
+                         {:arity-name "add_arity_1" :params ["x"] :body "x"}
+                         {:arity-name "add_arity_2" :params ["x" "y"] :body "y"}]}]
+    (is (= "func() flagrt.Value" (lower/render-direct-function-type zero)))
+    (is (= "func(flagrt.Value) flagrt.Value" (lower/render-direct-function-type one)))
+    (is (= "" (lower/render-direct-param-types [])))
+    (is (= "flagrt.Value, flagrt.Value" (lower/render-direct-param-types ["x" "y"])))
+    (is (= "func(x flagrt.Value) flagrt.Value {\n\t_ = x\n\treturn x\n}"
+           (lower/render-direct-function-literal one)))
+    (is (= "func() flagrt.Value {\n\treturn flagrt.NilValue()\n}"
+           (lower/render-direct-function-literal zero)))
+    (let [v (lower/render-variadic-function-literal one)]
+      (is (not (nil? (str/index-of v "func(args ...flagrt.Value) flagrt.Value"))))
+      (is (not (nil? (str/index-of v "add expects exactly 1 arguments"))))
+      (is (not (nil? (str/index-of v "return add_arity_1(args[0])")))))
+    (let [z (lower/render-variadic-function-literal zero)]
+      (is (not (nil? (str/index-of z "return id_arity_0()")))))
+    (let [lit (lower/render-function-literal rest)]
+      (is (not (nil? (str/index-of lit "sum expects at least 1 arguments"))))
+      (is (not (nil? (str/index-of lit "xs := args[0]"))))
+      (is (not (nil? (str/index-of lit "return xs")))))
+    (let [u (lower/render-function-literal unused)]
+      (is (not (nil? (str/index-of u "\t_ = args[0]\n"))))
+      (is (not (nil? (str/index-of u "\t_ = tmp\n")))))
+    (let [m (lower/render-multi-arity-variadic-literal multi)]
+      (is (not (nil? (str/index-of m "add expects 0, 1, or 2 arguments"))))
+      (is (not (nil? (str/index-of m "case 2:"))))
+      (is (not (nil? (str/index-of m "return add_arity_2(args[0], args[1])")))))))
+
 (deftest lower-format-go-source-and-import-graph
   (let [cwd (lower/cwd-path)
         abs (lower/abs-path ".")]

@@ -30,6 +30,9 @@
              parse-catch-clause split-try-args
              sanitize-keyword-ident intern-ir intern-decls intern-form-ir
              render-ir render-ir-stmt render-ir-stmts render-function-def
+             render-direct-param-types render-direct-function-type
+             render-direct-function-literal render-variadic-function-literal
+             render-multi-arity-variadic-literal render-function-literal
              format-go-source abs-path cwd-path path-join path-dir path-ext
              path-abs? path-stat-kind file-exists? dir-exists?
              write-text-file read-text-file mkdir-all go-mod-tidy
@@ -4796,6 +4799,36 @@
          "func " (:variadic-name fn) "(args ...flagrt.Value) flagrt.Value {\n"
          (render-variadic-function-body fn)
          "}\n")))
+
+(defn render-direct-param-types [params]
+  (loop [remaining (stmt-list params) parts []]
+    (if (or (nil? remaining) (empty? remaining))
+      (join-strings parts ", ")
+      (recur (rest remaining) (conj parts "flagrt.Value")))))
+
+(defn render-direct-function-type [fn]
+  (str "func(" (render-direct-param-types (:params fn)) ") flagrt.Value"))
+
+(defn render-direct-function-literal [fn]
+  (str "func(" (render-direct-param-list (:params fn)) ") flagrt.Value {\n"
+       (render-local-inits (:local-inits fn))
+       (or (:body-prelude fn) "")
+       "\treturn " (:body fn) "\n}"))
+
+(defn render-variadic-function-literal [fn]
+  (str "func(args ...flagrt.Value) flagrt.Value {\n"
+       (render-variadic-function-body fn)
+       "}"))
+
+(defn render-multi-arity-variadic-literal [fn]
+  (str "func(args ...flagrt.Value) flagrt.Value {\n"
+       (render-multi-arity-dispatch fn)
+       "}"))
+
+(defn render-function-literal [fn]
+  (str "func(args ...flagrt.Value) flagrt.Value {\n"
+       (render-standalone-variadic-body fn)
+       "}"))
 
 (defn function-with-source [fn]
   (assoc fn :source (render-function-def fn)))

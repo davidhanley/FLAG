@@ -105,6 +105,9 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
 `intern-ir`, `intern-decls`, `intern-form-ir`,
 `render-ir`, `render-ir-stmt`, `render-ir-stmts`, `render-function-def`,
+`render-direct-param-types`, `render-direct-function-type`,
+`render-direct-function-literal`, `render-variadic-function-literal`,
+`render-multi-arity-variadic-literal`, `render-function-literal`,
 `format-go-source`, `abs-path`, `cwd-path`, `path-join`, `path-dir`,
 `path-ext`, `path-abs?`, `path-stat-kind`, `file-exists?`, `dir-exists?`,
 `library-search-roots`, `resolve-import-path`, `module-import-paths`,
@@ -366,10 +369,18 @@ updated table back onto ctx so Go `decls()` can emit the vars.
 form onto the outer module ctx after `defn`/`def`/`deftest`.
 
 `render-ir` / `render-ir-stmt` / `render-ir-stmts` print IR maps the same way
-Go `renderIRExpr` / `renderIRStmt` / `renderIRStmts` print structs. `render-function-def`
-matches Go `renderFunctionDef`: custom `:go-signature` (using `:body` or
-`:body-source`), `:ir-decls`, multi-arity switch dispatch, `& rest` variadic,
-or arity plus variadic wrapper. `compile-module-body` stores that as `:source`.
+Go `renderIRExpr` / `renderIRStmt` / `renderIRStmts` print structs. Production
+function printers are FLAG-only (`renderFunctionDef`,
+`renderDirectFunctionType`, `renderDirectFunctionLiteral`,
+`renderVariadicFunctionLiteral`, `renderMultiArityVariadicLiteral`,
+`renderFunctionLiteral`).
+`render-function-def` covers: custom `:go-signature`
+(using `:body` or `:body-source`), `:ir-decls`, multi-arity switch dispatch,
+`& rest` variadic, or arity plus variadic wrapper. REPL yaegi setups use
+`render-direct-function-type` / `render-direct-function-literal` /
+`render-variadic-function-literal` / `render-multi-arity-variadic-literal`
+(func literals, not `func name(...)` decls). `compile-module-body` stores
+`render-function-def` as `:source`.
 `emit-go-file` / `compile-program` print a compile-result map: package clause,
 imports (`fmt` / `strings` / `os` / extras / `flagrt`), namespace code, type
 decls, function sources (plus doc comments), interned `var`s, the test runner
@@ -408,7 +419,7 @@ REPL/`CompileExpression` still inline the prelude via `loadStandardPrologue`.
 REPL `CompileLine` / `LoadFile` share `compileModuleBody` with batch compile
 (`allow-redefine` for REPL). Yaegi emit (`ReplCompiled` Setup/ResultExpr)
 stays Go. `ensure-unique-fn` honors `:allow-redefine`. Remaining Go is
-CLI/REPL host glue, parser/tokenizer, and `*Go` parity goldens.
+CLI/REPL host glue, parser/tokenizer, and leftover `*Go` compile goldens.
 
 `and` / `or` are prologue macros, not compiler special forms. They expand
 to `let` plus `if` so each clause is evaluated at most once and later
@@ -443,7 +454,8 @@ IIFEs, destructure bindings, and `future`. `if`/`let`/`do`/`loop`/`recur`/`defer
 `try`/`doseq`/`for` MapCat assembly is FLAG, as are `go-interface`,
 `defrecord` type/ctor emit, intern-on-compile-form, leftover `.method`
 errors, top-level `println`/`print`, and function printing
-(`render-function-def` / `render-ir*`). The package file printer is FLAG
+(`render-function-def` and the REPL func-literal printers; no Go fallback).
+The package file printer is FLAG
 `emit-go-file`. Inline and package compile loops are FLAG
 (`compile-inline-modules` / `compile-package-modules`). REPL
 `compileModuleBody` and `exprToGo` are FLAG-only; remaining Go is CLI/REPL host glue.

@@ -1087,14 +1087,26 @@ func functionDefToFLAG(fn functionDef) flagrt.Value {
 	)
 }
 
-func flagRenderFunctionDef(fn functionDef) (out string, ok bool) {
+func flagRenderFunctionString(fn flagrt.Value, def functionDef) (out string, err error) {
 	defer func() {
-		if recover() != nil {
+		if r := recover(); r != nil {
+			err = recoverFLAG(r)
 			out = ""
-			ok = false
 		}
 	}()
-	return flagString(flagrt.Call(compiler__render_function_def, functionDefToFLAG(fn))), true
+	return flagString(flagrt.Call(fn, functionDefToFLAG(def))), nil
+}
+
+func mustRenderFunctionString(fn flagrt.Value, def functionDef) string {
+	out, err := flagRenderFunctionString(fn, def)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
+
+func flagRenderFunctionDef(fn functionDef) (string, error) {
+	return flagRenderFunctionString(compiler__render_function_def, fn)
 }
 
 func flagCompileProgram(pkgName string, result compileResult, includeMain bool) (src []byte, err error) {

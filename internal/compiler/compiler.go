@@ -1855,53 +1855,7 @@ func toGoIdentifier(name string) (string, error) {
 }
 
 func renderFunctionDef(fn functionDef) string {
-	if src, ok := flagRenderFunctionDef(fn); ok {
-		return src
-	}
-	return renderFunctionDefGo(fn)
-}
-
-func renderFunctionDefGo(fn functionDef) string {
-	// Handle go-interface wrappers with custom Go signatures
-	if fn.goSignature != "" {
-		return fmt.Sprintf("func %s%s {\n%s}\n", fn.goName, fn.goSignature, fn.body)
-	}
-	if len(fn.irDecls) > 0 {
-		return renderIRStmtsGo(fn.irDecls, "")
-	}
-	if len(fn.arities) > 0 {
-		var out strings.Builder
-		for _, a := range fn.arities {
-			mini := arityAsFunctionDef(fn, a)
-			fmt.Fprintf(&out, "func %s(%s) flagrt.Value {\n%s%s\treturn %s\n}\n\n",
-				a.arityName,
-				renderDirectParamList(mini),
-				renderLocalInits(a.localInits),
-				a.bodyPrelude,
-				a.body,
-			)
-		}
-		fmt.Fprintf(&out, "func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
-			fn.variadicName,
-			renderMultiArityDispatch(fn),
-		)
-		return out.String()
-	}
-	if fn.hasRest {
-		return fmt.Sprintf("func %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
-			fn.variadicName,
-			renderStandaloneVariadicBody(fn),
-		)
-	}
-	return fmt.Sprintf("func %s(%s) flagrt.Value {\n%s%s\treturn %s\n}\n\nfunc %s(args ...flagrt.Value) flagrt.Value {\n%s}\n",
-		fn.arityName,
-		renderDirectParamList(fn),
-		renderLocalInits(fn.localInits),
-		fn.bodyPrelude,
-		fn.body,
-		fn.variadicName,
-		renderVariadicFunctionBody(fn),
-	)
+	return mustRenderFunctionString(compiler__render_function_def, fn)
 }
 
 func arityAsFunctionDef(parent functionDef, a arityDef) functionDef {
@@ -1918,29 +1872,7 @@ func arityAsFunctionDef(parent functionDef, a arityDef) functionDef {
 }
 
 func renderMultiArityVariadicLiteral(fn functionDef) string {
-	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderMultiArityDispatch(fn))
-}
-
-func renderMultiArityDispatch(fn functionDef) string {
-	counts := make([]int, 0, len(fn.arities))
-	var body strings.Builder
-	body.WriteString("\tswitch len(args) {\n")
-	for _, a := range fn.arities {
-		n := len(a.params)
-		counts = append(counts, n)
-		fmt.Fprintf(&body, "\tcase %d:\n", n)
-		if n == 0 {
-			fmt.Fprintf(&body, "\t\treturn %s()\n", a.arityName)
-			continue
-		}
-		callArgs := make([]string, 0, n)
-		for i := 0; i < n; i++ {
-			callArgs = append(callArgs, fmt.Sprintf("args[%d]", i))
-		}
-		fmt.Fprintf(&body, "\t\treturn %s(%s)\n", a.arityName, strings.Join(callArgs, ", "))
-	}
-	fmt.Fprintf(&body, "\tdefault:\n\t\tpanic(%q)\n\t}\n", multiArityExpectsMessage(fn.flagName, counts))
-	return body.String()
+	return mustRenderFunctionString(compiler__render_multi_arity_variadic_literal, fn)
 }
 
 func multiArityExpectsMessage(name string, counts []int) string {
@@ -1964,109 +1896,19 @@ func multiArityExpectsMessage(name string, counts []int) string {
 }
 
 func renderFunctionLiteral(fn functionDef) string {
-	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderStandaloneVariadicBody(fn))
+	return mustRenderFunctionString(compiler__render_function_literal, fn)
 }
 
 func renderDirectFunctionType(fn functionDef) string {
-	return fmt.Sprintf("func(%s) flagrt.Value", renderDirectParamTypes(fn))
+	return mustRenderFunctionString(compiler__render_direct_function_type, fn)
 }
 
 func renderDirectFunctionLiteral(fn functionDef) string {
-	return fmt.Sprintf("func(%s) flagrt.Value {\n%s%s\treturn %s\n}", renderDirectParamList(fn), renderLocalInits(fn.localInits), fn.bodyPrelude, fn.body)
+	return mustRenderFunctionString(compiler__render_direct_function_literal, fn)
 }
 
 func renderVariadicFunctionLiteral(fn functionDef) string {
-	return fmt.Sprintf("func(args ...flagrt.Value) flagrt.Value {\n%s}", renderVariadicFunctionBody(fn))
-}
-
-func renderVariadicFunctionBody(fn functionDef) string {
-	var body strings.Builder
-	fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
-	fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
-	body.WriteString("\t}\n")
-	if len(fn.params) == 0 {
-		fmt.Fprintf(&body, "\treturn %s()\n", fn.arityName)
-		return body.String()
-	}
-	callArgs := make([]string, 0, len(fn.params))
-	for index := range fn.params {
-		callArgs = append(callArgs, fmt.Sprintf("args[%d]", index))
-	}
-	fmt.Fprintf(&body, "\treturn %s(%s)\n", fn.arityName, strings.Join(callArgs, ", "))
-	return body.String()
-}
-
-func renderStandaloneVariadicBody(fn functionDef) string {
-	var body strings.Builder
-	if fn.hasRest {
-		fmt.Fprintf(&body, "\tif len(args) < %d {\n", len(fn.params))
-		fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects at least %d arguments", fn.goName, len(fn.params)))
-		body.WriteString("\t}\n")
-	} else {
-		fmt.Fprintf(&body, "\tif len(args) != %d {\n", len(fn.params))
-		fmt.Fprintf(&body, "\t\tpanic(%q)\n", fmt.Sprintf("%s expects exactly %d arguments", fn.goName, len(fn.params)))
-		body.WriteString("\t}\n")
-	}
-	for index, param := range fn.params {
-		if param == "_" {
-			fmt.Fprintf(&body, "\t_ = args[%d]\n", index)
-			continue
-		}
-		fmt.Fprintf(&body, "\t%s := args[%d]\n", param, index)
-	}
-	for _, init := range fn.localInits {
-		body.WriteString(init)
-		trimmed := strings.TrimSpace(init)
-		if strings.HasPrefix(trimmed, "var ") {
-			fields := strings.Fields(trimmed)
-			if len(fields) >= 2 {
-				fmt.Fprintf(&body, "\t_ = %s\n", fields[1])
-			}
-		}
-	}
-	body.WriteString(fn.bodyPrelude)
-	fmt.Fprintf(&body, "\treturn %s\n", fn.body)
-	return body.String()
-}
-
-func renderLocalInits(lines []string) string {
-	if len(lines) == 0 {
-		return ""
-	}
-	var out strings.Builder
-	for _, line := range lines {
-		out.WriteString(line)
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "var ") {
-			fields := strings.Fields(trimmed)
-			if len(fields) >= 2 {
-				fmt.Fprintf(&out, "\t_ = %s\n", fields[1])
-			}
-		}
-	}
-	return out.String()
-}
-
-func renderDirectParamList(fn functionDef) string {
-	if len(fn.params) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(fn.params))
-	for _, param := range fn.params {
-		parts = append(parts, fmt.Sprintf("%s flagrt.Value", param))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func renderDirectParamTypes(fn functionDef) string {
-	if len(fn.params) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(fn.params))
-	for range fn.params {
-		parts = append(parts, "flagrt.Value")
-	}
-	return strings.Join(parts, ", ")
+	return mustRenderFunctionString(compiler__render_variadic_function_literal, fn)
 }
 
 // Extract target function name
