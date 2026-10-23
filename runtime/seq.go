@@ -58,6 +58,17 @@ func Map(fn Value, seqs ...Value) Value {
 }
 
 func Apply(fn Value, args ...Value) Value {
+	return Call(fn, spreadApplyArgs(args)...)
+}
+
+func ApplyFn(fn func(...Value) Value, args ...Value) Value {
+	if fn == nil {
+		panic("apply expects a function")
+	}
+	return fn(spreadApplyArgs(args)...)
+}
+
+func spreadApplyArgs(args []Value) []Value {
 	if len(args) == 0 {
 		panic("apply expects function and sequence arguments")
 	}
@@ -73,7 +84,7 @@ func Apply(fn Value, args ...Value) Value {
 		}
 		callArgs = append(callArgs, next)
 	}
-	return Call(fn, callArgs...)
+	return callArgs
 }
 
 func Concat(seqs ...Value) Value {

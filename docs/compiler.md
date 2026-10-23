@@ -87,7 +87,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`, `compare-to-ir`,
 `numeric-eq-to-ir`, `comparison-to-ir`, `symbol-ctor-to-ir`, `name-to-ir`,
 `keyword-ctor-to-ir`, `format-to-ir`, `map-to-ir`, `sort-by-to-ir`,
-`apply-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
+`apply-to-ir`, `apply-fn-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
 `some-to-ir`, `set-to-ir`, `line-seq-to-ir`, `repeat-to-ir`, `rand-int-to-ir`,
 `to-json-to-ir`, `from-json-to-ir`, `open-file-to-ir`, `file-to-strings-to-ir`,
 `file-to-strings-path-to-ir`, `go-fn-to-ir`, `go-fn-args-to-ir`,
@@ -100,7 +100,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `write-to-ir`, `ends-with-to-ir`, `testing-to-ir`, `is-to-ir`,
 `expect-exception-to-ir`, `ast-form-source`, `hash-fn-placeholder-index`,
 `map-destructure-key-ir`, `go-ident`, `bind-params-to-ir`,
-`known-call-fun`,
+`known-call-fun`, `builtin-fn-ident`, `builtin-call-fun`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
@@ -149,7 +149,11 @@ only for unknown callees (locals, maps, sets, keywords, `apply`).
 `known-call-fun` picks a direct Go call when the head is a known function:
 same-package FLAG defns use `goName_variadic(...)`, and `GoBind_*` hosts
 use `flagrt.GoBind_X.FunctionObject().Fn(...)` (the function pointer,
-no `Call` tag switch). Locals keep `Call` so `(f x)` still works when
+no `Call` tag switch). `builtin-call-fun` / `builtin-fn-ident` map FLAG
+builtins onto `flagrt.FnX` pointers (`FnMax`, `FnGet`, …). Calls become
+`flagrt.FnCloseFile(x)`; `(apply max xs)` becomes
+`flagrt.ApplyFn(flagrt.FnMax, xs)` instead of looking up
+`BuiltinFunction("max")`. Locals keep `Call` so `(f x)` still works when
 `f` is a map or higher-order value. `call-ast-to-ir` lowers a `:list` whose head is not a
 special form when every subform is a literal, collection, or nested generic
 call; unresolved symbols and special forms (`if`, `+`, `fn`, …) error so Go
@@ -226,7 +230,8 @@ for strings and `FileToStrings` for Values.
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
 `:self-function-name`, `:self-variadic-name`). It matches Go resolution:
 locals, self `NewFunction`, module table, globals, functions,
-`BuiltinFunction`, then Go bindings. `eval-ast-to-ir` uses that context to
+`flagrt.NewFunction(flagrt.FnX)` for builtins, then Go bindings.
+`eval-ast-to-ir` uses that context to
 lower literals, evaluated collections, runtime ops, and generic calls.
 
 `if-to-ir` emits a result variable plus a Go `if` that assigns each branch:

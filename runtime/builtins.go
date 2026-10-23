@@ -3,709 +3,207 @@ package runtime
 func BuiltinFunction(name string) Value {
 	switch name {
 	case "+":
-		return NewFunction(func(args ...Value) Value {
-			switch len(args) {
-			case 0:
-				return NewLong(0)
-			case 1:
-				if !isNumericTag(args[0].tag) {
-					panic("+ expects numeric Value arguments")
-				}
-				return args[0]
-			default:
-				return foldNumericBuiltin("+", Add, args...)
-			}
-		})
+		return NewFunction(FnPlus)
 	case "*":
-		return NewFunction(func(args ...Value) Value {
-			return foldNumericBuiltin("*", Mul, args...)
-		})
+		return NewFunction(FnMul)
 	case "-":
-		return NewFunction(func(args ...Value) Value {
-			return foldNumericBuiltin("-", Sub, args...)
-		})
+		return NewFunction(FnSub)
 	case "/":
-		return NewFunction(func(args ...Value) Value {
-			return foldNumericBuiltin("/", Div, args...)
-		})
+		return NewFunction(FnDiv)
 	case "%", "mod":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic(name + " expects exactly two arguments")
-			}
-			return Mod(args[0], args[1])
-		})
+		return NewFunction(FnMod)
 	case "quot":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("quot expects exactly two arguments")
-			}
-			return Quot(args[0], args[1])
-		})
+		return NewFunction(FnQuot)
 	case "rem":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("rem expects exactly two arguments")
-			}
-			return Rem(args[0], args[1])
-		})
+		return NewFunction(FnRem)
 	case "compare":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("compare expects exactly two arguments")
-			}
-			return Compare(args[0], args[1])
-		})
+		return NewFunction(FnCompare)
 	case "==":
-		return NewFunction(func(args ...Value) Value {
-			return NewBool(NumericEq(args...))
-		})
+		return NewFunction(FnNumericEq)
 	case "=":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("= expects at least two arguments")
-			}
-			for i := 0; i < len(args)-1; i++ {
-				if !Eq(args[i], args[i+1]) {
-					return NewBool(false)
-				}
-			}
-			return NewBool(true)
-		})
+		return NewFunction(FnEq)
 	case "<":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("< expects at least two arguments")
-			}
-			for i := 0; i < len(args)-1; i++ {
-				if !Lt(args[i], args[i+1]) {
-					return NewBool(false)
-				}
-			}
-			return NewBool(true)
-		})
+		return NewFunction(FnLt)
 	case "<=":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("<= expects at least two arguments")
-			}
-			for i := 0; i < len(args)-1; i++ {
-				if !Le(args[i], args[i+1]) {
-					return NewBool(false)
-				}
-			}
-			return NewBool(true)
-		})
+		return NewFunction(FnLe)
 	case ">":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("> expects at least two arguments")
-			}
-			for i := 0; i < len(args)-1; i++ {
-				if !Gt(args[i], args[i+1]) {
-					return NewBool(false)
-				}
-			}
-			return NewBool(true)
-		})
+		return NewFunction(FnGt)
 	case ">=":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic(">= expects at least two arguments")
-			}
-			for i := 0; i < len(args)-1; i++ {
-				if !Ge(args[i], args[i+1]) {
-					return NewBool(false)
-				}
-			}
-			return NewBool(true)
-		})
+		return NewFunction(FnGe)
 	case "max":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("max expects at least one argument")
-			}
-			return Max(args...)
-		})
+		return NewFunction(FnMax)
 	case "min":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("min expects at least one argument")
-			}
-			return Min(args...)
-		})
+		return NewFunction(FnMin)
 	case "bit-and":
-		return NewFunction(func(args ...Value) Value {
-			return BitAnd(args...)
-		})
+		return NewFunction(FnBitAnd)
 	case "bit-or":
-		return NewFunction(func(args ...Value) Value {
-			return BitOr(args...)
-		})
+		return NewFunction(FnBitOr)
 	case "bit-xor":
-		return NewFunction(func(args ...Value) Value {
-			return BitXor(args...)
-		})
+		return NewFunction(FnBitXor)
 	case "bit-not":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("bit-not expects exactly one argument")
-			}
-			return BitNot(args[0])
-		})
+		return NewFunction(FnBitNot)
 	case "bit-shift-left":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-shift-left expects exactly two arguments")
-			}
-			return BitShiftLeft(args[0], args[1])
-		})
+		return NewFunction(FnBitShiftLeft)
 	case "bit-shift-right":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-shift-right expects exactly two arguments")
-			}
-			return BitShiftRight(args[0], args[1])
-		})
+		return NewFunction(FnBitShiftRight)
 	case "unsigned-bit-shift-right":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("unsigned-bit-shift-right expects exactly two arguments")
-			}
-			return UnsignedBitShiftRight(args[0], args[1])
-		})
+		return NewFunction(FnUnsignedBitShiftRight)
 	case "bit-test":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-test expects exactly two arguments")
-			}
-			return BitTest(args[0], args[1])
-		})
+		return NewFunction(FnBitTest)
 	case "bit-set":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-set expects exactly two arguments")
-			}
-			return BitSet(args[0], args[1])
-		})
+		return NewFunction(FnBitSet)
 	case "bit-clear":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-clear expects exactly two arguments")
-			}
-			return BitClear(args[0], args[1])
-		})
+		return NewFunction(FnBitClear)
 	case "bit-flip":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("bit-flip expects exactly two arguments")
-			}
-			return BitFlip(args[0], args[1])
-		})
+		return NewFunction(FnBitFlip)
 	case "rand-int":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("rand-int expects exactly one argument")
-			}
-			return RandInt(args[0])
-		})
+		return NewFunction(FnRandInt)
 	case "rand":
-		return NewFunction(func(args ...Value) Value {
-			return Rand(args...)
-		})
+		return NewFunction(FnRand)
 	case "rand-nth":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("rand-nth expects exactly one argument")
-			}
-			return RandNth(args[0])
-		})
+		return NewFunction(FnRandNth)
 	case "shuffle":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("shuffle expects exactly one argument")
-			}
-			return Shuffle(args[0])
-		})
+		return NewFunction(FnShuffle)
 	case "first", "fist":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("first expects exactly one argument")
-			}
-			return First(args[0])
-		})
+		return NewFunction(FnFirst)
 	case "rest":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("rest expects exactly one argument")
-			}
-			return Rest(args[0])
-		})
+		return NewFunction(FnRest)
 	case "next":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("next expects exactly one argument")
-			}
-			return Next(args[0])
-		})
+		return NewFunction(FnNext)
 	case "last":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("last expects exactly one argument")
-			}
-			return Last(args[0])
-		})
+		return NewFunction(FnLast)
 	case "reverse":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("reverse expects exactly one argument")
-			}
-			return Reverse(args[0])
-		})
+		return NewFunction(FnReverse)
 	case "cons":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("cons expects exactly two arguments")
-			}
-			return Cons(args[0], args[1])
-		})
+		return NewFunction(FnCons)
 	case "take":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("take expects count and sequence")
-			}
-			return Take(args[0], args[1])
-		})
+		return NewFunction(FnTake)
 	case "drop":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("drop expects count and sequence")
-			}
-			return Drop(args[0], args[1])
-		})
+		return NewFunction(FnDrop)
 	case "nth":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("nth expects collection, index, and optional default")
-			}
-			if len(args) == 2 {
-				return Nth(args[0], args[1])
-			}
-			return Nth(args[0], args[1], args[2])
-		})
+		return NewFunction(FnNth)
 	case "slow-nth":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("slow-nth expects collection, index, and optional default")
-			}
-			if len(args) == 2 {
-				return SlowNth(args[0], args[1])
-			}
-			return SlowNth(args[0], args[1], args[2])
-		})
+		return NewFunction(FnSlowNth)
 	case "map":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("map expects function and at least one sequence")
-			}
-			return Map(args[0], args[1:]...)
-		})
+		return NewFunction(FnMap)
 	case "concat":
-		return NewFunction(func(args ...Value) Value {
-			return Concat(args...)
-		})
+		return NewFunction(FnConcat)
 	case "into":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("into expects collection and sequence")
-			}
-			return Into(args[0], args[1])
-		})
+		return NewFunction(FnInto)
 	case "sort-by":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("sort-by expects key function, optional comparator, and collection")
-			}
-			return SortBy(args[0], args[1:]...)
-		})
+		return NewFunction(FnSortBy)
 	case "apply":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("apply expects function and at least one argument sequence")
-			}
-			return Apply(args[0], args[1:]...)
-		})
+		return NewFunction(FnApply)
 	case "pmap":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("pmap expects function and at least one sequence")
-			}
-			return PMap(args[0], args[1:]...)
-		})
+		return NewFunction(FnPmap)
 	case "filter":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("filter expects function and one sequence")
-			}
-			return Filter(args[0], args[1])
-		})
+		return NewFunction(FnFilter)
 	case "reduce":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("reduce expects function and collection, or function, initial value, and collection")
-			}
-			return Reduce(args[0], args[1:]...)
-		})
+		return NewFunction(FnReduce)
 	case "not-empty":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("not-empty expects exactly one argument")
-			}
-			return NotEmpty(args[0])
-		})
+		return NewFunction(FnNotEmpty)
 	case "seq":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("seq expects exactly one argument")
-			}
-			return Seq(args[0])
-		})
+		return NewFunction(FnSeq)
 	case "empty?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("empty? expects exactly one argument")
-			}
-			return NewBool(IsEmpty(args[0]))
-		})
+		return NewFunction(FnEmptyQ)
 	case "nil?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("nil? expects exactly one argument")
-			}
-			return NewBool(IsNil(args[0]))
-		})
+		return NewFunction(FnNilQ)
 	case "type-of":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("type-of expects exactly one argument")
-			}
-			return TypeOf(args[0])
-		})
+		return NewFunction(FnTypeOf)
 	case "set":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("set expects exactly one argument")
-			}
-			return Set(args[0])
-		})
+		return NewFunction(FnSet)
 	case "vec":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("vec expects exactly one argument")
-			}
-			return Vec(args[0])
-		})
+		return NewFunction(FnVec)
 	case "conj":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 2 {
-				panic("conj expects collection and at least one item")
-			}
-			return Conj(args[0], args[1:]...)
-		})
+		return NewFunction(FnConj)
 	case "contains?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("contains? expects collection and key")
-			}
-			return NewBool(Contains(args[0], args[1]))
-		})
+		return NewFunction(FnContainsQ)
 	case "some":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("some expects predicate and collection")
-			}
-			return Some(args[0], args[1])
-		})
+		return NewFunction(FnSome)
 	case "seq?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("seq? expects exactly one argument")
-			}
-			return SeqPredicate(args[0])
-		})
+		return NewFunction(FnSeqQ)
 	case "doall":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("doall expects exactly one argument")
-			}
-			return DoAll(args[0])
-		})
+		return NewFunction(FnDoall)
 	case "dorun":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("dorun expects exactly one argument")
-			}
-			return DoRun(args[0])
-		})
+		return NewFunction(FnDorun)
 	case "count":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("count expects exactly one argument")
-			}
-			return NewLong(int64(Count(args[0])))
-		})
+		return NewFunction(FnCount)
 	case "double":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("double expects exactly one argument")
-			}
-			return Double(args[0])
-		})
+		return NewFunction(FnDouble)
 	case "numerator":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("numerator expects exactly one argument")
-			}
-			return Numerator(args[0])
-		})
+		return NewFunction(FnNumerator)
 	case "denominator":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("denominator expects exactly one argument")
-			}
-			return Denominator(args[0])
-		})
+		return NewFunction(FnDenominator)
 	case "format":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("format expects a format string and optional values")
-			}
-			format := valueAsString(args[0])
-			return NewString(Format(format, args[1:]...))
-		})
+		return NewFunction(FnFormat)
 	case "subs":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("subs expects 2 or 3 arguments")
-			}
-			if len(args) == 2 {
-				return Subs(args[0], args[1])
-			}
-			return Subs(args[0], args[1], args[2])
-		})
+		return NewFunction(FnSubs)
 	case "keyword":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("keyword expects exactly one argument")
-			}
-			return Keyword(args[0])
-		})
+		return NewFunction(FnKeyword)
 	case "get":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 && len(args) != 3 {
-				panic("get expects map, key, and optional default")
-			}
-			if len(args) == 2 {
-				return Get(args[0], args[1])
-			}
-			return Get(args[0], args[1], args[2])
-		})
+		return NewFunction(FnGet)
 	case "keys":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("keys expects exactly one argument")
-			}
-			return Keys(args[0])
-		})
+		return NewFunction(FnKeys)
 	case "vals":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("vals expects exactly one argument")
-			}
-			return Vals(args[0])
-		})
+		return NewFunction(FnVals)
 	case "find":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("find expects map and key")
-			}
-			return Find(args[0], args[1])
-		})
+		return NewFunction(FnFind)
 	case "union":
-		return NewFunction(func(args ...Value) Value {
-			return Union(args...)
-		})
+		return NewFunction(FnUnion)
 	case "intersection":
-		return NewFunction(func(args ...Value) Value {
-			return Intersection(args...)
-		})
+		return NewFunction(FnIntersection)
 	case "difference":
-		return NewFunction(func(args ...Value) Value {
-			return Difference(args...)
-		})
+		return NewFunction(FnDifference)
 	case "subset?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("subset? expects exactly two sets")
-			}
-			return NewBool(Subset(args[0], args[1]))
-		})
+		return NewFunction(FnSubsetQ)
 	case "superset?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("superset? expects exactly two sets")
-			}
-			return NewBool(Superset(args[0], args[1]))
-		})
+		return NewFunction(FnSupersetQ)
 	case "disjoint?":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("disjoint? expects exactly two sets")
-			}
-			return NewBool(Disjoint(args[0], args[1]))
-		})
+		return NewFunction(FnDisjointQ)
 	case "rename-keys":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("rename-keys expects map and key map")
-			}
-			return RenameKeys(args[0], args[1])
-		})
+		return NewFunction(FnRenameKeys)
 	case "map-invert":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("map-invert expects exactly one map")
-			}
-			return MapInvert(args[0])
-		})
+		return NewFunction(FnMapInvert)
 	case "select":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("select expects predicate and set")
-			}
-			return SetSelect(args[0], args[1])
-		})
+		return NewFunction(FnSelect)
 	case "project":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("project expects relation set and key sequence")
-			}
-			return SetProject(args[0], args[1])
-		})
+		return NewFunction(FnProject)
 	case "rename":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("rename expects relation set and key map")
-			}
-			return SetRename(args[0], args[1])
-		})
+		return NewFunction(FnRename)
 	case "hash-map":
-		return NewFunction(func(args ...Value) Value {
-			return NewMap(args...)
-		})
+		return NewFunction(FnHashMap)
 	case "list":
-		return NewFunction(func(args ...Value) Value {
-			return NewList(args...)
-		})
+		return NewFunction(FnList)
 	case "array":
-		return NewFunction(func(args ...Value) Value {
-			return NewArray(args...)
-		})
+		return NewFunction(FnArray)
 	case "repeat":
-		return NewFunction(func(args ...Value) Value {
-			return Repeat(args...)
-		})
+		return NewFunction(FnRepeat)
 	case "assoc":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 3 || len(args)%2 == 0 {
-				panic("assoc expects collection and key/value pairs")
-			}
-			return Assoc(args[0], args[1:]...)
-		})
+		return NewFunction(FnAssoc)
 	case "dissoc":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) < 1 {
-				panic("dissoc expects at least one argument")
-			}
-			return Dissoc(args[0], args[1:]...)
-		})
+		return NewFunction(FnDissoc)
 	case "open-file":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("open-file expects exactly one argument")
-			}
-			return OpenFile(Name(args[0]))
-		})
+		return NewFunction(FnOpenFile)
 	case "close-file":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("close-file expects exactly one argument")
-			}
-			return CloseFile(args[0])
-		})
+		return NewFunction(FnCloseFile)
 	case "close-channel":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("close-channel expects exactly one argument")
-			}
-			return ChannelClose(args[0])
-		})
+		return NewFunction(FnCloseChannel)
 	case "file-to-strings":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("file-to-strings expects exactly one argument")
-			}
-			return FileToStrings(args[0])
-		})
+		return NewFunction(FnFileToStrings)
 	case "go-fn":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("go-fn expects exactly one argument")
-			}
-			return GoFunction(Name(args[0]))
-		})
+		return NewFunction(FnGoFn)
 	case "go-fn-args":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("go-fn-args expects exactly one argument")
-			}
-			return GoFunctionArgs(Name(args[0]))
-		})
+		return NewFunction(FnGoFnArgs)
 	case "re-pattern":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("re-pattern expects exactly one argument")
-			}
-			return Call(GoFunction("regex/compile"), args[0])
-		})
+		return NewFunction(FnRePattern)
 	case "re-matches":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 2 {
-				panic("re-matches expects pattern and string")
-			}
-			return NewBool(RegexMatches(args[0], valueAsString(args[1])))
-		})
+		return NewFunction(FnReMatches)
 	case "ex-message":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("ex-message expects exactly one argument")
-			}
-			return ExMessage(args[0])
-		})
+		return NewFunction(FnExMessage)
 	case "ex-data":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("ex-data expects exactly one argument")
-			}
-			return ExData(args[0])
-		})
+		return NewFunction(FnExData)
 	case "ex-cause":
-		return NewFunction(func(args ...Value) Value {
-			if len(args) != 1 {
-				panic("ex-cause expects exactly one argument")
-			}
-			return ExCause(args[0])
-		})
+		return NewFunction(FnExCause)
 	default:
 		panic("unknown builtin function: " + name)
 	}

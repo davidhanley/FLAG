@@ -754,6 +754,15 @@ func TestApplySpreadsFinalSequence(t *testing.T) {
 	}
 }
 
+func TestApplyFnCallsGoFunctionDirectly(t *testing.T) {
+	if got := ApplyFn(FnMax, NewArray(NewLong(1), NewLong(3), NewLong(2))); got.tag != TagLong || got.Long() != 3 {
+		t.Fatalf("unexpected ApplyFn max result: %#v", got)
+	}
+	if got := ApplyFn(FnPlus, NewLong(10), NewArray(NewLong(1), NewLong(2))); got.tag != TagLong || got.Long() != 13 {
+		t.Fatalf("unexpected ApplyFn plus result: %#v", got)
+	}
+}
+
 func TestSortBySortsSequences(t *testing.T) {
 	identity := NewFunction(func(args ...Value) Value { return args[0] })
 	asc := SortBy(identity, NewList(NewLong(3), NewLong(1), NewLong(2)))

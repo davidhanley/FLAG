@@ -841,8 +841,8 @@ func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.BuiltinFunction("close-file"), x)`,
-		`flagrt.Call(flagrt.BuiltinFunction("close-channel"), x)`,
+		`flagrt.FnCloseFile(x)`,
+		`flagrt.FnCloseChannel(x)`,
 		"close_variadic(x)",
 	} {
 		if !strings.Contains(got, want) {

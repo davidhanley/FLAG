@@ -356,7 +356,7 @@ func TestFLAGSymbolToIR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.code != `flagrt.BuiltinFunction("first")` {
+	if got.code != `flagrt.NewFunction(flagrt.FnFirst)` {
 		t.Fatalf("builtin %q", got.code)
 	}
 	if _, err := flagSymbolToGoExpr("nope", "nope", ctx, nil); err == nil {
@@ -1433,6 +1433,45 @@ func TestFLAGCompileFormDirectCalls(t *testing.T) {
 	}
 	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Call(f, flagrt.NewLong(1))" {
 		t.Fatalf("local still Call %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
+func TestFLAGCompileFormBuiltinDirectCalls(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "close-file"},
+		SymbolExpr{Name: "x"},
+	}}, ctx, map[string]exprKind{"x": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.FnCloseFile(x)" {
+		t.Fatalf("close-file %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "max"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.ApplyFn(flagrt.FnMax, xs)" {
+		t.Fatalf("apply max %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "f"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"f": exprKindValue, "xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Apply(f, xs)" {
+		t.Fatalf("apply local %q", renderIRExpr(irFromGoExpr(got)))
 	}
 }
 

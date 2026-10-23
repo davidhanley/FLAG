@@ -505,6 +505,26 @@
     (is (nil? (str/index-of src "NewBool")))
     (is (not (nil? (str/index-of src "if flagrt.Eq(tmp, flagrt.NilValue())"))))))
 
+(deftest lower-builtin-direct-calls
+  (is (= "FnMax" (lower/builtin-fn-ident "max")))
+  (is (nil? (lower/builtin-fn-ident "not-a-builtin")))
+  (is (= {:kind :selector :pkg "flagrt" :name "FnCloseFile"}
+         (lower/builtin-call-fun "close-file" {})))
+  (is (nil? (lower/builtin-call-fun "max" {:locals {"max" :value}})))
+  (let [apply-out (lower/compile-form-to-ir
+                    {:kind :list
+                     :elements [{:kind :symbol :name "apply"}
+                                {:kind :symbol :name "max"}
+                                {:kind :symbol :name "xs"}]}
+                    {:locals {"xs" :value}})
+        close-out (lower/compile-form-to-ir
+                    {:kind :list
+                     :elements [{:kind :symbol :name "close-file"}
+                                {:kind :symbol :name "x"}]}
+                    {:locals {"x" :value}})]
+    (is (= "flagrt.ApplyFn(flagrt.FnMax, xs)" (ir/render-ir (:expr apply-out))))
+    (is (= "flagrt.FnCloseFile(x)" (ir/render-ir (:expr close-out))))))
+
 (deftest lower-known-call-fun
   (is (nil? (lower/known-call-fun "f" 1 {:locals {"f" :value}})))
   (is (= {:kind :ident :name "foo_variadic"}
@@ -818,6 +838,8 @@
          (ir/render-ir (lower/sort-by-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
   (is (= "flagrt.Apply(f, xs)"
          (ir/render-ir (lower/apply-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
+  (is (= "flagrt.ApplyFn(flagrt.FnMax, xs)"
+         (ir/render-ir (lower/apply-fn-to-ir (ir/ir-selector "flagrt" "FnMax") [(ir/ir-ident "xs")]))))
   (is (= "flagrt.PMap(f, xs)"
          (ir/render-ir (lower/pmap-to-ir [(ir/ir-ident "f") (ir/ir-ident "xs")]))))
   (is (= "flagrt.Filter(f, xs)"
@@ -1069,7 +1091,7 @@
                           (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 2)])
                           (ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 3)])]))))
   (is (= "x" (ir/render-ir (:ir (lower/symbol-to-ir "x" "x" {:locals {"x" :value}})))))
-  (is (= "flagrt.BuiltinFunction(\"first\")"
+  (is (= "flagrt.NewFunction(flagrt.FnFirst)"
          (ir/render-ir (:ir (lower/symbol-to-ir "first" "first" {})))))
   (is (= "flagrt.NewArray(x, flagrt.NewLong(1))"
          (ir/render-ir (lower/eval-ast-to-ir
