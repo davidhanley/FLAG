@@ -1396,6 +1396,46 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormDirectCalls(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{"foo": {}}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "foo"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "foo_variadic(flagrt.NewLong(1))" {
+		t.Fatalf("known fn %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "str/replace"},
+		StringExpr{Value: "hello world"},
+		StringExpr{Value: "world"},
+		StringExpr{Value: "FLAG"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`
+	if renderIRExpr(irFromGoExpr(got)) != want {
+		t.Fatalf("gobind %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "f"},
+		IntExpr{Value: 1},
+	}}, ctx, map[string]exprKind{"f": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Call(f, flagrt.NewLong(1))" {
+		t.Fatalf("local still Call %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
 func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}

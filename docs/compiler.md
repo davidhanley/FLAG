@@ -100,6 +100,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `write-to-ir`, `ends-with-to-ir`, `testing-to-ir`, `is-to-ir`,
 `expect-exception-to-ir`, `ast-form-source`, `hash-fn-placeholder-index`,
 `map-destructure-key-ir`, `go-ident`, `bind-params-to-ir`,
+`known-call-fun`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
@@ -143,10 +144,13 @@ Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-for
 `true`/`false`/`nil`). Go `quotedLiteralToIR` calls this; quoted lists are
 still interned as `List`. Odd-length maps error.
 
-`call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. Go
-`callExprToGo` still resolves the callee and arguments (locals, interned
-keywords, self-calls stay direct Go idents), then uses `call-to-ir` for the
-generic Call node. `call-ast-to-ir` lowers a `:list` whose head is not a
+`call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
+only for unknown callees (locals, maps, sets, keywords, `apply`).
+`known-call-fun` picks a direct Go call when the head is a known function:
+same-package FLAG defns use `goName_variadic(...)`, and `GoBind_*` hosts
+use `flagrt.GoBind_X.FunctionObject().Fn(...)` (the function pointer,
+no `Call` tag switch). Locals keep `Call` so `(f x)` still works when
+`f` is a map or higher-order value. `call-ast-to-ir` lowers a `:list` whose head is not a
 special form when every subform is a literal, collection, or nested generic
 call; unresolved symbols and special forms (`if`, `+`, `fn`, …) error so Go
 can keep those paths.

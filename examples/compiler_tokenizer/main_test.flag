@@ -505,6 +505,42 @@
     (is (nil? (str/index-of src "NewBool")))
     (is (not (nil? (str/index-of src "if flagrt.Eq(tmp, flagrt.NilValue())"))))))
 
+(deftest lower-known-call-fun
+  (is (nil? (lower/known-call-fun "f" 1 {:locals {"f" :value}})))
+  (is (= {:kind :ident :name "foo_variadic"}
+         (lower/known-call-fun "foo" 1 {:functions {"foo" true}})))
+  (is (= {:kind :raw :code "flagrt.GoBind_packages_StringReplace.FunctionObject().Fn"}
+         (lower/known-call-fun "str/replace" 3
+                               {:go-fns {"str/replace" "GoBind_packages_StringReplace"}})))
+  (is (= {:kind :ident :name "countdown_variadic"}
+         (lower/known-call-fun "countdown" 1
+                               {:self-function-name "countdown"
+                                :self-function-rest true
+                                :self-variadic-name "countdown_variadic"}))))
+
+(deftest lower-known-calls-are-direct
+  (let [fn-out (lower/compile-form-to-ir
+                 {:kind :list
+                  :elements [{:kind :symbol :name "foo"}
+                             {:kind :int :value 1}]}
+                 {:functions {"foo" true}})
+        bind-out (lower/compile-form-to-ir
+                   {:kind :list
+                    :elements [{:kind :symbol :name "str/replace"}
+                               {:kind :string :value "a"}
+                               {:kind :string :value "a"}
+                               {:kind :string :value "b"}]}
+                   {:go-fns {"str/replace" "GoBind_packages_StringReplace"}})
+        local-out (lower/compile-form-to-ir
+                    {:kind :list
+                     :elements [{:kind :symbol :name "f"}
+                                {:kind :int :value 1}]}
+                    {:locals {"f" :value}})]
+    (is (= "foo_variadic(flagrt.NewLong(1))" (ir/render-ir (:expr fn-out))))
+    (is (= "flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagrt.NewString(\"a\"), flagrt.NewString(\"a\"), flagrt.NewString(\"b\"))"
+           (ir/render-ir (:expr bind-out))))
+    (is (= "flagrt.Call(f, flagrt.NewLong(1))" (ir/render-ir (:expr local-out))))))
+
 (deftest lower-true-false-are-native-bool
   (let [t (lower/compile-form-to-ir {:kind :symbol :name "true"} {})
         f (lower/compile-form-to-ir {:kind :symbol :name "false"} {})]

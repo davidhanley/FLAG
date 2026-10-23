@@ -797,7 +797,7 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"flagrt.Call(close, rdr)",
+		"close_variadic(rdr)",
 		"flagrt.OpenFile(\"sample.txt\")",
 		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
@@ -820,7 +820,7 @@ func TestCompileWithChannelEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"flagrt.Call(close, ch)",
+		"close_variadic(ch)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -843,7 +843,7 @@ func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
 	for _, want := range []string{
 		`flagrt.Call(flagrt.BuiltinFunction("close-file"), x)`,
 		`flagrt.Call(flagrt.BuiltinFunction("close-channel"), x)`,
-		"flagrt.Call(close, x)",
+		"close_variadic(x)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -968,14 +968,14 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.GoBind_packages_StringTrim, flagStr___hello__)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringReplace, flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringJoin, flagStr__, flagVec)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringCapitalize, flagStr_hELLO)`,
-		`flagrt.Call(flagrt.GoBind_packages_ToUppercase, flagStr_hello)`,
-		`flagrt.Call(flagrt.GoBind_packages_LongParse, flagStr_42)`,
-		`flagrt.Call(flagrt.GoBind_runtime_Abs, flagrt.NewLong(-42))`,
-		`flagrt.Call(flagrt.GoBind_runtime_Sqrt, flagrt.NewLong(4))`,
+		`flagrt.GoBind_packages_StringTrim.FunctionObject().Fn(flagStr___hello__)`,
+		`flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
+		`flagrt.GoBind_packages_StringJoin.FunctionObject().Fn(flagStr__, flagVec)`,
+		`flagrt.GoBind_packages_StringCapitalize.FunctionObject().Fn(flagStr_hELLO)`,
+		`flagrt.GoBind_packages_ToUppercase.FunctionObject().Fn(flagStr_hello)`,
+		`flagrt.GoBind_packages_LongParse.FunctionObject().Fn(flagStr_42)`,
+		`flagrt.GoBind_runtime_Abs.FunctionObject().Fn(flagrt.NewLong(-42))`,
+		`flagrt.GoBind_runtime_Sqrt.FunctionObject().Fn(flagrt.NewLong(4))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1058,7 +1058,7 @@ func TestCompileTopLevelExpressionExecutesInMain(t *testing.T) {
 	}
 
 	got := string(output)
-	want := "_ = flagrt.Call(fib, flagrt.NewLong(7))"
+	want := "_ = fib_variadic(flagrt.NewLong(7))"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected top-level execution statement %q:\n%s", want, got)
 	}
@@ -1238,7 +1238,7 @@ func TestReplCompilerDefnBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_variadic(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
 	}
 }
@@ -1264,7 +1264,7 @@ func TestReplCompilerDefnRedef(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_variadic(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
 	}
 }
@@ -1316,7 +1316,7 @@ func TestReplCompilerDefrecordBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine record lookup returned error: %v", err)
 	}
-	if !strings.Contains(lookup.ResultExpr, "flagrt.Call(__gtFood, flagrt.NewLong(10), flagrt.NewLong(200))") {
+	if !strings.Contains(lookup.ResultExpr, "__gtFood_variadic(flagrt.NewLong(10), flagrt.NewLong(200))") {
 		t.Fatalf("unexpected record lookup expression: %s", lookup.ResultExpr)
 	}
 }

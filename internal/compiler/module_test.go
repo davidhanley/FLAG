@@ -127,7 +127,7 @@ func TestCompileProgramQualifiedImport(t *testing.T) {
 	got := string(out)
 	for _, want := range []string{
 		"func board__empty_board_arity_0",
-		"flagrt.Call(board__empty_board)",
+		"board__empty_board_variadic()",
 		"// Source namespace: main",
 	} {
 		if !strings.Contains(got, want) {
@@ -165,8 +165,8 @@ func TestCompileProgramAsAndRefer(t *testing.T) {
 	for _, want := range []string{
 		"func chess__move_arity_1",
 		"func chess__legal_q_arity_1",
-		"flagrt.Call(chess__move",
-		"flagrt.Call(chess__legal_q",
+		"chess__move_variadic",
+		"chess__legal_q_variadic",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
@@ -320,8 +320,8 @@ func TestCompileProgramLibraryImportInteropDefrecord(t *testing.T) {
 	for _, want := range []string{
 		"func flag_main____gtPerson_arity_2",
 		"func flag_main__map__gtPerson_arity_1",
-		`flagrt.Call(flag_main____gtPerson, flagStr_Ada, flagrt.NewLong(36))`,
-		"flagrt.Call(flag_main__map__gtPerson",
+		`flag_main____gtPerson_variadic(flagStr_Ada, flagrt.NewLong(36))`,
+		"flag_main__map__gtPerson_variadic",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
