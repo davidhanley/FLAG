@@ -518,8 +518,19 @@ func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
 	}
 }
 
+func TestCompileMapLiteralBoxesBool(t *testing.T) {
+	output, err := Compile("(println {:a (< 1 2)})")
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "flagrt.NewBool(flagrt.Lt(") {
+		t.Fatalf("map bool not boxed:\n%s", got)
+	}
+}
+
 func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
-	_, err := Compile("(println {:a (< 1 2)})")
+	_, err := Compile("(println {:a (defer (fn [] 1))})")
 	if err == nil {
 		t.Fatal("Compile succeeded for invalid map literal")
 	}

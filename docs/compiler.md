@@ -160,13 +160,15 @@ constant collections the same way.
 arity checks; FLAG emits `flagrt.First`, folded `flagrt.Add`, `BitAnd`, etc.
 
 `eq-to-ir` is `(= a b c …)`: at least two arguments, string args wrapped
-with `NewString`, adjacent values chained as `flagrt.Eq` joined with `&&`,
-then `flagrt.NewBool`. Production `compile-form-to-ir` uses this for `=`.
+with `NewString`, adjacent values chained as `flagrt.Eq` joined with `&&`.
+The result kind is `:bool` (a native Go bool). `NewBool` is applied only
+when a `Value` is required (`coerce-form-value`, arguments, map/vector
+entries). Production `compile-form-to-ir` uses this for `=`.
 Self-calls use the same direct Go ident as production (`goName_arity_N` or
 the variadic wrapper), not `flagrt.Call`.
 
-`nil-pred-to-ir` / `empty-pred-to-ir` wrap `flagrt.IsNil` / `IsEmpty` in
-`NewBool`. `count-to-ir` is `NewLong(int64(Count(x)))`. Each takes one
+`nil-pred-to-ir` / `empty-pred-to-ir` emit `flagrt.IsNil` / `IsEmpty` as
+`:bool`. `count-to-ir` is `NewLong(int64(Count(x)))`. Each takes one
 argument; string args become `NewString`. Production `compile-form-to-ir`
 handles `nil?`, `empty?`, `count`, `throw` (existing `throw-to-ir` IIFE),
 and `loop`/`recur` (symbol bindings, `:mutable-value` locals,
@@ -191,7 +193,7 @@ form; `:seq` still means “compile an argument list”.
 
 `not-empty-to-ir` is strict-Value `NotEmpty`. `type-of-to-ir` / `vec-to-ir`
 wrap strings like `seq`. `dissoc-to-ir` is `MapDissoc` (≥1 arg, no string
-wrap). `contains-pred-to-ir` is `NewBool(Contains)` (exactly two Values).
+wrap). `contains-pred-to-ir` is `Contains` as `:bool` (exactly two Values).
 `(list)` / `(array)` / `(hash-map)` use `ctor-to-ir` (`NewList` / `NewArray` /
 `NewMap`) and wrap strings; `hash-map` needs even key/value pairs. `into-to-ir`
 is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
@@ -199,9 +201,14 @@ is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
 args (`Println`) with result kind `:value`.
 
 `compare-to-ir` is two-arg `Compare` (strings wrapped). `numeric-eq-to-ir` is
-`NewBool(NumericEq(...))` with no string wrap. `comparison-to-ir` chains
-`Lt`/`Le`/`Gt`/`Ge` with `&&`. Compile-form wraps that in `NewBool` so `let`/`and`
-stay Values (Go’s `exprToGo` path still uses a raw `:bool`). `symbol-ctor-to-ir` /
+`NumericEq(...)` as `:bool` with no string wrap. `comparison-to-ir` chains
+`Lt`/`Le`/`Gt`/`Ge` with `&&` as `:bool`. `if` / `is` tests a `:bool`
+directly (`if flagrt.Eq(...)`) instead of `IsTruthy(NewBool(...))`.
+Form `true` / `false` are also `:bool` (`true` / `false` Go bools). Quoted
+`true` / `false` stay `NewBool` via `ast-node-to-ir`. Bool args to Value
+ops (`=`, `nil?`, map entries, `str`, …) are boxed with `NewBool`. Two-arg
+`if` and volatile `let` bindings also box a `:bool` so the result stays a
+`Value` (`nil` else / mutable local). `symbol-ctor-to-ir` /
 `name-to-ir` / `keyword-ctor-to-ir` take a string or Value (`Name` is
 `:string`). `format-to-ir` is `NewString(Format(fmt, args…))` with a string
 format. `map`/`sort-by`/`apply`/`pmap`/`filter`/`reduce`/`some` are Value-only
@@ -308,8 +315,10 @@ destructure), `fn`, `#()`, `update!`, `=`,
 `testing` / `is` / `expect-exception`, folded `+ - * /`, and other
 runtime ops already in FLAG.
 Unknown `.method` calls throw `unsupported symbol ".Foo"` (same as Go).
-Comparisons `<` `<=` `>` `>=` are Go-matched `:bool` (`Lt`/`Le`/`Gt`/`Ge` chained with `&&`, no `NewBool` wrap).
-Map/vector/set entries wrap strings and otherwise require `:value` (bools error, with `at line:col`).
+Comparisons `<` `<=` `>` `>=`, `=`, `==`, `nil?`, `empty?`, `contains?`,
+and `true`/`false` are `:bool` (native Go bool, no `NewBool` wrap).
+`if` / `is` use that bool directly. Map/vector/set entries wrap strings
+and box bools with `NewBool`; other kinds error with `at line:col`.
 `fn` and `let` restore outer `:locals` / `:loop-binding-names` so a sibling `recur` after `(fn …)` still sees the enclosing `loop`.
 `list-head-name`, `catch-type-name`, `parse-catch-clause`, and `split-try-args`
 parse `try` clauses; `form-defer-result` / `forms-have-defer?` mark `defer`

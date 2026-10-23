@@ -448,12 +448,12 @@
                                      {:kind :symbol :name "true"}]})))))
 
 (deftest lower-eq-to-ir
-  (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))"
+  (is (= "flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2))"
          (ir/render-ir (lower/eq-to-ir [(ir/rt-call "NewLong" [(ir/ir-int 1)])
                                         (ir/rt-call "NewLong" [(ir/ir-int 2)])]))))
-  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+  (is (= "flagrt.Eq(a, b) && flagrt.Eq(b, c)"
          (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
-  (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c) && flagrt.Eq(c, d))"
+  (is (= "flagrt.Eq(a, b) && flagrt.Eq(b, c) && flagrt.Eq(c, d)"
          (ir/render-ir (lower/eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c") (ir/ir-ident "d")]))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
@@ -461,7 +461,8 @@
                           {:kind :int :value 1}
                           {:kind :string :value "x"}]}
               {})]
-    (is (= "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewString(\"x\")))"
+    (is (= :bool (:expr-kind out)))
+    (is (= "flagrt.Eq(flagrt.NewLong(1), flagrt.NewString(\"x\"))"
            (ir/render-ir (:expr out)))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
@@ -470,7 +471,7 @@
                           {:kind :symbol :name "b"}
                           {:kind :symbol :name "c"}]}
               {:locals {"a" :value "b" :value "c" :value}})]
-    (is (= "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))"
+    (is (= "flagrt.Eq(a, b) && flagrt.Eq(b, c)"
            (ir/render-ir (:expr out)))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
@@ -488,10 +489,68 @@
     (is (= "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))"
            (ir/render-ir (:expr out))))))
 
+(deftest lower-if-uses-native-bool
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "if"}
+                          {:kind :list
+                           :elements [{:kind :symbol :name "="}
+                                      {:kind :symbol :name "tmp"}
+                                      {:kind :symbol :name "nil"}]}
+                          {:kind :int :value 1}
+                          {:kind :int :value 2}]}
+              {:locals {"tmp" :value}})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (nil? (str/index-of src "IsTruthy")))
+    (is (nil? (str/index-of src "NewBool")))
+    (is (not (nil? (str/index-of src "if flagrt.Eq(tmp, flagrt.NilValue())"))))))
+
+(deftest lower-true-false-are-native-bool
+  (let [t (lower/compile-form-to-ir {:kind :symbol :name "true"} {})
+        f (lower/compile-form-to-ir {:kind :symbol :name "false"} {})]
+    (is (= :bool (:expr-kind t)))
+    (is (= :bool (:expr-kind f)))
+    (is (= "true" (ir/render-ir (:expr t))))
+    (is (= "false" (ir/render-ir (:expr f))))))
+
+(deftest lower-eq-boxes-bool-args
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "="}
+                          {:kind :symbol :name "a"}
+                          {:kind :symbol :name "b"}]}
+              {:locals {"a" :bool "b" :value}})]
+    (is (= :bool (:expr-kind out)))
+    (is (= "flagrt.Eq(flagrt.NewBool(a), b)"
+           (ir/render-ir (:expr out))))))
+
+(deftest lower-if-two-arg-boxes-bool-then
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "if"}
+                          {:kind :symbol :name "tmp"}
+                          {:kind :symbol :name "true"}]}
+              {:locals {"tmp" :value}})
+        src (ir/render-ir-stmts (:stmts out) "")]
+    (is (not (nil? (str/index-of src "if flagrt.IsTruthy(tmp)"))))
+    (is (not (nil? (str/index-of src "flagrt.NewBool(true)"))))))
+
+(deftest lower-map-boxes-bool-entries
+  (let [out (lower/compile-form-to-ir
+              {:kind :map
+               :entries [{:kind :keyword :name "a"}
+                         {:kind :list
+                          :elements [{:kind :symbol :name "<"}
+                                     {:kind :int :value 1}
+                                     {:kind :int :value 2}]}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewBool(flagrt.Lt(flagrt.NewLong(1), flagrt.NewLong(2))))"
+           (ir/render-ir (:expr out))))))
+
 (deftest lower-nil-empty-count-throw-loop
-  (is (= "flagrt.NewBool(flagrt.IsNil(x))"
+  (is (= "flagrt.IsNil(x)"
          (ir/render-ir (lower/nil-pred-to-ir (ir/ir-ident "x")))))
-  (is (= "flagrt.NewBool(flagrt.IsEmpty(xs))"
+  (is (= "flagrt.IsEmpty(xs)"
          (ir/render-ir (lower/empty-pred-to-ir (ir/ir-ident "xs")))))
   (is (= "flagrt.NewLong(int64(flagrt.Count(xs)))"
          (ir/render-ir (lower/count-to-ir (ir/ir-ident "xs")))))
@@ -500,14 +559,15 @@
                :elements [{:kind :symbol :name "nil?"}
                           {:kind :symbol :name "nil"}]}
               {})]
-    (is (= "flagrt.NewBool(flagrt.IsNil(flagrt.NilValue()))"
+    (is (= :bool (:expr-kind out)))
+    (is (= "flagrt.IsNil(flagrt.NilValue())"
            (ir/render-ir (:expr out)))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
                :elements [{:kind :symbol :name "empty?"}
                           {:kind :string :value "x"}]}
               {})]
-    (is (= "flagrt.NewBool(flagrt.IsEmpty(flagrt.NewString(\"x\")))"
+    (is (= "flagrt.IsEmpty(flagrt.NewString(\"x\"))"
            (ir/render-ir (:expr out)))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
@@ -645,7 +705,7 @@
          (ir/render-ir (lower/vec-to-ir (ir/ir-ident "xs")))))
   (is (= "flagrt.MapDissoc(m, k)"
          (ir/render-ir (lower/dissoc-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
-  (is (= "flagrt.NewBool(flagrt.Contains(m, k))"
+  (is (= "flagrt.Contains(m, k)"
          (ir/render-ir (lower/contains-pred-to-ir [(ir/ir-ident "m") (ir/ir-ident "k")]))))
   (is (= "flagrt.Into(to, from)"
          (ir/render-ir (lower/into-to-ir [(ir/ir-ident "to") (ir/ir-ident "from")]))))
@@ -688,7 +748,8 @@
                           {:kind :symbol :name "m"}
                           {:kind :keyword :name "k"}]}
               {:locals {"m" :value}})]
-    (is (= "flagrt.NewBool(flagrt.Contains(m, flagrt.NewKeyword(\"k\")))"
+    (is (= :bool (:expr-kind out)))
+    (is (= "flagrt.Contains(m, flagrt.NewKeyword(\"k\"))"
            (ir/render-ir (:expr out)))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
@@ -703,7 +764,7 @@
 (deftest lower-remaining-runtime-ops
   (is (= "flagrt.Compare(a, b)"
          (ir/render-ir (lower/compare-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
-  (is (= "flagrt.NewBool(flagrt.NumericEq(a, b))"
+  (is (= "flagrt.NumericEq(a, b)"
          (ir/render-ir (lower/numeric-eq-to-ir [(ir/ir-ident "a") (ir/ir-ident "b")]))))
   (is (= "flagrt.Lt(a, b) && flagrt.Lt(b, c)"
          (ir/render-ir (lower/comparison-to-ir "Lt" [(ir/ir-ident "a") (ir/ir-ident "b") (ir/ir-ident "c")]))))
@@ -1513,21 +1574,18 @@
                                                              {:kind :int :value 1}]}]}]}]}
              {})]
     (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.NewRecur")))))
-  (let [threw (try
-               (do (lower/compile-form-to-ir
-                     {:kind :map
-                      :entries [{:kind :keyword :name "a"}
-                                {:kind :list
-                                 :line 3
-                                 :col 16
-                                 :elements [{:kind :symbol :name "<"}
-                                            {:kind :int :value 1}
-                                            {:kind :int :value 2}]}]}
-                     {})
-                   false)
-               (catch Throwable t
-                 (ex-message t)))]
-    (is (not (nil? (str/index-of threw "map literal entries must evaluate to Value at 3:"))))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :map
+               :entries [{:kind :keyword :name "a"}
+                         {:kind :list
+                          :line 3
+                          :col 16
+                          :elements [{:kind :symbol :name "<"}
+                                     {:kind :int :value 1}
+                                     {:kind :int :value 2}]}]}
+              {})]
+    (is (= "flagrt.NewMap(flagrt.NewKeyword(\"a\"), flagrt.NewBool(flagrt.Lt(flagrt.NewLong(1), flagrt.NewLong(2))))"
+           (ir/render-ir (:expr out))))))
 
 (deftest lower-render-ir-and-function-def
   (is (= "x" (lower/render-ir {:kind :ident :name "x"})))

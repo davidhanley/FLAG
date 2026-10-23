@@ -255,7 +255,7 @@
            prev (first (rest args))
            remaining (rest (rest args))]
       (if (or (nil? remaining) (empty? remaining))
-        (literal-rt-call "NewBool" [acc])
+        acc
         (recur {:kind :binary
                 :op "&&"
                 :left acc
@@ -264,10 +264,10 @@
                (rest remaining))))))
 
 (defn nil-pred-to-ir [arg]
-  (literal-rt-call "NewBool" [(literal-rt-call "IsNil" [arg])]))
+  (literal-rt-call "IsNil" [arg]))
 
 (defn empty-pred-to-ir [arg]
-  (literal-rt-call "NewBool" [(literal-rt-call "IsEmpty" [arg])]))
+  (literal-rt-call "IsEmpty" [arg]))
 
 (defn count-to-ir [arg]
   (literal-rt-call "NewLong"
@@ -326,7 +326,7 @@
   (literal-rt-call "MapDissoc" (if (or (nil? args) (empty? args)) [] args)))
 
 (defn contains-pred-to-ir [args]
-  (literal-rt-call "NewBool" [(literal-rt-call "Contains" args)]))
+  (literal-rt-call "Contains" args))
 
 (defn into-to-ir [args]
   (literal-rt-call "Into" args))
@@ -350,7 +350,7 @@
   (literal-rt-call "Compare" args))
 
 (defn numeric-eq-to-ir [args]
-  (literal-rt-call "NewBool" [(literal-rt-call "NumericEq" (if (or (nil? args) (empty? args)) [] args))]))
+  (literal-rt-call "NumericEq" (if (or (nil? args) (empty? args)) [] args)))
 
 (defn comparison-to-ir [op args]
   (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -1756,6 +1756,7 @@
     (cond
       (= k :value) (:expr part)
       (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       :else (throw (ex-info "= arguments must evaluate to Value" {})))))
 
 (defn value-arg-ir [part label]
@@ -1763,12 +1764,14 @@
     (cond
       (= k :value) (:expr part)
       (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       :else (throw (ex-info (str label " expects an argument that evaluates to Value") {})))))
 
 (defn wrap-value-arg-ir [part wrap? msg]
   (let [k (:expr-kind part)]
     (cond
       (= k :value) (:expr part)
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       (and wrap? (= k :string)) (literal-rt-call "NewString" [(:expr part)])
       :else (throw (ex-info (str msg) {})))))
 
@@ -2413,6 +2416,11 @@
                        (:ctx wrapped)
                        (concat-stmts stmts (:stmts wrapped))
                        (conj irs ir)))
+              (= k :bool)
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (literal-rt-call "NewBool" [(:expr part)])))
               :else
               (throw (ex-info (str label (form-at-suffix item)) {})))))))
 
@@ -2432,8 +2440,8 @@
               else1 (if (and (= n 3) (not (= (:expr-kind then1) (:expr-kind else0))))
                       (coerce-form-value else0)
                       else0)
-              then2 (if (and (= n 2) (not (= :value (:expr-kind then1))))
-                      (throw (ex-info "if without false branch currently requires a Value result" {}))
+              then2 (if (= n 2)
+                      (coerce-form-value then1)
                       then1)
               tmp (next-form-temp (:ctx else1) "if_result")
               if-stmts (if-to-ir (:name tmp)
@@ -2484,7 +2492,7 @@
                     (if (:volatile? parsed)
                       (throw (ex-info "volatile let binding currently supports symbol bindings only" {:node pat}))
                       (if (or (sequential-binding? (:kind pat)) (= :map (:kind pat)))
-                        (let [part (compile-form-node :form val-node ctx)]
+                        (let [part (coerce-form-value (compile-form-node :form val-node ctx))]
                           (if (not (= :value (:expr-kind part)))
                             (throw (ex-info "let binding value must evaluate to Value" {}))
                             (let [source-name (str "__bind" bind-temp)
@@ -2508,7 +2516,10 @@
                         (throw (ex-info "not handled by FLAG form lowering" {:node pat}))))
                     (if (= "" (:name pat))
                       (throw (ex-info "binding symbol cannot be empty" {:node pat}))
-                      (let [part (compile-form-node :form val-node ctx)
+                      (let [raw (compile-form-node :form val-node ctx)
+                            part (if (:volatile? parsed)
+                                   (coerce-form-value raw)
+                                   raw)
                             go-name (go-ident (:name pat))]
                         (if (contains? declared go-name)
                           (throw (ex-info (str "duplicate binding \"" (:name pat) "\"") {:name (:name pat)}))
@@ -2593,7 +2604,7 @@
       (let [part (compile-form-node :form (first node) ctx)]
         (form-result (:stmts part)
                     (nil-pred-to-ir (value-arg-ir part "nil?"))
-                    :value
+                    :bool
                     (:ctx part))))
 
     (= mode :empty?)
@@ -2602,7 +2613,7 @@
       (let [part (compile-form-node :form (first node) ctx)]
         (form-result (:stmts part)
                     (empty-pred-to-ir (value-arg-ir part "empty?"))
-                    :value
+                    :bool
                     (:ctx part))))
 
     (= mode :count)
@@ -2686,11 +2697,14 @@
     (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         (form-result stmts (str-to-ir irs) :string ctx)
-        (let [part (compile-form-node :form (first remaining) ctx)]
+        (let [part (compile-form-node :form (first remaining) ctx)
+              ir (if (= :bool (:expr-kind part))
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   (:expr part))]
           (recur (rest remaining)
                  (:ctx part)
                  (concat-stmts stmts (:stmts part))
-                 (conj irs (:expr part))))))
+                 (conj irs ir)))))
 
     (= mode :ex-info)
     (let [n (count (stmt-list node))]
@@ -2852,7 +2866,7 @@
       (throw (ex-info "contains? expects collection and key" {}))
       (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
         (if (or (nil? remaining) (empty? remaining))
-          (form-result stmts (contains-pred-to-ir irs) :value ctx)
+          (form-result stmts (contains-pred-to-ir irs) :bool ctx)
           (let [part (compile-form-node :form (first remaining) ctx)]
             (recur (rest remaining)
                    (:ctx part)
@@ -2947,11 +2961,14 @@
     (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         (form-result stmts (println-to-ir irs) :value ctx)
-        (let [part (compile-form-node :form (first remaining) ctx)]
+        (let [part (compile-form-node :form (first remaining) ctx)
+              ir (if (= :bool (:expr-kind part))
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   (:expr part))]
           (recur (rest remaining)
                  (:ctx part)
                  (concat-stmts stmts (:stmts part))
-                 (conj irs (:expr part))))))
+                 (conj irs ir)))))
 
     (= mode :value-args)
     (let [args (first node)
@@ -2979,7 +2996,7 @@
 
     (= op "==")
     (let [compiled (compile-form-node :value-args [args false "== arguments must evaluate to Value"] ctx)]
-      (form-result (:stmts compiled) (numeric-eq-to-ir (:irs compiled)) :value (:ctx compiled)))
+      (form-result (:stmts compiled) (numeric-eq-to-ir (:irs compiled)) :bool (:ctx compiled)))
 
     (or (= op "<") (= op "<=") (= op ">") (= op ">="))
     (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -3261,7 +3278,7 @@
                   (throw (ex-info "= expects at least two arguments" {}))
                   (loop [remaining args ctx ctx stmts [] irs []]
                     (if (or (nil? remaining) (empty? remaining))
-                      (form-result stmts (eq-to-ir irs) :value ctx)
+                      (form-result stmts (eq-to-ir irs) :bool ctx)
                       (let [part (compile-form-node :form (first remaining) ctx)]
                         (recur (rest remaining)
                                (:ctx part)
@@ -3350,8 +3367,11 @@
 
         (= kind :symbol)
         (let [name (:name form)]
-          (if (or (= name "true") (= name "false") (= name "nil"))
-            (form-result [] (ast-node-to-ir form) :value ctx)
+          (cond
+            (= name "true") (form-result [] {:kind :raw :code "true"} :bool ctx)
+            (= name "false") (form-result [] {:kind :raw :code "false"} :bool ctx)
+            (= name "nil") (form-result [] (ast-node-to-ir form) :value ctx)
+            :else
             (let [ident (go-ident-or-empty name)
                   resolved (symbol-to-ir name ident ctx)]
               (form-result [] (:ir resolved) (:expr-kind resolved) ctx))))

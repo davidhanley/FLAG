@@ -604,7 +604,7 @@ func TestRunTestRemapsTestFileErrors(t *testing.T) {
 `
 	tests := `(ns math.core-test)
 (deftest bad-test
-	  (println {:a (< 1 2)}))
+	  (println {:a (defer (fn [] 1))}))
 `
 	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
 		t.Fatalf("WriteFile source: %v", err)
