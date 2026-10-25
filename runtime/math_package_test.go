@@ -81,7 +81,7 @@ func TestExpLogLog10(t *testing.T) {
 	requireInf(t, Exp(NewDouble(math.Inf(1))), 1)
 	requireDouble(t, Exp(NewDouble(math.Inf(-1))), 0)
 	assertPanics(t, func() { Exp(NewBool(true)) })
-	assertPanics(t, func() { Log(NilValue()) })
+	assertPanics(t, func() { Log(NilValue) })
 	assertPanics(t, func() { Log10(NewKeyword("x")) })
 }
 

@@ -21,7 +21,7 @@ func GoRun(fn Value) Value {
 		}()
 		_ = Call(fn)
 	}()
-	return NilValue()
+	return NilValue
 }
 
 // NewFuture runs compute on a new goroutine and returns a zero-argument FLAG
@@ -86,7 +86,7 @@ func FuturePipeRun(fn Value) Value {
 		defer func() {
 			if r := recover(); r != nil {
 				ReportGoPanic(r)
-				_ = ChannelSend(ch, NilValue())
+				_ = ChannelSend(ch, NilValue)
 				ChannelClose(ch)
 			}
 		}()

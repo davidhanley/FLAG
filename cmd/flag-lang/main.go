@@ -79,24 +79,27 @@ func runCompile(args []string) error {
 		return usageError("compile expects exactly one input file")
 	}
 
-	// Compile from path so module :imports can resolve relative files.
-	goSource, err := compiler.CompileProgram(inputPath)
+	outDir, err := compilePackagesDir(inputPath, outputPath)
 	if err != nil {
 		return err
 	}
-
-	if outputPath == "" {
-		base := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
-		outputPath = filepath.Join(filepath.Dir(inputPath), base+".go")
+	if err := removeStaleFatGo(inputPath, outputPath); err != nil {
+		return err
 	}
-
-	if err := os.WriteFile(outputPath, goSource, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", outputPath, err)
+	if err := os.RemoveAll(outDir); err != nil {
+		return fmt.Errorf("clear generated Go dir: %w", err)
 	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("create generated Go dir: %w", err)
+	}
+	pkgMode, err := writePackagesOrInline(outDir, inputPath, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", outDir)
 
-	cmd := exec.Command("go", "build", "-o", os.DevNull, outputPath)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
+	if err := goBuildGenerated(outDir, os.DevNull, pkgMode); err != nil {
+		return err
 	}
 
 	return nil
@@ -157,17 +160,16 @@ func runBuild(args []string) error {
 		if err := os.MkdirAll(inspectDir, 0o755); err != nil {
 			return fmt.Errorf("create generated Go dir: %w", err)
 		}
-		if err := compiler.WriteProgramPackages(inspectDir, entryPath); err != nil {
+		if err := removeStaleFatGo(inputPath, ""); err != nil {
+			return err
+		}
+		pkgMode, err := writePackagesOrInline(inspectDir, entryPath, nil)
+		if err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", inspectDir)
-		if mainSrc, err := os.ReadFile(filepath.Join(inspectDir, "main.go")); err == nil {
-			_, _ = writeGeneratedGo(inputPath, mainSrc)
-		}
-		cmd := exec.Command("go", "build", "-o", absOut)
-		cmd.Dir = inspectDir
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
+		if err := goBuildGenerated(inspectDir, absOut, pkgMode); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -183,8 +185,9 @@ func runBuild(args []string) error {
 		return err
 	}
 
-	// Persist generated Go next to the source for inspection (best-effort).
-	_, _ = writeGeneratedGo(inputPath, goSource)
+	if err := writeLegacyInspectGo(inputPath, goSource); err != nil {
+		return err
+	}
 
 	goPath := filepath.Join(tempDir, "main.go")
 	if err := os.WriteFile(goPath, goSource, 0o644); err != nil {
@@ -239,6 +242,90 @@ func generatedInspectDir(inputPath string) (string, error) {
 	return filepath.Join(dir, ".flag-build"), nil
 }
 
+// compilePackagesDir is the package-emit directory for `flag-lang compile`.
+// A `-o file.go` path still means “inspect dir next to that file” so we never
+// write a fat inlined program.
+func compilePackagesDir(inputPath, outputPath string) (string, error) {
+	if outputPath == "" {
+		return generatedInspectDir(inputPath)
+	}
+	if strings.EqualFold(filepath.Ext(outputPath), ".go") {
+		return filepath.Join(filepath.Dir(outputPath), ".flag-build"), nil
+	}
+	return outputPath, nil
+}
+
+// removeStaleFatGo deletes old inlined compile output (`compile -o foo.go` or
+// `<base>.go` next to the source) so inspect never shows prologue__inc in a
+// leftover sidecar.
+func removeStaleFatGo(inputPath, outputPath string) error {
+	remove := func(path string) error {
+		if path == "" {
+			return nil
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove stale %s: %w", path, err)
+		}
+		return nil
+	}
+	if strings.EqualFold(filepath.Ext(outputPath), ".go") {
+		if err := remove(outputPath); err != nil {
+			return err
+		}
+	}
+	ext := filepath.Ext(inputPath)
+	sidecar := filepath.Join(filepath.Dir(inputPath), strings.TrimSuffix(filepath.Base(inputPath), ext)+".go")
+	return remove(sidecar)
+}
+
+func duplicateGoPackageError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate Go package name")
+}
+
+// writePackagesOrInline writes package-mode Go under dir. Files that share a
+// :namespace (e.g. libraries/compiler/*.lib) cannot be separate Go packages
+// yet; those fall back to one inlined main.go.
+func writePackagesOrInline(dir, entryPath string, testPaths []string) (packageMode bool, err error) {
+	if len(testPaths) > 0 {
+		err = compiler.WriteProgramPackagesWithTests(dir, entryPath, testPaths)
+	} else {
+		err = compiler.WriteProgramPackages(dir, entryPath)
+	}
+	if err == nil {
+		return true, nil
+	}
+	if !duplicateGoPackageError(err) {
+		return false, err
+	}
+	var src []byte
+	if len(testPaths) > 0 {
+		src, err = compiler.CompileProgramWithTests(entryPath, testPaths)
+	} else {
+		src, err = compiler.CompileProgram(entryPath)
+	}
+	if err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), src, 0o644); err != nil {
+		return false, fmt.Errorf("write generated Go: %w", err)
+	}
+	return false, nil
+}
+
+func goBuildGenerated(dir, output string, packageMode bool) error {
+	var cmd *exec.Cmd
+	if packageMode {
+		cmd = exec.Command("go", "build", "-o", output)
+		cmd.Dir = dir
+	} else {
+		cmd = exec.Command("go", "build", "-o", output, filepath.Join(dir, "main.go"))
+	}
+	if combined, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(combined)))
+	}
+	return nil
+}
+
 func runTest(args []string) error {
 	outputPath := ""
 	inputPath := ""
@@ -270,7 +357,7 @@ func runTest(args []string) error {
 		return usageError("test expects exactly one input file or directory")
 	}
 
-	goSource, sourceOffset, err := compileTestInput(inputPath)
+	entryPath, testPaths, pkgMode, err := packageTestInput(inputPath)
 	if err != nil {
 		return err
 	}
@@ -284,25 +371,43 @@ func runTest(args []string) error {
 	if outputPath == "" {
 		outputPath = filepath.Join(tempDir, "flag-test")
 	}
+	absOut, err := filepath.Abs(outputPath)
+	if err != nil {
+		return fmt.Errorf("resolve test binary path: %w", err)
+	}
 
-	// The test harness (source + tests) is built and run from a temp file; it is
-	// never written next to the source. For inspection we persist only the
-	// program itself (flag functions, no test harness) as <name>.go.
-	if err := writeProgramGo(inputPath); err != nil {
+	// Harness is built in tempDir. Inspect output is package-mode `.flag-build/`
+	// (prologue linked, not copied). Never write a fat sidecar next to source.
+	if err := writeInspectPackages(inputPath); err != nil {
 		return err
 	}
 
-	tempMainPath := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(tempMainPath, goSource, 0o644); err != nil {
-		return fmt.Errorf("write generated Go: %w", err)
+	sourceOffset := 0
+	if pkgMode {
+		linked, err := writePackagesOrInline(tempDir, entryPath, testPaths)
+		if err != nil {
+			return err
+		}
+		if err := goBuildGenerated(tempDir, absOut, linked); err != nil {
+			return err
+		}
+	} else {
+		goSource, offset, err := compileTestInput(inputPath)
+		if err != nil {
+			return err
+		}
+		sourceOffset = offset
+		tempMainPath := filepath.Join(tempDir, "main.go")
+		if err := os.WriteFile(tempMainPath, goSource, 0o644); err != nil {
+			return fmt.Errorf("write generated Go: %w", err)
+		}
+		cmd := exec.Command("go", "build", "-o", absOut, tempMainPath)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
+		}
 	}
 
-	cmd := exec.Command("go", "build", "-o", outputPath, tempMainPath)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(output)))
-	}
-
-	runCmd := exec.Command(outputPath)
+	runCmd := exec.Command(absOut)
 	runOutput, err := runCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("flag test failed: %w\n%s", err, strings.TrimSpace(remapTestRuntimeOutput(string(runOutput), sourceOffset)))
@@ -312,6 +417,64 @@ func runTest(args []string) error {
 	}
 
 	return nil
+}
+
+// packageTestInput is the package-mode entry for `flag-lang test`: one program
+// file plus its tests. ok is false for legacy multi-file concatenations.
+func packageTestInput(inputPath string) (entry string, tests []string, ok bool, err error) {
+	stat, err := os.Stat(inputPath)
+	if err != nil {
+		return "", nil, false, fmt.Errorf("stat %s: %w", inputPath, err)
+	}
+	if !stat.IsDir() {
+		sourcePath := inputPath
+		testPath := ""
+		if isTestSourceFile(inputPath) {
+			sourcePath = siblingSourceFile(inputPath)
+			if sourcePath == "" {
+				return "", nil, false, fmt.Errorf("could not find source file for %s", inputPath)
+			}
+			testPath = inputPath
+		} else {
+			testPath = siblingTestFile(inputPath)
+		}
+		if testPath == "" {
+			return "", nil, false, fmt.Errorf("could not find test file for %s", inputPath)
+		}
+		if _, err := os.Stat(testPath); err != nil {
+			return "", nil, false, fmt.Errorf("stat %s: %w", testPath, err)
+		}
+		hasHeader, err := compiler.ModuleHasHeader(sourcePath)
+		if err != nil {
+			return "", nil, false, err
+		}
+		if !hasHeader {
+			return "", nil, false, nil
+		}
+		return sourcePath, []string{testPath}, true, nil
+	}
+
+	sourceFiles, testFiles, err := collectSourceAndTestFiles(inputPath)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if len(testFiles) == 0 {
+		return "", nil, false, fmt.Errorf("no test files found in %s", inputPath)
+	}
+	if len(sourceFiles) == 0 {
+		return "", nil, false, fmt.Errorf("no source files found in %s", inputPath)
+	}
+	if len(sourceFiles) == 1 {
+		hasHeader, err := compiler.ModuleHasHeader(sourceFiles[0])
+		if err != nil {
+			return "", nil, false, err
+		}
+		if !hasHeader {
+			return "", nil, false, nil
+		}
+		return sourceFiles[0], testFiles, true, nil
+	}
+	return "", nil, false, nil
 }
 
 // compileTestInput builds Go for `flag-lang test`. Modular programs with
@@ -428,24 +591,46 @@ func compileBuildInput(inputPath string) ([]byte, error) {
 	return compiler.Compile(string(source))
 }
 
-// writeProgramGo compiles the program (flag functions only, excluding any
-// associated tests) and persists it next to the source as <name>.go so it can
-// be inspected. Failures to read or compile the program only warn: they must
-// not fail an otherwise-successful test run.
-func writeProgramGo(inputPath string) error {
+// writeInspectPackages writes package-mode Go under `.flag-build/` next to the
+// program (prologue linked, not copied). Failures only warn so a successful
+// test run is not failed by inspect emit.
+func writeInspectPackages(inputPath string) error {
 	path := inputPath
 	if !isDir(inputPath) && isTestSourceFile(inputPath) {
 		if sibling := siblingSourceFile(inputPath); sibling != "" {
 			path = sibling
 		}
 	}
-	programGo, err := compileBuildInput(path)
+	entryPath, ok, err := resolvePackageBuildEntry(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
 		return nil
 	}
-	_, err = writeGeneratedGo(inputPath, programGo)
-	return err
+	inspectDir, err := generatedInspectDir(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
+		return nil
+	}
+	if !ok {
+		goSource, err := compileBuildInput(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
+			return nil
+		}
+		return writeLegacyInspectGo(path, goSource)
+	}
+	if err := os.RemoveAll(inspectDir); err != nil {
+		return fmt.Errorf("clear generated Go dir: %w", err)
+	}
+	if err := os.MkdirAll(inspectDir, 0o755); err != nil {
+		return fmt.Errorf("create generated Go dir: %w", err)
+	}
+	if _, err := writePackagesOrInline(inspectDir, entryPath, nil); err != nil {
+		fmt.Fprintf(os.Stderr, "flag-lang: skipped writing generated Go: %v\n", err)
+		return nil
+	}
+	fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", inspectDir)
+	return nil
 }
 
 func isDir(path string) bool {
@@ -486,31 +671,21 @@ func readProgramSource(inputPath string) ([]byte, error) {
 	return mergeSourceFiles(sourceFiles)
 }
 
-// writeGeneratedGo persists the generated Go next to the .flag source so it can
-// be inspected. For a directory input it writes <dir>/<dirname>.go; for a file
-// input it writes the sibling <base>.go. Build and test share one filename per
-// input so they never leave two `package main` files in the same directory.
-func writeGeneratedGo(inputPath string, goSource []byte) (string, error) {
-	info, err := os.Stat(inputPath)
+// writeLegacyInspectGo writes a merged (non-package) program into `.flag-build/main.go`.
+func writeLegacyInspectGo(inputPath string, goSource []byte) error {
+	inspectDir, err := generatedInspectDir(inputPath)
 	if err != nil {
-		return "", fmt.Errorf("stat %s: %w", inputPath, err)
+		return err
 	}
-
-	var dir, base string
-	if info.IsDir() {
-		dir = inputPath
-		base = filepath.Base(filepath.Clean(inputPath))
-	} else {
-		dir = filepath.Dir(inputPath)
-		base = strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+	if err := os.MkdirAll(inspectDir, 0o755); err != nil {
+		return fmt.Errorf("create generated Go dir: %w", err)
 	}
-
-	goPath := filepath.Join(dir, base+".go")
+	goPath := filepath.Join(inspectDir, "main.go")
 	if err := os.WriteFile(goPath, goSource, 0o644); err != nil {
-		return "", fmt.Errorf("write generated Go: %w", err)
+		return fmt.Errorf("write generated Go: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", goPath)
-	return goPath, nil
+	fmt.Fprintf(os.Stderr, "flag-lang: wrote generated Go to %s\n", inspectDir)
+	return nil
 }
 
 func readBuildSource(inputPath string) ([]byte, error) {
@@ -900,7 +1075,7 @@ func usageError(format string, args ...any) error {
 
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o output.go] <input.flag>")
+	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o dir] <input.flag>")
 	fmt.Fprintln(os.Stderr, "  flag-lang build [-o output-bin] <input.flag|source-dir>")
 	fmt.Fprintln(os.Stderr, "  flag-lang test [-o test-bin] <input.flag|source-dir>")
 	fmt.Fprintln(os.Stderr, "  flag-lang repl")

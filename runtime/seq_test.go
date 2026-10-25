@@ -54,7 +54,7 @@ func TestMapMultipleListsUsesShortestLength(t *testing.T) {
 
 func TestMapNoSequencesPanics(t *testing.T) {
 	assertPanics(t, func() {
-		Map(NewFunction(func(args ...Value) Value { return NilValue() }))
+		Map(NewFunction(func(args ...Value) Value { return NilValue }))
 	})
 }
 
@@ -99,7 +99,7 @@ func TestSeqPredicateAcrossSequenceTypes(t *testing.T) {
 	if got := SeqPredicate(NewLazyList(func() (Value, bool) { return Value{}, false })); got.tag != TagBool || !got.Bool() {
 		t.Fatalf("expected seq? true for empty lazy list, got %#v", got)
 	}
-	if got := SeqPredicate(NilValue()); got.tag != TagBool || got.Bool() {
+	if got := SeqPredicate(NilValue); got.tag != TagBool || got.Bool() {
 		t.Fatalf("expected seq? false for nil, got %#v", got)
 	}
 	if got := SeqPredicate(NewString("x")); got.tag != TagBool || got.Bool() {
@@ -129,13 +129,13 @@ func TestReverseAcrossSequenceTypes(t *testing.T) {
 	if got := First(lazy); got.Long() != 1 {
 		t.Fatalf("expected lazy list to remain readable after reverse, got %#v", got)
 	}
-	if got := ValueToString(Reverse(NilValue())); got != "[]" {
+	if got := ValueToString(Reverse(NilValue)); got != "[]" {
 		t.Fatalf("unexpected reverse nil result: %q", got)
 	}
 }
 
 func TestConsBuildsLists(t *testing.T) {
-	if got := ValueToString(Cons(NewLong(1), NilValue())); got != "(1)" {
+	if got := ValueToString(Cons(NewLong(1), NilValue)); got != "(1)" {
 		t.Fatalf("unexpected cons onto nil result: %q", got)
 	}
 	if got := ValueToString(Cons(NewLong(1), NewList(NewLong(2), NewLong(3)))); got != "(1 2 3)" {
@@ -150,7 +150,7 @@ func TestConsBuildsLists(t *testing.T) {
 }
 
 func TestNextAcrossSequenceTypes(t *testing.T) {
-	if got := Next(NilValue()); got.tag != TagNil {
+	if got := Next(NilValue); got.tag != TagNil {
 		t.Fatalf("expected nil next for nil input, got %#v", got)
 	}
 	if got := Next(NewList()); got.tag != TagNil {
@@ -246,7 +246,7 @@ func TestFilterArray(t *testing.T) {
 		if args[0].Long()%2 == 0 {
 			return NewLong(1)
 		}
-		return NilValue()
+		return NilValue
 	})
 
 	filtered := Filter(keepEven, NewArray(NewLong(1), NewLong(2), NewLong(3), NewLong(4)))
@@ -266,7 +266,7 @@ func TestFilterList(t *testing.T) {
 		if Gt(args[0], NewLong(0)) {
 			return NewLong(1)
 		}
-		return NilValue()
+		return NilValue
 	})
 
 	filtered := Filter(keepPositive, NewList(NewLong(-1), NewLong(0), NewLong(2), NewLong(3)))
@@ -327,7 +327,7 @@ func TestReduceWithInitialOnEmptyReturnsInitial(t *testing.T) {
 
 func TestReduceArityPanics(t *testing.T) {
 	assertPanics(t, func() {
-		Reduce(NewFunction(func(args ...Value) Value { return NilValue() }))
+		Reduce(NewFunction(func(args ...Value) Value { return NilValue }))
 	})
 }
 
@@ -381,7 +381,7 @@ func TestLazyListPeekAndConsume(t *testing.T) {
 }
 
 func TestFirstStringReturnsFirstRune(t *testing.T) {
-	if got := First(NilValue()); got.tag != TagNil {
+	if got := First(NilValue); got.tag != TagNil {
 		t.Fatalf("expected nil for first nil, got %#v", got)
 	}
 	if got := First(NewString("hello")); got.tag != TagString || got.StringValue() != "h" {
@@ -452,13 +452,13 @@ func TestSomeReturnsFirstTruthyResult(t *testing.T) {
 		if args[0].Long() > 2 {
 			return args[0]
 		}
-		return NilValue()
+		return NilValue
 	})
 
 	if got := Some(fn, NewArray(NewLong(1), NewLong(2), NewLong(3), NewLong(4))); got.tag != TagLong || got.Long() != 3 {
 		t.Fatalf("unexpected some result: %#v", got)
 	}
-	if got := Some(fn, NilValue()); got.tag != TagNil {
+	if got := Some(fn, NilValue); got.tag != TagNil {
 		t.Fatalf("expected nil for nil collection, got %#v", got)
 	}
 }
@@ -555,7 +555,7 @@ func TestNotEmptyAcrossContainerTypes(t *testing.T) {
 }
 
 func TestEmptyPredicatesAcrossContainerTypes(t *testing.T) {
-	if !IsEmpty(NilValue()) {
+	if !IsEmpty(NilValue) {
 		t.Fatal("expected nil to be empty")
 	}
 	if !IsEmpty(NewArray()) || IsEmpty(NewArray(NewLong(1))) {
@@ -576,7 +576,7 @@ func TestEmptyPredicatesAcrossContainerTypes(t *testing.T) {
 }
 
 func TestNilPredicate(t *testing.T) {
-	if !IsNil(NilValue()) {
+	if !IsNil(NilValue) {
 		t.Fatal("expected nil? true for nil")
 	}
 	if IsNil(NewLong(1)) {
@@ -629,7 +629,7 @@ func TestCountAcrossContainerTypes(t *testing.T) {
 	}
 
 	// Test nil
-	if got := Count(NilValue()); got != 0 {
+	if got := Count(NilValue); got != 0 {
 		t.Fatalf("expected count 0 for nil, got %d", got)
 	}
 
@@ -670,7 +670,7 @@ func TestMapConsumesLazyList(t *testing.T) {
 func TestConcatReturnsLazySequenceAcrossInputs(t *testing.T) {
 	joined := Concat(
 		NewArray(NewLong(1), NewLong(2)),
-		NilValue(),
+		NilValue,
 		NewList(NewLong(3)),
 		Repeat(NewLong(2), NewLong(4)),
 	)
@@ -720,7 +720,7 @@ func TestVecRealizesCollectionsToArray(t *testing.T) {
 	if got := Vec(NewList(NewLong(1), NewLong(2))); got.tag != TagArray || ValueToString(got) != "[1 2]" {
 		t.Fatalf("unexpected vec result for list: %#v", got)
 	}
-	if got := Vec(NilValue()); got.tag != TagArray || got.ArrayLen() != 0 {
+	if got := Vec(NilValue); got.tag != TagArray || got.ArrayLen() != 0 {
 		t.Fatalf("unexpected vec result for nil: %#v", got)
 	}
 	if got := Vec(NewString("a😀")); got.tag != TagArray || got.ArrayLen() != 2 || ArrayGet(got, 0).StringValue() != "a" || ArrayGet(got, 1).StringValue() != "😀" {
@@ -778,7 +778,7 @@ func TestSortBySortsSequences(t *testing.T) {
 	withNil := SortBy(
 		NewKeyword("age"),
 		NewArray(
-			NewMap(NewKeyword("name"), NewString("A"), NewKeyword("age"), NilValue()),
+			NewMap(NewKeyword("name"), NewString("A"), NewKeyword("age"), NilValue),
 			NewMap(NewKeyword("name"), NewString("B"), NewKeyword("age"), NewLong(30)),
 			NewMap(NewKeyword("name"), NewString("C"), NewKeyword("age"), NewLong(20)),
 		),
@@ -811,7 +811,7 @@ func TestFilterConsumesLazyList(t *testing.T) {
 		if Mod(args[0], NewLong(2)).Long() == 0 {
 			return NewBool(true)
 		}
-		return NilValue()
+		return NilValue
 	})
 
 	filtered := Filter(keepEven, source)
@@ -847,7 +847,7 @@ func TestReduceConsumesLazyList(t *testing.T) {
 
 func TestReduceWithInitialOnNilCollection(t *testing.T) {
 	add := NewFunction(func(args ...Value) Value { return Add(args[0], args[1]) })
-	if got := Reduce(add, NewLong(10), NilValue()); got.tag != TagLong || got.Long() != 10 {
+	if got := Reduce(add, NewLong(10), NilValue); got.tag != TagLong || got.Long() != 10 {
 		t.Fatalf("expected reduce init value for nil collection, got %#v", got)
 	}
 }

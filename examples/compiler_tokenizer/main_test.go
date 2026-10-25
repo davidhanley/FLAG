@@ -63,7 +63,7 @@ func close_arity_1(x flagrt.Value) flagrt.Value {
 		} else {
 			if_result_1 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewString(flagrt.Str("close expects a file or channel, got ", flagrt.TypeOf(x))))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		}
 		if_result_2 = if_result_1
@@ -537,7 +537,7 @@ func empty_arity_1(coll flagrt.Value) flagrt.Value {
 							if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.TypeOf(coll), flagrt.NewKeyword("record")))) {
 								if_result_25 = flagrt.NewMap()
 							} else {
-								if_result_25 = flagrt.NilValue()
+								if_result_25 = flagrt.NilValue
 							}
 							if_result_26 = if_result_25
 						}
@@ -568,7 +568,7 @@ func zero_q_arity_1(x flagrt.Value) flagrt.Value {
 	} else {
 		if_result_32 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("zero? expects a number"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_32
@@ -588,7 +588,7 @@ func pos_q_arity_1(x flagrt.Value) flagrt.Value {
 	} else {
 		if_result_33 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("pos? expects a number"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_33
@@ -608,7 +608,7 @@ func neg_q_arity_1(x flagrt.Value) flagrt.Value {
 	} else {
 		if_result_34 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("neg? expects a number"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_34
@@ -628,7 +628,7 @@ func even_q_arity_1(n flagrt.Value) flagrt.Value {
 	} else {
 		if_result_35 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("even? expects an integer"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_35
@@ -654,7 +654,7 @@ func odd_q_arity_1(n flagrt.Value) flagrt.Value {
 	} else {
 		if_result_37 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("odd? expects an integer"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_37
@@ -829,7 +829,7 @@ func assoc_in_variadic(args ...flagrt.Value) flagrt.Value {
 func dissoc_in_arity_2(m flagrt.Value, ks flagrt.Value) flagrt.Value {
 	var if_result_56 flagrt.Value
 	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(m))) {
-		if_result_56 = flagrt.NilValue()
+		if_result_56 = flagrt.NilValue
 	} else {
 		var if_result_55 flagrt.Value
 		if flagrt.IsTruthy(flagrt.Seq(ks)) {
@@ -1432,7 +1432,7 @@ func take_last_arity_2(n flagrt.Value, coll flagrt.Value) flagrt.Value {
 	}
 	var if_result_104 flagrt.Value
 	if flagrt.IsTruthy(let_result_100) {
-		if_result_104 = flagrt.NilValue()
+		if_result_104 = flagrt.NilValue
 	} else {
 		if_result_104 = func() flagrt.Value {
 			var s = coll
@@ -1681,7 +1681,7 @@ func reduce_kv_arity_3(f flagrt.Value, init flagrt.Value, coll flagrt.Value) fla
 			} else {
 				if_result_119 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewString("reduce-kv expects a map, array, or vector"))
-					return flagrt.NilValue()
+					return flagrt.NilValue
 				}()
 			}
 			if_result_120 = if_result_119
@@ -1806,7 +1806,7 @@ func some_fn_variadic(args ...flagrt.Value) flagrt.Value {
 			for {
 				var if_result_128 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(ps))) {
-					if_result_128 = flagrt.NilValue()
+					if_result_128 = flagrt.NilValue
 				} else {
 					var let_result_127 flagrt.Value
 					{
@@ -2000,7 +2000,7 @@ func merge_variadic(args ...flagrt.Value) flagrt.Value {
 			}), if_result_137, m)
 		}
 		return if_result_138
-	}), flagrt.NilValue(), maps)
+	}), flagrt.NilValue, maps)
 }
 
 func merge_with_variadic(args ...flagrt.Value) flagrt.Value {
@@ -2051,7 +2051,7 @@ func merge_with_variadic(args ...flagrt.Value) flagrt.Value {
 			}), if_result_141, m)
 		}
 		return if_result_142
-	}), flagrt.NilValue(), maps)
+	}), flagrt.NilValue, maps)
 }
 
 func mapcat_variadic(args ...flagrt.Value) flagrt.Value {
@@ -2279,7 +2279,7 @@ func partition_variadic(args ...flagrt.Value) flagrt.Value {
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(c, flagrt.NewLong(3)))) {
 				if_result_159 = flagrt.Call(second, more)
 			} else {
-				if_result_159 = flagrt.NilValue()
+				if_result_159 = flagrt.NilValue
 			}
 			var pad = if_result_159
 			var use_pad = flagrt.NewBool(flagrt.Eq(c, flagrt.NewLong(3)))
@@ -2327,7 +2327,7 @@ func partition_variadic(args ...flagrt.Value) flagrt.Value {
 	} else {
 		if_result_165 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("partition expects 2, 3, or 4 arguments"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_165
@@ -2399,7 +2399,7 @@ func partition_all_variadic(args ...flagrt.Value) flagrt.Value {
 	} else {
 		if_result_172 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("partition-all expects 2 or 3 arguments"))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	}
 	return if_result_172
@@ -2537,7 +2537,7 @@ func async__channel_some_q_arity_2(pred flagrt.Value, ch flagrt.Value) flagrt.Va
 		var v = flagrt.Call(async__channel_receive, ch)
 		var if_result_183 flagrt.Value
 		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(v))) {
-			if_result_183 = flagrt.NilValue()
+			if_result_183 = flagrt.NilValue
 		} else {
 			var if_result_182 flagrt.Value
 			if flagrt.IsTruthy(flagrt.Call(pred, v)) {
@@ -2673,7 +2673,7 @@ func compiler__map__gtParseToken_variadic(args ...flagrt.Value) flagrt.Value {
 func compiler__emit_token_bang_arity_4(out flagrt.Value, token flagrt.Value, line flagrt.Value, offset flagrt.Value) flagrt.Value {
 	var if_result_185 flagrt.Value
 	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-		if_result_185 = flagrt.NilValue()
+		if_result_185 = flagrt.NilValue
 	} else {
 		if_result_185 = flagrt.Call(async__channel_send, out, flagrt.Call(compiler____gtSourceToken, token, line, offset))
 	}
@@ -2902,7 +2902,7 @@ func compiler__token__gtstring_value_arity_1(token flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(flagrt.NewBool(true)) {
 					if_result_209 = token
 				} else {
-					if_result_209 = flagrt.NilValue()
+					if_result_209 = flagrt.NilValue
 				}
 				if_result_210 = if_result_209
 			}
@@ -3005,7 +3005,7 @@ func compiler__source_token__gtparse_token_arity_1(__arg0 flagrt.Value) flagrt.V
 														if flagrt.IsTruthy(flagrt.NewBool(true)) {
 															if_result_217 = flagrt.Call(compiler____gtParseToken, compiler__token_atom, token, flagStr_, flagStr_, line, offset)
 														} else {
-															if_result_217 = flagrt.NilValue()
+															if_result_217 = flagrt.NilValue
 														}
 														if_result_218 = if_result_217
 													}
@@ -3112,7 +3112,7 @@ func compiler__tokenize_line_step_bang_arity_5(out flagrt.Value, chars flagrt.Va
 											if flagrt.IsTruthy(flagrt.NewBool(true)) {
 												if_result_234 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Call(inc, col), flagrt.Call(compiler__make_state, flagrt.NewString(token), flagrt.Call(flagKw_start_line, current), flagrt.Call(flagKw_start_offset, current), flagrt.NewBool(true), flagrt.NewBool(false), flagrt.NewBool(false)))
 											} else {
-												if_result_234 = flagrt.NilValue()
+												if_result_234 = flagrt.NilValue
 											}
 											if_result_235 = if_result_234
 										}
@@ -3176,7 +3176,7 @@ func compiler__tokenize_line_step_bang_arity_5(out flagrt.Value, chars flagrt.Va
 													}
 													if_result_242 = if_result_241
 												} else {
-													if_result_242 = flagrt.NilValue()
+													if_result_242 = flagrt.NilValue
 												}
 												if_result_243 = if_result_242
 											}
@@ -3401,7 +3401,7 @@ func compiler__tokenize_file_parse_tokens_arity_1(path flagrt.Value) flagrt.Valu
 				panic("fn expects exactly 0 arguments")
 			}
 			return func() flagrt.Value {
-				var last_token = flagrt.NilValue()
+				var last_token = flagrt.NilValue
 				for {
 					var let_result_268 flagrt.Value
 					{
@@ -3461,7 +3461,7 @@ func compiler__tokenize_file_parse_tokens_variadic(args ...flagrt.Value) flagrt.
 func compiler__parse_error_arity_3(line flagrt.Value, col flagrt.Value, msg flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		flagrt.Throw(flagrt.NewString(flagrt.Str("parse error at ", line, ":", col, ": ", msg)))
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}()
 }
 
@@ -3495,7 +3495,7 @@ func compiler__token_col_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__make_parser_arity_1(in flagrt.Value) flagrt.Value {
-	return flagrt.NewMap(flagKw_in, in, flagKw_la, flagrt.Call(async__atom, flagKw_none), flagKw_last, flagrt.Call(async__atom, flagrt.NilValue()))
+	return flagrt.NewMap(flagKw_in, in, flagKw_la, flagrt.Call(async__atom, flagKw_none), flagKw_last, flagrt.Call(async__atom, flagrt.NilValue))
 }
 
 func compiler__make_parser_variadic(args ...flagrt.Value) flagrt.Value {
@@ -3744,7 +3744,7 @@ func compiler__split_once_arity_2(token flagrt.Value, sep flagrt.Value) flagrt.V
 		for {
 			var if_result_294 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-				if_result_294 = flagrt.NilValue()
+				if_result_294 = flagrt.NilValue
 			} else {
 				var if_result_293 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(sep, flagrt.First(cs)))) {
@@ -3813,7 +3813,7 @@ func compiler__unescape_char_arity_1(ch flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(flagrt.NewBool(true)) {
 					if_result_295 = ch
 				} else {
-					if_result_295 = flagrt.NilValue()
+					if_result_295 = flagrt.NilValue
 				}
 				if_result_296 = if_result_295
 			}
@@ -4119,7 +4119,7 @@ func compiler__parse_char_token_arity_3(token flagrt.Value, line flagrt.Value, c
 						if flagrt.IsTruthy(flagrt.NewBool(true)) {
 							if_result_330 = flagrt.Call(compiler__parse_error, line, col, flagStr_unsupported_character_li)
 						} else {
-							if_result_330 = flagrt.NilValue()
+							if_result_330 = flagrt.NilValue
 						}
 						if_result_331 = if_result_330
 					}
@@ -4432,7 +4432,7 @@ func compiler__parse_atom_token_arity_1(tok flagrt.Value) flagrt.Value {
 							}
 							if_result_374 = let_result_373
 						} else {
-							if_result_374 = flagrt.NilValue()
+							if_result_374 = flagrt.NilValue
 						}
 						if_result_375 = if_result_374
 					}
@@ -4653,7 +4653,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 										if flagrt.IsTruthy(flagrt.NewBool(true)) {
 											if_result_401 = flagKw_set
 										} else {
-											if_result_401 = flagrt.NilValue()
+											if_result_401 = flagrt.NilValue
 										}
 										if_result_402 = if_result_401
 									}
@@ -4680,7 +4680,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 									if flagrt.IsTruthy(flagrt.NewBool(true)) {
 										if_result_406 = flagStr___7
 									} else {
-										if_result_406 = flagrt.NilValue()
+										if_result_406 = flagrt.NilValue
 									}
 									if_result_407 = if_result_406
 								}
@@ -4705,7 +4705,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 									if flagrt.IsTruthy(flagrt.NewBool(true)) {
 										if_result_410 = flagStr_missing_closing____
 									} else {
-										if_result_410 = flagrt.NilValue()
+										if_result_410 = flagrt.NilValue
 									}
 									if_result_411 = if_result_410
 								}
@@ -4741,7 +4741,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 											}
 											var if_result_416 flagrt.Value
 											if flagrt.IsTruthy(let_result_415) {
-												if_result_416 = flagrt.NilValue()
+												if_result_416 = flagrt.NilValue
 											} else {
 												if_result_416 = flagrt.Call(compiler__collection_node, kind, elements, open)
 											}
@@ -4858,7 +4858,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 											if flagrt.IsTruthy(flagrt.NewBool(true)) {
 												if_result_430 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, quote_tok), flagrt.Call(compiler__token_col, quote_tok), flagStr_quote_currently_supports)
 											} else {
-												if_result_430 = flagrt.NilValue()
+												if_result_430 = flagrt.NilValue
 											}
 											if_result_431 = if_result_430
 										}
@@ -4908,7 +4908,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 												_ = flagrt.Call(compiler__next_tok, p)
 												if_result_438 = flagrt.Call(compiler__parse_atom_token, tok)
 											} else {
-												if_result_438 = flagrt.NilValue()
+												if_result_438 = flagrt.NilValue
 											}
 											if_result_439 = if_result_438
 										}
@@ -5059,10 +5059,10 @@ func compiler__ast_node__gtcanonical_arity_1(expr flagrt.Value) flagrt.Value {
 																			if flagrt.IsTruthy(flagrt.NewBool(true)) {
 																				if_result_452 = func() flagrt.Value {
 																					flagrt.Throw(flagrt.NewString(flagrt.Str("unsupported AST node ", kind)))
-																					return flagrt.NilValue()
+																					return flagrt.NilValue
 																				}()
 																			} else {
-																				if_result_452 = flagrt.NilValue()
+																				if_result_452 = flagrt.NilValue
 																			}
 																			if_result_453 = if_result_452
 																		}
@@ -5162,7 +5162,7 @@ func compiler__drain_remaining_arity_1(in flagrt.Value) flagrt.Value {
 		for {
 			var if_result_474 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(async__channel_receive, in)))) {
-				if_result_474 = flagrt.NilValue()
+				if_result_474 = flagrt.NilValue
 			} else {
 				if_result_474 = flagrt.NewRecur(flagrt.NewBool(true))
 			}
@@ -5228,7 +5228,7 @@ func compiler__build_ast_from_tokens_arity_1(in flagrt.Value) flagrt.Value {
 								var tok = flagrt.Call(compiler__peek, p)
 								var if_result_477 flagrt.Value
 								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagKw_eof, tok))) {
-									if_result_477 = flagrt.NilValue()
+									if_result_477 = flagrt.NilValue
 								} else {
 									var let_result_476 flagrt.Value
 									{
@@ -5920,7 +5920,7 @@ func compiler__node_equal_q_arity_2(a flagrt.Value, b flagrt.Value) flagrt.Value
 															if flagrt.IsTruthy(flagrt.NewBool(true)) {
 																if_result_530 = flagrt.NewBool(false)
 															} else {
-																if_result_530 = flagrt.NilValue()
+																if_result_530 = flagrt.NilValue
 															}
 															if_result_531 = if_result_530
 														}
@@ -5971,7 +5971,7 @@ func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value
 	if flagrt.IsTruthy(if_result_545) {
 		if_result_559 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects a parameter vector"), flagKw_data, flagrt.NewMap(flagKw_form, params_node)))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	} else {
 		if_result_559 = func() flagrt.Value {
@@ -5980,7 +5980,7 @@ func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value
 			for {
 				var if_result_558 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
-					if_result_558 = flagrt.NewMap(flagKw_params, params, flagKw_rest_param, flagrt.NilValue())
+					if_result_558 = flagrt.NewMap(flagKw_params, params, flagKw_rest_param, flagrt.NilValue)
 				} else {
 					var let_result_557 flagrt.Value
 					{
@@ -5995,7 +5995,7 @@ func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value
 						if flagrt.IsTruthy(if_result_546) {
 							if_result_556 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro parameters must be symbols"), flagKw_data, flagrt.NewMap(flagKw_form, params_node)))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						} else {
 							var if_result_555 flagrt.Value
@@ -6013,7 +6013,7 @@ func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value
 									if flagrt.IsTruthy(if_result_547) {
 										if_result_553 = func() flagrt.Value {
 											flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro varargs must use [& name] at end"), flagKw_data, flagrt.NewMap(flagKw_form, params_node)))
-											return flagrt.NilValue()
+											return flagrt.NilValue
 										}()
 									} else {
 										var let_result_552 flagrt.Value
@@ -6040,7 +6040,7 @@ func compiler__parse_macro_params_arity_1(params_node flagrt.Value) flagrt.Value
 											if flagrt.IsTruthy(let_result_550) {
 												if_result_551 = func() flagrt.Value {
 													flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro varargs expects symbol after &"), flagKw_data, flagrt.NewMap(flagKw_form, params_node)))
-													return flagrt.NilValue()
+													return flagrt.NilValue
 												}()
 											} else {
 												if_result_551 = flagrt.NewMap(flagKw_params, params, flagKw_rest_param, flagrt.Call(flagKw_name, rest_node))
@@ -6092,7 +6092,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 		if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(arity_forms))) {
 			if_result_578 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects at least one arity"), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		} else {
 			if_result_578 = func() flagrt.Value {
@@ -6119,7 +6119,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 						if let_result_561 {
 							if_result_562 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro rest arity must have at least as many required parameters as the largest fixed arity"), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						} else {
 							if_result_562 = flagrt.NewMap(flagKw_name, name, flagKw_arities, arities)
@@ -6150,7 +6150,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 							if flagrt.IsTruthy(let_result_565) {
 								if_result_575 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro arity expects ([params] body...)"), flagKw_data, flagrt.NewMap(flagKw_form, raw)))
-									return flagrt.NilValue()
+									return flagrt.NilValue
 								}()
 							} else {
 								var let_result_574 flagrt.Value
@@ -6167,7 +6167,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 									if flagrt.IsTruthy(if_result_566) {
 										if_result_573 = func() flagrt.Value {
 											flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro arity expects a parameter vector"), flagKw_data, flagrt.NewMap(flagKw_form, raw)))
-											return flagrt.NilValue()
+											return flagrt.NilValue
 										}()
 									} else {
 										var let_result_572 flagrt.Value
@@ -6189,7 +6189,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 												if flagrt.Ge(rest_min, flagrt.NewLong(0)) {
 													if_result_568 = func() flagrt.Value {
 														flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro supports only one & rest arity"), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-														return flagrt.NilValue()
+														return flagrt.NilValue
 													}()
 												} else {
 													if_result_568 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(flagKw_params, flagrt.Call(flagKw_params, param_spec), flagKw_rest_param, rest_param, flagKw_body, body)), seen, max_fixed, n)
@@ -6200,7 +6200,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(seen, n))) {
 													if_result_570 = func() flagrt.Value {
 														flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str("duplicate macro arity with ", n, " arguments")), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-														return flagrt.NilValue()
+														return flagrt.NilValue
 													}()
 												} else {
 													var if_result_569 flagrt.Value
@@ -6209,7 +6209,7 @@ func compiler__compile_multi_arity_arity_3(name flagrt.Value, children flagrt.Va
 													} else {
 														if_result_569 = max_fixed
 													}
-													if_result_570 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(flagKw_params, flagrt.Call(flagKw_params, param_spec), flagKw_rest_param, flagrt.NilValue(), flagKw_body, body)), flagrt.Assoc(seen, n, flagrt.NewBool(true)), if_result_569, rest_min)
+													if_result_570 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(arities, flagrt.NewMap(flagKw_params, flagrt.Call(flagKw_params, param_spec), flagKw_rest_param, flagrt.NilValue, flagKw_body, body)), flagrt.Assoc(seen, n, flagrt.NewBool(true)), if_result_569, rest_min)
 												}
 												if_result_571 = if_result_570
 											}
@@ -6261,7 +6261,7 @@ func compiler__compile_defmacro_arity_1(expr flagrt.Value) flagrt.Value {
 		if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(children))), flagrt.NewLong(3)) {
 			if_result_590 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), flagKw_data, flagrt.NewMap(flagKw_form, expr)))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		} else {
 			var let_result_589 flagrt.Value
@@ -6277,7 +6277,7 @@ func compiler__compile_defmacro_arity_1(expr flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(if_result_580) {
 					if_result_588 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects a macro name"), flagKw_data, flagrt.NewMap(flagKw_form, expr)))
-						return flagrt.NilValue()
+						return flagrt.NilValue
 					}()
 				} else {
 					var let_result_587 flagrt.Value
@@ -6302,7 +6302,7 @@ func compiler__compile_defmacro_arity_1(expr flagrt.Value) flagrt.Value {
 						if flagrt.Ge(params_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
 							if_result_586 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), flagKw_data, flagrt.NewMap(flagKw_form, expr)))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						} else {
 							var if_result_585 flagrt.Value
@@ -6313,7 +6313,7 @@ func compiler__compile_defmacro_arity_1(expr flagrt.Value) flagrt.Value {
 								if flagrt.Ge(body_index, flagrt.NewLong(int64(flagrt.Count(children)))) {
 									if_result_584 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("defmacro expects name, optional docstring, vector params, and body"), flagKw_data, flagrt.NewMap(flagKw_form, expr)))
-										return flagrt.NilValue()
+										return flagrt.NilValue
 									}()
 								} else {
 									var let_result_583 flagrt.Value
@@ -6374,7 +6374,7 @@ func compiler__bind_macro_args_arity_2(arity flagrt.Value, args flagrt.Value) fl
 		if flagrt.IsTruthy(let_result_594) {
 			if_result_600 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str("macro expects exactly ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), flagKw_data, flagrt.NewMap(flagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), flagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		} else {
 			var let_result_596 flagrt.Value
@@ -6392,7 +6392,7 @@ func compiler__bind_macro_args_arity_2(arity flagrt.Value, args flagrt.Value) fl
 			if flagrt.IsTruthy(let_result_596) {
 				if_result_599 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str("macro expects at least ", flagrt.NewLong(int64(flagrt.Count(params))), " arguments")), flagKw_data, flagrt.NewMap(flagKw_expected, flagrt.NewLong(int64(flagrt.Count(params))), flagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-					return flagrt.NilValue()
+					return flagrt.NilValue
 				}()
 			} else {
 				if_result_599 = func() flagrt.Value {
@@ -6547,7 +6547,7 @@ func compiler__macro_case_clause_arity_1(expr flagrt.Value) flagrt.Value {
 			var elems = flagrt.Call(compiler__node_children, expr)
 			var if_result_619 flagrt.Value
 			if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(elems))), flagrt.NewLong(2)) {
-				if_result_619 = flagrt.NilValue()
+				if_result_619 = flagrt.NilValue
 			} else {
 				var if_result_618 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewLong(2), flagrt.NewLong(int64(flagrt.Count(elems)))))) {
@@ -6561,7 +6561,7 @@ func compiler__macro_case_clause_arity_1(expr flagrt.Value) flagrt.Value {
 		}
 		if_result_621 = let_result_620
 	} else {
-		if_result_621 = flagrt.NilValue()
+		if_result_621 = flagrt.NilValue
 	}
 	return if_result_621
 }
@@ -6584,7 +6584,7 @@ func compiler__expand_defrecord_macro_arity_1(args flagrt.Value) flagrt.Value {
 	if flagrt.IsTruthy(if_result_622) {
 		if_result_623 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-defrecord expects a record name and field vector"), flagKw_data, flagMap))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	} else {
 		if_result_623 = flagrt.Call(compiler__make_list, flagrt.NewArray(flagrt.Call(compiler__make_symbol, flagStr_defrecord_), flagrt.First(args), flagrt.Call(stdlib__second, args)))
@@ -6647,7 +6647,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 								if flagrt.IsTruthy(if_result_627) {
 									if_result_635 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case rest capture must be in the penultimate position"), flagKw_data, flagMap))
-										return flagrt.NilValue()
+										return flagrt.NilValue
 									}()
 								} else {
 									var let_result_634 flagrt.Value
@@ -6685,7 +6685,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 										if flagrt.IsTruthy(let_result_632) {
 											if_result_633 = func() flagrt.Value {
 												flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case rest capture expects a symbol name"), flagKw_data, flagMap))
-												return flagrt.NilValue()
+												return flagrt.NilValue
 											}()
 										} else {
 											if_result_633 = flagrt.NewMap(flagKw_matched, flagrt.NewBool(true), flagKw_bindings, bindings, flagKw_rest_bindings, flagrt.Assoc(rest_bindings, flagrt.Call(flagKw_name, name_node), remaining))
@@ -6793,7 +6793,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 						if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("&"), flagrt.Call(flagKw_name, pat)))) {
 							if_result_652 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case pattern cannot use bare &"), flagKw_data, flagMap))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						} else {
 							var if_result_651 flagrt.Value
@@ -6824,7 +6824,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 								}
 								if_result_651 = if_result_650
 							} else {
-								if_result_651 = flagrt.NilValue()
+								if_result_651 = flagrt.NilValue
 							}
 							if_result_652 = if_result_651
 						}
@@ -6937,7 +6937,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 										}
 										if_result_669 = if_result_668
 									} else {
-										if_result_669 = flagrt.NilValue()
+										if_result_669 = flagrt.NilValue
 									}
 									if_result_670 = if_result_669
 								}
@@ -6959,7 +6959,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 				if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(a))), flagrt.NewLong(2)) {
 					if_result_686 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case expects a target form and at least one clause"), flagKw_data, flagMap))
-						return flagrt.NilValue()
+						return flagrt.NilValue
 					}()
 				} else {
 					var let_result_685 flagrt.Value
@@ -6975,7 +6975,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 						if flagrt.IsTruthy(if_result_676) {
 							if_result_684 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case expects a list target form"), flagKw_data, flagMap))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						} else {
 							var let_result_683 flagrt.Value
@@ -6995,7 +6995,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 										if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(clauses))) {
 											if_result_682 = func() flagrt.Value {
 												flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case had no matching clause"), flagKw_data, flagMap))
-												return flagrt.NilValue()
+												return flagrt.NilValue
 											}()
 										} else {
 											var let_result_681 flagrt.Value
@@ -7005,7 +7005,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(clause))) {
 													if_result_680 = func() flagrt.Value {
 														flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro-case clauses must be ([pattern] body) lists"), flagKw_data, flagMap))
-														return flagrt.NilValue()
+														return flagrt.NilValue
 													}()
 												} else {
 													var let_result_679 flagrt.Value
@@ -7013,7 +7013,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 														var result = compiler__macro_op_arity_5(flagKw_pat, flagrt.Call(flagKw_pattern, clause), target, flagMap, flagMap)
 														var if_result_678 flagrt.Value
 														if flagrt.IsTruthy(flagrt.Call(flagKw_matched, result)) {
-															if_result_678 = compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_body, clause), flagrt.Call(flagKw_bindings, result), flagrt.Call(flagKw_rest_bindings, result), flagrt.NilValue())
+															if_result_678 = compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_body, clause), flagrt.Call(flagKw_bindings, result), flagrt.Call(flagKw_rest_bindings, result), flagrt.NilValue)
 														} else {
 															if_result_678 = flagrt.NewRecur(flagrt.Rest(clauses))
 														}
@@ -7090,7 +7090,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 														if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, child)) {
 															if_result_689 = flagrt.Call(flagrt.BuiltinFunction("get"), rest_bindings, flagrt.Call(flagKw_name, child))
 														} else {
-															if_result_689 = flagrt.NilValue()
+															if_result_689 = flagrt.NilValue
 														}
 														var rest_items = if_result_689
 														var if_result_690 flagrt.Value
@@ -7124,7 +7124,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 																}
 															}())
 														} else {
-															if_result_692 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(flagKw_subst, child, values, rest_bindings, flagrt.NilValue())))
+															if_result_692 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(flagKw_subst, child, values, rest_bindings, flagrt.NilValue)))
 														}
 														let_result_693 = if_result_692
 													}
@@ -7174,7 +7174,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 										if flagrt.IsTruthy(let_result_699) {
 											var if_result_702 flagrt.Value
 											if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-case"), flagrt.Call(flagKw_name, flagrt.First(out))))) {
-												if_result_702 = compiler__macro_op_arity_5(flagKw_case, flagrt.Rest(out), flagrt.NilValue(), flagrt.NilValue(), flagrt.NilValue())
+												if_result_702 = compiler__macro_op_arity_5(flagKw_case, flagrt.Rest(out), flagrt.NilValue, flagrt.NilValue, flagrt.NilValue)
 											} else {
 												var if_result_701 flagrt.Value
 												if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(flagrt.NewString("macro-defrecord"), flagrt.Call(flagKw_name, flagrt.First(out))))) {
@@ -7184,7 +7184,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 													if flagrt.IsTruthy(flagrt.NewBool(true)) {
 														if_result_700 = flagrt.Call(compiler__with_children, expr, out)
 													} else {
-														if_result_700 = flagrt.NilValue()
+														if_result_700 = flagrt.NilValue
 													}
 													if_result_701 = if_result_700
 												}
@@ -7219,7 +7219,7 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 												if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
 													if_result_707 = acc
 												} else {
-													if_result_707 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(flagKw_subst, flagrt.First(remaining), values, rest_bindings, flagrt.NilValue())))
+													if_result_707 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Conj(acc, compiler__macro_op_arity_5(flagKw_subst, flagrt.First(remaining), values, rest_bindings, flagrt.NilValue)))
 												}
 												__loopResult := if_result_707
 												if __recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult); __isRecur {
@@ -7236,11 +7236,11 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 									} else {
 										var if_result_709 flagrt.Value
 										if flagrt.IsTruthy(flagrt.Call(compiler__hash_fn_node_q, expr)) {
-											if_result_709 = flagrt.Assoc(expr, flagKw_body, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_body, expr), values, rest_bindings, flagrt.NilValue()))
+											if_result_709 = flagrt.Assoc(expr, flagKw_body, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_body, expr), values, rest_bindings, flagrt.NilValue))
 										} else {
 											var if_result_708 flagrt.Value
 											if flagrt.IsTruthy(flagrt.Call(compiler__meta_node_q, expr)) {
-												if_result_708 = flagrt.Assoc(expr, flagKw_meta, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_meta, expr), values, rest_bindings, flagrt.NilValue()), flagKw_target, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_target, expr), values, rest_bindings, flagrt.NilValue()))
+												if_result_708 = flagrt.Assoc(expr, flagKw_meta, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_meta, expr), values, rest_bindings, flagrt.NilValue), flagKw_target, compiler__macro_op_arity_5(flagKw_subst, flagrt.Call(flagKw_target, expr), values, rest_bindings, flagrt.NilValue))
 											} else {
 												if_result_708 = expr
 											}
@@ -7262,10 +7262,10 @@ func compiler__macro_op_arity_5(op flagrt.Value, a flagrt.Value, b flagrt.Value,
 					if flagrt.IsTruthy(flagrt.NewBool(true)) {
 						if_result_715 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unknown macro-op"), flagKw_data, flagrt.NewMap(flagKw_op, op)))
-							return flagrt.NilValue()
+							return flagrt.NilValue
 						}()
 					} else {
-						if_result_715 = flagrt.NilValue()
+						if_result_715 = flagrt.NilValue
 					}
 					if_result_716 = if_result_715
 				}
@@ -7286,7 +7286,7 @@ func compiler__macro_op_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__substitute_node_arity_3(expr flagrt.Value, values flagrt.Value, rest_bindings flagrt.Value) flagrt.Value {
-	return flagrt.Call(compiler__macro_op, flagKw_subst, expr, values, rest_bindings, flagrt.NilValue())
+	return flagrt.Call(compiler__macro_op, flagKw_subst, expr, values, rest_bindings, flagrt.NilValue)
 }
 
 func compiler__substitute_node_variadic(args ...flagrt.Value) flagrt.Value {
@@ -7315,7 +7315,7 @@ func compiler__apply_macro_arity_variadic(args ...flagrt.Value) flagrt.Value {
 func compiler__apply_multi_arity_arity_2(macro flagrt.Value, args flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		var remaining = flagrt.Call(flagKw_arities, macro)
-		var rest_arity = flagrt.NilValue()
+		var rest_arity = flagrt.NilValue
 		for {
 			var if_result_729 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(remaining))) {
@@ -7336,7 +7336,7 @@ func compiler__apply_multi_arity_arity_2(macro flagrt.Value, args flagrt.Value) 
 				} else {
 					if_result_723 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro expects arguments"), flagKw_data, flagrt.NewMap(flagKw_got, flagrt.NewLong(int64(flagrt.Count(args))))))
-						return flagrt.NilValue()
+						return flagrt.NilValue
 					}()
 				}
 				if_result_729 = if_result_723
@@ -7414,7 +7414,7 @@ func compiler__expand_node_arity_3(expr flagrt.Value, macros flagrt.Value, depth
 	if flagrt.Gt(depth, flagrt.NewLong(100)) {
 		if_result_742 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("macro expansion depth exceeded"), flagKw_data, flagrt.NewMap(flagKw_expr, expr)))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	} else {
 		var if_result_741 flagrt.Value
@@ -7433,7 +7433,7 @@ func compiler__expand_node_arity_3(expr flagrt.Value, macros flagrt.Value, depth
 						if flagrt.IsTruthy(flagrt.Call(compiler__symbol_node_q, head)) {
 							if_result_731 = flagrt.Call(flagrt.BuiltinFunction("get"), macros, flagrt.Call(flagKw_name, head))
 						} else {
-							if_result_731 = flagrt.NilValue()
+							if_result_731 = flagrt.NilValue
 						}
 						var macro = if_result_731
 						var if_result_733 flagrt.Value
@@ -7578,7 +7578,7 @@ func compiler__expand_macros_arity_1(in flagrt.Value) flagrt.Value {
 								var expr = flagrt.Call(async__channel_receive, in)
 								var if_result_747 flagrt.Value
 								if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(expr))) {
-									if_result_747 = flagrt.NilValue()
+									if_result_747 = flagrt.NilValue
 								} else {
 									var if_result_746 flagrt.Value
 									if flagrt.IsTruthy(flagrt.Call(compiler__macro_definition_q, expr)) {
@@ -8337,7 +8337,7 @@ func compiler_ir__render_ir_node_arity_3(mode flagrt.Value, node flagrt.Value, i
 														} else {
 															if_result_781 = func() flagrt.Value {
 																flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported IR expression"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																return flagrt.NilValue()
+																return flagrt.NilValue
 															}()
 														}
 														if_result_782 = if_result_781
@@ -8489,7 +8489,7 @@ func compiler_ir__render_ir_node_arity_3(mode flagrt.Value, node flagrt.Value, i
 															} else {
 																if_result_805 = func() flagrt.Value {
 																	flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported IR statement"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																	return flagrt.NilValue()
+																	return flagrt.NilValue
 																}()
 															}
 															if_result_806 = if_result_805
@@ -8518,7 +8518,7 @@ func compiler_ir__render_ir_node_arity_3(mode flagrt.Value, node flagrt.Value, i
 			} else {
 				if_result_817 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported IR render mode"), flagKw_data, flagrt.NewMap(flagKw_mode, mode)))
-					return flagrt.NilValue()
+					return flagrt.NilValue
 				}()
 			}
 			if_result_818 = if_result_817
@@ -8610,7 +8610,7 @@ func compiler_codegen__emit_ir_expr_arity_1(expr flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(if_result_820) {
 					if_result_825 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported list shape for codegen"), flagKw_data, flagrt.NewMap(flagKw_expr, expr)))
-						return flagrt.NilValue()
+						return flagrt.NilValue
 					}()
 				} else {
 					var let_result_824 flagrt.Value
@@ -8635,7 +8635,7 @@ func compiler_codegen__emit_ir_expr_arity_1(expr flagrt.Value) flagrt.Value {
 						} else {
 							if_result_823 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported list operator for codegen"), flagKw_data, flagrt.NewMap(flagKw_expr, expr)))
-								return flagrt.NilValue()
+								return flagrt.NilValue
 							}()
 						}
 						let_result_824 = if_result_823
@@ -8648,7 +8648,7 @@ func compiler_codegen__emit_ir_expr_arity_1(expr flagrt.Value) flagrt.Value {
 		} else {
 			if_result_827 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported AST node for codegen"), flagKw_data, flagrt.NewMap(flagKw_expr, expr)))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		}
 		if_result_828 = if_result_827
@@ -8830,7 +8830,7 @@ func compiler__ast_node_to_ir_arity_1(node flagrt.Value) flagrt.Value {
 														} else {
 															if_result_838 = func() flagrt.Value {
 																flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported symbol for literal lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																return flagrt.NilValue()
+																return flagrt.NilValue
 															}()
 														}
 														if_result_839 = if_result_838
@@ -8843,7 +8843,7 @@ func compiler__ast_node_to_ir_arity_1(node flagrt.Value) flagrt.Value {
 										} else {
 											if_result_842 = func() flagrt.Value {
 												flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported AST node for literal lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-												return flagrt.NilValue()
+												return flagrt.NilValue
 											}()
 										}
 										if_result_843 = if_result_842
@@ -8982,7 +8982,7 @@ func compiler__quoted_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Valu
 																	if flagrt.IsTruthy(if_result_856) {
 																		if_result_857 = func() flagrt.Value {
 																			flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("quoted map literal expects an even number of forms"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																			return flagrt.NilValue()
+																			return flagrt.NilValue
 																		}()
 																	} else {
 																		if_result_857 = flagrt.Call(compiler__literal_rt_call, flagStr_NewMap, compiler__quoted_ast_to_ir_node_arity_2(flagKw_seq, entries))
@@ -8997,7 +8997,7 @@ func compiler__quoted_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Valu
 																} else {
 																	if_result_859 = func() flagrt.Value {
 																		flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported quoted literal"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																		return flagrt.NilValue()
+																		return flagrt.NilValue
 																	}()
 																}
 																if_result_860 = if_result_859
@@ -9030,7 +9030,7 @@ func compiler__quoted_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Valu
 		} else {
 			if_result_873 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported quoted lowering mode"), flagKw_data, flagrt.NewMap(flagKw_mode, mode)))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		}
 		if_result_874 = if_result_873
@@ -9206,7 +9206,7 @@ func compiler__call_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Value)
 														} else {
 															if_result_885 = func() flagrt.Value {
 																flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unresolved symbol for call lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																return flagrt.NilValue()
+																return flagrt.NilValue
 															}()
 														}
 														let_result_886 = if_result_885
@@ -9239,7 +9239,7 @@ func compiler__call_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Value)
 																		} else {
 																			if_result_887 = func() flagrt.Value {
 																				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported AST node for call lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																				return flagrt.NilValue()
+																				return flagrt.NilValue
 																			}()
 																		}
 																		if_result_888 = if_result_887
@@ -9294,7 +9294,7 @@ func compiler__call_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Value)
 					if flagrt.IsTruthy(let_result_904) {
 						if_result_909 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported form"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-							return flagrt.NilValue()
+							return flagrt.NilValue
 						}()
 					} else {
 						var let_result_908 flagrt.Value
@@ -9315,7 +9315,7 @@ func compiler__call_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Value)
 							if flagrt.IsTruthy(let_result_906) {
 								if_result_907 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("special form not handled by call lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-									return flagrt.NilValue()
+									return flagrt.NilValue
 								}()
 							} else {
 								if_result_907 = flagrt.Call(compiler__call_to_ir, compiler__call_ast_to_ir_node_arity_2(flagKw_eval, head), compiler__call_ast_to_ir_node_arity_2(flagKw_seq, flagrt.Rest(elements)))
@@ -9330,7 +9330,7 @@ func compiler__call_ast_to_ir_node_arity_2(mode flagrt.Value, node flagrt.Value)
 			} else {
 				if_result_911 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported call lowering mode"), flagKw_data, flagrt.NewMap(flagKw_mode, mode)))
-					return flagrt.NilValue()
+					return flagrt.NilValue
 				}()
 			}
 			if_result_912 = if_result_911
@@ -9407,7 +9407,7 @@ func compiler__fold_call_to_ir_arity_2(name flagrt.Value, args flagrt.Value) fla
 	if flagrt.IsTruthy(let_result_917) {
 		if_result_921 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("fold expects at least two arguments"), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-			return flagrt.NilValue()
+			return flagrt.NilValue
 		}()
 	} else {
 		if_result_921 = func() flagrt.Value {
@@ -9835,7 +9835,7 @@ func compiler__symbol_to_ir_arity_3(name flagrt.Value, ident flagrt.Value, ctx f
 								} else {
 									if_result_976 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str("unknown symbol \"", name, "\"")), flagKw_data, flagrt.NewMap(flagKw_name, name)))
-										return flagrt.NilValue()
+										return flagrt.NilValue
 									}()
 								}
 								if_result_977 = if_result_976
@@ -10011,7 +10011,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 																			if flagrt.IsTruthy(if_result_994) {
 																				if_result_995 = func() flagrt.Value {
 																					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("map literal expects key/value pairs"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																					return flagrt.NilValue()
+																					return flagrt.NilValue
 																				}()
 																			} else {
 																				if_result_995 = flagrt.Call(compiler__ctor_to_ir, flagStr_NewMap, compiler__eval_ast_to_ir_node_arity_3(flagKw_seq, entries, ctx))
@@ -10026,7 +10026,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 																		} else {
 																			if_result_997 = func() flagrt.Value {
 																				flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported AST node for eval lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-																				return flagrt.NilValue()
+																				return flagrt.NilValue
 																			}()
 																		}
 																		if_result_998 = if_result_997
@@ -10081,7 +10081,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 					if flagrt.IsTruthy(let_result_1014) {
 						if_result_1027 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported form"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-							return flagrt.NilValue()
+							return flagrt.NilValue
 						}()
 					} else {
 						var let_result_1026 flagrt.Value
@@ -10109,7 +10109,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 										if flagrt.IsTruthy(if_result_1015) {
 											if_result_1016 = func() flagrt.Value {
 												flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str(op, " expects exactly one argument")), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-												return flagrt.NilValue()
+												return flagrt.NilValue
 											}()
 										} else {
 											if_result_1016 = flagrt.Call(compiler__runtime_call_to_ir, unary, compiler__eval_ast_to_ir_node_arity_3(flagKw_seq, args, ctx))
@@ -10132,7 +10132,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 												if flagrt.IsTruthy(if_result_1017) {
 													if_result_1018 = func() flagrt.Value {
 														flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString(flagrt.Str(op, " expects exactly two arguments")), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-														return flagrt.NilValue()
+														return flagrt.NilValue
 													}()
 												} else {
 													if_result_1018 = flagrt.Call(compiler__runtime_call_to_ir, binary, compiler__eval_ast_to_ir_node_arity_3(flagKw_seq, args, ctx))
@@ -10147,7 +10147,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 													if flagrt.IsTruthy(flagrt.NewBool(flagrt.Contains(compiler__special_form_names, op))) {
 														if_result_1019 = func() flagrt.Value {
 															flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("special form not handled by eval lowering"), flagKw_data, flagrt.NewMap(flagKw_node, node)))
-															return flagrt.NilValue()
+															return flagrt.NilValue
 														}()
 													} else {
 														if_result_1019 = flagrt.Call(compiler__call_to_ir, compiler__eval_ast_to_ir_node_arity_3(flagKw_eval, head, ctx), compiler__eval_ast_to_ir_node_arity_3(flagKw_seq, args, ctx))
@@ -10176,7 +10176,7 @@ func compiler__eval_ast_to_ir_node_arity_3(mode flagrt.Value, node flagrt.Value,
 			} else {
 				if_result_1029 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported eval lowering mode"), flagKw_data, flagrt.NewMap(flagKw_mode, mode)))
-					return flagrt.NilValue()
+					return flagrt.NilValue
 				}()
 			}
 			if_result_1030 = if_result_1029
@@ -10244,7 +10244,7 @@ func compiler__append_stmt_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__if_to_ir_arity_7(name flagrt.Value, type_ flagrt.Value, cond flagrt.Value, then_stmts flagrt.Value, then_expr flagrt.Value, else_stmts flagrt.Value, else_expr flagrt.Value) flagrt.Value {
-	return flagrt.NewArray(flagrt.NewMap(flagKw_kind, flagKw_var, flagKw_name, name, flagKw_type, type_, flagKw_expr, flagrt.NilValue()), flagrt.NewMap(flagKw_kind, flagKw_if, flagKw_init, flagrt.NewString(""), flagKw_cond, cond, flagKw_then, flagrt.Call(compiler__append_stmt, then_stmts, flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, then_expr)), flagKw_else, flagrt.Call(compiler__append_stmt, else_stmts, flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, else_expr))))
+	return flagrt.NewArray(flagrt.NewMap(flagKw_kind, flagKw_var, flagKw_name, name, flagKw_type, type_, flagKw_expr, flagrt.NilValue), flagrt.NewMap(flagKw_kind, flagKw_if, flagKw_init, flagrt.NewString(""), flagKw_cond, cond, flagKw_then, flagrt.Call(compiler__append_stmt, then_stmts, flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, then_expr)), flagKw_else, flagrt.Call(compiler__append_stmt, else_stmts, flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, else_expr))))
 }
 
 func compiler__if_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
@@ -10298,7 +10298,7 @@ func compiler__concat_stmts_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__let_to_ir_arity_5(name flagrt.Value, type_ flagrt.Value, binding_stmts flagrt.Value, body_stmts flagrt.Value, body_expr flagrt.Value) flagrt.Value {
-	return flagrt.NewArray(flagrt.NewMap(flagKw_kind, flagKw_var, flagKw_name, name, flagKw_type, type_, flagKw_expr, flagrt.NilValue()), flagrt.NewMap(flagKw_kind, flagKw_block, flagKw_body, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, binding_stmts, body_stmts), flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, body_expr))))
+	return flagrt.NewArray(flagrt.NewMap(flagKw_kind, flagKw_var, flagKw_name, name, flagKw_type, type_, flagKw_expr, flagrt.NilValue), flagrt.NewMap(flagKw_kind, flagKw_block, flagKw_body, flagrt.Call(compiler__append_stmt, flagrt.Call(compiler__concat_stmts, binding_stmts, body_stmts), flagrt.NewMap(flagKw_kind, flagKw_assign, flagKw_name, name, flagKw_expr, body_expr))))
 }
 
 func compiler__let_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
@@ -10406,7 +10406,7 @@ func compiler_ast_source__ast__gtsource_arity_1(expr flagrt.Value) flagrt.Value 
 															if flagrt.IsTruthy(flagrt.NewBool(true)) {
 																if_result_1041 = flagrt.NewString(flagrt.Str("\\", ch))
 															} else {
-																if_result_1041 = flagrt.NilValue()
+																if_result_1041 = flagrt.NilValue
 															}
 															if_result_1042 = if_result_1041
 														}
@@ -10465,10 +10465,10 @@ func compiler_ast_source__ast__gtsource_arity_1(expr flagrt.Value) flagrt.Value 
 																			if flagrt.IsTruthy(flagrt.NewBool(true)) {
 																				if_result_1048 = func() flagrt.Value {
 																					flagrt.Throw(flagrt.NewMap(flagKw_message, flagrt.NewString("unsupported AST node"), flagKw_data, flagrt.NewMap(flagKw_expr, expr)))
-																					return flagrt.NilValue()
+																					return flagrt.NilValue
 																				}()
 																			} else {
-																				if_result_1048 = flagrt.NilValue()
+																				if_result_1048 = flagrt.NilValue
 																			}
 																			if_result_1049 = if_result_1048
 																		}
@@ -10674,7 +10674,7 @@ func compiler_tokenizer__expand_source_variadic(args ...flagrt.Value) flagrt.Val
 func compiler_tokenizer__slurp_text_arity_1(path flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		var lines = flagrt.FileToStrings(path)
-		var acc = flagrt.NilValue()
+		var acc = flagrt.NilValue
 		for {
 			var if_result_1075 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(lines))) {

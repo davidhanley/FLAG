@@ -60,6 +60,9 @@
    :fun {:kind :selector :pkg "flagrt" :name name}
    :args args})
 
+(defn rt-nil []
+  {:kind :selector :pkg "flagrt" :name "NilValue"})
+
 (defn ast-node-to-ir [node]
   (let [kind (:kind node)]
     (cond
@@ -97,7 +100,7 @@
         (cond
           (= name "true") (literal-rt-call "NewBool" [{:kind :raw :code "true"}])
           (= name "false") (literal-rt-call "NewBool" [{:kind :raw :code "false"}])
-          (= name "nil") (literal-rt-call "NilValue" [])
+          (= name "nil") (rt-nil)
           :else (throw (ex-info "unsupported symbol for literal lowering"
                                 {:node node}))))
 
@@ -736,7 +739,7 @@
         prelude (do-prelude-stmts forms)]
     (if (:defer? last)
       (append-stmt (append-stmt prelude (do-form-stmt last))
-                   {:kind :return :expr (literal-rt-call "NilValue" [])})
+                   {:kind :return :expr (rt-nil)})
       (append-stmt prelude {:kind :return :expr (:expr last)}))))
 
 (defn do-defer-to-ir [type forms]
@@ -828,7 +831,7 @@
                  (append-stmt stmts {:kind :expr-stmt
                                      :expr (literal-rt-call "Throw" [value])
                                      :discard false})
-                 {:kind :return :expr (literal-rt-call "NilValue" [])})}
+                 {:kind :return :expr (rt-nil)})}
    :args []})
 
 (defn future-to-ir [body-stmts body-expr]
@@ -973,7 +976,7 @@
 (defn doseq-to-ir [loop-expr]
   (value-iife-ir
     [{:kind :expr-stmt :expr (literal-rt-call "DoAll" [loop-expr]) :discard true}
-     {:kind :return :expr (literal-rt-call "NilValue" [])}]))
+     {:kind :return :expr (rt-nil)}]))
 
 (defn doseq-body-to-ir [body-stmts body-expr]
   (value-iife-ir
@@ -1845,7 +1848,7 @@
 
 (defn form-defer-result [stmts stmt ctx]
   {:stmts (stmt-list stmts)
-   :expr (literal-rt-call "NilValue" [])
+   :expr (rt-nil)
    :expr-kind :defer
    :defer? true
    :stmt stmt
@@ -1946,7 +1949,7 @@
   (value-iife-ir
     (append-stmt
       (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true})
-      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+      {:kind :return :expr (rt-nil)})))
 
 (defn is-to-ir [test-stmts condition message]
   (value-iife-ir
@@ -1959,7 +1962,7 @@
                             :expr (ident-call-ir "panic" [{:kind :string :value message}])
                             :discard false}]
                     :else []})
-      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+      {:kind :return :expr (rt-nil)})))
 
 (defn expect-exception-to-ir [body-stmts body-expr no-panic expected prefix]
   (let [base [{:kind :define :names ["r"] :expr (ident-call-ir "recover" [])}
@@ -2005,7 +2008,7 @@
                    :fun {:kind :func-lit :params "" :result "" :body recover-body}
                    :args []}}]
           (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true}))
-        {:kind :return :expr (literal-rt-call "NilValue" [])}))))
+        {:kind :return :expr (rt-nil)}))))
 
 (defn ast-form-source-node [mode node]
   (cond
@@ -2114,7 +2117,9 @@
           (variadic-fun go)
           (if (and (not (nil? go-fns)) (contains? go-fns name))
             (bind-fun (get go-fns name))
-            nil)))
+            (if (or (nil? go) (= "" go))
+              nil
+              {:kind :raw :code (str go ".FunctionObject().Fn")}))))
 
       (and ident
            (not (= "" ident))
@@ -2135,9 +2140,11 @@
 (defn builtin-call-fun [name ctx]
   (let [fn-name (builtin-fn-ident name)
         ident (go-ident-or-empty name)
-        locals (:locals ctx)]
+        locals (:locals ctx)
+        module (:module ctx)]
     (if (or (nil? fn-name)
-            (and ident (not (= "" ident)) (not (nil? locals)) (contains? locals ident)))
+            (and ident (not (= "" ident)) (not (nil? locals)) (contains? locals ident))
+            (and (not (nil? module)) (contains? module name)))
       nil
       {:kind :selector :pkg "flagrt" :name fn-name})))
 
@@ -2526,7 +2533,7 @@
               then0 (compile-form-node :form (first (rest args)) (:ctx cond-part))
               else0 (if (= n 3)
                       (compile-form-node :form (first (rest (rest args))) (:ctx then0))
-                      (form-result [] (literal-rt-call "NilValue" []) :value (:ctx then0)))
+                      (form-result [] (rt-nil) :value (:ctx then0)))
               then1 (if (and (= n 3) (not (= (:expr-kind then0) (:expr-kind else0))))
                       (coerce-form-value then0)
                       then0)
@@ -3534,7 +3541,7 @@
 
     (= mode :forms)
     (if (or (nil? node) (empty? node))
-      (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+      (form-result [] (rt-nil) :value ctx)
       (loop [remaining (stmt-list node) ctx ctx compiled []]
         (let [part (compile-form-node :form (first remaining) ctx)
               more (rest remaining)
@@ -3706,7 +3713,7 @@
           catch-forms (:catches parsed)
           finally-forms (:finally parsed)
           body (if (or (nil? body-forms) (empty? body-forms))
-                 (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+                 (form-result [] (rt-nil) :value ctx)
                  (coerce-form-value (compile-form-node :forms body-forms ctx)))]
       (if (and (or (nil? catch-forms) (empty? catch-forms)) (nil? finally-forms))
         body
@@ -3727,7 +3734,7 @@
                                    (assoc (if (nil? locals) {} locals) ident :value))
                   handler-ctx (assoc ctx :locals handler-locals)
                   handler-body (if (or (nil? (:body clause)) (empty? (:body clause)))
-                                 (form-result [] (literal-rt-call "NilValue" []) :value handler-ctx)
+                                 (form-result [] (rt-nil) :value handler-ctx)
                                  (coerce-form-value (compile-form-node :forms (:body clause) handler-ctx)))
                   handler (catch-handler-to-ir ident (:stmts handler-body) (:expr handler-body))]
               (recur (rest remaining)

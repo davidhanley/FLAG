@@ -27,7 +27,13 @@ const ProloguePackageName = "prologue"
 // flagbuild/<pkg>. The language prelude is one more library package
 // (flagbuild/prologue); it is not copied into importers.
 func CompileProgramPackages(entryPath string) ([]CompiledPackage, error) {
-	return flagCompileProgramPackages(entryPath)
+	return flagCompileProgramPackages(entryPath, nil)
+}
+
+// CompileProgramPackagesWithTests is CompileProgramPackages after appending
+// test file bodies to the entry module (same as CompileProgramWithTests).
+func CompileProgramPackagesWithTests(entryPath string, testPaths []string) ([]CompiledPackage, error) {
+	return flagCompileProgramPackages(entryPath, testPaths)
 }
 
 func compileProgramPackagesGo(entryPath string) ([]CompiledPackage, error) {
@@ -377,6 +383,15 @@ func emitFlagIGo(ns string, exports []string, goExports map[string]string, macro
 // under dir, plus a go.mod that requires flag-lang via a replace directive.
 func WriteProgramPackages(dir, entryPath string) error {
 	pkgs, err := CompileProgramPackages(entryPath)
+	if err != nil {
+		return err
+	}
+	return flagWriteProgramPackages(dir, pkgs, entryPath)
+}
+
+// WriteProgramPackagesWithTests is WriteProgramPackages with test forms on the entry.
+func WriteProgramPackagesWithTests(dir, entryPath string, testPaths []string) error {
+	pkgs, err := CompileProgramPackagesWithTests(entryPath, testPaths)
 	if err != nil {
 		return err
 	}

@@ -287,8 +287,8 @@ func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
 	for _, want := range []string{
 		"var csv__read_csv = flagrt.GoBind_csv_ReadCSV",
 		"var burp__html = flagrt.GoBind_burp_Html",
-		"flagrt.Call(csv__read_csv",
-		"flagrt.Call(burp__html",
+		"csv__read_csv.FunctionObject().Fn",
+		"burp__html.FunctionObject().Fn",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
@@ -561,6 +561,129 @@ func TestCompileProgramPackagesPreludeIsSeparatePackage(t *testing.T) {
 		}
 	}
 	for _, refuse := range []string{"func inc_arity", "func identity_arity", "var identity =", "var inc ="} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("main inlined prologue %q:\n%s", refuse, e)
+		}
+	}
+}
+
+func TestCompileProgramPackagesNilIsPackageVar(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "hello.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "hello"}
+(println nil)
+(def x nil)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var entry CompiledPackage
+	for _, p := range pkgs {
+		if p.IsMain {
+			entry = p
+		}
+	}
+	got := string(entry.Source)
+	if strings.Contains(got, "NilValue()") {
+		t.Fatalf("nil must not call NilValue():\n%s", got)
+	}
+	if !strings.Contains(got, "flagrt.NilValue") {
+		t.Fatalf("main missing flagrt.NilValue:\n%s", got)
+	}
+}
+
+func TestCompileProgramPackagesHelloWorldNoInlineIncDec(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "hello.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "hello"}
+(println "Hello from FLAG")
+(println (inc 1))
+(println (dec 2))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var prologue, entry CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+		if p.IsMain {
+			entry = p
+		}
+	}
+	if prologue.Source == nil || entry.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	e := string(entry.Source)
+	for _, want := range []string{"prologue.Inc", "prologue.Dec", "Hello from FLAG"} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"prologue__inc", "prologue__dec", "func inc_arity", "func dec_arity", "var Inc =", "var Dec ="} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("hello main inlined prologue %q:\n%s", refuse, e)
+		}
+	}
+	p := string(prologue.Source)
+	if !strings.Contains(p, "var Inc =") || !strings.Contains(p, "var Dec =") {
+		t.Fatalf("prologue should define Inc/Dec:\n%s", p)
+	}
+}
+
+func TestCompileProgramPackagesWithTests(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.flag")
+	testFile := filepath.Join(dir, "main_test.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "demo"}
+(defn add1 [x] (inc x))
+(println (add1 1))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(testFile, []byte(`
+(deftest add1-test
+  (is (= (add1 1) 2)))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackagesWithTests(main, []string{testFile})
+	if err != nil {
+		t.Fatalf("CompileProgramPackagesWithTests: %v", err)
+	}
+	var prologue, entry CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+		if p.IsMain {
+			entry = p
+		}
+	}
+	if prologue.Source == nil || entry.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	p := string(prologue.Source)
+	if !strings.Contains(p, "package prologue") || !strings.Contains(p, "var Inc =") {
+		t.Fatalf("prologue:\n%s", p)
+	}
+	e := string(entry.Source)
+	for _, want := range []string{"package main", "flagTestCase", "prologue.Inc", "flagbuild/prologue"} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"var Inc =", "prologue__inc", "func inc_arity"} {
 		if strings.Contains(e, refuse) {
 			t.Fatalf("main inlined prologue %q:\n%s", refuse, e)
 		}

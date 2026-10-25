@@ -20,9 +20,8 @@ func (v Value) String() string {
 	return ValueToString(v)
 }
 
-func NilValue() Value {
-	return Value{tag: TagNil}
-}
+// NilValue is the FLAG nil. Use the var directly; do not wrap it in a call.
+var NilValue = Value{tag: TagNil}
 
 func NewLong(v int64) Value {
 	out := Value{tag: TagLong}
@@ -385,7 +384,7 @@ func Str(args ...any) string {
 
 func Println(args ...any) Value {
 	fmt.Println(Str(args...))
-	return NilValue()
+	return NilValue
 }
 
 func ValueToString(v Value) string {

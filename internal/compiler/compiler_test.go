@@ -198,7 +198,7 @@ func TestCompileDeftestAndAssertions(t *testing.T) {
 		"func runFlagTestCase(tc flagTestCase) (passed bool) {",
 		`panic("at 5:7: (= x 1)")`,
 		`panic("at 6:7: x should be 2")`,
-		"return flagrt.NilValue()",
+		"return flagrt.NilValue",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -942,7 +942,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = flagrt.Call(f, flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
+		`_ = f.FunctionObject().Fn(flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -1287,7 +1287,7 @@ func TestReplCompilerDefLambdaBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine lambda call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(triple, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(triple.FunctionObject().Fn(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected lambda call expression: %s", call.ResultExpr)
 	}
 }

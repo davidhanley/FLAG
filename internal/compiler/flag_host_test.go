@@ -21,6 +21,26 @@ func TestModuleImportPaths(t *testing.T) {
 	}
 }
 
+func TestModuleHasHeader(t *testing.T) {
+	dir := t.TempDir()
+	header := filepath.Join(dir, "mod.flag")
+	if err := os.WriteFile(header, []byte("{:namespace \"demo\"}\n(defn x [] 1)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, err := ModuleHasHeader(header)
+	if err != nil || !ok {
+		t.Fatalf("header: ok=%v err=%v", ok, err)
+	}
+	bare := filepath.Join(dir, "bare.flag")
+	if err := os.WriteFile(bare, []byte("(defn x [] 1)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, err = ModuleHasHeader(bare)
+	if err != nil || ok {
+		t.Fatalf("bare: ok=%v err=%v", ok, err)
+	}
+}
+
 func TestModuleImportPathsNoHeader(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bare.flag")
@@ -250,7 +270,7 @@ func TestFLAGCompileInlineProgram(t *testing.T) {
 
 func TestFLAGCompileProgramPackages(t *testing.T) {
 	entry := filepath.Join("..", "..", "examples", "modules", "main.flag")
-	got, err := flagCompileProgramPackages(entry)
+	got, err := flagCompileProgramPackages(entry, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

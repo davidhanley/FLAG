@@ -129,7 +129,9 @@ and `compile-module-body`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
-`true`/`false`/`nil`) to IR maps. The Go compiler calls this from `exprToGo`
+`true`/`false`/`nil`) to IR maps. `rt-nil` is FLAG `nil`: a `:selector` of
+the package var `flagrt.NilValue` (not a `NilValue()` call). No-arg runtime
+functions still use `literal-rt-call` (e.g. `Seq()`). The Go compiler calls this from `exprToGo`
 (`flagLiteralToIR`) and still hoists keywords, chars, bigints, ratios, and
 quoted symbols with `internIR`. FLAG `compile-form-to-ir` hoists the same
 literals (plus quoted lists as `List`) when ctx has `:constants`. String
@@ -147,11 +149,13 @@ still interned as `List`. Odd-length maps error.
 `call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
 only for unknown callees (locals, maps, sets, keywords, `apply`).
 `known-call-fun` picks a direct Go call when the head is a known function:
-same-package FLAG defns use `goName_variadic(...)`, and `GoBind_*` hosts
-use `flagrt.GoBind_X.FunctionObject().Fn(...)` (the function pointer,
-no `Call` tag switch). `builtin-call-fun` / `builtin-fn-ident` map FLAG
-builtins onto `flagrt.FnX` pointers (`FnMax`, `FnGet`, …). Calls become
-`flagrt.FnCloseFile(x)`; `(apply max xs)` becomes
+same-package FLAG defns use `goName_variadic(...)`, `GoBind_*` hosts
+use `flagrt.GoBind_X.FunctionObject().Fn(...)`, and referred module
+go-exports (e.g. async `select`) use `goIdent.FunctionObject().Fn(...)`
+so they are not stolen by a same-named builtin. `builtin-call-fun` /
+`builtin-fn-ident` map FLAG builtins onto `flagrt.FnX` pointers
+(`FnMax`, `FnGet`, …) unless the name is a local or `:module` binding.
+Calls become `flagrt.FnCloseFile(x)`; `(apply max xs)` becomes
 `flagrt.ApplyFn(flagrt.FnMax, xs)` instead of looking up
 `BuiltinFunction("max")`. Locals keep `Call` so `(f x)` still works when
 `f` is a map or higher-order value. `call-ast-to-ir` lowers a `:list` whose head is not a
@@ -260,7 +264,7 @@ forms become discarded statements, the last form's statements stay with the
 result expression. Production `doExprToGo` uses this unless a form is
 `defer`. `do-defer-to-ir` wraps the same forms in an IIFE so Go `defer`
 runs when that thunk returns (`with-open`). Empty `(do)` is still
-`NilValue` in Go.
+`flagrt.NilValue` in Go.
 
 `loop-to-ir` emits a value IIFE: init statements, `var` bindings, then
 `for { body; __loopResult := body-expr; if unwrap-recur { assign; continue }; return }`.
@@ -478,13 +482,15 @@ The package file printer is FLAG
 (`compile-inline-modules` / `compile-package-modules`). REPL
 `compileModuleBody` and `exprToGo` are FLAG-only; remaining Go is CLI/REPL host glue.
 
-## Package emit (`flag-lang build`)
+## Package emit (`flag-lang compile` / `build` / `test`)
 
-`CompileProgram` still inlines the import graph into one `package main` (used
-by `compile`, `test`, REPL, and code generators). `flag-lang build` uses
-`CompileProgramPackages` / `WriteProgramPackages`: one Go package per FLAG
-module, entry as `package main`, libraries imported as `flagbuild/<pkg>`.
-Exported names are capitalized (`add` → `math.Add`). The prelude is
-`flagbuild/prologue` (`inc` → `prologue.Inc`), not copied into importers.
-Each library package also emits a `.flagi` (header, exported macros,
-`(declare …)`). See [modules.md](modules.md).
+`flag-lang compile`, `build`, and `test` use `CompileProgramPackages` /
+`WriteProgramPackages` (tests: `WriteProgramPackagesWithTests`): one Go
+package per FLAG module, entry as `package main`, libraries imported as
+`flagbuild/<pkg>`. Exported names are capitalized (`add` → `math.Add`). The
+prelude is `flagbuild/prologue` (`inc` → `prologue.Inc`), not copied into
+importers. Inspect output is `.flag-build/` (dotted so `go test ./...`
+ignores it). `CompileProgram` still inlines the import graph into one
+`package main` for the REPL and code generators. Each library package also
+emits a `.flagi` (header, exported macros, `(declare …)`). See
+[modules.md](modules.md).

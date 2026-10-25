@@ -18,7 +18,7 @@ func Atom(args ...Value) Value {
 	var init Value
 	switch len(args) {
 	case 0:
-		init = NilValue()
+		init = NilValue
 	case 1:
 		init = args[0]
 	default:

@@ -95,10 +95,10 @@ func TestCompareAndNumericEq(t *testing.T) {
 	if got := Compare(NewString("a"), NewString("b")); got.tag != TagLong || got.Long() != -1 {
 		t.Fatalf("compare a b: expected -1, got %#v", got)
 	}
-	if got := Compare(NilValue(), NewLong(1)); got.tag != TagLong || got.Long() != -1 {
+	if got := Compare(NilValue, NewLong(1)); got.tag != TagLong || got.Long() != -1 {
 		t.Fatalf("compare nil 1: expected -1, got %#v", got)
 	}
-	if got := Compare(NewLong(1), NilValue()); got.tag != TagLong || got.Long() != 1 {
+	if got := Compare(NewLong(1), NilValue); got.tag != TagLong || got.Long() != 1 {
 		t.Fatalf("compare 1 nil: expected 1, got %#v", got)
 	}
 	if !NumericEq() || !NumericEq(NewLong(1)) || !NumericEq(NewLong(1), NewDouble(1), NewRatio(2, 2)) {
@@ -288,11 +288,26 @@ func TestCallSupportsSetInvocation(t *testing.T) {
 	}
 }
 
+func TestNilValueIsTaggedNil(t *testing.T) {
+	if NilValue.tag != TagNil {
+		t.Fatalf("NilValue tag: got %v want %v", NilValue.tag, TagNil)
+	}
+	if !IsNil(NilValue) {
+		t.Fatal("expected IsNil(NilValue)")
+	}
+	if !Eq(NilValue, Value{tag: TagNil}) {
+		t.Fatal("expected NilValue to equal a TagNil Value")
+	}
+	if Eq(NilValue, NewLong(0)) || Eq(NilValue, NewBool(false)) {
+		t.Fatal("nil is not 0 or false")
+	}
+}
+
 func TestNilValueTruthiness(t *testing.T) {
-	if ValueToAny(NilValue()) != nil {
+	if ValueToAny(NilValue) != nil {
 		t.Fatal("expected NilValue to convert to nil")
 	}
-	if IsTruthy(NilValue()) {
+	if IsTruthy(NilValue) {
 		t.Fatal("expected NilValue to be falsey")
 	}
 	if !IsTruthy(NewLong(0)) {
@@ -336,7 +351,7 @@ func TestStr(t *testing.T) {
 		true,
 		NewList(NewLong(4), NewLong(5)),
 		NewArray(NewLong(6), NewLong(7)),
-		NilValue(),
+		NilValue,
 	)
 	if value != "a12.53/2falses:ktrue(4 5)[6 7]" {
 		t.Fatalf("unexpected str result: %q", value)

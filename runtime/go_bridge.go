@@ -184,7 +184,7 @@ func callGoFunction(name string, fn reflect.Value, args ...Value) Value {
 
 func normalizeGoCallResult(name string, out []reflect.Value) Value {
 	if len(out) == 0 {
-		return NilValue()
+		return NilValue
 	}
 	if len(out) > 0 && out[len(out)-1].Type().Implements(errorType) {
 		last := out[len(out)-1]
@@ -193,7 +193,7 @@ func normalizeGoCallResult(name string, out []reflect.Value) Value {
 		}
 		out = out[:len(out)-1]
 		if len(out) == 0 {
-			return NilValue()
+			return NilValue
 		}
 	}
 	if len(out) == 1 {
@@ -460,7 +460,7 @@ func normalizeInteropFieldName(name string) string {
 func anyToValue(raw any) Value {
 	switch v := raw.(type) {
 	case nil:
-		return NilValue()
+		return NilValue
 	case Value:
 		return v
 	case bool:

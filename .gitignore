@@ -6,3 +6,4 @@ dist/
 hello.go
 tests/*.go
 .flag-build/
+examples/FRS/*.go

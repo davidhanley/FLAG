@@ -45,7 +45,7 @@ func Call(fn Value, args ...Value) Value {
 		if len(args) == 2 {
 			return args[1]
 		}
-		return NilValue()
+		return NilValue
 	case TagSymbol:
 		symbol := fn.SymbolObject()
 		if !symbol.IsKeyword {

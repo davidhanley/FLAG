@@ -41,7 +41,7 @@ func TestExInfoMessageDataCause(t *testing.T) {
 	if got := ExMessage(NewString("nope")); got.tag != TagString || got.StringValue() != "nope" {
 		t.Fatalf("string ex-message: %v", ValueToString(got))
 	}
-	if got := ExMessage(NilValue()); got.tag != TagNil {
+	if got := ExMessage(NilValue); got.tag != TagNil {
 		t.Fatalf("nil ex-message: %v", ValueToString(got))
 	}
 	if got := ExData(NewString("x")); got.tag != TagNil {

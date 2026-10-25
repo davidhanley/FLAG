@@ -16,12 +16,11 @@ go run ./cmd/flag-lang repl
 
 The REPL accepts multi-line forms and waits until delimiters balance before evaluating.
 
-Compile `.flag` source to Go (resolves module `:imports` from the file path):
+Compile `.flag` source to Go packages (prologue and libraries linked, not copied). Default output is `.flag-build/` next to the source (`-o` selects another directory):
 
 ```bash
-go run ./cmd/flag-lang compile examples/hello/src/main.flag -o hello.go
-go build -o /dev/null hello.go
-go run ./hello.go
+go run ./cmd/flag-lang compile examples/hello/src/main.flag
+go build -C examples/hello/src/.flag-build -o /dev/null .
 ```
 
 Build a native binary directly from `.flag`:
@@ -374,7 +373,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 - **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
 - **R** `set` (from a seq) / `vec` (from a seq)
-- **R** `conj` (collection + items) / `into` / `contains?`
+- **R** `conj` (collection + items) / `into` / `contains?` (`false` on `nil`; maps/sets/dates/records)
 - **R** `seq` (`nil` if empty) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
 - **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
 - **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`

@@ -53,7 +53,7 @@ func close_arity_1(x flagrt.Value) flagrt.Value {
 		} else {
 			if_result_1 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewString(flagrt.Str("close expects a file or channel, got ", flagrt.TypeOf(x))))
-				return flagrt.NilValue()
+				return flagrt.NilValue
 			}()
 		}
 		if_result_2 = if_result_1
@@ -181,7 +181,7 @@ func compiler__map__gtParseToken_variadic(args ...flagrt.Value) flagrt.Value {
 func compiler__emit_token_bang_arity_4(out flagrt.Value, token flagrt.Value, line flagrt.Value, offset flagrt.Value) flagrt.Value {
 	var if_result_185 flagrt.Value
 	if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(token))) {
-		if_result_185 = flagrt.NilValue()
+		if_result_185 = flagrt.NilValue
 	} else {
 		if_result_185 = flagrt.Call(async__channel_send, out, flagrt.Call(compiler____gtSourceToken, token, line, offset))
 	}
@@ -410,7 +410,7 @@ func compiler__token__gtstring_value_arity_1(token flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(flagrt.NewBool(true)) {
 					if_result_209 = token
 				} else {
-					if_result_209 = flagrt.NilValue()
+					if_result_209 = flagrt.NilValue
 				}
 				if_result_210 = if_result_209
 			}
@@ -513,7 +513,7 @@ func compiler__source_token__gtparse_token_arity_1(__arg0 flagrt.Value) flagrt.V
 														if flagrt.IsTruthy(flagrt.NewBool(true)) {
 															if_result_217 = flagrt.Call(compiler____gtParseToken, compiler__token_atom, token, flagStr_, flagStr_, line, offset)
 														} else {
-															if_result_217 = flagrt.NilValue()
+															if_result_217 = flagrt.NilValue
 														}
 														if_result_218 = if_result_217
 													}
@@ -620,7 +620,7 @@ func compiler__tokenize_line_step_bang_arity_5(out flagrt.Value, chars flagrt.Va
 											if flagrt.IsTruthy(flagrt.NewBool(true)) {
 												if_result_234 = flagrt.NewRecur(flagrt.Rest(remaining), flagrt.Call(inc, col), flagrt.Call(compiler__make_state, flagrt.NewString(token), flagrt.Call(flagKw_start_line, current), flagrt.Call(flagKw_start_offset, current), flagrt.NewBool(true), flagrt.NewBool(false), flagrt.NewBool(false)))
 											} else {
-												if_result_234 = flagrt.NilValue()
+												if_result_234 = flagrt.NilValue
 											}
 											if_result_235 = if_result_234
 										}
@@ -684,7 +684,7 @@ func compiler__tokenize_line_step_bang_arity_5(out flagrt.Value, chars flagrt.Va
 													}
 													if_result_242 = if_result_241
 												} else {
-													if_result_242 = flagrt.NilValue()
+													if_result_242 = flagrt.NilValue
 												}
 												if_result_243 = if_result_242
 											}
@@ -906,7 +906,7 @@ func compiler__tokenize_file_parse_tokens_arity_1(path flagrt.Value) flagrt.Valu
 				panic("fn expects exactly 0 arguments")
 			}
 			return func() flagrt.Value {
-				var last_token = flagrt.NilValue()
+				var last_token = flagrt.NilValue
 				for {
 					var let_result_268 flagrt.Value
 					{

@@ -10,7 +10,10 @@ Use the `test` command:
 
 ```bash
 go run ./cmd/flag-lang test path/to/src
+go run ./cmd/flag-lang test examples/FRS
 ```
+
+`examples/FRS` is a compiler stress test: modular `:imports`, ratios, CSV/JSON, and prologue (`select-keys`, `apply max`). Generated inspect Go is package-mode `.flag-build/` (prologue linked, not inlined). `go test ./...` skips that dotted directory.
 
 You can point it at either:
 
@@ -49,4 +52,4 @@ When an `is` assertion fails, Smoke reports the source location of the assertion
 
 ## How Smoke runs
 
-Smoke compiles a temporary test harness, builds it, and runs the resulting binary. The test harness itself is temporary, but FLAG still writes the generated program Go file next to the source for inspection.
+Smoke compiles a temporary test harness, builds it, and runs the resulting binary. The harness is temporary. FLAG writes the program (no tests) to `.flag-build/` next to the source for inspection: one Go package per module, prologue linked rather than copied.

@@ -286,7 +286,7 @@ func exprToFlagValue(expr Expr) flagrt.Value {
 			flagrt.NewKeyword("numerator"), flagrt.NewLong(e.Numerator),
 			flagrt.NewKeyword("denominator"), flagrt.NewLong(e.Denominator))
 	default:
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 }
 

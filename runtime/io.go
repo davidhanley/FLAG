@@ -29,7 +29,7 @@ func CloseFile(v Value) Value {
 	if err := v.Close(); err != nil {
 		panic("close-file failed: " + err.Error())
 	}
-	return NilValue()
+	return NilValue
 }
 
 func OpenWriter(path string) Value {
@@ -55,7 +55,7 @@ func Write(file Value, content string) Value {
 		if _, err := f.File.WriteString(content); err != nil {
 			panic("write failed: " + err.Error())
 		}
-		return NilValue()
+		return NilValue
 	default:
 		panic("write expects a file")
 	}
@@ -140,7 +140,7 @@ func readLineFile(file *FileObject) Value {
 		panic("io/readline failed: " + err.Error())
 	}
 	if err == io.EOF && line == "" {
-		return NilValue()
+		return NilValue
 	}
 	return NewString(strings.TrimRight(line, "\r\n"))
 }

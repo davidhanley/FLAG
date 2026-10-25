@@ -90,7 +90,7 @@ func readJSONValue(name string, source Value, options jsonReadOptions) Value {
 		decoder.UseNumber()
 		obj, ok := decodeJSONObject(name, decoder, false)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		return jsonToValueWithOptions(obj, options)
 	case TagFile:
@@ -102,7 +102,7 @@ func readJSONValue(name string, source Value, options jsonReadOptions) Value {
 		decoder.UseNumber()
 		obj, ok := decodeJSONObject(name, decoder, true)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		restoreJSONBufferedInput(file, decoder, reader)
 		return jsonToValueWithOptions(obj, options)
@@ -194,7 +194,7 @@ func jsonToValue(obj any) Value {
 func jsonToValueWithOptions(obj any, options jsonReadOptions) Value {
 	switch val := obj.(type) {
 	case nil:
-		return NilValue()
+		return NilValue
 	case bool:
 		return NewBool(val)
 	case int64:

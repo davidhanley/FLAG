@@ -46,9 +46,8 @@ Inside the REPL:
 ```
 
 ```bash
-go run ./cmd/flag-lang compile examples/hello/src/main.flag -o hello.go
-go build -o /dev/null hello.go
-go run ./hello.go
+go run ./cmd/flag-lang compile examples/hello/src/main.flag
+go build -C examples/hello/src/.flag-build -o /dev/null .
 ```
 
 ```bash

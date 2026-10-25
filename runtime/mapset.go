@@ -87,7 +87,7 @@ func indexedAssocOne(coll Value, index int, item Value) Value {
 func Keys(coll Value) Value {
 	switch coll.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagMap, TagDate:
 		entries := coll.MapEntries()
 		keys := make([]Value, 0, len(entries))
@@ -103,7 +103,7 @@ func Keys(coll Value) Value {
 func Vals(coll Value) Value {
 	switch coll.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagMap, TagDate:
 		entries := coll.MapEntries()
 		vals := make([]Value, 0, len(entries))
@@ -119,23 +119,23 @@ func Vals(coll Value) Value {
 func Find(coll Value, key Value) Value {
 	switch coll.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagMap:
 		value, ok := coll.mapPointer().items.Get(key)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		return NewArray(key, value)
 	case TagDate:
 		value, ok := dateFieldValue(coll, key)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		return NewArray(key, value)
 	case TagRecord:
 		value, ok := recordFieldValue(coll, key)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		return NewArray(key, value)
 	default:
@@ -264,7 +264,7 @@ func Disjoint(set1 Value, set2 Value) bool {
 
 func RenameKeys(coll Value, keyMap Value) Value {
 	if coll.tag == TagNil {
-		return NilValue()
+		return NilValue
 	}
 	if coll.tag != TagMap {
 		panic("rename-keys expects map and key-map")
@@ -291,7 +291,7 @@ func RenameKeys(coll Value, keyMap Value) Value {
 
 func MapInvert(coll Value) Value {
 	if coll.tag == TagNil {
-		return NilValue()
+		return NilValue
 	}
 	if coll.tag != TagMap {
 		panic("map-invert expects map")
@@ -392,7 +392,7 @@ func Dissoc(coll Value, keys ...Value) Value {
 }
 
 func Get(coll Value, key Value, notFound ...Value) Value {
-	missing := NilValue()
+	missing := NilValue
 	if len(notFound) > 1 {
 		panic("get expects map, key, and optional default")
 	}
@@ -467,6 +467,8 @@ func associativeIndex(key Value) (int, bool) {
 
 func Contains(coll Value, key Value) bool {
 	switch coll.tag {
+	case TagNil:
+		return false
 	case TagMap:
 		_, ok := coll.mapPointer().items.Get(key)
 		return ok
@@ -486,7 +488,7 @@ func Contains(coll Value, key Value) bool {
 func MapDissoc(coll Value, keys ...Value) Value {
 	switch coll.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagMap:
 		items := coll.mapPointer().items
 		for _, key := range keys {

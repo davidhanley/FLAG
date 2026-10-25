@@ -631,7 +631,7 @@ func flagTryToIR(bodyStmts []IRStmt, bodyExpr IRExpr, catches []tryCatchIR, fina
 			flagrt.NewKeyword("expr"), irExprToFlagValue(irFromGoExpr(*finally)),
 		)
 	} else {
-		finallyVal = flagrt.NilValue()
+		finallyVal = flagrt.NilValue
 	}
 	return flagIRCall(compiler__try_to_ir, irStmtsToFlagVector(bodyStmts), irExprToFlagValue(bodyExpr), flagrt.NewArray(catchVals...), finallyVal)
 }
@@ -914,7 +914,7 @@ func flagKW(name string) flagrt.Value {
 
 func constantInternerToFLAG(c *constantInterner) flagrt.Value {
 	if c == nil {
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 	byPairs := make([]flagrt.Value, 0, len(c.byCode)*2)
 	for k, v := range c.byCode {
@@ -1221,7 +1221,7 @@ func applySeededContext(ctx *compileContext, v flagrt.Value) error {
 
 func moduleToFLAG(mod *Module) flagrt.Value {
 	if mod == nil {
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 	imports := make([]flagrt.Value, 0, len(mod.Header.Imports))
 	for _, spec := range mod.Header.Imports {
@@ -1462,7 +1462,7 @@ func flagCompileInlineProgram(entryPath string, testPaths []string) (result comp
 	return compileResultFromFLAG(out)
 }
 
-func flagCompileProgramPackages(entryPath string) (pkgs []CompiledPackage, err error) {
+func flagCompileProgramPackages(entryPath string, testPaths []string) (pkgs []CompiledPackage, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = recoverFLAG(r)
@@ -1472,6 +1472,11 @@ func flagCompileProgramPackages(entryPath string) (pkgs []CompiledPackage, err e
 	prog, err := LoadProgram(entryPath)
 	if err != nil {
 		return nil, err
+	}
+	if len(testPaths) > 0 {
+		if err := appendTestForms(prog.Entry, testPaths); err != nil {
+			return nil, err
+		}
 	}
 	shared := newEmptyCompileContext()
 	shared.packageMode = true

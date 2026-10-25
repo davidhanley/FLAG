@@ -228,7 +228,7 @@ flag-lang build path/to/main.flag
 5. Write a generated `go.mod` (`module flagbuild`, `replace flag-lang => <repo>`)
 6. `go build`
 
-Generated Go is left next to the source in **`.flag-build/`** (entry `main.go` plus one subdirectory per library package) and as **`<name>.go`** beside the entry file. `go test ./...` skips the dotted directory.
+Generated Go is left next to the source in **`.flag-build/`** (entry `main.go` plus one subdirectory per library package, including `prologue/`). `go test ./...` skips the dotted directory. Do not copy `main.go` next to FLAG sources: it imports `flagbuild/*`. `flag-lang compile -o file.go` still writes packages under `.flag-build/` and deletes that stale `.go` sidecar so inspect does not show inlined `prologue__inc`.
 
 Each library package also gets a **`.flagi`** FLAG interface file: the module header, full exported `defmacro` forms, and `(declare name …)` for exported functions and vars (no bodies). Importers use that interface at FLAG compile time; calls go to the other Go package. Small functions may be inlined via `.flagi` later; they are not inlined today.
 
@@ -236,7 +236,7 @@ Imported functions are not copied into the entry file. If `B` and `C` both impor
 
 The language prelude is a normal FLAG module compiled once to `flagbuild/prologue`. Unqualified names such as `inc` resolve to `prologue.Inc`. Macros expand at FLAG compile time and are not emitted as Go. Imported modules are never copied into the importer.
 
-`flag-lang compile`, `flag-lang test`, and the REPL still inline the import graph into a single `package main` (unique Go identifiers per `namespace` + local name, e.g. `math__add`).
+`flag-lang compile`, `flag-lang build`, and `flag-lang test` all use this package emit when the entry has a module header. Two FLAG files that share a `:namespace` cannot be separate Go packages yet (for example `libraries/compiler/*.lib`); those programs still inline into one `package main`. Headerless / legacy `(ns …)` test trees also use the inlined path so unexported prelude names such as `peek` stay visible. The REPL and code generators (`tokengen` and friends) always inline.
 
 Directory builds should use an entry file (or a designated main module). Concatenating every file in a directory without regard to imports is the old model and will be phased out for modular projects.
 

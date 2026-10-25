@@ -648,7 +648,10 @@ func CompileTokens(tokens <-chan SourceToken) ([]byte, error) {
 	return emitGoProgram(result)
 }
 
-// CompileProgram loads entryPath and its import graph, then emits one Go program.
+// CompileProgram loads entryPath and inlines the import graph (including
+// prologue) into one package main. CLI compile/build/test use
+// CompileProgramPackages instead. Generators still call this so tokengen,
+// astgen, expandmacrosgen, and lowergen emit a single Go file.
 func CompileProgram(entryPath string) ([]byte, error) {
 	result, err := compileProgram(entryPath, nil)
 	if err != nil {

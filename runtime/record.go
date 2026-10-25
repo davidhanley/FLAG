@@ -50,17 +50,17 @@ func GoStruct[T any](v Value) T {
 func recordFieldValue(coll Value, key Value) (Value, bool) {
 	name, ok := recordKeyName(key)
 	if !ok {
-		return NilValue(), false
+		return NilValue, false
 	}
 	rv := reflect.ValueOf(coll.recordBox().value)
 	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
-			return NilValue(), false
+			return NilValue, false
 		}
 		rv = rv.Elem()
 	}
 	if rv.Kind() != reflect.Struct {
-		return NilValue(), false
+		return NilValue, false
 	}
 	rt := rv.Type()
 	for i := 0; i < rt.NumField(); i++ {
@@ -70,7 +70,7 @@ func recordFieldValue(coll Value, key Value) (Value, bool) {
 		}
 		return goValueToRecordField(rv.Field(i)), true
 	}
-	return NilValue(), false
+	return NilValue, false
 }
 
 func recordKeyName(key Value) (string, bool) {
@@ -121,7 +121,7 @@ func RequireBool(v Value) bool {
 
 func goValueToRecordField(field reflect.Value) Value {
 	if !field.IsValid() {
-		return NilValue()
+		return NilValue
 	}
 	switch field.Kind() {
 	case reflect.String:
@@ -141,6 +141,6 @@ func goValueToRecordField(field reflect.Value) Value {
 		if field.CanInterface() {
 			return NewRecord(field.Interface())
 		}
-		return NilValue()
+		return NilValue
 	}
 }

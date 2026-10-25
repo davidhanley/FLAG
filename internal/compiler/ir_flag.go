@@ -256,7 +256,7 @@ func flagIRTruthy(v flagrt.Value) bool {
 
 func irExprToFlagValue(ir IRExpr) flagrt.Value {
 	if ir == nil {
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 	switch e := ir.(type) {
 	case IRIdent:
@@ -301,13 +301,13 @@ func irExprToFlagValue(ir IRExpr) flagrt.Value {
 			flagrt.NewKeyword("result"), flagrt.NewString(e.Result),
 			flagrt.NewKeyword("body"), irStmtsToFlagVector(e.Body))
 	default:
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 }
 
 func irStmtToFlagValue(stmt IRStmt) flagrt.Value {
 	if stmt == nil {
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 	switch s := stmt.(type) {
 	case IRRawStmt:
@@ -352,7 +352,7 @@ func irStmtToFlagValue(stmt IRStmt) flagrt.Value {
 			flagrt.NewKeyword("result"), flagrt.NewString(s.Result),
 			flagrt.NewKeyword("body"), irStmtsToFlagVector(s.Body))
 	default:
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}
 }
 

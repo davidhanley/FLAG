@@ -18,7 +18,8 @@ func TestRenderIRExpr(t *testing.T) {
 		{"negative-int", IRInt{Value: -7}, "-7"},
 		{"selector", IRSelector{Pkg: "flagrt", Name: "NewLong"}, "flagrt.NewLong"},
 		{"bare-selector", IRSelector{Name: "println"}, "println"},
-		{"call-no-args", IRCall{Fun: IRSelector{Pkg: "flagrt", Name: "NilValue"}}, "flagrt.NilValue()"},
+		{"nil-var", IRSelector{Pkg: "flagrt", Name: "NilValue"}, "flagrt.NilValue"},
+		{"call-no-args", IRCall{Fun: IRSelector{Pkg: "flagrt", Name: "Seq"}}, "flagrt.Seq()"},
 		{
 			"new-long",
 			rtCall("NewLong", IRInt{Value: 42}),

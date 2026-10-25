@@ -25,7 +25,7 @@ func TestFLAGLiteralLowering(t *testing.T) {
 		{"quoted-symbol", QuotedSymbolExpr{Name: "abc"}, `flagrt.NewSymbol("abc")`},
 		{"true", SymbolExpr{Name: "true"}, "flagrt.NewBool(true)"},
 		{"false", SymbolExpr{Name: "false"}, "flagrt.NewBool(false)"},
-		{"nil", SymbolExpr{Name: "nil"}, "flagrt.NilValue()"},
+		{"nil", SymbolExpr{Name: "nil"}, "flagrt.NilValue"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -38,6 +38,23 @@ func TestFLAGLiteralLowering(t *testing.T) {
 				t.Fatalf("got %q want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestFLAGNilLiteralIsSelector(t *testing.T) {
+	ir, err := flagLiteralToIR(SymbolExpr{Name: "nil"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sel, ok := ir.(IRSelector)
+	if !ok {
+		t.Fatalf("nil IR %T, want IRSelector", ir)
+	}
+	if sel.Pkg != "flagrt" || sel.Name != "NilValue" {
+		t.Fatalf("nil selector %+v", sel)
+	}
+	if _, isCall := ir.(IRCall); isCall {
+		t.Fatal("nil must not be IRCall")
 	}
 }
 
@@ -546,7 +563,7 @@ func TestFLAGDoDeferToIR(t *testing.T) {
 	if !strings.Contains(got, "defer flagrt.Call(f)") {
 		t.Fatalf("missing defer:\n%s", got)
 	}
-	if !strings.Contains(got, "return flagrt.NilValue()") {
+	if !strings.Contains(got, "return flagrt.NilValue") {
 		t.Fatalf("missing nil return:\n%s", got)
 	}
 }
@@ -654,7 +671,7 @@ func TestFLAGThrowToIR(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := renderIRExpr(ir)
-	want := "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue()\n}()"
+	want := "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -798,7 +815,7 @@ func TestFLAGDoseqToIR(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := renderIRExpr(ir)
-	want := "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue()\n}()"
+	want := "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -1291,7 +1308,7 @@ func TestFLAGCompileFormIfEq(t *testing.T) {
 	if strings.Contains(rendered, "IsTruthy") || strings.Contains(rendered, "NewBool") {
 		t.Fatalf("if (=) still boxed:\n%s", rendered)
 	}
-	if !strings.Contains(rendered, "if flagrt.Eq(tmp, flagrt.NilValue())") {
+	if !strings.Contains(rendered, "if flagrt.Eq(tmp, flagrt.NilValue)") {
 		t.Fatalf("missing native bool test:\n%s", rendered)
 	}
 }
@@ -1488,7 +1505,7 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	if got.kind != exprKindBool {
 		t.Fatalf("nil? kind %v", got.kind)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.IsNil(flagrt.NilValue())" {
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.IsNil(flagrt.NilValue)" {
 		t.Fatalf("nil? %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -2250,7 +2267,7 @@ func TestFLAGCompileFormThrow(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered := renderIRExpr(irFromGoExpr(got))
-	for _, want := range []string{"flagrt.Throw(err)", "return flagrt.NilValue()"} {
+	for _, want := range []string{"flagrt.Throw(err)", "return flagrt.NilValue"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
@@ -2726,7 +2743,7 @@ func TestFLAGCompileFormDotTestingHashDestructure(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered := renderIRExpr(irFromGoExpr(got))
-	for _, want := range []string{"_ = flagrt.NewLong(1)", "return flagrt.NilValue()"} {
+	for _, want := range []string{"_ = flagrt.NewLong(1)", "return flagrt.NilValue"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("testing missing %q in:\n%s", want, rendered)
 		}
@@ -2744,7 +2761,7 @@ func TestFLAGCompileFormDotTestingHashDestructure(t *testing.T) {
 	for _, want := range []string{
 		"if !(true)",
 		`panic("ok")`,
-		"return flagrt.NilValue()",
+		"return flagrt.NilValue",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("is missing %q in:\n%s", want, rendered)
@@ -2962,7 +2979,7 @@ func TestFLAGCompileFormsDo(t *testing.T) {
 }
 
 func TestFLAGInternIR(t *testing.T) {
-	inline := flagrt.Call(compiler__intern_ir, flagrt.NilValue(), flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
+	inline := flagrt.Call(compiler__intern_ir, flagrt.NilValue, flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
 	if flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))) != `flagrt.NewKeyword("foo")` {
 		t.Fatalf("inline name %q", flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))))
 	}
@@ -2991,7 +3008,7 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 		functions: []functionDef{{
 			flagName: "flag_main",
 			goName:   "flag_main",
-			irDecls:  []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+			irDecls:  []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue\n}\n"}},
 		}},
 		vars:  []varDef{{goName: "flagKw_foo", expr: `flagrt.NewKeyword("foo")`}},
 		stmts: []mainStmt{{code: "flagrt.NewLong(1)", kind: exprKindValue}},
@@ -3018,7 +3035,7 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 		functions: []functionDef{{
 			doc:     "add two numbers",
 			goName:  "Add",
-			irDecls: []IRStmt{IRRawStmt{Code: "func Add() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+			irDecls: []IRStmt{IRRawStmt{Code: "func Add() flagrt.Value {\n\treturn flagrt.NilValue\n}\n"}},
 		}},
 	}, false)
 	if err != nil {
@@ -3317,7 +3334,7 @@ func TestFLAGRenderIRMatchesGo(t *testing.T) {
 		IRInt{Value: -7},
 		IRSelector{Pkg: "flagrt", Name: "NewLong"},
 		IRSelector{Name: "println"},
-		rtCall("NilValue"),
+		IRSelector{Pkg: "flagrt", Name: "NilValue"},
 		rtCall("NewLong", IRInt{Value: 42}),
 		rtCall("NewString", IRString{Value: "hi"}),
 		IRRaw{Code: "1e2"},
@@ -3370,9 +3387,9 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 			name: "ir-decls",
 			fn: functionDef{irDecls: []IRStmt{IRFuncDecl{
 				Name: "foo", Result: "flagrt.Value",
-				Body: []IRStmt{IRReturn{Expr: rtCall("NilValue")}},
+				Body: []IRStmt{IRReturn{Expr: IRSelector{Pkg: "flagrt", Name: "NilValue"}}},
 			}}},
-			want: "func foo() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n",
+			want: "func foo() flagrt.Value {\n\treturn flagrt.NilValue\n}\n",
 		},
 		{
 			name: "rest",
@@ -3423,7 +3440,7 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 		},
 		{
 			name: "unused-rest-local-init",
-			fn:   functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"},
+			fn:   functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue"},
 			want: "func drop_variadic(args ...flagrt.Value) flagrt.Value {\n" +
 				"\tif len(args) < 1 {\n" +
 				"\t\tpanic(\"drop expects at least 1 arguments\")\n" +
@@ -3431,7 +3448,7 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 				"\t_ = args[0]\n" +
 				"\tvar tmp flagrt.Value\n" +
 				"\t_ = tmp\n" +
-				"\treturn flagrt.NilValue()\n" +
+				"\treturn flagrt.NilValue\n" +
 				"}\n",
 		},
 	}
@@ -3452,10 +3469,10 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 }
 
 func TestFLAGRenderFunctionLiterals(t *testing.T) {
-	zero := functionDef{goName: "id", arityName: "id_arity_0", variadicName: "id_variadic", body: "flagrt.NilValue()"}
+	zero := functionDef{goName: "id", arityName: "id_arity_0", variadicName: "id_variadic", body: "flagrt.NilValue"}
 	one := functionDef{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x", bodyPrelude: "\t_ = x\n"}
 	rest := functionDef{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"}
-	unused := functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"}
+	unused := functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue"}
 	multi := functionDef{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
 		{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
 		{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
@@ -3470,7 +3487,7 @@ func TestFLAGRenderFunctionLiterals(t *testing.T) {
 	if got, want := renderDirectFunctionLiteral(one), "func(x flagrt.Value) flagrt.Value {\n\t_ = x\n\treturn x\n}"; got != want {
 		t.Fatalf("literal got:\n%s\nwant:\n%s", got, want)
 	}
-	if got, want := renderDirectFunctionLiteral(zero), "func() flagrt.Value {\n\treturn flagrt.NilValue()\n}"; got != want {
+	if got, want := renderDirectFunctionLiteral(zero), "func() flagrt.Value {\n\treturn flagrt.NilValue\n}"; got != want {
 		t.Fatalf("zero literal got:\n%s\nwant:\n%s", got, want)
 	}
 	if got, want := renderVariadicFunctionLiteral(one), "func(args ...flagrt.Value) flagrt.Value {\n"+
@@ -3505,7 +3522,7 @@ func TestFLAGRenderFunctionLiterals(t *testing.T) {
 		"\t_ = args[0]\n"+
 		"\tvar tmp flagrt.Value\n"+
 		"\t_ = tmp\n"+
-		"\treturn flagrt.NilValue()\n"+
+		"\treturn flagrt.NilValue\n"+
 		"}"; got != want {
 		t.Fatalf("fn literal unused got:\n%s\nwant:\n%s", got, want)
 	}

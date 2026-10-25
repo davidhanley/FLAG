@@ -13,7 +13,7 @@ func Sleep(ms Value) Value {
 		panic("sleep expects non-negative milliseconds")
 	}
 	time.Sleep(time.Duration(n) * time.Millisecond)
-	return NilValue()
+	return NilValue
 }
 
 func TimeNow() Value {

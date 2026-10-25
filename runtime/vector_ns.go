@@ -11,7 +11,7 @@ func VectorNSGet(coll Value, index Value, notFound ...Value) Value {
 		panic("vector/get expects at most one not-found value")
 	}
 	i := nonNegativeCount("vector/get", index)
-	missing := NilValue()
+	missing := NilValue
 	if len(notFound) == 1 {
 		missing = notFound[0]
 	}
