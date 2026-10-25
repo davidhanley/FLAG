@@ -479,6 +479,34 @@ func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
 	}
 }
 
+func TestCompileRestPreludeCallsUseVariadic(t *testing.T) {
+	output, err := Compile(`
+(defn use-rest [xs]
+  (mapcat rest xs))
+(println (interleave [1] [2]))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"mapcat_variadic(",
+		"interleave_variadic(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing rest call %q:\n%s", want, got)
+		}
+	}
+	for _, refuse := range []string{
+		"mapcat_arity_2(",
+		"interleave_arity_2(",
+	} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("rest fn called as fixed arity %q:\n%s", refuse, got)
+		}
+	}
+}
+
 func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
 	output, err := Compile(`
 (defn choose [x]
@@ -797,7 +825,7 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"close_variadic(rdr)",
+		"close_arity_1(rdr)",
 		"flagrt.OpenFile(\"sample.txt\")",
 		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
@@ -820,7 +848,7 @@ func TestCompileWithChannelEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"close_variadic(ch)",
+		"close_arity_1(ch)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -843,7 +871,7 @@ func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
 	for _, want := range []string{
 		`flagrt.FnCloseFile(x)`,
 		`flagrt.FnCloseChannel(x)`,
-		"close_variadic(x)",
+		"close_arity_1(x)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1058,7 +1086,7 @@ func TestCompileTopLevelExpressionExecutesInMain(t *testing.T) {
 	}
 
 	got := string(output)
-	want := "_ = fib_variadic(flagrt.NewLong(7))"
+	want := "_ = fib_arity_1(flagrt.NewLong(7))"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected top-level execution statement %q:\n%s", want, got)
 	}
@@ -1238,7 +1266,7 @@ func TestReplCompilerDefnBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(sq_variadic(flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_arity_1(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
 	}
 }
@@ -1264,7 +1292,7 @@ func TestReplCompilerDefnRedef(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(sq_variadic(flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_arity_1(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
 	}
 }
@@ -1316,7 +1344,7 @@ func TestReplCompilerDefrecordBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine record lookup returned error: %v", err)
 	}
-	if !strings.Contains(lookup.ResultExpr, "__gtFood_variadic(flagrt.NewLong(10), flagrt.NewLong(200))") {
+	if !strings.Contains(lookup.ResultExpr, "__gtFood_arity_2(flagrt.NewLong(10), flagrt.NewLong(200))") {
 		t.Fatalf("unexpected record lookup expression: %s", lookup.ResultExpr)
 	}
 }

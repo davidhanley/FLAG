@@ -463,6 +463,29 @@ func TestAcceptanceFRSFlagTests(t *testing.T) {
 	}
 }
 
+// Acceptance: `flag-lang build` of FRS must typecheck (function Values are not
+// wrapped in NewFunction).
+func TestAcceptanceFRSBuild(t *testing.T) {
+	chdirRepoRoot(t)
+	exampleDir, err := filepath.Abs(filepath.Join("examples", "FRS"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	entry := filepath.Join(exampleDir, "frs.flag")
+	outputPath := filepath.Join(t.TempDir(), "frs-bin")
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "FRS.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "frs.go"))
+		_ = os.RemoveAll(filepath.Join(exampleDir, ".flag-build"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"build", entry, "-o", outputPath}); err != nil {
+		t.Fatalf("flag-lang build examples/FRS/frs.flag: %v", err)
+	}
+}
+
 // Acceptance: examples/concurrency FLAG tests (sleep, go, fib) via `flag-lang test`.
 func TestAcceptanceConcurrencyFlagTests(t *testing.T) {
 	chdirRepoRoot(t)

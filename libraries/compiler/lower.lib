@@ -559,10 +559,7 @@
       (let [go-ident (get module name)]
         (if (and (not (nil? globals)) (contains? globals go-ident))
           (ident-ir go-ident (get globals go-ident))
-          (if (and (not (nil? functions)) (contains? functions go-ident))
-            {:ir (literal-rt-call "NewFunction" [{:kind :ident :name go-ident}])
-             :expr-kind :value}
-            {:ir {:kind :ident :name go-ident} :expr-kind :value})))
+          {:ir {:kind :ident :name go-ident} :expr-kind :value}))
 
       (and ident
            (not (= "" ident))
@@ -574,8 +571,7 @@
            (not (= "" ident))
            (not (nil? functions))
            (contains? functions ident))
-      {:ir (literal-rt-call "NewFunction" [{:kind :ident :name ident}])
-       :expr-kind :value}
+      {:ir {:kind :ident :name ident} :expr-kind :value}
 
       (contains? builtin-fn-idents name)
       {:ir (literal-rt-call "NewFunction" [{:kind :selector :pkg "flagrt" :name (get builtin-fn-idents name)}])
@@ -2093,6 +2089,91 @@
             true
             (recur (inc i))))))))
 
+(defn go-call-ir [name]
+  (if (or (nil? name) (= "" name))
+    nil
+    (if (str-contains? name ".")
+      {:kind :raw :code name}
+      {:kind :ident :name name})))
+
+(defn conventional-fn-info [go nargs]
+  (let [arity-name (str go "_arity_" nargs)]
+    {:has-rest false
+     :variadic-name (str go "_variadic")
+     :arity-name arity-name
+     :arity nargs
+     :arity-names {nargs arity-name}}))
+
+(defn functions-call-info [functions go nargs]
+  (if (or (nil? functions) (nil? go) (= "" go) (not (contains? functions go)))
+    nil
+    (let [entry (get functions go)]
+      (if (or (nil? entry) (= false entry))
+        nil
+        (if (= true entry)
+          (conventional-fn-info go nargs)
+          entry)))))
+
+(defn call-fun-from-info [info nargs]
+  (if (nil? info)
+    nil
+    (if (:has-rest info)
+      (go-call-ir (:variadic-name info))
+      (let [named (get (or (:arity-names info) {}) nargs)]
+        (if named
+          (go-call-ir named)
+          (if (and (not (nil? (:arity info)))
+                   (= nargs (:arity info))
+                   (not (or (nil? (:arity-name info)) (= "" (:arity-name info)))))
+            (go-call-ir (:arity-name info))
+            (go-call-ir (:variadic-name info))))))))
+
+(defn fn-call-info [fn]
+  (let [has-rest (if (:has-rest fn) true false)
+        given (or (:arity-names fn) {})
+        arity-name (or (:arity-name fn) "")
+        n (count (stmt-list (:params fn)))
+        names (if (and (not has-rest)
+                       (or (nil? given) (empty? given))
+                       (not (= "" arity-name)))
+                {n arity-name}
+                given)]
+    {:has-rest has-rest
+     :variadic-name (or (:variadic-name fn) "")
+     :arity-name arity-name
+     :arity (if (or has-rest (not (= 1 (count names))))
+              nil
+              n)
+     :arity-names names}))
+
+(defn qualify-go-name [pkg-name package-mode? name]
+  (if (or (nil? name) (= "" name))
+    name
+    (if (or (not package-mode?) (str-contains? name "."))
+      name
+      (str pkg-name "." name))))
+
+(defn qualify-arity-names [names pkg-name package-mode?]
+  (loop [remaining (keys (or names {})) out {}]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [k (first remaining)]
+        (recur (rest remaining)
+               (assoc out k (qualify-go-name pkg-name package-mode? (get names k))))))))
+
+(defn qualify-fn-info [info pkg-name package-mode?]
+  (if (nil? info)
+    nil
+    (assoc info
+           :variadic-name (qualify-go-name pkg-name package-mode? (:variadic-name info))
+           :arity-name (qualify-go-name pkg-name package-mode? (:arity-name info))
+           :arity-names (qualify-arity-names (:arity-names info) pkg-name package-mode?))))
+
+(defn register-fn-info [ctx go info]
+  (if (or (nil? go) (= "" go) (nil? info))
+    ctx
+    (assoc ctx :functions (map-put (or (:functions ctx) {}) go info))))
+
 (defn known-call-fun [name nargs ctx]
   (let [ident (go-ident-or-empty name)
         locals (:locals ctx)
@@ -2100,11 +2181,7 @@
         module (:module ctx)
         go-fns (:go-fns ctx)
         self (self-call-target name nargs ctx)
-        bind-fun (fn [bind] {:kind :raw :code (str "flagrt." bind ".FunctionObject().Fn")})
-        variadic-fun (fn [go]
-                       (if (or (nil? go) (= "" go) (str-contains? go "."))
-                         nil
-                         {:kind :ident :name (str go "_variadic")}))]
+        bind-fun (fn [bind] {:kind :raw :code (str "flagrt." bind ".FunctionObject().Fn")})]
     (cond
       self {:kind :ident :name self}
 
@@ -2112,9 +2189,10 @@
       nil
 
       (and (not (nil? module)) (contains? module name))
-      (let [go (get module name)]
-        (if (and (not (nil? functions)) (contains? functions go))
-          (variadic-fun go)
+      (let [go (get module name)
+            info (functions-call-info functions go nargs)]
+        (if info
+          (call-fun-from-info info nargs)
           (if (and (not (nil? go-fns)) (contains? go-fns name))
             (bind-fun (get go-fns name))
             (if (or (nil? go) (= "" go))
@@ -2125,7 +2203,7 @@
            (not (= "" ident))
            (not (nil? functions))
            (contains? functions ident))
-      (variadic-fun ident)
+      (call-fun-from-info (functions-call-info functions ident nargs) nargs)
 
       (and (not (nil? go-fns)) (contains? go-fns name))
       (bind-fun (get go-fns name))
@@ -3995,10 +4073,10 @@
       (assoc :if-temps (:if-temps inner))
       (assoc :constants (or (:constants inner) (:constants outer)))))
 
-(defn module-ctx-after-fn [outer compiled flag-name go-name]
+(defn module-ctx-after-fn [outer compiled flag-name go-name info]
   (let [inner (compiled-inner-ctx compiled)]
     (-> (module-ctx-keep outer inner)
-        (assoc :functions (map-put (or (:functions outer) {}) go-name true))
+        (register-fn-info go-name info)
         (assoc :globals (map-put (or (:globals outer) {}) go-name :value))
         (bind-module-name flag-name go-name))))
 
@@ -4037,6 +4115,11 @@
                 n (count (stmt-list params))
                 variadic (str go-name "_variadic")
                 arity-name (if has-rest variadic (str go-name "_arity_" n))
+                info {:has-rest has-rest
+                      :variadic-name variadic
+                      :arity-name arity-name
+                      :arity (if has-rest nil n)
+                      :arity-names (if has-rest {} {n arity-name})}
                 fn-ctx (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
                            (assoc :locals (:locals bound))
                            (assoc :self-function-name name)
@@ -4045,7 +4128,7 @@
                            (assoc :self-function-rest has-rest)
                            (assoc :self-arity-name (as-value arity-name))
                            (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
-                           (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                           (register-fn-info go-name info)
                            (bind-module-name name go-name))
                 compiled (coerce-form-value (compile-forms-to-ir body-els fn-ctx))
                 decls (defn-to-ir arity-name variadic go-name params has-rest
@@ -4056,6 +4139,7 @@
                         :variadic-name variadic
                         :arity-name arity-name
                         :has-rest has-rest
+                        :arity-names (:arity-names info)
                         :doc doc
                         :params params
                         :ir-decls decls
@@ -4063,7 +4147,7 @@
                         :body-stmts (:stmts compiled)
                         :init-stmts (:init-stmts bound)}
              :var (defn-var-binding name go-name variadic)
-             :ctx (module-ctx-after-fn ctx compiled name go-name)}))))))
+             :ctx (module-ctx-after-fn ctx compiled name go-name info)}))))))
 
 (defn compile-multi-arity-pending [arity-forms go-name ctx]
   (loop [remaining arity-forms seen {} pending [] names {} counts []]
@@ -4100,13 +4184,18 @@
     (throw (ex-info "defn expects at least one arity" {}))
     (let [parsed (compile-multi-arity-pending arity-forms go-name ctx)
           variadic (str go-name "_variadic")
+          info {:has-rest false
+                :variadic-name variadic
+                :arity-name ""
+                :arity nil
+                :arity-names (:names parsed)}
           fn-base (-> ctx
                       (assoc :self-function-name name)
                       (assoc :self-variadic-name (as-value variadic))
                       (assoc :self-arity-names (:names parsed))
                       (assoc :self-function-rest false)
                       (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
-                      (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                      (register-fn-info go-name info)
                       (bind-module-name name go-name))
           compiled (loop [remaining (:pending parsed) cur fn-base arities []]
                      (if (or (nil? remaining) (empty? remaining))
@@ -4133,11 +4222,12 @@
                   :variadic-name variadic
                   :arity-name ""
                   :has-rest false
+                  :arity-names (:names parsed)
                   :doc doc
                   :params []
                   :ir-decls decls}
        :var (defn-var-binding name go-name variadic)
-       :ctx (module-ctx-after-fn ctx (:ctx compiled) name go-name)})))
+       :ctx (module-ctx-after-fn ctx (:ctx compiled) name go-name info)})))
 
 (defn compile-defn-form [form ctx]
   (let [els (ast-elements form)]
@@ -4536,17 +4626,19 @@
           (recur (rest remaining) out)
           (recur (rest remaining) (assoc out name (first remaining))))))))
 
-(defn seed-one-export [ctx prefix pkg-name package-mode? exp defs macros spec-path]
+(defn seed-one-export [ctx prefix pkg-name package-mode? exp defs macros fn-info spec-path]
   (let [go-name (get defs exp)]
     (if go-name
-      (let [ref (if package-mode? (str pkg-name "." go-name) go-name)]
-        (bind-module-name ctx (as-value (str prefix "/" exp)) ref))
+      (let [ref (if package-mode? (str pkg-name "." go-name) go-name)
+            ctx (bind-module-name ctx (as-value (str prefix "/" exp)) ref)
+            info (qualify-fn-info (get fn-info exp) pkg-name package-mode?)]
+        (register-fn-info ctx ref info))
       (let [mac (get macros exp)]
         (if mac
           (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac (as-value (str prefix "/" exp)))))
           (throw (ex-info (str "import \"" spec-path "\": exported \"" exp "\" has no definition") {})))))))
 
-(defn seed-one-refer [ctx pkg-name package-mode? ref-name exports defs macros spec-path]
+(defn seed-one-refer [ctx pkg-name package-mode? ref-name exports defs macros fn-info spec-path]
   (if (not (contains? exports ref-name))
     (throw (ex-info (str "import \"" spec-path "\": cannot :refer \"" ref-name "\" (not in :exports)") {}))
     (let [go-name (get defs ref-name)]
@@ -4558,9 +4650,10 @@
               mod2 (if (or (nil? ns) (= "" ns))
                      mod1
                      (dissoc mod1 (as-value (str ns "/" ref-name))))
-              ctx1 (assoc ctx :module mod2)]
+              ctx1 (assoc ctx :module mod2)
+              info (qualify-fn-info (get fn-info ref-name) pkg-name package-mode?)]
           (try
-            (bind-module-name ctx1 ref-name ref)
+            (register-fn-info (bind-module-name ctx1 ref-name ref) ref info)
             (catch Throwable t
               (throw (ex-info (str "import \"" spec-path "\": :refer \"" ref-name "\": " (ex-message t)) {})))))
         (let [mac (get macros ref-name)]
@@ -4568,7 +4661,7 @@
             (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac ref-name)))
             (throw (ex-info (str "import \"" spec-path "\": referred \"" ref-name "\" has no definition") {}))))))))
 
-(defn seed-one-import [ctx importer-path spec by-path module-defs module-macros used-prefixes]
+(defn seed-one-import [ctx importer-path spec by-path module-defs module-macros module-fn-info used-prefixes]
   (let [spec-path (str (:path spec))
         resolved (resolve-import-path importer-path spec-path)
         provider (get by-path resolved)]
@@ -4584,7 +4677,8 @@
             (throw (ex-info (str "import prefix \"" prefix "\" already used by " prev) {}))
             (let [exports (module-export-set (:exports provider))
                   defs (get module-defs resolved)
-                  macros (or (get module-macros resolved) {})]
+                  macros (or (get module-macros resolved) {})
+                  fn-info (or (get module-fn-info resolved) {})]
               (if (nil? defs)
                 (throw (ex-info (str "import \"" spec-path "\": provider not compiled yet") {}))
                 (let [package-mode? (if (:package-mode ctx) true false)
@@ -4599,7 +4693,7 @@
                                ctx
                                (recur (rest remaining)
                                       (seed-one-export ctx prefix pkg-name package-mode?
-                                                       (as-value (str (first remaining))) defs macros spec-path))))
+                                                       (as-value (str (first remaining))) defs macros fn-info spec-path))))
                       refer-names (if (or (= :all (:refer spec)) (= "all" (:refer spec)))
                                     (or (:exports provider) [])
                                     (or (:refer spec) []))
@@ -4608,14 +4702,14 @@
                                ctx
                                (recur (rest remaining)
                                       (seed-one-refer ctx pkg-name package-mode?
-                                                      (as-value (str (first remaining))) exports defs macros spec-path))))]
+                                                      (as-value (str (first remaining))) exports defs macros fn-info spec-path))))]
                   {:ctx ctx3 :used-prefixes (assoc used-prefixes prefix resolved)})))))))))
 
-(defn seed-imports [ctx mod by-path module-defs module-macros]
+(defn seed-imports [ctx mod by-path module-defs module-macros module-fn-info]
   (loop [remaining (or (:imports mod) []) ctx ctx used {}]
     (if (or (nil? remaining) (empty? remaining))
       ctx
-      (let [out (seed-one-import ctx (:path mod) (first remaining) by-path module-defs module-macros used)]
+      (let [out (seed-one-import ctx (:path mod) (first remaining) by-path module-defs module-macros (or module-fn-info {}) used)]
         (recur (rest remaining) (:ctx out) (:used-prefixes out))))))
 
 (defn implicit-prologue-spec [prologue-path]
@@ -5082,6 +5176,7 @@
      :variadic-name variadic
      :arity-name arity-name
      :has-rest false
+     :arity-names {n arity-name}
      :doc ""
      :params params
      :ir-decls decls
@@ -5183,7 +5278,8 @@
                       map-ctor (record-ctor-function map-flag map-go ["m"] (:code map-body))
                       next-ctx (-> (:ctx map-body)
                                    (assoc :record-types (map-put (or (:record-types ctx) {}) type-name name))
-                                   (assoc :functions (map-put (map-put (or (:functions ctx) {}) ctor-go true) map-go true))
+                                   (register-fn-info ctor-go (fn-call-info ctor))
+                                   (register-fn-info map-go (fn-call-info map-ctor))
                                    (assoc :globals (map-put (map-put (or (:globals ctx) {}) ctor-go :value) map-go :value))
                                    (bind-module-name ctor-flag ctor-go)
                                    (bind-module-name map-flag map-go))]
@@ -5298,6 +5394,7 @@
          tests []
          stmts []
          defined {}
+         fn-info {}
          needs-fmt false
          type-decls []]
     (if (or (nil? remaining) (empty? remaining))
@@ -5306,6 +5403,7 @@
        :tests tests
        :stmts stmts
        :defined defined
+       :fn-info fn-info
        :ctx ctx
        :needs-fmt needs-fmt
        :type-decls type-decls}
@@ -5313,10 +5411,10 @@
             op (:op item)]
         (cond
           (= op :skip)
-          (recur (rest remaining) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+          (recur (rest remaining) (:ctx item) functions vars tests stmts defined fn-info needs-fmt type-decls)
 
           (= op :splice)
-          (recur (concat-stmts (:forms item) (rest remaining)) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+          (recur (concat-stmts (:forms item) (rest remaining)) (:ctx item) functions vars tests stmts defined fn-info needs-fmt type-decls)
 
           (= op :defn)
           (recur (rest remaining)
@@ -5326,6 +5424,7 @@
                  tests
                  stmts
                  (map-put defined (:flag-name (:function item)) (:go-name (:function item)))
+                 (map-put fn-info (:flag-name (:function item)) (fn-call-info (:function item)))
                  needs-fmt
                  type-decls)
 
@@ -5337,6 +5436,7 @@
                  tests
                  stmts
                  (map-put defined (:flag-name (:var item)) (:go-name (:var item)))
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5348,6 +5448,7 @@
                  (conj tests (:test item))
                  stmts
                  defined
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5359,6 +5460,7 @@
                  tests
                  stmts
                  (merge-defined-names defined (:names item))
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5370,6 +5472,7 @@
                  tests
                  stmts
                  defined
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5381,6 +5484,11 @@
                  tests
                  stmts
                  (merge-defined-names defined (:names item))
+                 (loop [remaining (:functions item) info fn-info]
+                   (if (or (nil? remaining) (empty? remaining))
+                     info
+                     (recur (rest remaining)
+                            (map-put info (:flag-name (first remaining)) (fn-call-info (first remaining))))))
                  needs-fmt
                  (conj type-decls (:type-decl item)))
 
@@ -5392,6 +5500,7 @@
                  tests
                  (conj stmts (:stmt item))
                  defined
+                 fn-info
                  (if (or needs-fmt (:needs-fmt item)) true false)
                  type-decls)
 
@@ -5409,6 +5518,7 @@
            shared ctx
            module-defs {}
            module-macros {}
+           module-fn-info {}
            acc {:type-decls [] :functions [] :vars [] :stmts [] :tests [] :needs-fmt false}]
       (if (or (nil? remaining) (empty? remaining))
         (assoc acc
@@ -5423,7 +5533,7 @@
                        (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
                        (assoc :module (or (:module shared) {}))
                        (assoc :go-imports []))
-              seeded (seed-imports ctx0 mod by-path module-defs module-macros)
+              seeded (seed-imports ctx0 mod by-path module-defs module-macros module-fn-info)
               exported (apply-go-exports mod (assoc seeded :allow-top-level (= (:path mod) entry-path)))
               expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
               compiled (compile-module-body expanded (:ctx exported))
@@ -5442,7 +5552,8 @@
                        (assoc :go-imports []))
                    (assoc module-defs (:path mod) (:defined compiled1))
                    (assoc module-macros (:path mod) macros)
-                   (append-compile-acc acc compiled1))))))))
+                  (assoc module-fn-info (:path mod) (or (:fn-info compiled1) {}))
+                  (append-compile-acc acc compiled1))))))))
 
 (defn compile-package-modules [modules ctx prologue-exports entry-path prologue-names]
   (let [by-path (loop [remaining modules out {}]
@@ -5462,6 +5573,7 @@
                        (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
                        (assoc :exported-names (module-export-set (:exports mod)))
                        (assoc :module {})
+                       (assoc :functions {})
                        (assoc :go-imports []))
               seeded (seed-imports ctx0 mod by-path
                                    (loop [pkgs out defs {}]
@@ -5473,7 +5585,12 @@
                                      (if (or (nil? pkgs) (empty? pkgs))
                                        macros
                                        (recur (rest pkgs)
-                                              (assoc macros (:path (first pkgs)) (:macros (first pkgs)))))))
+                                              (assoc macros (:path (first pkgs)) (:macros (first pkgs))))))
+                                   (loop [pkgs out info {}]
+                                     (if (or (nil? pkgs) (empty? pkgs))
+                                       info
+                                       (recur (rest pkgs)
+                                              (assoc info (:path (first pkgs)) (or (:fn-info (first pkgs)) {}))))))
               exported (apply-go-exports mod (assoc seeded :allow-top-level is-entry))
               expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
               compiled (compile-module-body expanded (:ctx exported))
@@ -5520,6 +5637,7 @@
                               :main? is-entry
                               :path (:path mod)
                               :defined (:defined compiled3)
+                              :fn-info (or (:fn-info compiled3) {})
                               :macros macros})))))))))
 
 (defn file-first-line [s]

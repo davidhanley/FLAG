@@ -376,6 +376,16 @@ func TestFLAGSymbolToIR(t *testing.T) {
 	if got.code != `flagrt.NewFunction(flagrt.FnFirst)` {
 		t.Fatalf("builtin %q", got.code)
 	}
+	got, err = flagSymbolToGoExpr("identity", "identity", compileContext{
+		moduleSymbols: map[string]string{"identity": "prologue.Identity"},
+		functions:     map[string]functionDef{"prologue.Identity": {}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "prologue.Identity" {
+		t.Fatalf("imported fn value %q", got.code)
+	}
 	if _, err := flagSymbolToGoExpr("nope", "nope", ctx, nil); err == nil {
 		t.Fatal("expected unknown symbol")
 	}
@@ -1423,7 +1433,7 @@ func TestFLAGCompileFormDirectCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "foo_variadic(flagrt.NewLong(1))" {
+	if renderIRExpr(irFromGoExpr(got)) != "foo_arity_1(flagrt.NewLong(1))" {
 		t.Fatalf("known fn %q", renderIRExpr(irFromGoExpr(got)))
 	}
 

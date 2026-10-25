@@ -803,8 +803,50 @@ func functionNamesToFLAG(m map[string]functionDef) flagrt.Value {
 		return flagrt.NewMap()
 	}
 	pairs := make([]flagrt.Value, 0, len(m)*2)
-	for name := range m {
-		pairs = append(pairs, flagrt.NewString(name), flagrt.NewBool(true))
+	for name, def := range m {
+		pairs = append(pairs, flagrt.NewString(name), functionCallInfoToFLAG(name, def))
+	}
+	return flagrt.NewMap(pairs...)
+}
+
+func functionCallInfoToFLAG(goName string, fn functionDef) flagrt.Value {
+	if !fn.hasRest && fn.variadicName == "" && fn.arityName == "" && len(fn.arities) == 0 && len(fn.params) == 0 {
+		return flagrt.NewBool(true)
+	}
+	arityPairs := make([]flagrt.Value, 0)
+	if len(fn.arities) > 0 {
+		for _, a := range fn.arities {
+			n := len(a.params)
+			name := a.arityName
+			if name == "" {
+				name = goName + "_arity_" + fmt.Sprintf("%d", n)
+			}
+			arityPairs = append(arityPairs, flagrt.NewLong(int64(n)), flagrt.NewString(name))
+		}
+	} else if !fn.hasRest {
+		n := len(fn.params)
+		name := fn.arityName
+		if name == "" {
+			name = goName + "_arity_" + fmt.Sprintf("%d", n)
+		}
+		arityPairs = append(arityPairs, flagrt.NewLong(int64(n)), flagrt.NewString(name))
+	}
+	variadic := fn.variadicName
+	if variadic == "" {
+		variadic = goName + "_variadic"
+	}
+	arityName := fn.arityName
+	if arityName == "" && !fn.hasRest && len(fn.arities) == 0 {
+		arityName = goName + "_arity_" + fmt.Sprintf("%d", len(fn.params))
+	}
+	pairs := []flagrt.Value{
+		flagKW("has-rest"), flagrt.NewBool(fn.hasRest),
+		flagKW("variadic-name"), flagrt.NewString(variadic),
+		flagKW("arity-name"), flagrt.NewString(arityName),
+		flagKW("arity-names"), flagrt.NewMap(arityPairs...),
+	}
+	if !fn.hasRest && len(fn.arities) == 0 {
+		pairs = append(pairs, flagKW("arity"), flagrt.NewLong(int64(len(fn.params))))
 	}
 	return flagrt.NewMap(pairs...)
 }
@@ -1345,6 +1387,7 @@ func flagSeedImports(ctx *compileContext, mod *Module, byPath map[string]*Module
 		modulesByPathToFLAG(byPath),
 		nestedStringMapsToFLAG(moduleDefs),
 		moduleMacrosToFLAG(moduleMacros),
+		flagrt.NewMap(),
 	)
 	return applySeededContext(ctx, out)
 }

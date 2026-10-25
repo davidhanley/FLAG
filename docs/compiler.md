@@ -149,7 +149,9 @@ still interned as `List`. Odd-length maps error.
 `call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
 only for unknown callees (locals, maps, sets, keywords, `apply`).
 `known-call-fun` picks a direct Go call when the head is a known function:
-same-package FLAG defns use `goName_variadic(...)`, `GoBind_*` hosts
+same-package FLAG defns use `goName_arity_N(...)` when that arity exists
+(`goName_variadic(...)` only for `& rest` or an unmatched arity). Imported
+FLAG defns use `pkg.Name_arity_N` the same way. `GoBind_*` hosts
 use `flagrt.GoBind_X.FunctionObject().Fn(...)`, and referred module
 go-exports (e.g. async `select`) use `goIdent.FunctionObject().Fn(...)`
 so they are not stolen by a same-named builtin. `builtin-call-fun` /
@@ -233,8 +235,10 @@ for strings and `FileToStrings` for Values.
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
 `:self-function-name`, `:self-variadic-name`). It matches Go resolution:
-locals, self `NewFunction`, module table, globals, functions,
-`flagrt.NewFunction(flagrt.FnX)` for builtins, then Go bindings.
+locals, self `NewFunction(variadic)`, module/globals/functions as the
+already-built `Value` var (`prologue.Identity`, not
+`NewFunction(prologue.Identity)`), `flagrt.NewFunction(flagrt.FnX)` for
+builtins, then Go bindings.
 `eval-ast-to-ir` uses that context to
 lower literals, evaluated collections, runtime ops, and generic calls.
 
@@ -417,10 +421,13 @@ prepends that file as the first module unless it is the entry.
 `with-implicit-prologue-import` adds `{:path pro :as "" :refer :all
 :skip-go-import true}` so every other module sees prelude names unqualified
 without a `flagbuild/prologue` import unless generated code references
-`prologue.`. `seed-imports` binds
-imported defs/macros (`:as` / `:refer`, package-mode `pkg.Name` plus
-`flagbuild/` imports). Later `:refer` of `second`/`third` overwrites
-implicit prelude bindings (`prelude-go-name?` / `can-rebind-module-name?`). `compile-inline-modules` is the inlined
+`prologue.`. `seed-imports` takes compiled
+`:fn-info` (FLAG name → arity map) as its sixth argument and registers
+qualified `pkg.Name_arity_N` / `_variadic` call targets for imported
+defs. It also binds imported defs/macros (`:as` / `:refer`, package-mode
+`pkg.Name` plus `flagbuild/` imports). Later `:refer` of `second`/`third`
+overwrites implicit prelude bindings (`prelude-go-name?` /
+`can-rebind-module-name?`). `compile-inline-modules` is the inlined
 `compileProgram` loop (expand via `compiler/expand-forms`, `:go-exports`
 via `compiler/go-bind-ident`, then `compile-module-body`).
 `compile-package-modules` emits per-module Go + `.flagi` (`emit-flagi`,

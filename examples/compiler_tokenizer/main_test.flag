@@ -532,8 +532,32 @@
 
 (deftest lower-known-call-fun
   (is (nil? (lower/known-call-fun "f" 1 {:locals {"f" :value}})))
-  (is (= {:kind :ident :name "foo_variadic"}
+  (is (= {:kind :ident :name "foo_arity_1"}
          (lower/known-call-fun "foo" 1 {:functions {"foo" true}})))
+  (is (= {:kind :ident :name "foo_arity_1"}
+         (lower/known-call-fun "foo" 1
+                               {:functions {"foo" {:has-rest false
+                                                   :variadic-name "foo_variadic"
+                                                   :arity-name "foo_arity_1"
+                                                   :arity 1
+                                                   :arity-names {1 "foo_arity_1"}}}})))
+  (is (= {:kind :ident :name "foo_variadic"}
+         (lower/known-call-fun "foo" 3
+                               {:functions {"foo" {:has-rest true
+                                                   :variadic-name "foo_variadic"}}})))
+  (is (= {:kind :ident :name "foo_arity_2"}
+         (lower/known-call-fun "foo" 2
+                               {:functions {"foo" {:has-rest false
+                                                   :variadic-name "foo_variadic"
+                                                   :arity-names {0 "foo_arity_0" 2 "foo_arity_2"}}}})))
+  (is (= {:kind :raw :code "prologue.Inc_arity_1"}
+         (lower/known-call-fun "inc" 1
+                               {:module {"inc" "prologue.Inc"}
+                                :functions {"prologue.Inc" {:has-rest false
+                                                            :variadic-name "prologue.Inc_variadic"
+                                                            :arity-name "prologue.Inc_arity_1"
+                                                            :arity 1
+                                                            :arity-names {1 "prologue.Inc_arity_1"}}}})))
   (is (= {:kind :raw :code "flagrt.GoBind_packages_StringReplace.FunctionObject().Fn"}
          (lower/known-call-fun "str/replace" 3
                                {:go-fns {"str/replace" "GoBind_packages_StringReplace"}})))
@@ -572,11 +596,50 @@
                                  {:kind :symbol :name "ch"}]}
                      {:module {"select" "async__select_"}
                       :locals {"ch" :value}})]
-    (is (= "foo_variadic(flagrt.NewLong(1))" (ir/render-ir (:expr fn-out))))
+    (is (= "foo_arity_1(flagrt.NewLong(1))" (ir/render-ir (:expr fn-out))))
     (is (= "flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagrt.NewString(\"a\"), flagrt.NewString(\"a\"), flagrt.NewString(\"b\"))"
            (ir/render-ir (:expr bind-out))))
     (is (= "flagrt.Call(f, flagrt.NewLong(1))" (ir/render-ir (:expr local-out))))
     (is (= "async__select_.FunctionObject().Fn(ch)" (ir/render-ir (:expr select-out))))))
+
+(deftest lower-module-calls-use-arity
+  (let [ctx {:locals {} :globals {} :functions {} :module {} :go-fns {}
+             :self-function-name "" :self-variadic-name "" :self-arity-name ""
+             :self-function-rest false :self-function-arity 0
+             :self-arity-names {} :loop-binding-names [] :if-temps 0
+             :namespace "compiler" :package-mode false :exported-names {}
+             :allow-redefine false}
+        add1 {:kind :list
+              :elements [{:kind :symbol :name "defn"}
+                         {:kind :symbol :name "add1"}
+                         {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                         {:kind :symbol :name "x"}]}
+        twice {:kind :list
+               :elements [{:kind :symbol :name "defn"}
+                          {:kind :symbol :name "twice"}
+                          {:kind :vector :elements [{:kind :symbol :name "x"}]}
+                          {:kind :list :elements [{:kind :symbol :name "add1"}
+                                                 {:kind :symbol :name "x"}]}]}
+        join {:kind :list
+              :elements [{:kind :symbol :name "defn"}
+                         {:kind :symbol :name "join"}
+                         {:kind :vector :elements [{:kind :symbol :name "sep"}
+                                                  {:kind :symbol :name "&"}
+                                                  {:kind :symbol :name "xs"}]}
+                         {:kind :symbol :name "xs"}]}
+        use-join {:kind :list
+                  :elements [{:kind :symbol :name "defn"}
+                             {:kind :symbol :name "use-join"}
+                             {:kind :vector :elements []}
+                             {:kind :list :elements [{:kind :symbol :name "join"}
+                                                    {:kind :string :value ","}
+                                                    {:kind :int :value 1}]}]}
+        out (lower/compile-module-body [add1 twice join use-join] ctx)
+        twice-src (ir/render-ir-stmts (:ir-decls (first (rest (:functions out)))) "")
+        use-src (ir/render-ir-stmts (:ir-decls (first (rest (rest (rest (:functions out)))))) "")]
+    (is (not (nil? (str/index-of twice-src "compiler__add1_arity_1(x)"))))
+    (is (nil? (str/index-of twice-src "compiler__add1_variadic(x)")))
+    (is (not (nil? (str/index-of use-src "compiler__join_variadic("))))))
 
 (deftest lower-true-false-are-native-bool
   (let [t (lower/compile-form-to-ir {:kind :symbol :name "true"} {})
@@ -1110,6 +1173,22 @@
   (is (= "x" (ir/render-ir (:ir (lower/symbol-to-ir "x" "x" {:locals {"x" :value}})))))
   (is (= "flagrt.NewFunction(flagrt.FnFirst)"
          (ir/render-ir (:ir (lower/symbol-to-ir "first" "first" {})))))
+  (is (= "prologue.Identity"
+         (ir/render-ir (:ir (lower/symbol-to-ir "identity" "identity"
+                               {:module {"identity" "prologue.Identity"}
+                                :functions {"prologue.Identity"
+                                            {:has-rest false
+                                             :variadic-name "prologue.Identity_variadic"
+                                             :arity-name "prologue.Identity_arity_1"
+                                             :arity 1
+                                             :arity-names {1 "prologue.Identity_arity_1"}}}})))))
+  (is (= "add1"
+         (ir/render-ir (:ir (lower/symbol-to-ir "add1" "add1"
+                               {:functions {"add1" {:has-rest false
+                                                    :variadic-name "add1_variadic"
+                                                    :arity-name "add1_arity_1"
+                                                    :arity 1
+                                                    :arity-names {1 "add1_arity_1"}}}})))))
   (is (= "flagrt.NewArray(x, flagrt.NewLong(1))"
          (ir/render-ir (lower/eval-ast-to-ir
                          {:kind :vector
@@ -1914,6 +1993,7 @@
                                     :imports [{:path "math.flag" :as "" :refer ["add"]}]}
                                    by-path
                                    defs
+                                   {}
                                    {})]
     (is (= "math__add" (get (:module seeded) "math/add")))
     (is (= "math__double" (get (:module seeded) "math/double")))
@@ -1940,15 +2020,23 @@
   (let [resolved (lower/resolve-import-path "examples/modules/main.flag" "math.flag")
        by-path {resolved {:path resolved :has-header true :namespace "math" :exports ["add" "double"]}}
        defs {resolved {"add" "Add" "double" "Double"}}
-       seeded (lower/seed-imports {:namespace "main" :module {} :package-mode true :macro-forms [] :go-imports []}
+       fn-info {resolved {"add" {:has-rest false
+                                 :variadic-name "Add_variadic"
+                                 :arity-name "Add_arity_2"
+                                 :arity 2
+                                 :arity-names {2 "Add_arity_2"}}}}
+       seeded (lower/seed-imports {:namespace "main" :module {} :package-mode true :macro-forms [] :go-imports [] :functions {}}
                                   {:path "examples/modules/main.flag"
                                    :imports [{:path "math.flag" :as "" :refer :all :skip-go-import true}]}
                                   by-path
                                   defs
-                                  {})]
+                                  {}
+                                  fn-info)]
     (is (= "math.Add" (get (:module seeded) "add")))
     (is (= "math.Double" (get (:module seeded) "double")))
-    (is (= 0 (count (or (:go-imports seeded) [])))))
+    (is (= 0 (count (or (:go-imports seeded) []))))
+    (is (= "math.Add_arity_2" (:arity-name (get (:functions seeded) "math.Add"))))
+    (is (= "math.Add_arity_2" (get (:arity-names (get (:functions seeded) "math.Add")) 2))))
   (is (lower/prelude-go-name? "prologue__second"))
   (is (lower/prelude-go-name? "prologue.Second"))
   (is (not (lower/prelude-go-name? "stdlib__second")))
