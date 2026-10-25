@@ -41,6 +41,7 @@ func init() {
 	RegisterGoFunction("math/sqrt", Sqrt)
 	RegisterGoFunction("math/tan", Tan)
 	RegisterGoFunction("t/now", TimeNow)
+	RegisterGoFunction("time/nano-time", TimeNanoTime)
 	RegisterGoFunction("t/years", TimeYears)
 	RegisterGoFunction("t/minus", TimeMinus)
 	RegisterGoFunction("t/after?", TimeAfter)

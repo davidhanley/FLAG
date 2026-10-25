@@ -11,7 +11,10 @@ Use the `test` command:
 ```bash
 go run ./cmd/flag-lang test path/to/src
 go run ./cmd/flag-lang test examples/FRS
+go run ./cmd/flag-lang test examples/lispbench/work.flag
 ```
+
+FLAG vs Clojure timings: `go run ./cmd/lispbench` ([lispbench.md](lispbench.md)).
 
 `examples/FRS` is a compiler stress test: modular `:imports`, ratios, CSV/JSON, and prologue (`select-keys`, `apply max`). Generated inspect Go is package-mode `.flag-build/` (prologue linked, not inlined). `go test ./...` skips that dotted directory.
 

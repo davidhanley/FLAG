@@ -46,6 +46,14 @@ Run tests from a source directory:
 go run ./cmd/flag-lang test path/to/src
 ```
 
+Compare FLAG to Clojure on lispy microbenches (FRS-shaped lazy seqs, ratios, maps):
+
+```bash
+go run ./cmd/lispbench
+```
+
+See [docs/lispbench.md](docs/lispbench.md). `(time/nano-time)` returns a long nanosecond timestamp.
+
 ## Modules and namespaces
 
 Modular projects use a **header map** as the first form of each file. See [docs/modules.md](docs/modules.md) for the full design.

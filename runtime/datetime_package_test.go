@@ -18,3 +18,22 @@ func TestDateTimePackageFunctionsAreRegistered(t *testing.T) {
 		t.Fatalf("expected datetime/now to return date, got %#v", now)
 	}
 }
+
+func TestTimeNanoTimeIsMonotonicLong(t *testing.T) {
+	a := TimeNanoTime()
+	b := TimeNanoTime()
+	if a.tag != TagLong || b.tag != TagLong {
+		t.Fatalf("time/nano-time should return longs, got %#v %#v", a, b)
+	}
+	if b.Long() < a.Long() {
+		t.Fatalf("time/nano-time moved backwards: %d then %d", a.Long(), b.Long())
+	}
+	viaName := Call(GoFunction("time/nano-time"))
+	if viaName.tag != TagLong {
+		t.Fatalf("registered time/nano-time should return long, got %#v", viaName)
+	}
+	bound := GoBind_runtime_TimeNanoTime.Fn()
+	if bound.tag != TagLong {
+		t.Fatalf("GoBind time/nano-time should return long, got %#v", bound)
+	}
+}

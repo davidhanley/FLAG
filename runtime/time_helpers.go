@@ -20,6 +20,11 @@ func TimeNow() Value {
 	return NewDate(time.Now().UTC())
 }
 
+// TimeNanoTime is wall time in nanoseconds (like Clojure System/nanoTime).
+func TimeNanoTime() Value {
+	return NewLong(time.Now().UnixNano())
+}
+
 func TimeYears(v Value) Value {
 	if !isNumericTag(v.tag) {
 		panic("t/years expects a numeric Value")

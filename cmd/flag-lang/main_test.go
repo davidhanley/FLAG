@@ -463,6 +463,24 @@ func TestAcceptanceFRSFlagTests(t *testing.T) {
 	}
 }
 
+// Acceptance: lispbench work functions (FRS-shaped seq/map/ratio kernels).
+func TestAcceptanceLispBenchFlagTests(t *testing.T) {
+	chdirRepoRoot(t)
+	workPath, err := filepath.Abs(filepath.Join("examples", "lispbench", "work.flag"))
+	if err != nil {
+		t.Fatalf("Abs workPath: %v", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(filepath.Join(filepath.Dir(workPath), ".flag-build"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", workPath}); err != nil {
+		t.Fatalf("flag-lang test examples/lispbench/work.flag: %v", err)
+	}
+}
+
 // Acceptance: `flag-lang build` of FRS must typecheck (function Values are not
 // wrapped in NewFunction).
 func TestAcceptanceFRSBuild(t *testing.T) {
