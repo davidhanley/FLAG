@@ -151,10 +151,11 @@ only for unknown callees (locals, maps, sets, keywords, `apply`).
 `known-call-fun` picks a direct Go call when the head is a known function:
 same-package FLAG defns use `goName_arity_N(...)` when that arity exists
 (`goName_variadic(...)` only for `& rest` or an unmatched arity). Imported
-FLAG defns use `pkg.Name_arity_N` the same way. `GoBind_*` hosts
-use `flagrt.GoBind_X.FunctionObject().Fn(...)`, and referred module
-go-exports (e.g. async `select`) use `goIdent.FunctionObject().Fn(...)`
-so they are not stolen by a same-named builtin. `builtin-call-fun` /
+FLAG defns use `pkg.Name_arity_N` the same way. `GoBind_*` hosts use `flagrt.GoBind_X.Fn(...)`, and referred module
+go-exports (e.g. async `select`) or a `def` of a function Value use
+`goIdent.Fn(...)`. A `flagrt.Value` is a struct, so `translate_name(x)`
+is not valid Go; `.Fn` is the direct invoke (no `FunctionObject()` hop).
+These are not stolen by a same-named builtin. `builtin-call-fun` /
 `builtin-fn-ident` map FLAG builtins onto `flagrt.FnX` pointers
 (`FnMax`, `FnGet`, …) unless the name is a local or `:module` binding.
 Calls become `flagrt.FnCloseFile(x)`; `(apply max xs)` becomes

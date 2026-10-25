@@ -287,8 +287,8 @@ func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
 	for _, want := range []string{
 		"var csv__read_csv = flagrt.GoBind_csv_ReadCSV",
 		"var burp__html = flagrt.GoBind_burp_Html",
-		"csv__read_csv.FunctionObject().Fn",
-		"burp__html.FunctionObject().Fn",
+		"csv__read_csv.Fn",
+		"burp__html.Fn",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)

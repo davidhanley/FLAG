@@ -10590,7 +10590,7 @@ func compiler__known_call_fun_arity_3(name flagrt.Value, nargs flagrt.Value, ctx
 				panic("fn expects exactly 1 arguments")
 			}
 			bind := args[0]
-			return flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, flagrt.NewString(flagrt.Str("flagrt.", bind, ".FunctionObject().Fn")))
+			return flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, flagrt.NewString(flagrt.Str("flagrt.", bind, ".Fn")))
 		})
 		var if_result_1123 flagrt.Value
 		if flagrt.IsTruthy(self) {
@@ -10708,7 +10708,7 @@ func compiler__known_call_fun_arity_3(name flagrt.Value, nargs flagrt.Value, ctx
 								if let_result_1103 {
 									if_result_1104 = flagrt.NilValue
 								} else {
-									if_result_1104 = flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, flagrt.NewString(flagrt.Str(go_, ".FunctionObject().Fn")))
+									if_result_1104 = flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, flagrt.NewString(flagrt.Str(go_, ".Fn")))
 								}
 								if_result_1105 = if_result_1104
 							}

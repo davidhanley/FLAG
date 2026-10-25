@@ -1446,7 +1446,7 @@ func TestFLAGCompileFormDirectCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`
+	want := `flagrt.GoBind_packages_StringReplace.Fn(flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`
 	if renderIRExpr(irFromGoExpr(got)) != want {
 		t.Fatalf("gobind %q", renderIRExpr(irFromGoExpr(got)))
 	}

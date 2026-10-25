@@ -23,6 +23,13 @@ func (v Value) FunctionObject() *FunctionObject {
 	return (*FunctionObject)(v.p)
 }
 
+// Fn invokes a function Value. Compiled FLAG uses this for `def`/`GoBind`
+// values that are already functions (`translate_name.Fn(x)`), because a
+// `flagrt.Value` is a struct and cannot be called as `translate_name(x)`.
+func (v Value) Fn(args ...Value) Value {
+	return v.FunctionObject().Fn(args...)
+}
+
 func Call(fn Value, args ...Value) Value {
 	switch fn.tag {
 	case TagFunction:

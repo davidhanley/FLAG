@@ -2181,7 +2181,7 @@
         module (:module ctx)
         go-fns (:go-fns ctx)
         self (self-call-target name nargs ctx)
-        bind-fun (fn [bind] {:kind :raw :code (str "flagrt." bind ".FunctionObject().Fn")})]
+        bind-fun (fn [bind] {:kind :raw :code (str "flagrt." bind ".Fn")})]
     (cond
       self {:kind :ident :name self}
 
@@ -2197,7 +2197,7 @@
             (bind-fun (get go-fns name))
             (if (or (nil? go) (= "" go))
               nil
-              {:kind :raw :code (str go ".FunctionObject().Fn")}))))
+              {:kind :raw :code (str go ".Fn")}))))
 
       (and ident
            (not (= "" ident))

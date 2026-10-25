@@ -274,6 +274,28 @@ func TestBuiltinPlusSupportsZeroAndUnaryArity(t *testing.T) {
 	})
 }
 
+func TestValueFnInvokesFunction(t *testing.T) {
+	fn := NewFunction(func(args ...Value) Value {
+		if len(args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(args))
+		}
+		return args[0]
+	})
+	got := fn.Fn(NewLong(7))
+	if got.tag != TagLong || got.Long() != 7 {
+		t.Fatalf("Fn: got %#v", got)
+	}
+}
+
+func TestValueFnPanicsOnNonFunction(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic")
+		}
+	}()
+	NewLong(1).Fn()
+}
+
 func TestCallSupportsSetInvocation(t *testing.T) {
 	set := NewSet(NewLong(1), NewLong(2))
 

@@ -970,7 +970,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = f.FunctionObject().Fn(flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
+		`_ = f.Fn(flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -996,14 +996,14 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.GoBind_packages_StringTrim.FunctionObject().Fn(flagStr___hello__)`,
-		`flagrt.GoBind_packages_StringReplace.FunctionObject().Fn(flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
-		`flagrt.GoBind_packages_StringJoin.FunctionObject().Fn(flagStr__, flagVec)`,
-		`flagrt.GoBind_packages_StringCapitalize.FunctionObject().Fn(flagStr_hELLO)`,
-		`flagrt.GoBind_packages_ToUppercase.FunctionObject().Fn(flagStr_hello)`,
-		`flagrt.GoBind_packages_LongParse.FunctionObject().Fn(flagStr_42)`,
-		`flagrt.GoBind_runtime_Abs.FunctionObject().Fn(flagrt.NewLong(-42))`,
-		`flagrt.GoBind_runtime_Sqrt.FunctionObject().Fn(flagrt.NewLong(4))`,
+		`flagrt.GoBind_packages_StringTrim.Fn(flagStr___hello__)`,
+		`flagrt.GoBind_packages_StringReplace.Fn(flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
+		`flagrt.GoBind_packages_StringJoin.Fn(flagStr__, flagVec)`,
+		`flagrt.GoBind_packages_StringCapitalize.Fn(flagStr_hELLO)`,
+		`flagrt.GoBind_packages_ToUppercase.Fn(flagStr_hello)`,
+		`flagrt.GoBind_packages_LongParse.Fn(flagStr_42)`,
+		`flagrt.GoBind_runtime_Abs.Fn(flagrt.NewLong(-42))`,
+		`flagrt.GoBind_runtime_Sqrt.Fn(flagrt.NewLong(4))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1297,6 +1297,23 @@ func TestReplCompilerDefnRedef(t *testing.T) {
 	}
 }
 
+func TestCompileDefFunctionValueUsesFn(t *testing.T) {
+	output, err := Compile(`
+(def translate-name (fn [name] name))
+(println (translate-name "Ada"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "translate_name.Fn(") {
+		t.Fatalf("expected Value.Fn call:\n%s", got)
+	}
+	if strings.Contains(got, "FunctionObject()") {
+		t.Fatalf("FunctionObject hop still present:\n%s", got)
+	}
+}
+
 func TestReplCompilerDefLambdaBinding(t *testing.T) {
 	c := NewReplCompiler()
 
@@ -1315,7 +1332,7 @@ func TestReplCompilerDefLambdaBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine lambda call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(triple.FunctionObject().Fn(flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(triple.Fn(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected lambda call expression: %s", call.ResultExpr)
 	}
 }
