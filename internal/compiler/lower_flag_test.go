@@ -1491,6 +1491,18 @@ func TestFLAGCompileFormBuiltinDirectCalls(t *testing.T) {
 
 	got, err = flagCompileForm(ListExpr{Elements: []Expr{
 		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "range"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.ApplyFn(flagrt.FnRange, xs)" {
+		t.Fatalf("apply range %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
 		SymbolExpr{Name: "f"},
 		SymbolExpr{Name: "xs"},
 	}}, ctx, map[string]exprKind{"f": exprKindValue, "xs": exprKindValue})
@@ -2258,6 +2270,43 @@ func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
 	}
 	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Repeat(flagrt.NewString("x"))` {
 		t.Fatalf("repeat %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range()` {
+		t.Fatalf("range 0-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 4},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range(flagrt.NewLong(4))` {
+		t.Fatalf("range 1-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 1}, IntExpr{Value: 8}, IntExpr{Value: 2},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range(flagrt.NewLong(1), flagrt.NewLong(8), flagrt.NewLong(2))` {
+		t.Fatalf("range 3-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 1}, IntExpr{Value: 2}, IntExpr{Value: 3}, IntExpr{Value: 4},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected range arity error")
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "map"}, SymbolExpr{Name: "f"}}}, ctx, vals)

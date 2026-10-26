@@ -862,19 +862,23 @@ func TestDoAllIsNoOpForNonSequences(t *testing.T) {
 	}
 }
 
-func TestRangeTwoArgsShortReturnsArray(t *testing.T) {
+func TestRangeTwoArgsShortReturnsLazyList(t *testing.T) {
 	r := Range(NewLong(3), NewLong(7))
-	if r.tag != TagArray {
-		t.Fatalf("expected array for short range, got %v", r.tag)
+	if r.tag != TagLazyList {
+		t.Fatalf("expected lazy list for short range, got %v", r.tag)
 	}
-	if got := r.ArrayValues(); len(got) != 4 || got[0].Long() != 3 || got[3].Long() != 6 {
-		t.Fatalf("unexpected short range values: %#v", got)
+	got := DoAll(r)
+	if ValueToString(got) != "[3 4 5 6]" {
+		t.Fatalf("unexpected short range values: %s", ValueToString(got))
 	}
 }
 
 func TestRangeOneArgIsExclusiveEndFromZero(t *testing.T) {
 	r := Range(NewLong(4))
-	if got := ValueToString(r); got != "[0 1 2 3]" {
+	if r.tag != TagLazyList {
+		t.Fatalf("expected lazy list for (range 4), got %v", r.tag)
+	}
+	if got := ValueToString(DoAll(r)); got != "[0 1 2 3]" {
 		t.Fatalf("expected (range 4) to be 0..3, got %q", got)
 	}
 	empty := Range(NewLong(0))
@@ -919,10 +923,10 @@ func TestRangeLargeReturnsTerminatingLazyList(t *testing.T) {
 }
 
 func TestRangeThreeArgStep(t *testing.T) {
-	if got := ValueToString(Range(NewLong(0), NewLong(8), NewLong(2))); got != "[0 2 4 6]" {
+	if got := ValueToString(DoAll(Range(NewLong(0), NewLong(8), NewLong(2)))); got != "[0 2 4 6]" {
 		t.Fatalf("unexpected positive step range: %q", got)
 	}
-	if got := ValueToString(Range(NewLong(5), NewLong(1), NewLong(-1))); got != "[5 4 3 2]" {
+	if got := ValueToString(DoAll(Range(NewLong(5), NewLong(1), NewLong(-1)))); got != "[5 4 3 2]" {
 		t.Fatalf("unexpected negative step range: %q", got)
 	}
 	if got := Range(NewLong(4), NewLong(1)); got.tag != TagArray || got.ArrayLen() != 0 {
@@ -940,6 +944,44 @@ func TestRangeThreeArgStep(t *testing.T) {
 func TestRangePanicsOnInvalidArgs(t *testing.T) {
 	assertPanics(t, func() { Range(NewLong(1), NewLong(2), NewLong(3), NewLong(4)) })
 	assertPanics(t, func() { Range(NewDouble(1.5)) })
+}
+
+func TestRangeCountUsesRemainingHint(t *testing.T) {
+	if got := Count(Range(NewLong(4))); got != 4 {
+		t.Fatalf("count (range 4) = %d", got)
+	}
+	if got := Count(Rest(Range(NewLong(4)))); got != 3 {
+		t.Fatalf("count (rest (range 4)) = %d", got)
+	}
+	if got := Count(Range(NewLong(0))); got != 0 {
+		t.Fatalf("count (range 0) = %d", got)
+	}
+}
+
+func TestRangeWalkIsLinear(t *testing.T) {
+	const n = 50000
+	r := Range(NewLong(n))
+	start := time.Now()
+	for i := int64(0); i < n; i++ {
+		got := First(r)
+		if got.tag != TagLong || got.Long() != i {
+			t.Fatalf("at %d got %v", i, ValueToAny(got))
+		}
+		r = Rest(r)
+	}
+	if got := First(r); got.tag != TagNil {
+		t.Fatalf("expected exhausted range, got %v", ValueToAny(got))
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("walk of %d took %s; first/rest is likely still quadratic", n, elapsed)
+	}
+}
+
+func TestFnRangeMatchesRange(t *testing.T) {
+	got := DoAll(FnRange(NewLong(3)))
+	if ValueToString(got) != "[0 1 2]" {
+		t.Fatalf("FnRange(3) = %s", ValueToString(got))
+	}
 }
 
 func TestRepeatOneArgReturnsInfiniteLazyList(t *testing.T) {

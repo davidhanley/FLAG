@@ -11,7 +11,7 @@
              symbol-ctor-to-ir name-to-ir keyword-ctor-to-ir format-to-ir
              map-to-ir sort-by-to-ir apply-to-ir apply-fn-to-ir pmap-to-ir filter-to-ir
              reduce-to-ir doall-to-ir some-to-ir set-to-ir
-             line-seq-to-ir repeat-to-ir rand-int-to-ir
+             line-seq-to-ir repeat-to-ir range-to-ir rand-int-to-ir
              to-json-to-ir from-json-to-ir
              open-file-to-ir file-to-strings-to-ir file-to-strings-path-to-ir
              go-fn-to-ir go-fn-args-to-ir
@@ -172,7 +172,7 @@
     "reverse" "cons" "take" "drop" "not-empty" "seq" "empty?" "nil?" "type-of"
     "count" "double" "into" "format" "hash-map" "list" "array" "map" "concat"
     "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "seq?" "set"
-    "vec" "conj" "contains?" "line-seq" "repeat" "rand-int" "assoc" "dissoc"
+    "vec" "conj" "contains?" "line-seq" "repeat" "range" "rand-int" "assoc" "dissoc"
     "to-json" "from-json" "open-file" "file-to-strings" "go-fn" "go-fn-args"
     "fn"})
 
@@ -420,6 +420,9 @@
 (defn repeat-to-ir [args]
   (literal-rt-call "Repeat" args))
 
+(defn range-to-ir [args]
+  (literal-rt-call "Range" args))
+
 (defn rand-int-to-ir [arg]
   (literal-rt-call "RandInt" [arg]))
 
@@ -489,7 +492,7 @@
    "map-invert" "FnMapInvert" "select" "FnSelect"
    "project" "FnProject" "rename" "FnRename"
    "hash-map" "FnHashMap" "list" "FnList"
-   "array" "FnArray" "repeat" "FnRepeat"
+   "array" "FnArray" "repeat" "FnRepeat" "range" "FnRange"
    "assoc" "FnAssoc" "dissoc" "FnDissoc"
    "open-file" "FnOpenFile" "close-file" "FnCloseFile"
    "close-channel" "FnCloseChannel" "file-to-strings" "FnFileToStrings"
@@ -1825,7 +1828,7 @@
 (def remaining-runtime-ops
   #{"compare" "==" "<" "<=" ">" ">=" "symbol" "name" "keyword" "format"
     "map" "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "set"
-    "line-seq" "repeat" "rand-int" "to-json" "from-json"
+    "line-seq" "repeat" "range" "rand-int" "to-json" "from-json"
     "open-file" "file-to-strings" "go-fn" "go-fn-args"})
 
 (defn truthy-form-ir [part]
@@ -3300,6 +3303,13 @@
         (throw (ex-info "repeat expects one or two arguments" {}))
         (let [compiled (compile-form-node :value-args [args true "repeat arguments must evaluate to Value"] ctx)]
           (form-result (:stmts compiled) (repeat-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "range")
+    (let [n (count (stmt-list args))]
+      (if (> n 3)
+        (throw (ex-info "range expects zero to three integer arguments" {}))
+        (let [compiled (compile-form-node :value-args [args true "range arguments must evaluate to Value"] ctx)]
+          (form-result (:stmts compiled) (range-to-ir (:irs compiled)) :value (:ctx compiled)))))
 
     (= op "rand-int")
     (if (not (= 1 (count (stmt-list args))))

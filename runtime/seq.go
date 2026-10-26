@@ -7,8 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-const eagerRangeThreshold = 1000
-
 func Map(fn Value, seqs ...Value) Value {
 	if len(seqs) == 0 {
 		panic("map expects at least one sequence")
@@ -597,7 +595,9 @@ func Count(coll Value) int {
 	case TagVector:
 		return coll.VectorLen()
 	case TagLazyList:
-		// For lazy lists, count by iterating
+		if hint := coll.lazyListRemainingHint(); hint >= 0 {
+			return int(hint)
+		}
 		cursor := newSeqCursor(coll)
 		count := 0
 		for {
@@ -1094,13 +1094,6 @@ func finiteRange(start, end, step int64) Value {
 	count := rangeCount(start, end, step)
 	if count <= 0 {
 		return NewArray()
-	}
-	if count < eagerRangeThreshold {
-		values := make([]Value, 0, count)
-		for i := int64(0); i < count; i++ {
-			values = append(values, NewLong(start+i*step))
-		}
-		return NewArray(values...)
 	}
 	return newLazyRange(start, end, step, true)
 }

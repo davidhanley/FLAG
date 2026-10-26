@@ -178,6 +178,8 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnArray)
 	case "repeat":
 		return NewFunction(FnRepeat)
+	case "range":
+		return NewFunction(FnRange)
 	case "assoc":
 		return NewFunction(FnAssoc)
 	case "dissoc":

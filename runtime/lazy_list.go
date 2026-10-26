@@ -20,8 +20,12 @@ type lazyListState struct {
 	done bool
 }
 
+// lazyListView is one position in a shared lazy list.
+// init=false is the start (head not yet bound). init=true and node=nil is empty.
 type lazyListView struct {
 	state *lazyListState
+	node  *lazyListNode
+	init  bool
 	index int
 }
 
@@ -68,10 +72,29 @@ func (v Value) lazyListRemainingHint() int64 {
 }
 
 func lazyPeek(list Value) (Value, bool) {
-	return list.lazyListPointer().peekAt(list.lazyListIndex())
+	view := list.lazyListViewPointer()
+	s := view.state
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	node, ok := s.realize(view)
+	if !ok {
+		return Value{}, false
+	}
+	return node.value, true
 }
 
 func lazyTail(list Value) Value {
+	view := list.lazyListViewPointer()
+	s := view.state
+	s.mu.Lock()
+	node, ok := s.realize(view)
+	var next *lazyListNode
+	if ok {
+		if node.next == nil && !s.done {
+			s.produceOne()
+		}
+		next = node.next
+	}
 	remaining := int64(-1)
 	if hint := list.lazyListRemainingHint(); hint >= 0 {
 		if hint > 0 {
@@ -80,44 +103,29 @@ func lazyTail(list Value) Value {
 			remaining = 0
 		}
 	}
-	return newLazyListValue(list.lazyListPointer(), remaining, list.lazyListIndex()+1)
+	s.mu.Unlock()
+	out := newLazyListValue(s, remaining, view.index+1)
+	outView := out.lazyListViewPointer()
+	outView.init = true
+	outView.node = next
+	return out
 }
 
-func (s *lazyListState) peekAt(index int) (Value, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	node, ok := s.ensureNodeAt(index)
-	if !ok {
-		return Value{}, false
-	}
-	return node.value, true
-}
-
-func (s *lazyListState) ensureNodeAt(index int) (*lazyListNode, bool) {
-	if index < 0 {
-		panic("lazy list index must be non-negative")
-	}
-	for s.head == nil && !s.done {
-		if !s.produceOne() {
-			break
-		}
-	}
-	if s.head == nil {
-		return nil, false
-	}
-	node := s.head
-	for i := 0; i < index; i++ {
-		for node.next == nil && !s.done {
-			if !s.produceOne() {
-				break
-			}
-		}
-		node = node.next
-		if node == nil {
+func (s *lazyListState) realize(view *lazyListView) (*lazyListNode, bool) {
+	if view.init {
+		if view.node == nil {
 			return nil, false
 		}
+		return view.node, true
 	}
-	return node, true
+	if s.head == nil && !s.produceOne() {
+		view.init = true
+		view.node = nil
+		return nil, false
+	}
+	view.init = true
+	view.node = s.head
+	return view.node, true
 }
 
 func (s *lazyListState) produceOne() bool {

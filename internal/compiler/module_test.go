@@ -764,8 +764,8 @@ func TestCompileProgramPackagesCallsArityFunctions(t *testing.T) {
 		"nums.Add1_arity_1(",
 		"nums.Join_variadic(",
 		"prologue.Inc_arity_1(",
-		"prologue.Range__arity_0()",
-		"prologue.Range__arity_1(",
+		"flagrt.Range()",
+		"flagrt.Range(flagrt.NewLong(3))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("main missing arity call %q:\n%s", want, got)
@@ -777,6 +777,7 @@ func TestCompileProgramPackagesCallsArityFunctions(t *testing.T) {
 		"twice_variadic(flagrt",
 		"prologue.Inc.FunctionObject()",
 		"prologue.Range_.FunctionObject()",
+		"prologue.Range__",
 	} {
 		if strings.Contains(got, refuse) {
 			t.Fatalf("main still uses variadic/indirect %q:\n%s", refuse, got)

@@ -2,7 +2,8 @@
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
-`range` is a prologue function with Clojure’s interval rules. End is exclusive.
+`range` is a runtime builtin. Non-empty results are **lazy lists** (`:lazy-list`);
+the end is exclusive. Empty ranges are `[]`.
 
 | Form | Result |
 |------|--------|
@@ -22,5 +23,8 @@ Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 (take 2 (range 7 9 0))  ;; (7 7)
 ```
 
-Zero `step` with `start = end` is empty; otherwise it repeats `start`. Finite
-ranges are realized with `take` (arrays). `(range)` stays lazy via `iterate`.
+Zero `step` with `start = end` is empty; otherwise it repeats `start` (lazy).
+Finite ranges stay lazy until `vec` / `doall` / `reduce` / `take`. `(range)` is
+an infinite lazy list from 0. `first`/`rest` on lazy lists are O(1) per step.
+`(count (range n))` is O(1) via a remaining-length hint. The compiler emits
+`flagrt.Range(...)`; `(apply range xs)` uses `flagrt.FnRange`.
