@@ -21,7 +21,7 @@ func Throw(v Value) {
 // Thrown FLAG values are returned as-is; other panics become strings.
 func PanicValue(r any) Value {
 	if r == nil {
-		return NilValue()
+		return NilValue
 	}
 	switch v := r.(type) {
 	case Value:
@@ -30,7 +30,7 @@ func PanicValue(r any) Value {
 		if v != nil {
 			return *v
 		}
-		return NilValue()
+		return NilValue
 	case reflect.Value:
 		if v.IsValid() && v.CanInterface() {
 			return PanicValue(v.Interface())
@@ -64,44 +64,44 @@ func CatchMatches(class string, thrown Value) bool {
 func ExMessage(v Value) Value {
 	switch v.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagString:
 		return v
 	case TagMap:
 		if msg, ok := mapLookup(v, exMessageKey); ok {
 			return msg
 		}
-		return NilValue()
+		return NilValue
 	default:
-		return NilValue()
+		return NilValue
 	}
 }
 
 // ExData returns the data map of an ExceptionInfo value, or nil.
 func ExData(v Value) Value {
 	if v.tag != TagMap {
-		return NilValue()
+		return NilValue
 	}
 	if data, ok := mapLookup(v, exDataKey); ok {
 		return data
 	}
-	return NilValue()
+	return NilValue
 }
 
 // ExCause returns the cause of an ExceptionInfo value, or nil.
 func ExCause(v Value) Value {
 	if v.tag != TagMap {
-		return NilValue()
+		return NilValue
 	}
 	if cause, ok := mapLookup(v, exCauseKey); ok {
 		return cause
 	}
-	return NilValue()
+	return NilValue
 }
 
 func mapLookup(v Value, key Value) (Value, bool) {
 	if v.tag != TagMap {
-		return NilValue(), false
+		return NilValue, false
 	}
 	return v.mapPointer().items.Get(key)
 }

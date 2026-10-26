@@ -16,7 +16,7 @@ import (
 func TestRunCompileAcceptsOutputFlagAfterInput(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "hello.flag")
-	outputPath := filepath.Join(dir, "hello.go")
+	outputDir := filepath.Join(dir, "out")
 
 	source := `(ns hello.core)
 (println "Hello from FLAG")
@@ -25,27 +25,62 @@ func TestRunCompileAcceptsOutputFlagAfterInput(t *testing.T) {
 		t.Fatalf("WriteFile input: %v", err)
 	}
 
-	if err := run([]string{"compile", inputPath, "-o", outputPath}); err != nil {
+	if err := run([]string{"compile", inputPath, "-o", outputDir}); err != nil {
 		t.Fatalf("run returned error: %v", err)
 	}
 
-	generated, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("ReadFile output: %v", err)
+	assertPackageEmit(t, outputDir, `fmt.Println(flagrt.Str("Hello from FLAG"))`)
+}
+
+func TestRunCompileHelloWorldDoesNotInlineIncDec(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "hello.flag")
+	staleGo := filepath.Join(dir, "hello.go")
+	source := `{:namespace "hello"}
+(println "Hello from FLAG")
+(println (inc 1))
+(println (dec 2))
+`
+	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile input: %v", err)
+	}
+	stale := "func prologue__inc_arity_1(x flagrt.Value) flagrt.Value { return x }\n" +
+		"func prologue__dec_arity_1(x flagrt.Value) flagrt.Value { return x }\n"
+	if err := os.WriteFile(staleGo, []byte(stale), 0o644); err != nil {
+		t.Fatalf("WriteFile stale: %v", err)
 	}
 
-	if !strings.Contains(string(generated), `fmt.Println(flagrt.Str("Hello from FLAG"))`) {
-		t.Fatalf("unexpected output:\n%s", generated)
+	if err := run([]string{"compile", inputPath, "-o", staleGo}); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	if data, err := os.ReadFile(staleGo); err == nil {
+		t.Fatalf("compile -o hello.go left inlined Go; inc/dec must not be in this file:\n%s", data)
+	}
+	inspect := filepath.Join(dir, ".flag-build")
+	assertPackageEmit(t, inspect, "prologue.Inc")
+	main, err := os.ReadFile(filepath.Join(inspect, "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(main)
+	for _, refuse := range []string{"prologue__inc", "prologue__dec", "func inc_arity", "func dec_arity"} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("main.go inlined prologue %q:\n%s", refuse, got)
+		}
+	}
+	if !strings.Contains(got, "prologue.Dec") {
+		t.Fatalf("main.go missing prologue.Dec:\n%s", got)
 	}
 }
 
 func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "hello.flag")
-	defaultOutput := filepath.Join(dir, "hello.go")
+	defaultOutput := filepath.Join(dir, ".flag-build")
 
-	source := `(ns hello.core)
-(println "Hello from FLAG")
+	source := `{:namespace "hello"}
+(println (inc 41))
 `
 	if err := os.WriteFile(inputPath, []byte(source), 0o644); err != nil {
 		t.Fatalf("WriteFile input: %v", err)
@@ -55,13 +90,35 @@ func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 		t.Fatalf("run returned error: %v", err)
 	}
 
-	generated, err := os.ReadFile(defaultOutput)
-	if err != nil {
-		t.Fatalf("ReadFile output: %v", err)
+	assertPackageEmit(t, defaultOutput, "prologue.Inc")
+	if _, err := os.Stat(filepath.Join(dir, "hello.go")); err == nil {
+		t.Fatalf("did not expect sidecar %s", filepath.Join(dir, "hello.go"))
 	}
+}
 
-	if !strings.Contains(string(generated), `fmt.Println(flagrt.Str("Hello from FLAG"))`) {
-		t.Fatalf("unexpected output:\n%s", generated)
+func assertPackageEmit(t *testing.T, dir, mainWant string) {
+	t.Helper()
+	mainPath := filepath.Join(dir, "main.go")
+	generated, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("ReadFile %s: %v", mainPath, err)
+	}
+	got := string(generated)
+	if !strings.Contains(got, mainWant) {
+		t.Fatalf("unexpected main.go:\n%s", got)
+	}
+	for _, refuse := range []string{"var Inc =", "var Dec =", "prologue__inc", "prologue__dec", "func inc_arity", "func dec_arity"} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("main inlined prologue %q:\n%s", refuse, got)
+		}
+	}
+	prologuePath := filepath.Join(dir, "prologue", "prologue.go")
+	prologue, err := os.ReadFile(prologuePath)
+	if err != nil {
+		t.Fatalf("ReadFile %s: %v", prologuePath, err)
+	}
+	if !strings.Contains(string(prologue), "package prologue") || !strings.Contains(string(prologue), "var Inc =") {
+		t.Fatalf("prologue:\n%s", prologue)
 	}
 }
 
@@ -89,13 +146,10 @@ func TestRunBuildCreatesRunnableBinary(t *testing.T) {
 		t.Fatalf("unexpected output from built binary: %q", result)
 	}
 
-	inspect := filepath.Join(dir, ".flag-build", "main.go")
-	if _, err := os.Stat(inspect); err != nil {
-		t.Fatalf("expected generated Go at %s: %v", inspect, err)
-	}
-	sidecar := filepath.Join(dir, "fib.go")
-	if _, err := os.Stat(sidecar); err != nil {
-		t.Fatalf("expected sidecar Go at %s: %v", sidecar, err)
+	inspect := filepath.Join(dir, ".flag-build")
+	assertPackageEmit(t, inspect, "func fib_")
+	if _, err := os.Stat(filepath.Join(dir, "fib.go")); err == nil {
+		t.Fatalf("did not expect sidecar %s", filepath.Join(dir, "fib.go"))
 	}
 }
 
@@ -390,6 +444,66 @@ func TestAcceptanceCompilerTokenizerFlagTests(t *testing.T) {
 	}
 }
 
+// Acceptance: examples/FRS FLAG tests (modular imports, ratios, CSV/JSON, prologue).
+func TestAcceptanceFRSFlagTests(t *testing.T) {
+	chdirRepoRoot(t)
+	exampleDir, err := filepath.Abs(filepath.Join("examples", "FRS"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "FRS.go"))
+		_ = os.RemoveAll(filepath.Join(exampleDir, ".flag-build"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", exampleDir}); err != nil {
+		t.Fatalf("flag-lang test examples/FRS: %v", err)
+	}
+}
+
+// Acceptance: lispbench work functions (FRS-shaped seq/map/ratio kernels).
+func TestAcceptanceLispBenchFlagTests(t *testing.T) {
+	chdirRepoRoot(t)
+	workPath, err := filepath.Abs(filepath.Join("examples", "lispbench", "work.flag"))
+	if err != nil {
+		t.Fatalf("Abs workPath: %v", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(filepath.Join(filepath.Dir(workPath), ".flag-build"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"test", workPath}); err != nil {
+		t.Fatalf("flag-lang test examples/lispbench/work.flag: %v", err)
+	}
+}
+
+// Acceptance: `flag-lang build` of FRS must typecheck (function Values are not
+// wrapped in NewFunction).
+func TestAcceptanceFRSBuild(t *testing.T) {
+	chdirRepoRoot(t)
+	exampleDir, err := filepath.Abs(filepath.Join("examples", "FRS"))
+	if err != nil {
+		t.Fatalf("Abs exampleDir: %v", err)
+	}
+	entry := filepath.Join(exampleDir, "frs.flag")
+	outputPath := filepath.Join(t.TempDir(), "frs-bin")
+	cleanup := func() {
+		_ = os.Remove(filepath.Join(exampleDir, "FRS.go"))
+		_ = os.Remove(filepath.Join(exampleDir, "frs.go"))
+		_ = os.RemoveAll(filepath.Join(exampleDir, ".flag-build"))
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	if err := run([]string{"build", entry, "-o", outputPath}); err != nil {
+		t.Fatalf("flag-lang build examples/FRS/frs.flag: %v", err)
+	}
+}
+
 // Acceptance: examples/concurrency FLAG tests (sleep, go, fib) via `flag-lang test`.
 func TestAcceptanceConcurrencyFlagTests(t *testing.T) {
 	chdirRepoRoot(t)
@@ -604,7 +718,7 @@ func TestRunTestRemapsTestFileErrors(t *testing.T) {
 `
 	tests := `(ns math.core-test)
 (deftest bad-test
-	  (println {:a (< 1 2)}))
+	  (println {:a (defer (fn [] 1))}))
 `
 	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
 		t.Fatalf("WriteFile source: %v", err)

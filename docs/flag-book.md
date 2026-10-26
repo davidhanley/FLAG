@@ -158,6 +158,7 @@ Exposing FLAG functions to native Go code:
 | Concurrency | [examples/concurrency/README.md](../examples/concurrency/README.md) | `async.lib` end-to-end + tests |
 | HTTP | [examples/http/README.md](../examples/http/README.md) | Local server, routing, GET/POST client calls |
 | FRS | [examples/FRS](../examples/FRS) | Larger real app (CSV, HTML, scoring) |
+| Lispbench | [lispbench.md](lispbench.md) | FLAG vs Clojure microbenches (FRS-shaped) |
 | Compiler libs | [compiler.md](compiler.md) | FLAG tokenizer / AST / macros / IR pipeline |
 
 Run examples with:

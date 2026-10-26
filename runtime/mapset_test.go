@@ -48,10 +48,10 @@ func TestAssocAndDissocMap(t *testing.T) {
 	if got := ValueToString(Dissoc(NewMap(NewKeyword("a"), NewLong(1)))); got != "{:a 1}" {
 		t.Fatalf("unexpected no-op dissoc result: %q", got)
 	}
-	if got := Dissoc(NilValue()); got.tag != TagNil {
+	if got := Dissoc(NilValue); got.tag != TagNil {
 		t.Fatalf("expected nil dissoc on nil, got %v", ValueToAny(got))
 	}
-	if got := Dissoc(NilValue(), NewKeyword("a"), NewKeyword("b")); got.tag != TagNil {
+	if got := Dissoc(NilValue, NewKeyword("a"), NewKeyword("b")); got.tag != TagNil {
 		t.Fatalf("expected nil dissoc with keys on nil, got %v", ValueToAny(got))
 	}
 }
@@ -166,6 +166,13 @@ func TestContainsOnMapAndSet(t *testing.T) {
 	if Contains(s, NewLong(3)) {
 		t.Fatal("expected contains? to miss set member")
 	}
+
+	if Contains(NilValue, NewKeyword("a")) {
+		t.Fatal("expected contains? nil to be false")
+	}
+	assertPanics(t, func() {
+		Contains(NewArray(NewLong(1)), NewLong(0))
+	})
 }
 
 func TestMapAndKeywordInvocation(t *testing.T) {
@@ -195,7 +202,7 @@ func TestKeysAndVals(t *testing.T) {
 	if got := ValueToString(Vals(m)); got != "[1 2]" {
 		t.Fatalf("unexpected vals: %q", got)
 	}
-	if got := Vals(NilValue()); got.tag != TagNil {
+	if got := Vals(NilValue); got.tag != TagNil {
 		t.Fatalf("expected nil vals for nil map, got %v", ValueToAny(got))
 	}
 }
@@ -208,7 +215,7 @@ func TestFind(t *testing.T) {
 	if got := Find(m, NewKeyword("z")); got.tag != TagNil {
 		t.Fatalf("expected nil for missing find key, got %v", ValueToAny(got))
 	}
-	if got := Find(NilValue(), NewKeyword("a")); got.tag != TagNil {
+	if got := Find(NilValue, NewKeyword("a")); got.tag != TagNil {
 		t.Fatalf("expected nil find on nil map, got %v", ValueToAny(got))
 	}
 }

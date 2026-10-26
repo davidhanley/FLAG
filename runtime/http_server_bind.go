@@ -46,7 +46,7 @@ func adaptHTTPStop(args ...Value) Value {
 		panic(err.Error())
 	}
 	deleteHTTPServer(id)
-	return NilValue()
+	return NilValue
 }
 
 func adaptHTTPAddress(args ...Value) Value {

@@ -127,7 +127,7 @@ func TestCompileProgramQualifiedImport(t *testing.T) {
 	got := string(out)
 	for _, want := range []string{
 		"func board__empty_board_arity_0",
-		"flagrt.Call(board__empty_board)",
+		"board__empty_board_arity_0()",
 		"// Source namespace: main",
 	} {
 		if !strings.Contains(got, want) {
@@ -165,8 +165,8 @@ func TestCompileProgramAsAndRefer(t *testing.T) {
 	for _, want := range []string{
 		"func chess__move_arity_1",
 		"func chess__legal_q_arity_1",
-		"flagrt.Call(chess__move",
-		"flagrt.Call(chess__legal_q",
+		"chess__move_variadic",
+		"chess__legal_q_variadic",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
@@ -287,8 +287,8 @@ func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
 	for _, want := range []string{
 		"var csv__read_csv = flagrt.GoBind_csv_ReadCSV",
 		"var burp__html = flagrt.GoBind_burp_Html",
-		"flagrt.Call(csv__read_csv",
-		"flagrt.Call(burp__html",
+		"csv__read_csv.Fn",
+		"burp__html.Fn",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
@@ -320,8 +320,8 @@ func TestCompileProgramLibraryImportInteropDefrecord(t *testing.T) {
 	for _, want := range []string{
 		"func flag_main____gtPerson_arity_2",
 		"func flag_main__map__gtPerson_arity_1",
-		`flagrt.Call(flag_main____gtPerson, flagStr_Ada, flagrt.NewLong(36))`,
-		"flagrt.Call(flag_main__map__gtPerson",
+		`flag_main____gtPerson_arity_2(flagStr_Ada, flagrt.NewLong(36))`,
+		"flag_main__map__gtPerson_variadic",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
@@ -567,6 +567,129 @@ func TestCompileProgramPackagesPreludeIsSeparatePackage(t *testing.T) {
 	}
 }
 
+func TestCompileProgramPackagesNilIsPackageVar(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "hello.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "hello"}
+(println nil)
+(def x nil)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var entry CompiledPackage
+	for _, p := range pkgs {
+		if p.IsMain {
+			entry = p
+		}
+	}
+	got := string(entry.Source)
+	if strings.Contains(got, "NilValue()") {
+		t.Fatalf("nil must not call NilValue():\n%s", got)
+	}
+	if !strings.Contains(got, "flagrt.NilValue") {
+		t.Fatalf("main missing flagrt.NilValue:\n%s", got)
+	}
+}
+
+func TestCompileProgramPackagesHelloWorldNoInlineIncDec(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "hello.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "hello"}
+(println "Hello from FLAG")
+(println (inc 1))
+(println (dec 2))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var prologue, entry CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+		if p.IsMain {
+			entry = p
+		}
+	}
+	if prologue.Source == nil || entry.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	e := string(entry.Source)
+	for _, want := range []string{"prologue.Inc", "prologue.Dec", "Hello from FLAG"} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"prologue__inc", "prologue__dec", "func inc_arity", "func dec_arity", "var Inc =", "var Dec ="} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("hello main inlined prologue %q:\n%s", refuse, e)
+		}
+	}
+	p := string(prologue.Source)
+	if !strings.Contains(p, "var Inc =") || !strings.Contains(p, "var Dec =") {
+		t.Fatalf("prologue should define Inc/Dec:\n%s", p)
+	}
+}
+
+func TestCompileProgramPackagesWithTests(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.flag")
+	testFile := filepath.Join(dir, "main_test.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "demo"}
+(defn add1 [x] (inc x))
+(println (add1 1))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(testFile, []byte(`
+(deftest add1-test
+  (is (= (add1 1) 2)))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackagesWithTests(main, []string{testFile})
+	if err != nil {
+		t.Fatalf("CompileProgramPackagesWithTests: %v", err)
+	}
+	var prologue, entry CompiledPackage
+	for _, p := range pkgs {
+		if p.Name == ProloguePackageName {
+			prologue = p
+		}
+		if p.IsMain {
+			entry = p
+		}
+	}
+	if prologue.Source == nil || entry.Source == nil {
+		t.Fatalf("missing packages: %#v", pkgs)
+	}
+	p := string(prologue.Source)
+	if !strings.Contains(p, "package prologue") || !strings.Contains(p, "var Inc =") {
+		t.Fatalf("prologue:\n%s", p)
+	}
+	e := string(entry.Source)
+	for _, want := range []string{"package main", "flagTestCase", "prologue.Inc", "flagbuild/prologue"} {
+		if !strings.Contains(e, want) {
+			t.Fatalf("main missing %q in:\n%s", want, e)
+		}
+	}
+	for _, refuse := range []string{"var Inc =", "prologue__inc", "func inc_arity"} {
+		if strings.Contains(e, refuse) {
+			t.Fatalf("main inlined prologue %q:\n%s", refuse, e)
+		}
+	}
+}
+
 func TestCompileProgramPackagesReferKeepsStdlibOverPrologue(t *testing.T) {
 	dir := t.TempDir()
 	main := filepath.Join(dir, "main.flag")
@@ -598,5 +721,95 @@ func TestCompileProgramPackagesReferKeepsStdlibOverPrologue(t *testing.T) {
 		if strings.Contains(got, refuse) {
 			t.Fatalf("refer lost to prologue %q:\n%s", refuse, got)
 		}
+	}
+}
+
+func TestCompileProgramPackagesCallsArityFunctions(t *testing.T) {
+	dir := t.TempDir()
+	lib := filepath.Join(dir, "nums.flag")
+	main := filepath.Join(dir, "app.flag")
+	if err := os.WriteFile(lib, []byte(`
+{:namespace "nums"
+ :exports [add1 join]}
+(defn add1 [x] (+ x 1))
+(defn join [sep & xs] xs)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(main, []byte(`
+{:namespace "app"
+ :imports [["nums.flag" :refer [add1 join]]]}
+(defn twice [x] (add1 (add1 x)))
+(println (twice 1))
+(println (join "," 1 2))
+(println (inc 1))
+(println (range))
+(println (range 3))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var entry CompiledPackage
+	for _, p := range pkgs {
+		if p.IsMain {
+			entry = p
+		}
+	}
+	got := string(entry.Source)
+	for _, want := range []string{
+		"twice_arity_1(",
+		"nums.Add1_arity_1(",
+		"nums.Join_variadic(",
+		"prologue.Inc_arity_1(",
+		"flagrt.Range()",
+		"flagrt.Range(flagrt.NewLong(3))",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("main missing arity call %q:\n%s", want, got)
+		}
+	}
+	for _, refuse := range []string{
+		"nums.Add1_variadic(",
+		"nums.Add1.FunctionObject()",
+		"twice_variadic(flagrt",
+		"prologue.Inc.FunctionObject()",
+		"prologue.Range_.FunctionObject()",
+		"prologue.Range__",
+	} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("main still uses variadic/indirect %q:\n%s", refuse, got)
+		}
+	}
+}
+
+func TestCompileProgramPackagesFunctionValuesAreVars(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "app.flag")
+	if err := os.WriteFile(main, []byte(`
+{:namespace "app"}
+(defn use-id [xs] (map identity xs))
+(println (use-id [1]))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := CompileProgramPackages(main)
+	if err != nil {
+		t.Fatalf("CompileProgramPackages: %v", err)
+	}
+	var entry CompiledPackage
+	for _, p := range pkgs {
+		if p.IsMain {
+			entry = p
+		}
+	}
+	got := string(entry.Source)
+	if !strings.Contains(got, "flagrt.Map(prologue.Identity,") {
+		t.Fatalf("expected identity Value var:\n%s", got)
+	}
+	if strings.Contains(got, "NewFunction(prologue.Identity)") {
+		t.Fatalf("Value var wrapped in NewFunction:\n%s", got)
 	}
 }

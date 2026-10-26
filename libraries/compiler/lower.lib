@@ -9,9 +9,9 @@
              ex-message-to-ir ex-data-to-ir ex-cause-to-ir println-to-ir
              compare-to-ir numeric-eq-to-ir comparison-to-ir
              symbol-ctor-to-ir name-to-ir keyword-ctor-to-ir format-to-ir
-             map-to-ir sort-by-to-ir apply-to-ir pmap-to-ir filter-to-ir
+             map-to-ir sort-by-to-ir apply-to-ir apply-fn-to-ir pmap-to-ir filter-to-ir
              reduce-to-ir doall-to-ir some-to-ir set-to-ir
-             line-seq-to-ir repeat-to-ir rand-int-to-ir
+             line-seq-to-ir repeat-to-ir range-to-ir rand-int-to-ir
              to-json-to-ir from-json-to-ir
              open-file-to-ir file-to-strings-to-ir file-to-strings-path-to-ir
              go-fn-to-ir go-fn-args-to-ir
@@ -25,7 +25,9 @@
              write-to-ir ends-with-to-ir testing-to-ir is-to-ir
              expect-exception-to-ir ast-form-source hash-fn-placeholder-index
              map-destructure-key-ir
-             go-ident bind-params-to-ir compile-form-to-ir compile-forms-to-ir
+             go-ident bind-params-to-ir known-call-fun
+             builtin-fn-ident builtin-call-fun
+             compile-form-to-ir compile-forms-to-ir
              form-defer-result forms-have-defer? list-head-name catch-type-name
              parse-catch-clause split-try-args
              sanitize-keyword-ident intern-ir intern-decls intern-form-ir
@@ -57,6 +59,9 @@
   {:kind :call
    :fun {:kind :selector :pkg "flagrt" :name name}
    :args args})
+
+(defn rt-nil []
+  {:kind :selector :pkg "flagrt" :name "NilValue"})
 
 (defn ast-node-to-ir [node]
   (let [kind (:kind node)]
@@ -95,7 +100,7 @@
         (cond
           (= name "true") (literal-rt-call "NewBool" [{:kind :raw :code "true"}])
           (= name "false") (literal-rt-call "NewBool" [{:kind :raw :code "false"}])
-          (= name "nil") (literal-rt-call "NilValue" [])
+          (= name "nil") (rt-nil)
           :else (throw (ex-info "unsupported symbol for literal lowering"
                                 {:node node}))))
 
@@ -167,7 +172,7 @@
     "reverse" "cons" "take" "drop" "not-empty" "seq" "empty?" "nil?" "type-of"
     "count" "double" "into" "format" "hash-map" "list" "array" "map" "concat"
     "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "seq?" "set"
-    "vec" "conj" "contains?" "line-seq" "repeat" "rand-int" "assoc" "dissoc"
+    "vec" "conj" "contains?" "line-seq" "repeat" "range" "rand-int" "assoc" "dissoc"
     "to-json" "from-json" "open-file" "file-to-strings" "go-fn" "go-fn-args"
     "fn"})
 
@@ -255,7 +260,7 @@
            prev (first (rest args))
            remaining (rest (rest args))]
       (if (or (nil? remaining) (empty? remaining))
-        (literal-rt-call "NewBool" [acc])
+        acc
         (recur {:kind :binary
                 :op "&&"
                 :left acc
@@ -264,10 +269,10 @@
                (rest remaining))))))
 
 (defn nil-pred-to-ir [arg]
-  (literal-rt-call "NewBool" [(literal-rt-call "IsNil" [arg])]))
+  (literal-rt-call "IsNil" [arg]))
 
 (defn empty-pred-to-ir [arg]
-  (literal-rt-call "NewBool" [(literal-rt-call "IsEmpty" [arg])]))
+  (literal-rt-call "IsEmpty" [arg]))
 
 (defn count-to-ir [arg]
   (literal-rt-call "NewLong"
@@ -326,7 +331,7 @@
   (literal-rt-call "MapDissoc" (if (or (nil? args) (empty? args)) [] args)))
 
 (defn contains-pred-to-ir [args]
-  (literal-rt-call "NewBool" [(literal-rt-call "Contains" args)]))
+  (literal-rt-call "Contains" args))
 
 (defn into-to-ir [args]
   (literal-rt-call "Into" args))
@@ -350,7 +355,7 @@
   (literal-rt-call "Compare" args))
 
 (defn numeric-eq-to-ir [args]
-  (literal-rt-call "NewBool" [(literal-rt-call "NumericEq" (if (or (nil? args) (empty? args)) [] args))]))
+  (literal-rt-call "NumericEq" (if (or (nil? args) (empty? args)) [] args)))
 
 (defn comparison-to-ir [op args]
   (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -388,6 +393,9 @@
 (defn apply-to-ir [args]
   (literal-rt-call "Apply" args))
 
+(defn apply-fn-to-ir [fun args]
+  (literal-rt-call "ApplyFn" (concat [fun] args)))
+
 (defn pmap-to-ir [args]
   (literal-rt-call "PMap" args))
 
@@ -411,6 +419,9 @@
 
 (defn repeat-to-ir [args]
   (literal-rt-call "Repeat" args))
+
+(defn range-to-ir [args]
+  (literal-rt-call "Range" args))
 
 (defn rand-int-to-ir [arg]
   (literal-rt-call "RandInt" [arg]))
@@ -436,22 +447,59 @@
 (defn go-fn-args-to-ir [arg]
   (literal-rt-call "GoFunctionArgs" [arg]))
 
-(def builtin-function-names
-  #{"+" "-" "*" "/" "%" "quot" "rem" "mod" "compare" "==" "=" "<" "<=" ">" ">="
-    "max" "min"
-    "bit-and" "bit-or" "bit-xor" "bit-not" "bit-shift-left" "bit-shift-right"
-    "unsigned-bit-shift-right" "bit-test" "bit-set" "bit-clear" "bit-flip"
-    "first" "fist" "rest" "next" "last" "reverse" "cons" "take" "drop" "nth"
-    "slow-nth" "map" "concat" "sort-by" "apply" "pmap" "filter" "reduce" "get"
-    "keys" "vals" "find" "hash-map" "list" "array" "not-empty" "empty?" "nil?"
-    "type-of" "count" "double" "numerator" "denominator" "format" "subs"
-    "keyword" "into" "doall" "dorun" "line-seq" "some" "seq" "seq?" "set" "vec"
-    "conj" "contains?" "assoc" "dissoc" "open-file" "close-file" "close-channel"
-    "file-to-strings" "rand-int" "rand" "rand-nth" "shuffle" "repeat"
-    "union" "intersection" "difference" "subset?" "superset?" "disjoint?"
-    "rename-keys" "map-invert" "select" "project" "rename"
-    "go-fn" "go-fn-args" "re-pattern" "re-matches"
-    "ex-message" "ex-data" "ex-cause"})
+(def builtin-fn-idents
+  {"+" "FnPlus" "*" "FnMul"
+   "-" "FnSub" "/" "FnDiv"
+   "%" "FnMod" "mod" "FnMod"
+   "quot" "FnQuot" "rem" "FnRem"
+   "compare" "FnCompare" "==" "FnNumericEq"
+   "=" "FnEq" "<" "FnLt"
+   "<=" "FnLe" ">" "FnGt"
+   ">=" "FnGe" "max" "FnMax"
+   "min" "FnMin" "bit-and" "FnBitAnd"
+   "bit-or" "FnBitOr" "bit-xor" "FnBitXor"
+   "bit-not" "FnBitNot" "bit-shift-left" "FnBitShiftLeft"
+   "bit-shift-right" "FnBitShiftRight" "unsigned-bit-shift-right" "FnUnsignedBitShiftRight"
+   "bit-test" "FnBitTest" "bit-set" "FnBitSet"
+   "bit-clear" "FnBitClear" "bit-flip" "FnBitFlip"
+   "rand-int" "FnRandInt" "rand" "FnRand"
+   "rand-nth" "FnRandNth" "shuffle" "FnShuffle"
+   "first" "FnFirst" "fist" "FnFirst"
+   "rest" "FnRest" "next" "FnNext"
+   "last" "FnLast" "reverse" "FnReverse"
+   "cons" "FnCons" "take" "FnTake"
+   "drop" "FnDrop" "nth" "FnNth"
+   "slow-nth" "FnSlowNth" "map" "FnMap"
+   "concat" "FnConcat" "into" "FnInto"
+   "sort-by" "FnSortBy" "apply" "FnApply"
+   "pmap" "FnPmap" "filter" "FnFilter"
+   "reduce" "FnReduce" "not-empty" "FnNotEmpty"
+   "seq" "FnSeq" "empty?" "FnEmptyQ"
+   "nil?" "FnNilQ" "type-of" "FnTypeOf"
+   "set" "FnSet" "vec" "FnVec"
+   "conj" "FnConj" "contains?" "FnContainsQ"
+   "some" "FnSome" "seq?" "FnSeqQ"
+   "doall" "FnDoall" "dorun" "FnDorun"
+   "count" "FnCount" "double" "FnDouble"
+   "numerator" "FnNumerator" "denominator" "FnDenominator"
+   "format" "FnFormat" "subs" "FnSubs"
+   "keyword" "FnKeyword" "get" "FnGet"
+   "keys" "FnKeys" "vals" "FnVals"
+   "find" "FnFind" "union" "FnUnion"
+   "intersection" "FnIntersection" "difference" "FnDifference"
+   "subset?" "FnSubsetQ" "superset?" "FnSupersetQ"
+   "disjoint?" "FnDisjointQ" "rename-keys" "FnRenameKeys"
+   "map-invert" "FnMapInvert" "select" "FnSelect"
+   "project" "FnProject" "rename" "FnRename"
+   "hash-map" "FnHashMap" "list" "FnList"
+   "array" "FnArray" "repeat" "FnRepeat" "range" "FnRange"
+   "assoc" "FnAssoc" "dissoc" "FnDissoc"
+   "open-file" "FnOpenFile" "close-file" "FnCloseFile"
+   "close-channel" "FnCloseChannel" "file-to-strings" "FnFileToStrings"
+   "go-fn" "FnGoFn" "go-fn-args" "FnGoFnArgs"
+   "re-pattern" "FnRePattern" "re-matches" "FnReMatches"
+   "ex-message" "FnExMessage" "ex-data" "FnExData"
+   "ex-cause" "FnExCause"})
 
 (def unary-runtime-ops
   {"first" "First" "fist" "First" "rest" "Rest" "next" "Next" "last" "Last"
@@ -514,10 +562,7 @@
       (let [go-ident (get module name)]
         (if (and (not (nil? globals)) (contains? globals go-ident))
           (ident-ir go-ident (get globals go-ident))
-          (if (and (not (nil? functions)) (contains? functions go-ident))
-            {:ir (literal-rt-call "NewFunction" [{:kind :ident :name go-ident}])
-             :expr-kind :value}
-            {:ir {:kind :ident :name go-ident} :expr-kind :value})))
+          {:ir {:kind :ident :name go-ident} :expr-kind :value}))
 
       (and ident
            (not (= "" ident))
@@ -529,11 +574,10 @@
            (not (= "" ident))
            (not (nil? functions))
            (contains? functions ident))
-      {:ir (literal-rt-call "NewFunction" [{:kind :ident :name ident}])
-       :expr-kind :value}
+      {:ir {:kind :ident :name ident} :expr-kind :value}
 
-      (contains? builtin-function-names name)
-      {:ir (literal-rt-call "BuiltinFunction" [{:kind :string :value name}])
+      (contains? builtin-fn-idents name)
+      {:ir (literal-rt-call "NewFunction" [{:kind :selector :pkg "flagrt" :name (get builtin-fn-idents name)}])
        :expr-kind :value}
 
       (and (not (nil? go-fns)) (contains? go-fns name))
@@ -694,7 +738,7 @@
         prelude (do-prelude-stmts forms)]
     (if (:defer? last)
       (append-stmt (append-stmt prelude (do-form-stmt last))
-                   {:kind :return :expr (literal-rt-call "NilValue" [])})
+                   {:kind :return :expr (rt-nil)})
       (append-stmt prelude {:kind :return :expr (:expr last)}))))
 
 (defn do-defer-to-ir [type forms]
@@ -786,7 +830,7 @@
                  (append-stmt stmts {:kind :expr-stmt
                                      :expr (literal-rt-call "Throw" [value])
                                      :discard false})
-                 {:kind :return :expr (literal-rt-call "NilValue" [])})}
+                 {:kind :return :expr (rt-nil)})}
    :args []})
 
 (defn future-to-ir [body-stmts body-expr]
@@ -931,7 +975,7 @@
 (defn doseq-to-ir [loop-expr]
   (value-iife-ir
     [{:kind :expr-stmt :expr (literal-rt-call "DoAll" [loop-expr]) :discard true}
-     {:kind :return :expr (literal-rt-call "NilValue" [])}]))
+     {:kind :return :expr (rt-nil)}]))
 
 (defn doseq-body-to-ir [body-stmts body-expr]
   (value-iife-ir
@@ -1756,6 +1800,7 @@
     (cond
       (= k :value) (:expr part)
       (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       :else (throw (ex-info "= arguments must evaluate to Value" {})))))
 
 (defn value-arg-ir [part label]
@@ -1763,12 +1808,14 @@
     (cond
       (= k :value) (:expr part)
       (= k :string) (literal-rt-call "NewString" [(:expr part)])
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       :else (throw (ex-info (str label " expects an argument that evaluates to Value") {})))))
 
 (defn wrap-value-arg-ir [part wrap? msg]
   (let [k (:expr-kind part)]
     (cond
       (= k :value) (:expr part)
+      (= k :bool) (literal-rt-call "NewBool" [(:expr part)])
       (and wrap? (= k :string)) (literal-rt-call "NewString" [(:expr part)])
       :else (throw (ex-info (str msg) {})))))
 
@@ -1781,7 +1828,7 @@
 (def remaining-runtime-ops
   #{"compare" "==" "<" "<=" ">" ">=" "symbol" "name" "keyword" "format"
     "map" "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "set"
-    "line-seq" "repeat" "rand-int" "to-json" "from-json"
+    "line-seq" "repeat" "range" "rand-int" "to-json" "from-json"
     "open-file" "file-to-strings" "go-fn" "go-fn-args"})
 
 (defn truthy-form-ir [part]
@@ -1800,7 +1847,7 @@
 
 (defn form-defer-result [stmts stmt ctx]
   {:stmts (stmt-list stmts)
-   :expr (literal-rt-call "NilValue" [])
+   :expr (rt-nil)
    :expr-kind :defer
    :defer? true
    :stmt stmt
@@ -1901,7 +1948,7 @@
   (value-iife-ir
     (append-stmt
       (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true})
-      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+      {:kind :return :expr (rt-nil)})))
 
 (defn is-to-ir [test-stmts condition message]
   (value-iife-ir
@@ -1914,7 +1961,7 @@
                             :expr (ident-call-ir "panic" [{:kind :string :value message}])
                             :discard false}]
                     :else []})
-      {:kind :return :expr (literal-rt-call "NilValue" [])})))
+      {:kind :return :expr (rt-nil)})))
 
 (defn expect-exception-to-ir [body-stmts body-expr no-panic expected prefix]
   (let [base [{:kind :define :names ["r"] :expr (ident-call-ir "recover" [])}
@@ -1960,7 +2007,7 @@
                    :fun {:kind :func-lit :params "" :result "" :body recover-body}
                    :args []}}]
           (append-stmt body-stmts {:kind :expr-stmt :expr body-expr :discard true}))
-        {:kind :return :expr (literal-rt-call "NilValue" [])}))))
+        {:kind :return :expr (rt-nil)}))))
 
 (defn ast-form-source-node [mode node]
   (cond
@@ -2044,6 +2091,143 @@
           (if (= want (subs text i (+ i n)))
             true
             (recur (inc i))))))))
+
+(defn go-call-ir [name]
+  (if (or (nil? name) (= "" name))
+    nil
+    (if (str-contains? name ".")
+      {:kind :raw :code name}
+      {:kind :ident :name name})))
+
+(defn conventional-fn-info [go nargs]
+  (let [arity-name (str go "_arity_" nargs)]
+    {:has-rest false
+     :variadic-name (str go "_variadic")
+     :arity-name arity-name
+     :arity nargs
+     :arity-names {nargs arity-name}}))
+
+(defn functions-call-info [functions go nargs]
+  (if (or (nil? functions) (nil? go) (= "" go) (not (contains? functions go)))
+    nil
+    (let [entry (get functions go)]
+      (if (or (nil? entry) (= false entry))
+        nil
+        (if (= true entry)
+          (conventional-fn-info go nargs)
+          entry)))))
+
+(defn call-fun-from-info [info nargs]
+  (if (nil? info)
+    nil
+    (if (:has-rest info)
+      (go-call-ir (:variadic-name info))
+      (let [named (get (or (:arity-names info) {}) nargs)]
+        (if named
+          (go-call-ir named)
+          (if (and (not (nil? (:arity info)))
+                   (= nargs (:arity info))
+                   (not (or (nil? (:arity-name info)) (= "" (:arity-name info)))))
+            (go-call-ir (:arity-name info))
+            (go-call-ir (:variadic-name info))))))))
+
+(defn fn-call-info [fn]
+  (let [has-rest (if (:has-rest fn) true false)
+        given (or (:arity-names fn) {})
+        arity-name (or (:arity-name fn) "")
+        n (count (stmt-list (:params fn)))
+        names (if (and (not has-rest)
+                       (or (nil? given) (empty? given))
+                       (not (= "" arity-name)))
+                {n arity-name}
+                given)]
+    {:has-rest has-rest
+     :variadic-name (or (:variadic-name fn) "")
+     :arity-name arity-name
+     :arity (if (or has-rest (not (= 1 (count names))))
+              nil
+              n)
+     :arity-names names}))
+
+(defn qualify-go-name [pkg-name package-mode? name]
+  (if (or (nil? name) (= "" name))
+    name
+    (if (or (not package-mode?) (str-contains? name "."))
+      name
+      (str pkg-name "." name))))
+
+(defn qualify-arity-names [names pkg-name package-mode?]
+  (loop [remaining (keys (or names {})) out {}]
+    (if (or (nil? remaining) (empty? remaining))
+      out
+      (let [k (first remaining)]
+        (recur (rest remaining)
+               (assoc out k (qualify-go-name pkg-name package-mode? (get names k))))))))
+
+(defn qualify-fn-info [info pkg-name package-mode?]
+  (if (nil? info)
+    nil
+    (assoc info
+           :variadic-name (qualify-go-name pkg-name package-mode? (:variadic-name info))
+           :arity-name (qualify-go-name pkg-name package-mode? (:arity-name info))
+           :arity-names (qualify-arity-names (:arity-names info) pkg-name package-mode?))))
+
+(defn register-fn-info [ctx go info]
+  (if (or (nil? go) (= "" go) (nil? info))
+    ctx
+    (assoc ctx :functions (map-put (or (:functions ctx) {}) go info))))
+
+(defn known-call-fun [name nargs ctx]
+  (let [ident (go-ident-or-empty name)
+        locals (:locals ctx)
+        functions (:functions ctx)
+        module (:module ctx)
+        go-fns (:go-fns ctx)
+        self (self-call-target name nargs ctx)
+        bind-fun (fn [bind] {:kind :raw :code (str "flagrt." bind ".Fn")})]
+    (cond
+      self {:kind :ident :name self}
+
+      (and ident (not (= "" ident)) (not (nil? locals)) (contains? locals ident))
+      nil
+
+      (and (not (nil? module)) (contains? module name))
+      (let [go (get module name)
+            info (functions-call-info functions go nargs)]
+        (if info
+          (call-fun-from-info info nargs)
+          (if (and (not (nil? go-fns)) (contains? go-fns name))
+            (bind-fun (get go-fns name))
+            (if (or (nil? go) (= "" go))
+              nil
+              {:kind :raw :code (str go ".Fn")}))))
+
+      (and ident
+           (not (= "" ident))
+           (not (nil? functions))
+           (contains? functions ident))
+      (call-fun-from-info (functions-call-info functions ident nargs) nargs)
+
+      (and (not (nil? go-fns)) (contains? go-fns name))
+      (bind-fun (get go-fns name))
+
+      :else nil)))
+
+(defn builtin-fn-ident [name]
+  (if (or (nil? name) (= "" name))
+    nil
+    (get builtin-fn-idents name)))
+
+(defn builtin-call-fun [name ctx]
+  (let [fn-name (builtin-fn-ident name)
+        ident (go-ident-or-empty name)
+        locals (:locals ctx)
+        module (:module ctx)]
+    (if (or (nil? fn-name)
+            (and ident (not (= "" ident)) (not (nil? locals)) (contains? locals ident))
+            (and (not (nil? module)) (contains? module name)))
+      nil
+      {:kind :selector :pkg "flagrt" :name fn-name})))
 
 (defn annotate-form-error [form t]
   (let [msg (ex-message t)]
@@ -2413,6 +2597,11 @@
                        (:ctx wrapped)
                        (concat-stmts stmts (:stmts wrapped))
                        (conj irs ir)))
+              (= k :bool)
+              (recur (rest remaining)
+                     (:ctx part)
+                     (concat-stmts stmts (:stmts part))
+                     (conj irs (literal-rt-call "NewBool" [(:expr part)])))
               :else
               (throw (ex-info (str label (form-at-suffix item)) {})))))))
 
@@ -2425,15 +2614,15 @@
               then0 (compile-form-node :form (first (rest args)) (:ctx cond-part))
               else0 (if (= n 3)
                       (compile-form-node :form (first (rest (rest args))) (:ctx then0))
-                      (form-result [] (literal-rt-call "NilValue" []) :value (:ctx then0)))
+                      (form-result [] (rt-nil) :value (:ctx then0)))
               then1 (if (and (= n 3) (not (= (:expr-kind then0) (:expr-kind else0))))
                       (coerce-form-value then0)
                       then0)
               else1 (if (and (= n 3) (not (= (:expr-kind then1) (:expr-kind else0))))
                       (coerce-form-value else0)
                       else0)
-              then2 (if (and (= n 2) (not (= :value (:expr-kind then1))))
-                      (throw (ex-info "if without false branch currently requires a Value result" {}))
+              then2 (if (= n 2)
+                      (coerce-form-value then1)
                       then1)
               tmp (next-form-temp (:ctx else1) "if_result")
               if-stmts (if-to-ir (:name tmp)
@@ -2484,7 +2673,7 @@
                     (if (:volatile? parsed)
                       (throw (ex-info "volatile let binding currently supports symbol bindings only" {:node pat}))
                       (if (or (sequential-binding? (:kind pat)) (= :map (:kind pat)))
-                        (let [part (compile-form-node :form val-node ctx)]
+                        (let [part (coerce-form-value (compile-form-node :form val-node ctx))]
                           (if (not (= :value (:expr-kind part)))
                             (throw (ex-info "let binding value must evaluate to Value" {}))
                             (let [source-name (str "__bind" bind-temp)
@@ -2508,7 +2697,10 @@
                         (throw (ex-info "not handled by FLAG form lowering" {:node pat}))))
                     (if (= "" (:name pat))
                       (throw (ex-info "binding symbol cannot be empty" {:node pat}))
-                      (let [part (compile-form-node :form val-node ctx)
+                      (let [raw (compile-form-node :form val-node ctx)
+                            part (if (:volatile? parsed)
+                                   (coerce-form-value raw)
+                                   raw)
                             go-name (go-ident (:name pat))]
                         (if (contains? declared go-name)
                           (throw (ex-info (str "duplicate binding \"" (:name pat) "\"") {:name (:name pat)}))
@@ -2593,7 +2785,7 @@
       (let [part (compile-form-node :form (first node) ctx)]
         (form-result (:stmts part)
                     (nil-pred-to-ir (value-arg-ir part "nil?"))
-                    :value
+                    :bool
                     (:ctx part))))
 
     (= mode :empty?)
@@ -2602,7 +2794,7 @@
       (let [part (compile-form-node :form (first node) ctx)]
         (form-result (:stmts part)
                     (empty-pred-to-ir (value-arg-ir part "empty?"))
-                    :value
+                    :bool
                     (:ctx part))))
 
     (= mode :count)
@@ -2686,11 +2878,14 @@
     (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         (form-result stmts (str-to-ir irs) :string ctx)
-        (let [part (compile-form-node :form (first remaining) ctx)]
+        (let [part (compile-form-node :form (first remaining) ctx)
+              ir (if (= :bool (:expr-kind part))
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   (:expr part))]
           (recur (rest remaining)
                  (:ctx part)
                  (concat-stmts stmts (:stmts part))
-                 (conj irs (:expr part))))))
+                 (conj irs ir)))))
 
     (= mode :ex-info)
     (let [n (count (stmt-list node))]
@@ -2852,7 +3047,7 @@
       (throw (ex-info "contains? expects collection and key" {}))
       (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
         (if (or (nil? remaining) (empty? remaining))
-          (form-result stmts (contains-pred-to-ir irs) :value ctx)
+          (form-result stmts (contains-pred-to-ir irs) :bool ctx)
           (let [part (compile-form-node :form (first remaining) ctx)]
             (recur (rest remaining)
                    (:ctx part)
@@ -2947,11 +3142,14 @@
     (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         (form-result stmts (println-to-ir irs) :value ctx)
-        (let [part (compile-form-node :form (first remaining) ctx)]
+        (let [part (compile-form-node :form (first remaining) ctx)
+              ir (if (= :bool (:expr-kind part))
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   (:expr part))]
           (recur (rest remaining)
                  (:ctx part)
                  (concat-stmts stmts (:stmts part))
-                 (conj irs (:expr part))))))
+                 (conj irs ir)))))
 
     (= mode :value-args)
     (let [args (first node)
@@ -2979,7 +3177,7 @@
 
     (= op "==")
     (let [compiled (compile-form-node :value-args [args false "== arguments must evaluate to Value"] ctx)]
-      (form-result (:stmts compiled) (numeric-eq-to-ir (:irs compiled)) :value (:ctx compiled)))
+      (form-result (:stmts compiled) (numeric-eq-to-ir (:irs compiled)) :bool (:ctx compiled)))
 
     (or (= op "<") (= op "<=") (= op ">") (= op ">="))
     (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -3037,8 +3235,15 @@
     (= op "apply")
     (if (or (nil? args) (empty? args) (empty? (rest args)))
       (throw (ex-info "apply expects function and at least one argument sequence" {}))
-      (let [compiled (compile-form-node :value-args [args false "apply arguments must evaluate to Value"] ctx)]
-        (form-result (:stmts compiled) (apply-to-ir (:irs compiled)) :value (:ctx compiled))))
+      (let [head (unwrap-ast (first args))
+            fun (if (= :symbol (:kind head))
+                  (builtin-call-fun (:name head) ctx)
+                  nil)]
+        (if fun
+          (let [compiled (compile-form-node :value-args [(rest args) false "apply arguments must evaluate to Value"] ctx)]
+            (form-result (:stmts compiled) (apply-fn-to-ir fun (:irs compiled)) :value (:ctx compiled)))
+          (let [compiled (compile-form-node :value-args [args false "apply arguments must evaluate to Value"] ctx)]
+            (form-result (:stmts compiled) (apply-to-ir (:irs compiled)) :value (:ctx compiled))))))
 
     (= op "pmap")
     (if (or (nil? args) (empty? args) (empty? (rest args)))
@@ -3098,6 +3303,13 @@
         (throw (ex-info "repeat expects one or two arguments" {}))
         (let [compiled (compile-form-node :value-args [args true "repeat arguments must evaluate to Value"] ctx)]
           (form-result (:stmts compiled) (repeat-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "range")
+    (let [n (count (stmt-list args))]
+      (if (> n 3)
+        (throw (ex-info "range expects zero to three integer arguments" {}))
+        (let [compiled (compile-form-node :value-args [args true "range arguments must evaluate to Value"] ctx)]
+          (form-result (:stmts compiled) (range-to-ir (:irs compiled)) :value (:ctx compiled)))))
 
     (= op "rand-int")
     (if (not (= 1 (count (stmt-list args))))
@@ -3261,7 +3473,7 @@
                   (throw (ex-info "= expects at least two arguments" {}))
                   (loop [remaining args ctx ctx stmts [] irs []]
                     (if (or (nil? remaining) (empty? remaining))
-                      (form-result stmts (eq-to-ir irs) :value ctx)
+                      (form-result stmts (eq-to-ir irs) :bool ctx)
                       (let [part (compile-form-node :form (first remaining) ctx)]
                         (recur (rest remaining)
                                (:ctx part)
@@ -3304,11 +3516,12 @@
                 (throw (ex-info "not handled by FLAG form lowering" {:node node}))
 
                 :else
-                (let [self-target (self-call-target op (count (stmt-list args)) ctx)]
-                  (if (and self-target (not (= "" self-target)))
+                (let [fun (or (known-call-fun op (count (stmt-list args)) ctx)
+                              (builtin-call-fun op ctx))]
+                  (if fun
                     (let [compiled (compile-form-node :seq args ctx)]
                       (form-result (:stmts compiled)
-                                   (ident-call-ir self-target (:irs compiled))
+                                   {:kind :call :fun fun :args (:irs compiled)}
                                    :value
                                    (:ctx compiled)))
                     (let [callee (compile-form-node :form head ctx)
@@ -3350,8 +3563,11 @@
 
         (= kind :symbol)
         (let [name (:name form)]
-          (if (or (= name "true") (= name "false") (= name "nil"))
-            (form-result [] (ast-node-to-ir form) :value ctx)
+          (cond
+            (= name "true") (form-result [] {:kind :raw :code "true"} :bool ctx)
+            (= name "false") (form-result [] {:kind :raw :code "false"} :bool ctx)
+            (= name "nil") (form-result [] (ast-node-to-ir form) :value ctx)
+            :else
             (let [ident (go-ident-or-empty name)
                   resolved (symbol-to-ir name ident ctx)]
               (form-result [] (:ir resolved) (:expr-kind resolved) ctx))))
@@ -3413,7 +3629,7 @@
 
     (= mode :forms)
     (if (or (nil? node) (empty? node))
-      (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+      (form-result [] (rt-nil) :value ctx)
       (loop [remaining (stmt-list node) ctx ctx compiled []]
         (let [part (compile-form-node :form (first remaining) ctx)
               more (rest remaining)
@@ -3585,7 +3801,7 @@
           catch-forms (:catches parsed)
           finally-forms (:finally parsed)
           body (if (or (nil? body-forms) (empty? body-forms))
-                 (form-result [] (literal-rt-call "NilValue" []) :value ctx)
+                 (form-result [] (rt-nil) :value ctx)
                  (coerce-form-value (compile-form-node :forms body-forms ctx)))]
       (if (and (or (nil? catch-forms) (empty? catch-forms)) (nil? finally-forms))
         body
@@ -3606,7 +3822,7 @@
                                    (assoc (if (nil? locals) {} locals) ident :value))
                   handler-ctx (assoc ctx :locals handler-locals)
                   handler-body (if (or (nil? (:body clause)) (empty? (:body clause)))
-                                 (form-result [] (literal-rt-call "NilValue" []) :value handler-ctx)
+                                 (form-result [] (rt-nil) :value handler-ctx)
                                  (coerce-form-value (compile-form-node :forms (:body clause) handler-ctx)))
                   handler (catch-handler-to-ir ident (:stmts handler-body) (:expr handler-body))]
               (recur (rest remaining)
@@ -3867,10 +4083,10 @@
       (assoc :if-temps (:if-temps inner))
       (assoc :constants (or (:constants inner) (:constants outer)))))
 
-(defn module-ctx-after-fn [outer compiled flag-name go-name]
+(defn module-ctx-after-fn [outer compiled flag-name go-name info]
   (let [inner (compiled-inner-ctx compiled)]
     (-> (module-ctx-keep outer inner)
-        (assoc :functions (map-put (or (:functions outer) {}) go-name true))
+        (register-fn-info go-name info)
         (assoc :globals (map-put (or (:globals outer) {}) go-name :value))
         (bind-module-name flag-name go-name))))
 
@@ -3909,6 +4125,11 @@
                 n (count (stmt-list params))
                 variadic (str go-name "_variadic")
                 arity-name (if has-rest variadic (str go-name "_arity_" n))
+                info {:has-rest has-rest
+                      :variadic-name variadic
+                      :arity-name arity-name
+                      :arity (if has-rest nil n)
+                      :arity-names (if has-rest {} {n arity-name})}
                 fn-ctx (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
                            (assoc :locals (:locals bound))
                            (assoc :self-function-name name)
@@ -3917,7 +4138,7 @@
                            (assoc :self-function-rest has-rest)
                            (assoc :self-arity-name (as-value arity-name))
                            (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
-                           (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                           (register-fn-info go-name info)
                            (bind-module-name name go-name))
                 compiled (coerce-form-value (compile-forms-to-ir body-els fn-ctx))
                 decls (defn-to-ir arity-name variadic go-name params has-rest
@@ -3928,6 +4149,7 @@
                         :variadic-name variadic
                         :arity-name arity-name
                         :has-rest has-rest
+                        :arity-names (:arity-names info)
                         :doc doc
                         :params params
                         :ir-decls decls
@@ -3935,7 +4157,7 @@
                         :body-stmts (:stmts compiled)
                         :init-stmts (:init-stmts bound)}
              :var (defn-var-binding name go-name variadic)
-             :ctx (module-ctx-after-fn ctx compiled name go-name)}))))))
+             :ctx (module-ctx-after-fn ctx compiled name go-name info)}))))))
 
 (defn compile-multi-arity-pending [arity-forms go-name ctx]
   (loop [remaining arity-forms seen {} pending [] names {} counts []]
@@ -3972,13 +4194,18 @@
     (throw (ex-info "defn expects at least one arity" {}))
     (let [parsed (compile-multi-arity-pending arity-forms go-name ctx)
           variadic (str go-name "_variadic")
+          info {:has-rest false
+                :variadic-name variadic
+                :arity-name ""
+                :arity nil
+                :arity-names (:names parsed)}
           fn-base (-> ctx
                       (assoc :self-function-name name)
                       (assoc :self-variadic-name (as-value variadic))
                       (assoc :self-arity-names (:names parsed))
                       (assoc :self-function-rest false)
                       (assoc :globals (map-put (or (:globals ctx) {}) go-name :value))
-                      (assoc :functions (map-put (or (:functions ctx) {}) go-name true))
+                      (register-fn-info go-name info)
                       (bind-module-name name go-name))
           compiled (loop [remaining (:pending parsed) cur fn-base arities []]
                      (if (or (nil? remaining) (empty? remaining))
@@ -4005,11 +4232,12 @@
                   :variadic-name variadic
                   :arity-name ""
                   :has-rest false
+                  :arity-names (:names parsed)
                   :doc doc
                   :params []
                   :ir-decls decls}
        :var (defn-var-binding name go-name variadic)
-       :ctx (module-ctx-after-fn ctx (:ctx compiled) name go-name)})))
+       :ctx (module-ctx-after-fn ctx (:ctx compiled) name go-name info)})))
 
 (defn compile-defn-form [form ctx]
   (let [els (ast-elements form)]
@@ -4408,17 +4636,19 @@
           (recur (rest remaining) out)
           (recur (rest remaining) (assoc out name (first remaining))))))))
 
-(defn seed-one-export [ctx prefix pkg-name package-mode? exp defs macros spec-path]
+(defn seed-one-export [ctx prefix pkg-name package-mode? exp defs macros fn-info spec-path]
   (let [go-name (get defs exp)]
     (if go-name
-      (let [ref (if package-mode? (str pkg-name "." go-name) go-name)]
-        (bind-module-name ctx (as-value (str prefix "/" exp)) ref))
+      (let [ref (if package-mode? (str pkg-name "." go-name) go-name)
+            ctx (bind-module-name ctx (as-value (str prefix "/" exp)) ref)
+            info (qualify-fn-info (get fn-info exp) pkg-name package-mode?)]
+        (register-fn-info ctx ref info))
       (let [mac (get macros exp)]
         (if mac
           (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac (as-value (str prefix "/" exp)))))
           (throw (ex-info (str "import \"" spec-path "\": exported \"" exp "\" has no definition") {})))))))
 
-(defn seed-one-refer [ctx pkg-name package-mode? ref-name exports defs macros spec-path]
+(defn seed-one-refer [ctx pkg-name package-mode? ref-name exports defs macros fn-info spec-path]
   (if (not (contains? exports ref-name))
     (throw (ex-info (str "import \"" spec-path "\": cannot :refer \"" ref-name "\" (not in :exports)") {}))
     (let [go-name (get defs ref-name)]
@@ -4430,9 +4660,10 @@
               mod2 (if (or (nil? ns) (= "" ns))
                      mod1
                      (dissoc mod1 (as-value (str ns "/" ref-name))))
-              ctx1 (assoc ctx :module mod2)]
+              ctx1 (assoc ctx :module mod2)
+              info (qualify-fn-info (get fn-info ref-name) pkg-name package-mode?)]
           (try
-            (bind-module-name ctx1 ref-name ref)
+            (register-fn-info (bind-module-name ctx1 ref-name ref) ref info)
             (catch Throwable t
               (throw (ex-info (str "import \"" spec-path "\": :refer \"" ref-name "\": " (ex-message t)) {})))))
         (let [mac (get macros ref-name)]
@@ -4440,7 +4671,7 @@
             (assoc ctx :macro-forms (conj (or (:macro-forms ctx) []) (rename-defmacro mac ref-name)))
             (throw (ex-info (str "import \"" spec-path "\": referred \"" ref-name "\" has no definition") {}))))))))
 
-(defn seed-one-import [ctx importer-path spec by-path module-defs module-macros used-prefixes]
+(defn seed-one-import [ctx importer-path spec by-path module-defs module-macros module-fn-info used-prefixes]
   (let [spec-path (str (:path spec))
         resolved (resolve-import-path importer-path spec-path)
         provider (get by-path resolved)]
@@ -4456,7 +4687,8 @@
             (throw (ex-info (str "import prefix \"" prefix "\" already used by " prev) {}))
             (let [exports (module-export-set (:exports provider))
                   defs (get module-defs resolved)
-                  macros (or (get module-macros resolved) {})]
+                  macros (or (get module-macros resolved) {})
+                  fn-info (or (get module-fn-info resolved) {})]
               (if (nil? defs)
                 (throw (ex-info (str "import \"" spec-path "\": provider not compiled yet") {}))
                 (let [package-mode? (if (:package-mode ctx) true false)
@@ -4471,7 +4703,7 @@
                                ctx
                                (recur (rest remaining)
                                       (seed-one-export ctx prefix pkg-name package-mode?
-                                                       (as-value (str (first remaining))) defs macros spec-path))))
+                                                       (as-value (str (first remaining))) defs macros fn-info spec-path))))
                       refer-names (if (or (= :all (:refer spec)) (= "all" (:refer spec)))
                                     (or (:exports provider) [])
                                     (or (:refer spec) []))
@@ -4480,14 +4712,14 @@
                                ctx
                                (recur (rest remaining)
                                       (seed-one-refer ctx pkg-name package-mode?
-                                                      (as-value (str (first remaining))) exports defs macros spec-path))))]
+                                                      (as-value (str (first remaining))) exports defs macros fn-info spec-path))))]
                   {:ctx ctx3 :used-prefixes (assoc used-prefixes prefix resolved)})))))))))
 
-(defn seed-imports [ctx mod by-path module-defs module-macros]
+(defn seed-imports [ctx mod by-path module-defs module-macros module-fn-info]
   (loop [remaining (or (:imports mod) []) ctx ctx used {}]
     (if (or (nil? remaining) (empty? remaining))
       ctx
-      (let [out (seed-one-import ctx (:path mod) (first remaining) by-path module-defs module-macros used)]
+      (let [out (seed-one-import ctx (:path mod) (first remaining) by-path module-defs module-macros (or module-fn-info {}) used)]
         (recur (rest remaining) (:ctx out) (:used-prefixes out))))))
 
 (defn implicit-prologue-spec [prologue-path]
@@ -4954,6 +5186,7 @@
      :variadic-name variadic
      :arity-name arity-name
      :has-rest false
+     :arity-names {n arity-name}
      :doc ""
      :params params
      :ir-decls decls
@@ -5055,7 +5288,8 @@
                       map-ctor (record-ctor-function map-flag map-go ["m"] (:code map-body))
                       next-ctx (-> (:ctx map-body)
                                    (assoc :record-types (map-put (or (:record-types ctx) {}) type-name name))
-                                   (assoc :functions (map-put (map-put (or (:functions ctx) {}) ctor-go true) map-go true))
+                                   (register-fn-info ctor-go (fn-call-info ctor))
+                                   (register-fn-info map-go (fn-call-info map-ctor))
                                    (assoc :globals (map-put (map-put (or (:globals ctx) {}) ctor-go :value) map-go :value))
                                    (bind-module-name ctor-flag ctor-go)
                                    (bind-module-name map-flag map-go))]
@@ -5170,6 +5404,7 @@
          tests []
          stmts []
          defined {}
+         fn-info {}
          needs-fmt false
          type-decls []]
     (if (or (nil? remaining) (empty? remaining))
@@ -5178,6 +5413,7 @@
        :tests tests
        :stmts stmts
        :defined defined
+       :fn-info fn-info
        :ctx ctx
        :needs-fmt needs-fmt
        :type-decls type-decls}
@@ -5185,10 +5421,10 @@
             op (:op item)]
         (cond
           (= op :skip)
-          (recur (rest remaining) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+          (recur (rest remaining) (:ctx item) functions vars tests stmts defined fn-info needs-fmt type-decls)
 
           (= op :splice)
-          (recur (concat-stmts (:forms item) (rest remaining)) (:ctx item) functions vars tests stmts defined needs-fmt type-decls)
+          (recur (concat-stmts (:forms item) (rest remaining)) (:ctx item) functions vars tests stmts defined fn-info needs-fmt type-decls)
 
           (= op :defn)
           (recur (rest remaining)
@@ -5198,6 +5434,7 @@
                  tests
                  stmts
                  (map-put defined (:flag-name (:function item)) (:go-name (:function item)))
+                 (map-put fn-info (:flag-name (:function item)) (fn-call-info (:function item)))
                  needs-fmt
                  type-decls)
 
@@ -5209,6 +5446,7 @@
                  tests
                  stmts
                  (map-put defined (:flag-name (:var item)) (:go-name (:var item)))
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5220,6 +5458,7 @@
                  (conj tests (:test item))
                  stmts
                  defined
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5231,6 +5470,7 @@
                  tests
                  stmts
                  (merge-defined-names defined (:names item))
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5242,6 +5482,7 @@
                  tests
                  stmts
                  defined
+                 fn-info
                  needs-fmt
                  type-decls)
 
@@ -5253,6 +5494,11 @@
                  tests
                  stmts
                  (merge-defined-names defined (:names item))
+                 (loop [remaining (:functions item) info fn-info]
+                   (if (or (nil? remaining) (empty? remaining))
+                     info
+                     (recur (rest remaining)
+                            (map-put info (:flag-name (first remaining)) (fn-call-info (first remaining))))))
                  needs-fmt
                  (conj type-decls (:type-decl item)))
 
@@ -5264,6 +5510,7 @@
                  tests
                  (conj stmts (:stmt item))
                  defined
+                 fn-info
                  (if (or needs-fmt (:needs-fmt item)) true false)
                  type-decls)
 
@@ -5281,6 +5528,7 @@
            shared ctx
            module-defs {}
            module-macros {}
+           module-fn-info {}
            acc {:type-decls [] :functions [] :vars [] :stmts [] :tests [] :needs-fmt false}]
       (if (or (nil? remaining) (empty? remaining))
         (assoc acc
@@ -5295,7 +5543,7 @@
                        (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
                        (assoc :module (or (:module shared) {}))
                        (assoc :go-imports []))
-              seeded (seed-imports ctx0 mod by-path module-defs module-macros)
+              seeded (seed-imports ctx0 mod by-path module-defs module-macros module-fn-info)
               exported (apply-go-exports mod (assoc seeded :allow-top-level (= (:path mod) entry-path)))
               expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
               compiled (compile-module-body expanded (:ctx exported))
@@ -5314,7 +5562,8 @@
                        (assoc :go-imports []))
                    (assoc module-defs (:path mod) (:defined compiled1))
                    (assoc module-macros (:path mod) macros)
-                   (append-compile-acc acc compiled1))))))))
+                  (assoc module-fn-info (:path mod) (or (:fn-info compiled1) {}))
+                  (append-compile-acc acc compiled1))))))))
 
 (defn compile-package-modules [modules ctx prologue-exports entry-path prologue-names]
   (let [by-path (loop [remaining modules out {}]
@@ -5334,6 +5583,7 @@
                        (assoc :namespace (or (:namespace mod) (:legacy-ns mod) ""))
                        (assoc :exported-names (module-export-set (:exports mod)))
                        (assoc :module {})
+                       (assoc :functions {})
                        (assoc :go-imports []))
               seeded (seed-imports ctx0 mod by-path
                                    (loop [pkgs out defs {}]
@@ -5345,7 +5595,12 @@
                                      (if (or (nil? pkgs) (empty? pkgs))
                                        macros
                                        (recur (rest pkgs)
-                                              (assoc macros (:path (first pkgs)) (:macros (first pkgs)))))))
+                                              (assoc macros (:path (first pkgs)) (:macros (first pkgs))))))
+                                   (loop [pkgs out info {}]
+                                     (if (or (nil? pkgs) (empty? pkgs))
+                                       info
+                                       (recur (rest pkgs)
+                                              (assoc info (:path (first pkgs)) (or (:fn-info (first pkgs)) {}))))))
               exported (apply-go-exports mod (assoc seeded :allow-top-level is-entry))
               expanded (expand-module-forms (:macro-forms (:ctx exported)) (:forms mod))
               compiled (compile-module-body expanded (:ctx exported))
@@ -5392,6 +5647,7 @@
                               :main? is-entry
                               :path (:path mod)
                               :defined (:defined compiled3)
+                              :fn-info (or (:fn-info compiled3) {})
                               :macros macros})))))))))
 
 (defn file-first-line [s]

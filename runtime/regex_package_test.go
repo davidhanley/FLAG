@@ -42,7 +42,7 @@ func TestSomeWorksWithRegexMatcher(t *testing.T) {
 		if IsTruthy(Call(matcher, args[0])) {
 			return args[0]
 		}
-		return NilValue()
+		return NilValue
 	}), values); got.tag != TagString || got.StringValue() != "hello" {
 		t.Fatalf("unexpected some regex result: %#v", got)
 	}

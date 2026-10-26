@@ -10,7 +10,7 @@ import (
 func compiler__parse_error_arity_3(line flagrt.Value, col flagrt.Value, msg flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		flagrt.Throw(flagrt.NewString(flagrt.Str("parse error at ", line, ":", col, ": ", msg)))
-		return flagrt.NilValue()
+		return flagrt.NilValue
 	}()
 }
 
@@ -44,7 +44,7 @@ func compiler__token_col_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__make_parser_arity_1(in flagrt.Value) flagrt.Value {
-	return flagrt.NewMap(astflagKw_in, in, astflagKw_la, flagrt.Call(async__atom, astflagKw_none), astflagKw_last, flagrt.Call(async__atom, flagrt.NilValue()))
+	return flagrt.NewMap(astflagKw_in, in, astflagKw_la, flagrt.Call(async__atom, astflagKw_none), astflagKw_last, flagrt.Call(async__atom, flagrt.NilValue))
 }
 
 func compiler__make_parser_variadic(args ...flagrt.Value) flagrt.Value {
@@ -293,7 +293,7 @@ func compiler__split_once_arity_2(token flagrt.Value, sep flagrt.Value) flagrt.V
 		for {
 			var if_result_209 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsEmpty(cs))) {
-				if_result_209 = flagrt.NilValue()
+				if_result_209 = flagrt.NilValue
 			} else {
 				var if_result_208 flagrt.Value
 				if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(sep, flagrt.First(cs)))) {
@@ -362,7 +362,7 @@ func compiler__unescape_char_arity_1(ch flagrt.Value) flagrt.Value {
 				if flagrt.IsTruthy(flagrt.NewBool(true)) {
 					if_result_210 = ch
 				} else {
-					if_result_210 = flagrt.NilValue()
+					if_result_210 = flagrt.NilValue
 				}
 				if_result_211 = if_result_210
 			}
@@ -668,7 +668,7 @@ func compiler__parse_char_token_arity_3(token flagrt.Value, line flagrt.Value, c
 						if flagrt.IsTruthy(flagrt.NewBool(true)) {
 							if_result_245 = flagrt.Call(compiler__parse_error, line, col, astflagStr_unsupported_character_li)
 						} else {
-							if_result_245 = flagrt.NilValue()
+							if_result_245 = flagrt.NilValue
 						}
 						if_result_246 = if_result_245
 					}
@@ -981,7 +981,7 @@ func compiler__parse_atom_token_arity_1(tok flagrt.Value) flagrt.Value {
 							}
 							if_result_289 = let_result_288
 						} else {
-							if_result_289 = flagrt.NilValue()
+							if_result_289 = flagrt.NilValue
 						}
 						if_result_290 = if_result_289
 					}
@@ -1202,7 +1202,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 										if flagrt.IsTruthy(flagrt.NewBool(true)) {
 											if_result_316 = astflagKw_set
 										} else {
-											if_result_316 = flagrt.NilValue()
+											if_result_316 = flagrt.NilValue
 										}
 										if_result_317 = if_result_316
 									}
@@ -1229,7 +1229,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 									if flagrt.IsTruthy(flagrt.NewBool(true)) {
 										if_result_321 = astflagStr___7
 									} else {
-										if_result_321 = flagrt.NilValue()
+										if_result_321 = flagrt.NilValue
 									}
 									if_result_322 = if_result_321
 								}
@@ -1254,7 +1254,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 									if flagrt.IsTruthy(flagrt.NewBool(true)) {
 										if_result_325 = astflagStr_missing_closing____
 									} else {
-										if_result_325 = flagrt.NilValue()
+										if_result_325 = flagrt.NilValue
 									}
 									if_result_326 = if_result_325
 								}
@@ -1290,7 +1290,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 											}
 											var if_result_331 flagrt.Value
 											if flagrt.IsTruthy(let_result_330) {
-												if_result_331 = flagrt.NilValue()
+												if_result_331 = flagrt.NilValue
 											} else {
 												if_result_331 = flagrt.Call(compiler__collection_node, kind, elements, open)
 											}
@@ -1407,7 +1407,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 											if flagrt.IsTruthy(flagrt.NewBool(true)) {
 												if_result_345 = flagrt.Call(compiler__parse_error, flagrt.Call(compiler__token_line, quote_tok), flagrt.Call(compiler__token_col, quote_tok), astflagStr_quote_currently_supports)
 											} else {
-												if_result_345 = flagrt.NilValue()
+												if_result_345 = flagrt.NilValue
 											}
 											if_result_346 = if_result_345
 										}
@@ -1457,7 +1457,7 @@ func compiler__read_expr_arity_1(p flagrt.Value) flagrt.Value {
 												_ = flagrt.Call(compiler__next_tok, p)
 												if_result_353 = flagrt.Call(compiler__parse_atom_token, tok)
 											} else {
-												if_result_353 = flagrt.NilValue()
+												if_result_353 = flagrt.NilValue
 											}
 											if_result_354 = if_result_353
 										}
@@ -1608,10 +1608,10 @@ func compiler__ast_node__gtcanonical_arity_1(expr flagrt.Value) flagrt.Value {
 																			if flagrt.IsTruthy(flagrt.NewBool(true)) {
 																				if_result_367 = func() flagrt.Value {
 																					flagrt.Throw(flagrt.NewString(flagrt.Str("unsupported AST node ", kind)))
-																					return flagrt.NilValue()
+																					return flagrt.NilValue
 																				}()
 																			} else {
-																				if_result_367 = flagrt.NilValue()
+																				if_result_367 = flagrt.NilValue
 																			}
 																			if_result_368 = if_result_367
 																		}
@@ -1711,7 +1711,7 @@ func compiler__drain_remaining_arity_1(in flagrt.Value) flagrt.Value {
 		for {
 			var if_result_389 flagrt.Value
 			if flagrt.IsTruthy(flagrt.NewBool(flagrt.IsNil(flagrt.Call(async__channel_receive, in)))) {
-				if_result_389 = flagrt.NilValue()
+				if_result_389 = flagrt.NilValue
 			} else {
 				if_result_389 = flagrt.NewRecur(flagrt.NewBool(true))
 			}
@@ -1776,7 +1776,7 @@ func compiler__build_ast_from_tokens_arity_1(in flagrt.Value) flagrt.Value {
 								var tok = flagrt.Call(compiler__peek, p)
 								var if_result_392 flagrt.Value
 								if flagrt.IsTruthy(flagrt.NewBool(flagrt.Eq(astflagKw_eof, tok))) {
-									if_result_392 = flagrt.NilValue()
+									if_result_392 = flagrt.NilValue
 								} else {
 									var let_result_391 flagrt.Value
 									{

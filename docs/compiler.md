@@ -87,7 +87,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`, `compare-to-ir`,
 `numeric-eq-to-ir`, `comparison-to-ir`, `symbol-ctor-to-ir`, `name-to-ir`,
 `keyword-ctor-to-ir`, `format-to-ir`, `map-to-ir`, `sort-by-to-ir`,
-`apply-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
+`apply-to-ir`, `apply-fn-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
 `some-to-ir`, `set-to-ir`, `line-seq-to-ir`, `repeat-to-ir`, `rand-int-to-ir`,
 `to-json-to-ir`, `from-json-to-ir`, `open-file-to-ir`, `file-to-strings-to-ir`,
 `file-to-strings-path-to-ir`, `go-fn-to-ir`, `go-fn-args-to-ir`,
@@ -100,6 +100,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `write-to-ir`, `ends-with-to-ir`, `testing-to-ir`, `is-to-ir`,
 `expect-exception-to-ir`, `ast-form-source`, `hash-fn-placeholder-index`,
 `map-destructure-key-ir`, `go-ident`, `bind-params-to-ir`,
+`known-call-fun`, `builtin-fn-ident`, `builtin-call-fun`,
 `compile-form-to-ir`, `compile-forms-to-ir`, `form-defer-result`,
 `forms-have-defer?`, `list-head-name`, `catch-type-name`,
 `parse-catch-clause`, `split-try-args`, `sanitize-keyword-ident`,
@@ -128,7 +129,9 @@ and `compile-module-body`.
 
 `ast-node-to-ir` lowers FLAG AST literal maps (`:int`, `:string`, `:char`,
 `:bigint`, `:ratio`, `:float`, `:keyword`, `:quoted-symbol`, and symbols
-`true`/`false`/`nil`) to IR maps. The Go compiler calls this from `exprToGo`
+`true`/`false`/`nil`) to IR maps. `rt-nil` is FLAG `nil`: a `:selector` of
+the package var `flagrt.NilValue` (not a `NilValue()` call). No-arg runtime
+functions still use `literal-rt-call` (e.g. `Seq()`). The Go compiler calls this from `exprToGo`
 (`flagLiteralToIR`) and still hoists keywords, chars, bigints, ratios, and
 quoted symbols with `internIR`. FLAG `compile-form-to-ir` hoists the same
 literals (plus quoted lists as `List`) when ctx has `:constants`. String
@@ -143,10 +146,22 @@ Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-for
 `true`/`false`/`nil`). Go `quotedLiteralToIR` calls this; quoted lists are
 still interned as `List`. Odd-length maps error.
 
-`call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. Go
-`callExprToGo` still resolves the callee and arguments (locals, interned
-keywords, self-calls stay direct Go idents), then uses `call-to-ir` for the
-generic Call node. `call-ast-to-ir` lowers a `:list` whose head is not a
+`call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
+only for unknown callees (locals, maps, sets, keywords, `apply`).
+`known-call-fun` picks a direct Go call when the head is a known function:
+same-package FLAG defns use `goName_arity_N(...)` when that arity exists
+(`goName_variadic(...)` only for `& rest` or an unmatched arity). Imported
+FLAG defns use `pkg.Name_arity_N` the same way. `GoBind_*` hosts use `flagrt.GoBind_X.Fn(...)`, and referred module
+go-exports (e.g. async `select`) or a `def` of a function Value use
+`goIdent.Fn(...)`. A `flagrt.Value` is a struct, so `translate_name(x)`
+is not valid Go; `.Fn` is the direct invoke (no `FunctionObject()` hop).
+These are not stolen by a same-named builtin. `builtin-call-fun` /
+`builtin-fn-ident` map FLAG builtins onto `flagrt.FnX` pointers
+(`FnMax`, `FnGet`, …) unless the name is a local or `:module` binding.
+Calls become `flagrt.FnCloseFile(x)`; `(apply max xs)` becomes
+`flagrt.ApplyFn(flagrt.FnMax, xs)` instead of looking up
+`BuiltinFunction("max")`. Locals keep `Call` so `(f x)` still works when
+`f` is a map or higher-order value. `call-ast-to-ir` lowers a `:list` whose head is not a
 special form when every subform is a literal, collection, or nested generic
 call; unresolved symbols and special forms (`if`, `+`, `fn`, …) error so Go
 can keep those paths.
@@ -160,13 +175,15 @@ constant collections the same way.
 arity checks; FLAG emits `flagrt.First`, folded `flagrt.Add`, `BitAnd`, etc.
 
 `eq-to-ir` is `(= a b c …)`: at least two arguments, string args wrapped
-with `NewString`, adjacent values chained as `flagrt.Eq` joined with `&&`,
-then `flagrt.NewBool`. Production `compile-form-to-ir` uses this for `=`.
+with `NewString`, adjacent values chained as `flagrt.Eq` joined with `&&`.
+The result kind is `:bool` (a native Go bool). `NewBool` is applied only
+when a `Value` is required (`coerce-form-value`, arguments, map/vector
+entries). Production `compile-form-to-ir` uses this for `=`.
 Self-calls use the same direct Go ident as production (`goName_arity_N` or
 the variadic wrapper), not `flagrt.Call`.
 
-`nil-pred-to-ir` / `empty-pred-to-ir` wrap `flagrt.IsNil` / `IsEmpty` in
-`NewBool`. `count-to-ir` is `NewLong(int64(Count(x)))`. Each takes one
+`nil-pred-to-ir` / `empty-pred-to-ir` emit `flagrt.IsNil` / `IsEmpty` as
+`:bool`. `count-to-ir` is `NewLong(int64(Count(x)))`. Each takes one
 argument; string args become `NewString`. Production `compile-form-to-ir`
 handles `nil?`, `empty?`, `count`, `throw` (existing `throw-to-ir` IIFE),
 and `loop`/`recur` (symbol bindings, `:mutable-value` locals,
@@ -191,7 +208,7 @@ form; `:seq` still means “compile an argument list”.
 
 `not-empty-to-ir` is strict-Value `NotEmpty`. `type-of-to-ir` / `vec-to-ir`
 wrap strings like `seq`. `dissoc-to-ir` is `MapDissoc` (≥1 arg, no string
-wrap). `contains-pred-to-ir` is `NewBool(Contains)` (exactly two Values).
+wrap). `contains-pred-to-ir` is `Contains` as `:bool` (exactly two Values).
 `(list)` / `(array)` / `(hash-map)` use `ctor-to-ir` (`NewList` / `NewArray` /
 `NewMap`) and wrap strings; `hash-map` needs even key/value pairs. `into-to-ir`
 is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
@@ -199,9 +216,14 @@ is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
 args (`Println`) with result kind `:value`.
 
 `compare-to-ir` is two-arg `Compare` (strings wrapped). `numeric-eq-to-ir` is
-`NewBool(NumericEq(...))` with no string wrap. `comparison-to-ir` chains
-`Lt`/`Le`/`Gt`/`Ge` with `&&`. Compile-form wraps that in `NewBool` so `let`/`and`
-stay Values (Go’s `exprToGo` path still uses a raw `:bool`). `symbol-ctor-to-ir` /
+`NumericEq(...)` as `:bool` with no string wrap. `comparison-to-ir` chains
+`Lt`/`Le`/`Gt`/`Ge` with `&&` as `:bool`. `if` / `is` tests a `:bool`
+directly (`if flagrt.Eq(...)`) instead of `IsTruthy(NewBool(...))`.
+Form `true` / `false` are also `:bool` (`true` / `false` Go bools). Quoted
+`true` / `false` stay `NewBool` via `ast-node-to-ir`. Bool args to Value
+ops (`=`, `nil?`, map entries, `str`, …) are boxed with `NewBool`. Two-arg
+`if` and volatile `let` bindings also box a `:bool` so the result stays a
+`Value` (`nil` else / mutable local). `symbol-ctor-to-ir` /
 `name-to-ir` / `keyword-ctor-to-ir` take a string or Value (`Name` is
 `:string`). `format-to-ir` is `NewString(Format(fmt, args…))` with a string
 format. `map`/`sort-by`/`apply`/`pmap`/`filter`/`reduce`/`some` are Value-only
@@ -214,8 +236,11 @@ for strings and `FileToStrings` for Values.
 `symbol-to-ir` takes the FLAG name, Go ident (from `toGoIdentifier`), and a
 context map (`:locals`, `:globals`, `:functions`, `:module`, `:go-fns`,
 `:self-function-name`, `:self-variadic-name`). It matches Go resolution:
-locals, self `NewFunction`, module table, globals, functions,
-`BuiltinFunction`, then Go bindings. `eval-ast-to-ir` uses that context to
+locals, self `NewFunction(variadic)`, module/globals/functions as the
+already-built `Value` var (`prologue.Identity`, not
+`NewFunction(prologue.Identity)`), `flagrt.NewFunction(flagrt.FnX)` for
+builtins, then Go bindings.
+`eval-ast-to-ir` uses that context to
 lower literals, evaluated collections, runtime ops, and generic calls.
 
 `if-to-ir` emits a result variable plus a Go `if` that assigns each branch:
@@ -244,7 +269,7 @@ forms become discarded statements, the last form's statements stay with the
 result expression. Production `doExprToGo` uses this unless a form is
 `defer`. `do-defer-to-ir` wraps the same forms in an IIFE so Go `defer`
 runs when that thunk returns (`with-open`). Empty `(do)` is still
-`NilValue` in Go.
+`flagrt.NilValue` in Go.
 
 `loop-to-ir` emits a value IIFE: init statements, `var` bindings, then
 `for { body; __loopResult := body-expr; if unwrap-recur { assign; continue }; return }`.
@@ -308,8 +333,10 @@ destructure), `fn`, `#()`, `update!`, `=`,
 `testing` / `is` / `expect-exception`, folded `+ - * /`, and other
 runtime ops already in FLAG.
 Unknown `.method` calls throw `unsupported symbol ".Foo"` (same as Go).
-Comparisons `<` `<=` `>` `>=` are Go-matched `:bool` (`Lt`/`Le`/`Gt`/`Ge` chained with `&&`, no `NewBool` wrap).
-Map/vector/set entries wrap strings and otherwise require `:value` (bools error, with `at line:col`).
+Comparisons `<` `<=` `>` `>=`, `=`, `==`, `nil?`, `empty?`, `contains?`,
+and `true`/`false` are `:bool` (native Go bool, no `NewBool` wrap).
+`if` / `is` use that bool directly. Map/vector/set entries wrap strings
+and box bools with `NewBool`; other kinds error with `at line:col`.
 `fn` and `let` restore outer `:locals` / `:loop-binding-names` so a sibling `recur` after `(fn …)` still sees the enclosing `loop`.
 `list-head-name`, `catch-type-name`, `parse-catch-clause`, and `split-try-args`
 parse `try` clauses; `form-defer-result` / `forms-have-defer?` mark `defer`
@@ -395,10 +422,13 @@ prepends that file as the first module unless it is the entry.
 `with-implicit-prologue-import` adds `{:path pro :as "" :refer :all
 :skip-go-import true}` so every other module sees prelude names unqualified
 without a `flagbuild/prologue` import unless generated code references
-`prologue.`. `seed-imports` binds
-imported defs/macros (`:as` / `:refer`, package-mode `pkg.Name` plus
-`flagbuild/` imports). Later `:refer` of `second`/`third` overwrites
-implicit prelude bindings (`prelude-go-name?` / `can-rebind-module-name?`). `compile-inline-modules` is the inlined
+`prologue.`. `seed-imports` takes compiled
+`:fn-info` (FLAG name → arity map) as its sixth argument and registers
+qualified `pkg.Name_arity_N` / `_variadic` call targets for imported
+defs. It also binds imported defs/macros (`:as` / `:refer`, package-mode
+`pkg.Name` plus `flagbuild/` imports). Later `:refer` of `second`/`third`
+overwrites implicit prelude bindings (`prelude-go-name?` /
+`can-rebind-module-name?`). `compile-inline-modules` is the inlined
 `compileProgram` loop (expand via `compiler/expand-forms`, `:go-exports`
 via `compiler/go-bind-ident`, then `compile-module-body`).
 `compile-package-modules` emits per-module Go + `.flagi` (`emit-flagi`,
@@ -460,13 +490,15 @@ The package file printer is FLAG
 (`compile-inline-modules` / `compile-package-modules`). REPL
 `compileModuleBody` and `exprToGo` are FLAG-only; remaining Go is CLI/REPL host glue.
 
-## Package emit (`flag-lang build`)
+## Package emit (`flag-lang compile` / `build` / `test`)
 
-`CompileProgram` still inlines the import graph into one `package main` (used
-by `compile`, `test`, REPL, and code generators). `flag-lang build` uses
-`CompileProgramPackages` / `WriteProgramPackages`: one Go package per FLAG
-module, entry as `package main`, libraries imported as `flagbuild/<pkg>`.
-Exported names are capitalized (`add` → `math.Add`). The prelude is
-`flagbuild/prologue` (`inc` → `prologue.Inc`), not copied into importers.
-Each library package also emits a `.flagi` (header, exported macros,
-`(declare …)`). See [modules.md](modules.md).
+`flag-lang compile`, `build`, and `test` use `CompileProgramPackages` /
+`WriteProgramPackages` (tests: `WriteProgramPackagesWithTests`): one Go
+package per FLAG module, entry as `package main`, libraries imported as
+`flagbuild/<pkg>`. Exported names are capitalized (`add` → `math.Add`). The
+prelude is `flagbuild/prologue` (`inc` → `prologue.Inc`), not copied into
+importers. Inspect output is `.flag-build/` (dotted so `go test ./...`
+ignores it). `CompileProgram` still inlines the import graph into one
+`package main` for the REPL and code generators. Each library package also
+emits a `.flagi` (header, exported macros, `(declare …)`). See
+[modules.md](modules.md).

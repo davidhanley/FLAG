@@ -35,7 +35,7 @@ func TestChannelSelect(t *testing.T) {
 	var seen []int64
 	handler := NewFunction(func(args ...Value) Value {
 		seen = append(seen, args[0].Long())
-		return NilValue()
+		return NilValue
 	})
 	n := ChannelSelect(a, handler, empty, handler, b, handler)
 	if n.tag != TagLong || n.Long() != 2 {

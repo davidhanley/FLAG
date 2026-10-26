@@ -62,19 +62,19 @@ func TestVectorNSMutationOps(t *testing.T) {
 }
 
 func TestVectorNSEdgeCases(t *testing.T) {
-	if got := VectorNSAppend(NilValue(), NewLong(1), NewLong(2)); ValueToString(got) != "| 1 2 |" {
+	if got := VectorNSAppend(NilValue, NewLong(1), NewLong(2)); ValueToString(got) != "| 1 2 |" {
 		t.Fatalf("unexpected append nil result: %s", ValueToString(got))
 	}
-	if got := VectorNSInsert(NilValue(), NewLong(0), NewLong(1)); ValueToString(got) != "| 1 |" {
+	if got := VectorNSInsert(NilValue, NewLong(0), NewLong(1)); ValueToString(got) != "| 1 |" {
 		t.Fatalf("unexpected insert nil result: %s", ValueToString(got))
 	}
-	if got := VectorNSSet(NilValue(), NewLong(0), NewLong(1)); ValueToString(got) != "| 1 |" {
+	if got := VectorNSSet(NilValue, NewLong(0), NewLong(1)); ValueToString(got) != "| 1 |" {
 		t.Fatalf("unexpected set nil result: %s", ValueToString(got))
 	}
 	if ValueToString(NewVector()) != "| |" {
 		t.Fatalf("unexpected empty vector print: %s", ValueToString(NewVector()))
 	}
-	if got := VectorNSGet(NilValue(), NewLong(0)); !Eq(got, NilValue()) {
+	if got := VectorNSGet(NilValue, NewLong(0)); !Eq(got, NilValue) {
 		t.Fatalf("unexpected get nil result: %s", ValueToString(got))
 	}
 }
@@ -93,10 +93,10 @@ func TestVectorNSErrors(t *testing.T) {
 		VectorNSPop(NewArray(NewLong(1)))
 	})
 	expectVectorNSPanic(t, "vector/remove index out of bounds", func() {
-		VectorNSRemove(NilValue(), NewLong(0))
+		VectorNSRemove(NilValue, NewLong(0))
 	})
 	expectVectorNSPanic(t, "vector/pop expects non-empty vector", func() {
-		VectorNSPop(NilValue())
+		VectorNSPop(NilValue)
 	})
 }
 

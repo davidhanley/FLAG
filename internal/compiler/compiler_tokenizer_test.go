@@ -35,7 +35,7 @@ func TestCompileProgramLibraryImportCompilerTokenizer(t *testing.T) {
 	for _, want := range []string{
 		"func compiler__tokenize_file_arity_1",
 		"var compiler__tokenize_file =",
-		"flagrt.Call(compiler__tokenize_file",
+		"compiler__tokenize_file_variadic",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)

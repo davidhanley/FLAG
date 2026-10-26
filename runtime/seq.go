@@ -7,8 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-const eagerRangeThreshold = 1000
-
 func Map(fn Value, seqs ...Value) Value {
 	if len(seqs) == 0 {
 		panic("map expects at least one sequence")
@@ -58,6 +56,17 @@ func Map(fn Value, seqs ...Value) Value {
 }
 
 func Apply(fn Value, args ...Value) Value {
+	return Call(fn, spreadApplyArgs(args)...)
+}
+
+func ApplyFn(fn func(...Value) Value, args ...Value) Value {
+	if fn == nil {
+		panic("apply expects a function")
+	}
+	return fn(spreadApplyArgs(args)...)
+}
+
+func spreadApplyArgs(args []Value) []Value {
 	if len(args) == 0 {
 		panic("apply expects function and sequence arguments")
 	}
@@ -73,7 +82,7 @@ func Apply(fn Value, args ...Value) Value {
 		}
 		callArgs = append(callArgs, next)
 	}
-	return Call(fn, callArgs...)
+	return callArgs
 }
 
 func Concat(seqs ...Value) Value {
@@ -302,13 +311,13 @@ func Filter(fn Value, seq Value) Value {
 
 func Some(fn Value, seq Value) Value {
 	if seq.tag == TagNil {
-		return NilValue()
+		return NilValue
 	}
 	cursor := newSeqCursor(seq)
 	for {
 		item, ok := cursor.nextOrDone()
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		result := Call(fn, item)
 		if IsTruthy(result) {
@@ -321,42 +330,42 @@ func NotEmpty(coll Value) Value {
 	switch coll.tag {
 	case TagList:
 		if coll.ListLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagArray:
 		if coll.ArrayLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagVector:
 		if coll.VectorLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagLazyList:
 		if _, ok := lazyPeek(coll); !ok {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagMap:
 		if coll.MapLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagDate:
 		if coll.MapLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagSet:
 		if coll.SetLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	case TagString:
 		if coll.StringValue() == "" {
-			return NilValue()
+			return NilValue
 		}
 		return coll
 	default:
@@ -368,7 +377,7 @@ func Seq(coll Value) Value {
 	switch coll.tag {
 	case TagString:
 		if coll.StringValue() == "" {
-			return NilValue()
+			return NilValue
 		}
 		return Vec(coll)
 	default:
@@ -586,7 +595,9 @@ func Count(coll Value) int {
 	case TagVector:
 		return coll.VectorLen()
 	case TagLazyList:
-		// For lazy lists, count by iterating
+		if hint := coll.lazyListRemainingHint(); hint >= 0 {
+			return int(hint)
+		}
 		cursor := newSeqCursor(coll)
 		count := 0
 		for {
@@ -637,7 +648,7 @@ func DoAll(coll Value) Value {
 
 func DoRun(coll Value) Value {
 	_ = DoAll(coll)
-	return NilValue()
+	return NilValue
 }
 
 func Reduce(fn Value, args ...Value) Value {
@@ -849,39 +860,39 @@ func nthMissing(notFound []Value) (Value, bool) {
 func First(coll Value) Value {
 	switch coll.tag {
 	case TagNil:
-		return NilValue()
+		return NilValue
 	case TagList:
 		if coll.ListLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll.listPointer().value
 	case TagArray:
 		if coll.ArrayLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll.arrayItems()[0]
 	case TagVector:
 		if coll.VectorLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return coll.vectorItems()[0]
 	case TagLazyList:
 		next, ok := lazyPeek(coll)
 		if !ok {
-			return NilValue()
+			return NilValue
 		}
 		return next
 	case TagString:
 		value := coll.StringValue()
 		if value == "" {
-			return NilValue()
+			return NilValue
 		}
 		_, size := utf8.DecodeRuneInString(value)
 		return NewString(value[:size])
 	case TagSet:
 		values := coll.SetValues()
 		if len(values) == 0 {
-			return NilValue()
+			return NilValue
 		}
 		return values[0]
 	default:
@@ -928,25 +939,25 @@ func Rest(coll Value) Value {
 
 func Next(coll Value) Value {
 	if coll.tag == TagNil {
-		return NilValue()
+		return NilValue
 	}
 	rest := Rest(coll)
 	switch rest.tag {
 	case TagList:
 		if rest.ListLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 	case TagArray:
 		if rest.ArrayLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 	case TagVector:
 		if rest.VectorLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 	case TagLazyList:
 		if _, ok := lazyPeek(rest); !ok {
-			return NilValue()
+			return NilValue
 		}
 	default:
 		panic("next expects list, array, vector, or lazy-list Value")
@@ -958,7 +969,7 @@ func Last(coll Value) Value {
 	switch coll.tag {
 	case TagList:
 		if coll.ListLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		node := coll.listPointer()
 		for node.next != nil {
@@ -967,19 +978,19 @@ func Last(coll Value) Value {
 		return node.value
 	case TagArray:
 		if coll.ArrayLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		items := coll.arrayItems()
 		return items[coll.ArrayLen()-1]
 	case TagVector:
 		if coll.VectorLen() == 0 {
-			return NilValue()
+			return NilValue
 		}
 		items := coll.vectorItems()
 		return items[coll.VectorLen()-1]
 	case TagLazyList:
 		cursor := newSeqCursor(coll)
-		last := NilValue()
+		last := NilValue
 		for {
 			next, ok := cursor.nextOrDone()
 			if !ok {
@@ -1040,7 +1051,7 @@ func seqToList(coll Value) Value {
 
 func SeqFirst(coll Value) Value {
 	if coll.tag == TagNil {
-		return NilValue()
+		return NilValue
 	}
 	return First(coll)
 }
@@ -1083,13 +1094,6 @@ func finiteRange(start, end, step int64) Value {
 	count := rangeCount(start, end, step)
 	if count <= 0 {
 		return NewArray()
-	}
-	if count < eagerRangeThreshold {
-		values := make([]Value, 0, count)
-		for i := int64(0); i < count; i++ {
-			values = append(values, NewLong(start+i*step))
-		}
-		return NewArray(values...)
 	}
 	return newLazyRange(start, end, step, true)
 }

@@ -26,7 +26,7 @@ func TestRandNth(t *testing.T) {
 		t.Fatalf("rand-nth: %#v", got)
 	}
 	assertPanics(t, func() { RandNth(NewArray()) })
-	assertPanics(t, func() { RandNth(NilValue()) })
+	assertPanics(t, func() { RandNth(NilValue) })
 }
 
 func TestShuffle(t *testing.T) {

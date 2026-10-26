@@ -146,4 +146,4 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 - Modules use a header map (`:namespace` / `:exports` / `:imports`), not `(ns … :require …)`.
 
 
-- [] Functions in the prelude are compiled to go eliminate.
+- [x] Functions in the prelude are compiled to go eliminate.

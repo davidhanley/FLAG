@@ -86,6 +86,7 @@ var goFnBindings = map[string]string{
 	"t/after?":               "GoBind_runtime_TimeAfter",
 	"t/minus":                "GoBind_runtime_TimeMinus",
 	"t/now":                  "GoBind_runtime_TimeNow",
+	"time/nano-time":         "GoBind_runtime_TimeNanoTime",
 	"t/years":                "GoBind_runtime_TimeYears",
 	"vector/append":          "GoBind_runtime_VectorNSAppend",
 	"vector/get":             "GoBind_runtime_VectorNSGet",

@@ -8,7 +8,7 @@
            keyword? map? vector? set? sequential? coll? empty
            zero? pos? neg? even? odd? not-empty? not-any? remove
            update get-in update-in assoc-in dissoc-in
-           juxt partial complement fnil comp iterate range repeatedly
+           juxt partial complement fnil comp iterate repeatedly
            take-while drop-while take-last drop-last take-nth
            keep map-indexed keep-indexed reduce-kv
            every? every-pred some-fn max-key zipmap group-by select-keys
@@ -474,32 +474,9 @@
              cur))
          (repeat 0))))
 
-(defn range
-  ([]
-   (iterate inc 0))
-  ([end]
-   (range 0 end 1))
-  ([start end]
-   (range start end 1))
-  ([start end step]
-   (if (= step 0)
-     (if (= start end)
-       []
-       (repeat start))
-     (let [n (if (> step 0)
-               (if (>= start end)
-                 0
-                 (quot (+ (- end start) (dec step)) step))
-               (if (<= start end)
-                 0
-                 (quot (+ (- start end) (dec (- 0 step))) (- 0 step))))]
-       (if (<= n 0)
-         []
-         (take n (iterate (fn [x] (+ x step)) start)))))))
-
 (defn repeatedly
   ([f]
-   (map (fn [_n] (f)) (range)))
+   (map (fn [_n] (f)) (repeat 0)))
   ([n f]
    (take n (repeatedly f))))
 
@@ -551,7 +528,7 @@
   (filter some? (map f coll)))
 
 (defn map-indexed [f coll]
-  (map f (range) coll))
+  (map f (iterate inc 0) coll))
 
 (defn keep-indexed [f coll]
   (keep identity (map-indexed f coll)))

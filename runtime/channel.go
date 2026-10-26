@@ -86,7 +86,7 @@ func ChannelClose(ch Value) Value {
 		panic(fmt.Sprintf("channel-close expects a channel, got %s", ValueToString(ch)))
 	}
 	ch.ChannelObject().closeDone()
-	return NilValue()
+	return NilValue
 }
 
 // recvChannelValue receives one value, preferring queued data over termination.
@@ -100,7 +100,7 @@ func recvChannelValue(c *ChannelObject) (Value, bool) {
 		case v := <-c.data:
 			return v, true
 		default:
-			return NilValue(), false
+			return NilValue, false
 		}
 	}
 }
@@ -113,7 +113,7 @@ func ChannelReceive(ch Value) Value {
 	}
 	v, ok := recvChannelValue(ch.ChannelObject())
 	if !ok {
-		return NilValue()
+		return NilValue
 	}
 	return v
 }

@@ -13,11 +13,16 @@ func Sleep(ms Value) Value {
 		panic("sleep expects non-negative milliseconds")
 	}
 	time.Sleep(time.Duration(n) * time.Millisecond)
-	return NilValue()
+	return NilValue
 }
 
 func TimeNow() Value {
 	return NewDate(time.Now().UTC())
+}
+
+// TimeNanoTime is wall time in nanoseconds (like Clojure System/nanoTime).
+func TimeNanoTime() Value {
+	return NewLong(time.Now().UnixNano())
 }
 
 func TimeYears(v Value) Value {

@@ -511,6 +511,14 @@ func adaptGoBind_runtime_TimeMinus(args ...Value) Value {
 // GoBind_runtime_TimeMinus dispatches t/minus.
 var GoBind_runtime_TimeMinus = NewFunction(adaptGoBind_runtime_TimeMinus)
 
+func adaptGoBind_runtime_TimeNanoTime(args ...Value) Value {
+	goArgArityExact("time/nano-time", args, 0)
+	return goRetValue(TimeNanoTime())
+}
+
+// GoBind_runtime_TimeNanoTime dispatches time/nano-time.
+var GoBind_runtime_TimeNanoTime = NewFunction(adaptGoBind_runtime_TimeNanoTime)
+
 func adaptGoBind_runtime_TimeNow(args ...Value) Value {
 	goArgArityExact("dateTime/now", args, 0)
 	return goRetValue(TimeNow())
@@ -595,6 +603,7 @@ func GoBindSymbols() map[string]reflect.Value {
 		"GoBind_runtime_ScanDirectory":       reflect.ValueOf(GoBind_runtime_ScanDirectory),
 		"GoBind_runtime_TimeAfter":           reflect.ValueOf(GoBind_runtime_TimeAfter),
 		"GoBind_runtime_TimeMinus":           reflect.ValueOf(GoBind_runtime_TimeMinus),
+		"GoBind_runtime_TimeNanoTime":        reflect.ValueOf(GoBind_runtime_TimeNanoTime),
 		"GoBind_runtime_TimeNow":             reflect.ValueOf(GoBind_runtime_TimeNow),
 		"GoBind_runtime_TimeYears":           reflect.ValueOf(GoBind_runtime_TimeYears),
 		"GoBind_runtime_VectorNSAppend":      reflect.ValueOf(GoBind_runtime_VectorNSAppend),

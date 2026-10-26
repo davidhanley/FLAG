@@ -28,7 +28,7 @@ func TestBitNot(t *testing.T) {
 	requireLong(t, BitNot(NewLong(1)), -2)
 	requireLong(t, BitNot(NewBigInt(0)), -1)
 	assertPanics(t, func() { BitNot(NewDouble(1)) })
-	assertPanics(t, func() { BitNot(NilValue()) })
+	assertPanics(t, func() { BitNot(NilValue) })
 }
 
 func TestBitShifts(t *testing.T) {
@@ -68,7 +68,7 @@ func TestBitTestSetClearFlip(t *testing.T) {
 	requireLong(t, BitFlip(NewLong(0), NewLong(1)), 2)
 	assertPanics(t, func() { BitTest(NewDouble(2), NewLong(1)) })
 	assertPanics(t, func() { BitSet(NewLong(0), NewString("n")) })
-	assertPanics(t, func() { BitClear(NilValue(), NewLong(0)) })
+	assertPanics(t, func() { BitClear(NilValue, NewLong(0)) })
 	assertPanics(t, func() { BitFlip(NewLong(0), NewRatio(1, 2)) })
 }
 

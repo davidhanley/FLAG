@@ -198,7 +198,7 @@ func TestCompileDeftestAndAssertions(t *testing.T) {
 		"func runFlagTestCase(tc flagTestCase) (passed bool) {",
 		`panic("at 5:7: (= x 1)")`,
 		`panic("at 6:7: x should be 2")`,
-		"return flagrt.NilValue()",
+		"return flagrt.NilValue",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -479,6 +479,34 @@ func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
 	}
 }
 
+func TestCompileRestPreludeCallsUseVariadic(t *testing.T) {
+	output, err := Compile(`
+(defn use-rest [xs]
+  (mapcat rest xs))
+(println (interleave [1] [2]))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"mapcat_variadic(",
+		"interleave_variadic(",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing rest call %q:\n%s", want, got)
+		}
+	}
+	for _, refuse := range []string{
+		"mapcat_arity_2(",
+		"interleave_arity_2(",
+	} {
+		if strings.Contains(got, refuse) {
+			t.Fatalf("rest fn called as fixed arity %q:\n%s", refuse, got)
+		}
+	}
+}
+
 func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
 	output, err := Compile(`
 (defn choose [x]
@@ -518,8 +546,19 @@ func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
 	}
 }
 
+func TestCompileMapLiteralBoxesBool(t *testing.T) {
+	output, err := Compile("(println {:a (< 1 2)})")
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "flagrt.NewBool(flagrt.Lt(") {
+		t.Fatalf("map bool not boxed:\n%s", got)
+	}
+}
+
 func TestCompileMapLiteralErrorIncludesLocation(t *testing.T) {
-	_, err := Compile("(println {:a (< 1 2)})")
+	_, err := Compile("(println {:a (defer (fn [] 1))})")
 	if err == nil {
 		t.Fatal("Compile succeeded for invalid map literal")
 	}
@@ -786,7 +825,7 @@ func TestCompileWithOpenEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"flagrt.Call(close, rdr)",
+		"close_arity_1(rdr)",
 		"flagrt.OpenFile(\"sample.txt\")",
 		"flagrt.First(flagrt.FileToStrings(rdr))",
 	} {
@@ -809,7 +848,7 @@ func TestCompileWithChannelEmitsDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"flagrt.Call(close, ch)",
+		"close_arity_1(ch)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -830,9 +869,9 @@ func TestCompileClosePrimitivesUseBuiltins(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.BuiltinFunction("close-file"), x)`,
-		`flagrt.Call(flagrt.BuiltinFunction("close-channel"), x)`,
-		"flagrt.Call(close, x)",
+		`flagrt.FnCloseFile(x)`,
+		`flagrt.FnCloseChannel(x)`,
+		"close_arity_1(x)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -931,7 +970,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = flagrt.Call(f, flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
+		`_ = f.Fn(flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -957,14 +996,14 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`flagrt.Call(flagrt.GoBind_packages_StringTrim, flagStr___hello__)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringReplace, flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringJoin, flagStr__, flagVec)`,
-		`flagrt.Call(flagrt.GoBind_packages_StringCapitalize, flagStr_hELLO)`,
-		`flagrt.Call(flagrt.GoBind_packages_ToUppercase, flagStr_hello)`,
-		`flagrt.Call(flagrt.GoBind_packages_LongParse, flagStr_42)`,
-		`flagrt.Call(flagrt.GoBind_runtime_Abs, flagrt.NewLong(-42))`,
-		`flagrt.Call(flagrt.GoBind_runtime_Sqrt, flagrt.NewLong(4))`,
+		`flagrt.GoBind_packages_StringTrim.Fn(flagStr___hello__)`,
+		`flagrt.GoBind_packages_StringReplace.Fn(flagStr_hello_world, flagStr_world, flagStr_FLAG)`,
+		`flagrt.GoBind_packages_StringJoin.Fn(flagStr__, flagVec)`,
+		`flagrt.GoBind_packages_StringCapitalize.Fn(flagStr_hELLO)`,
+		`flagrt.GoBind_packages_ToUppercase.Fn(flagStr_hello)`,
+		`flagrt.GoBind_packages_LongParse.Fn(flagStr_42)`,
+		`flagrt.GoBind_runtime_Abs.Fn(flagrt.NewLong(-42))`,
+		`flagrt.GoBind_runtime_Sqrt.Fn(flagrt.NewLong(4))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1047,7 +1086,7 @@ func TestCompileTopLevelExpressionExecutesInMain(t *testing.T) {
 	}
 
 	got := string(output)
-	want := "_ = flagrt.Call(fib, flagrt.NewLong(7))"
+	want := "_ = fib_arity_1(flagrt.NewLong(7))"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected top-level execution statement %q:\n%s", want, got)
 	}
@@ -1227,7 +1266,7 @@ func TestReplCompilerDefnBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_arity_1(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
 	}
 }
@@ -1253,8 +1292,25 @@ func TestReplCompilerDefnRedef(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine function call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(sq, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(sq_arity_1(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected function call expression: %s", call.ResultExpr)
+	}
+}
+
+func TestCompileDefFunctionValueUsesFn(t *testing.T) {
+	output, err := Compile(`
+(def translate-name (fn [name] name))
+(println (translate-name "Ada"))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	if !strings.Contains(got, "translate_name.Fn(") {
+		t.Fatalf("expected Value.Fn call:\n%s", got)
+	}
+	if strings.Contains(got, "FunctionObject()") {
+		t.Fatalf("FunctionObject hop still present:\n%s", got)
 	}
 }
 
@@ -1276,7 +1332,7 @@ func TestReplCompilerDefLambdaBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine lambda call returned error: %v", err)
 	}
-	if call.ResultExpr != "flagrt.ValueToAny(flagrt.Call(triple, flagrt.NewLong(4)))" {
+	if call.ResultExpr != "flagrt.ValueToAny(triple.Fn(flagrt.NewLong(4)))" {
 		t.Fatalf("unexpected lambda call expression: %s", call.ResultExpr)
 	}
 }
@@ -1305,7 +1361,7 @@ func TestReplCompilerDefrecordBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileLine record lookup returned error: %v", err)
 	}
-	if !strings.Contains(lookup.ResultExpr, "flagrt.Call(__gtFood, flagrt.NewLong(10), flagrt.NewLong(200))") {
+	if !strings.Contains(lookup.ResultExpr, "__gtFood_arity_2(flagrt.NewLong(10), flagrt.NewLong(200))") {
 		t.Fatalf("unexpected record lookup expression: %s", lookup.ResultExpr)
 	}
 }

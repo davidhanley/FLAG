@@ -232,6 +232,19 @@ func appendTestForms(entry *Module, testPaths []string) error {
 	return nil
 }
 
+// ModuleHasHeader reports whether a source file starts with a module header map.
+func ModuleHasHeader(path string) (bool, error) {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	mod, err := parseModuleFile(path, string(source))
+	if err != nil {
+		return false, err
+	}
+	return mod.HasModuleHeader, nil
+}
+
 // ModuleHasImports reports whether a source file's header declares :imports.
 func ModuleHasImports(path string) (bool, error) {
 	source, err := os.ReadFile(path)

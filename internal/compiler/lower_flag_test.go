@@ -25,7 +25,7 @@ func TestFLAGLiteralLowering(t *testing.T) {
 		{"quoted-symbol", QuotedSymbolExpr{Name: "abc"}, `flagrt.NewSymbol("abc")`},
 		{"true", SymbolExpr{Name: "true"}, "flagrt.NewBool(true)"},
 		{"false", SymbolExpr{Name: "false"}, "flagrt.NewBool(false)"},
-		{"nil", SymbolExpr{Name: "nil"}, "flagrt.NilValue()"},
+		{"nil", SymbolExpr{Name: "nil"}, "flagrt.NilValue"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -38,6 +38,23 @@ func TestFLAGLiteralLowering(t *testing.T) {
 				t.Fatalf("got %q want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestFLAGNilLiteralIsSelector(t *testing.T) {
+	ir, err := flagLiteralToIR(SymbolExpr{Name: "nil"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sel, ok := ir.(IRSelector)
+	if !ok {
+		t.Fatalf("nil IR %T, want IRSelector", ir)
+	}
+	if sel.Pkg != "flagrt" || sel.Name != "NilValue" {
+		t.Fatalf("nil selector %+v", sel)
+	}
+	if _, isCall := ir.(IRCall); isCall {
+		t.Fatal("nil must not be IRCall")
 	}
 }
 
@@ -327,14 +344,14 @@ func TestFLAGCtorAndRuntimeOps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := renderIRExpr(ir); got != "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))" {
+	if got := renderIRExpr(ir); got != "flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2))" {
 		t.Fatalf("eq %q", got)
 	}
 	ir, err = flagEqToIR([]IRExpr{IRIdent{Name: "a"}, IRIdent{Name: "b"}, IRIdent{Name: "c"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := renderIRExpr(ir); got != "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))" {
+	if got := renderIRExpr(ir); got != "flagrt.Eq(a, b) && flagrt.Eq(b, c)" {
 		t.Fatalf("eq-chain %q", got)
 	}
 	_, err = flagEqToIR([]IRExpr{IRIdent{Name: "a"}})
@@ -356,8 +373,18 @@ func TestFLAGSymbolToIR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.code != `flagrt.BuiltinFunction("first")` {
+	if got.code != `flagrt.NewFunction(flagrt.FnFirst)` {
 		t.Fatalf("builtin %q", got.code)
+	}
+	got, err = flagSymbolToGoExpr("identity", "identity", compileContext{
+		moduleSymbols: map[string]string{"identity": "prologue.Identity"},
+		functions:     map[string]functionDef{"prologue.Identity": {}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "prologue.Identity" {
+		t.Fatalf("imported fn value %q", got.code)
 	}
 	if _, err := flagSymbolToGoExpr("nope", "nope", ctx, nil); err == nil {
 		t.Fatal("expected unknown symbol")
@@ -546,7 +573,7 @@ func TestFLAGDoDeferToIR(t *testing.T) {
 	if !strings.Contains(got, "defer flagrt.Call(f)") {
 		t.Fatalf("missing defer:\n%s", got)
 	}
-	if !strings.Contains(got, "return flagrt.NilValue()") {
+	if !strings.Contains(got, "return flagrt.NilValue") {
 		t.Fatalf("missing nil return:\n%s", got)
 	}
 }
@@ -654,7 +681,7 @@ func TestFLAGThrowToIR(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := renderIRExpr(ir)
-	want := "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue()\n}()"
+	want := "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -798,7 +825,7 @@ func TestFLAGDoseqToIR(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := renderIRExpr(ir)
-	want := "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue()\n}()"
+	want := "func() flagrt.Value {\n\t_ = flagrt.DoAll(loop)\n\treturn flagrt.NilValue\n}()"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -1218,6 +1245,31 @@ func TestFLAGCompileFormLet(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormTrueFalse(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(SymbolExpr{Name: "true"}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindBool {
+		t.Fatalf("true kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "true" {
+		t.Fatalf("true %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	got, err = flagCompileForm(SymbolExpr{Name: "false"}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindBool {
+		t.Fatalf("false kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "false" {
+		t.Fatalf("false %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
 func TestFLAGCompileFormIf(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
@@ -1236,13 +1288,58 @@ func TestFLAGCompileFormIf(t *testing.T) {
 	rendered := renderIRStmts(got.stmts, "")
 	for _, want := range []string{
 		"var if_result_1 flagrt.Value",
-		"if flagrt.IsTruthy(flagrt.NewBool(true))",
+		"if true",
 		"if_result_1 = flagrt.NewLong(1)",
 		"if_result_1 = flagrt.NewLong(2)",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
+	}
+}
+
+func TestFLAGCompileFormIfEq(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "if"},
+		ListExpr{Elements: []Expr{
+			SymbolExpr{Name: "="},
+			SymbolExpr{Name: "tmp"},
+			SymbolExpr{Name: "nil"},
+		}},
+		IntExpr{Value: 1},
+		IntExpr{Value: 2},
+	}}, ctx, map[string]exprKind{"tmp": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderIRStmts(got.stmts, "")
+	if strings.Contains(rendered, "IsTruthy") || strings.Contains(rendered, "NewBool") {
+		t.Fatalf("if (=) still boxed:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, "if flagrt.Eq(tmp, flagrt.NilValue)") {
+		t.Fatalf("missing native bool test:\n%s", rendered)
+	}
+}
+
+func TestFLAGCompileFormIfTwoArgBoxesBool(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "if"},
+		SymbolExpr{Name: "tmp"},
+		SymbolExpr{Name: "true"},
+	}}, ctx, map[string]exprKind{"tmp": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderIRStmts(got.stmts, "")
+	if !strings.Contains(rendered, "if flagrt.IsTruthy(tmp)") {
+		t.Fatalf("missing value test:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, "flagrt.NewBool(true)") {
+		t.Fatalf("2-arg if should box bool then:\n%s", rendered)
 	}
 }
 
@@ -1257,7 +1354,10 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2)))" {
+	if got.kind != exprKindBool {
+		t.Fatalf("eq kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Eq(flagrt.NewLong(1), flagrt.NewLong(2))" {
 		t.Fatalf("eq %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1270,7 +1370,7 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.Eq(a, b) && flagrt.Eq(b, c))" {
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Eq(a, b) && flagrt.Eq(b, c)" {
 		t.Fatalf("eq-chain %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1282,7 +1382,7 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewBool(flagrt.Eq(flagrt.NewLong(1), flagrt.NewString("x")))` {
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Eq(flagrt.NewLong(1), flagrt.NewString("x"))` {
 		t.Fatalf("eq-string %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1294,13 +1394,16 @@ func TestFLAGCompileFormEq(t *testing.T) {
 		t.Fatal("expected arity error")
 	}
 
-	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
 		SymbolExpr{Name: "="},
 		SymbolExpr{Name: "a"},
 		SymbolExpr{Name: "b"},
 	}}, ctx, map[string]exprKind{"a": exprKindBool, "b": exprKindValue})
-	if err == nil {
-		t.Fatal("expected value-kind error")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Eq(flagrt.NewBool(a), b)" {
+		t.Fatalf("eq-bool %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
 	ctx.selfFunctionName = "countdown"
@@ -1320,6 +1423,97 @@ func TestFLAGCompileFormEq(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormDirectCalls(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{"foo": {}}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "foo"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "foo_arity_1(flagrt.NewLong(1))" {
+		t.Fatalf("known fn %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "str/replace"},
+		StringExpr{Value: "hello world"},
+		StringExpr{Value: "world"},
+		StringExpr{Value: "FLAG"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `flagrt.GoBind_packages_StringReplace.Fn(flagrt.NewString("hello world"), flagrt.NewString("world"), flagrt.NewString("FLAG"))`
+	if renderIRExpr(irFromGoExpr(got)) != want {
+		t.Fatalf("gobind %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "f"},
+		IntExpr{Value: 1},
+	}}, ctx, map[string]exprKind{"f": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Call(f, flagrt.NewLong(1))" {
+		t.Fatalf("local still Call %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
+func TestFLAGCompileFormBuiltinDirectCalls(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "close-file"},
+		SymbolExpr{Name: "x"},
+	}}, ctx, map[string]exprKind{"x": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.FnCloseFile(x)" {
+		t.Fatalf("close-file %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "max"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.ApplyFn(flagrt.FnMax, xs)" {
+		t.Fatalf("apply max %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "range"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.ApplyFn(flagrt.FnRange, xs)" {
+		t.Fatalf("apply range %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "apply"},
+		SymbolExpr{Name: "f"},
+		SymbolExpr{Name: "xs"},
+	}}, ctx, map[string]exprKind{"f": exprKindValue, "xs": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Apply(f, xs)" {
+		t.Fatalf("apply local %q", renderIRExpr(irFromGoExpr(got)))
+	}
+}
+
 func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
@@ -1330,7 +1524,10 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.IsNil(flagrt.NilValue()))" {
+	if got.kind != exprKindBool {
+		t.Fatalf("nil? kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.IsNil(flagrt.NilValue)" {
 		t.Fatalf("nil? %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1341,7 +1538,7 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.IsEmpty(flagrt.NewArray()))" {
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.IsEmpty(flagrt.NewArray())" {
 		t.Fatalf("empty? %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1352,7 +1549,7 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewBool(flagrt.IsEmpty(flagrt.NewString("x")))` {
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.IsEmpty(flagrt.NewString("x"))` {
 		t.Fatalf("empty?-string %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
@@ -1375,9 +1572,12 @@ func TestFLAGCompileFormNilEmptyCount(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected count arity error")
 	}
-	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "nil?"}, SymbolExpr{Name: "a"}}}, ctx, map[string]exprKind{"a": exprKindBool})
-	if err == nil {
-		t.Fatal("expected nil? value-kind error")
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "nil?"}, SymbolExpr{Name: "a"}}}, ctx, map[string]exprKind{"a": exprKindBool})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.IsNil(flagrt.NewBool(a))" {
+		t.Fatalf("nil?-bool %q", renderIRExpr(irFromGoExpr(got)))
 	}
 }
 
@@ -1740,7 +1940,10 @@ func TestFLAGCompileFormDissocContains(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewBool(flagrt.Contains(m, flagrt.NewKeyword("k")))` {
+	if got.kind != exprKindBool {
+		t.Fatalf("contains? kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Contains(m, flagrt.NewKeyword("k"))` {
 		t.Fatalf("contains? %q", renderIRExpr(irFromGoExpr(got)))
 	}
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
@@ -1927,7 +2130,10 @@ func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NewBool(flagrt.NumericEq(a, b))" {
+	if got.kind != exprKindBool {
+		t.Fatalf("== kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.NumericEq(a, b)" {
 		t.Fatalf("== %q", renderIRExpr(irFromGoExpr(got)))
 	}
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
@@ -2066,6 +2272,43 @@ func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
 		t.Fatalf("repeat %q", renderIRExpr(irFromGoExpr(got)))
 	}
 
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range()` {
+		t.Fatalf("range 0-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 4},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range(flagrt.NewLong(4))` {
+		t.Fatalf("range 1-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 1}, IntExpr{Value: 8}, IntExpr{Value: 2},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Range(flagrt.NewLong(1), flagrt.NewLong(8), flagrt.NewLong(2))` {
+		t.Fatalf("range 3-arg %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "range"}, IntExpr{Value: 1}, IntExpr{Value: 2}, IntExpr{Value: 3}, IntExpr{Value: 4},
+	}}, ctx, nil)
+	if err == nil {
+		t.Fatal("expected range arity error")
+	}
+
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "map"}, SymbolExpr{Name: "f"}}}, ctx, vals)
 	if err == nil {
 		t.Fatal("expected map arity error")
@@ -2083,7 +2326,7 @@ func TestFLAGCompileFormThrow(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered := renderIRExpr(irFromGoExpr(got))
-	for _, want := range []string{"flagrt.Throw(err)", "return flagrt.NilValue()"} {
+	for _, want := range []string{"flagrt.Throw(err)", "return flagrt.NilValue"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
@@ -2212,10 +2455,10 @@ func TestFLAGCompileFormLoopRecur(t *testing.T) {
 	}
 }
 
-func TestFLAGCompileFormMapRejectsBool(t *testing.T) {
+func TestFLAGCompileFormMapBoxesBool(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
-	_, err := flagCompileForm(MapExpr{
+	got, err := flagCompileForm(MapExpr{
 		Line: 3,
 		Col:  12,
 		Entries: []Expr{
@@ -2231,11 +2474,11 @@ func TestFLAGCompileFormMapRejectsBool(t *testing.T) {
 			},
 		},
 	}, ctx, nil)
-	if err == nil {
-		t.Fatal("expected map bool entry error")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(err.Error(), "map literal entries must evaluate to Value at 3:") {
-		t.Fatalf("expected positioned Value error, got %v", err)
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.NewMap(flagrt.NewKeyword("a"), flagrt.NewBool(flagrt.Lt(flagrt.NewLong(1), flagrt.NewLong(2))))` {
+		t.Fatalf("map bool %q", renderIRExpr(irFromGoExpr(got)))
 	}
 }
 
@@ -2559,7 +2802,7 @@ func TestFLAGCompileFormDotTestingHashDestructure(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered := renderIRExpr(irFromGoExpr(got))
-	for _, want := range []string{"_ = flagrt.NewLong(1)", "return flagrt.NilValue()"} {
+	for _, want := range []string{"_ = flagrt.NewLong(1)", "return flagrt.NilValue"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("testing missing %q in:\n%s", want, rendered)
 		}
@@ -2575,9 +2818,9 @@ func TestFLAGCompileFormDotTestingHashDestructure(t *testing.T) {
 	}
 	rendered = renderIRExpr(irFromGoExpr(got))
 	for _, want := range []string{
-		"if !(flagrt.IsTruthy(flagrt.NewBool(true)))",
+		"if !(true)",
 		`panic("ok")`,
-		"return flagrt.NilValue()",
+		"return flagrt.NilValue",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("is missing %q in:\n%s", want, rendered)
@@ -2795,7 +3038,7 @@ func TestFLAGCompileFormsDo(t *testing.T) {
 }
 
 func TestFLAGInternIR(t *testing.T) {
-	inline := flagrt.Call(compiler__intern_ir, flagrt.NilValue(), flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
+	inline := flagrt.Call(compiler__intern_ir, flagrt.NilValue, flagrt.NewString("Kw_foo"), flagrt.NewString(`flagrt.NewKeyword("foo")`))
 	if flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))) != `flagrt.NewKeyword("foo")` {
 		t.Fatalf("inline name %q", flagString(flagrt.Get(inline, flagrt.NewKeyword("name"))))
 	}
@@ -2824,7 +3067,7 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 		functions: []functionDef{{
 			flagName: "flag_main",
 			goName:   "flag_main",
-			irDecls:  []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+			irDecls:  []IRStmt{IRRawStmt{Code: "func flag_main() flagrt.Value {\n\treturn flagrt.NilValue\n}\n"}},
 		}},
 		vars:  []varDef{{goName: "flagKw_foo", expr: `flagrt.NewKeyword("foo")`}},
 		stmts: []mainStmt{{code: "flagrt.NewLong(1)", kind: exprKindValue}},
@@ -2851,7 +3094,7 @@ func TestFLAGCompileProgramPrinter(t *testing.T) {
 		functions: []functionDef{{
 			doc:     "add two numbers",
 			goName:  "Add",
-			irDecls: []IRStmt{IRRawStmt{Code: "func Add() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n"}},
+			irDecls: []IRStmt{IRRawStmt{Code: "func Add() flagrt.Value {\n\treturn flagrt.NilValue\n}\n"}},
 		}},
 	}, false)
 	if err != nil {
@@ -3150,7 +3393,7 @@ func TestFLAGRenderIRMatchesGo(t *testing.T) {
 		IRInt{Value: -7},
 		IRSelector{Pkg: "flagrt", Name: "NewLong"},
 		IRSelector{Name: "println"},
-		rtCall("NilValue"),
+		IRSelector{Pkg: "flagrt", Name: "NilValue"},
 		rtCall("NewLong", IRInt{Value: 42}),
 		rtCall("NewString", IRString{Value: "hi"}),
 		IRRaw{Code: "1e2"},
@@ -3203,9 +3446,9 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 			name: "ir-decls",
 			fn: functionDef{irDecls: []IRStmt{IRFuncDecl{
 				Name: "foo", Result: "flagrt.Value",
-				Body: []IRStmt{IRReturn{Expr: rtCall("NilValue")}},
+				Body: []IRStmt{IRReturn{Expr: IRSelector{Pkg: "flagrt", Name: "NilValue"}}},
 			}}},
-			want: "func foo() flagrt.Value {\n\treturn flagrt.NilValue()\n}\n",
+			want: "func foo() flagrt.Value {\n\treturn flagrt.NilValue\n}\n",
 		},
 		{
 			name: "rest",
@@ -3256,7 +3499,7 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 		},
 		{
 			name: "unused-rest-local-init",
-			fn:   functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"},
+			fn:   functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue"},
 			want: "func drop_variadic(args ...flagrt.Value) flagrt.Value {\n" +
 				"\tif len(args) < 1 {\n" +
 				"\t\tpanic(\"drop expects at least 1 arguments\")\n" +
@@ -3264,7 +3507,7 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 				"\t_ = args[0]\n" +
 				"\tvar tmp flagrt.Value\n" +
 				"\t_ = tmp\n" +
-				"\treturn flagrt.NilValue()\n" +
+				"\treturn flagrt.NilValue\n" +
 				"}\n",
 		},
 	}
@@ -3285,10 +3528,10 @@ func TestFLAGRenderFunctionDef(t *testing.T) {
 }
 
 func TestFLAGRenderFunctionLiterals(t *testing.T) {
-	zero := functionDef{goName: "id", arityName: "id_arity_0", variadicName: "id_variadic", body: "flagrt.NilValue()"}
+	zero := functionDef{goName: "id", arityName: "id_arity_0", variadicName: "id_variadic", body: "flagrt.NilValue"}
 	one := functionDef{goName: "add", arityName: "add_arity_1", variadicName: "add_variadic", params: []string{"x"}, body: "x", bodyPrelude: "\t_ = x\n"}
 	rest := functionDef{goName: "sum", variadicName: "sum_variadic", hasRest: true, params: []string{"xs"}, body: "xs"}
-	unused := functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue()"}
+	unused := functionDef{goName: "drop", variadicName: "drop_variadic", hasRest: true, params: []string{"_"}, localInits: []string{"\tvar tmp flagrt.Value\n"}, body: "flagrt.NilValue"}
 	multi := functionDef{flagName: "add", variadicName: "add_variadic", arities: []arityDef{
 		{arityName: "add_arity_0", body: "flagrt.NewLong(0)"},
 		{arityName: "add_arity_1", params: []string{"x"}, body: "x"},
@@ -3303,7 +3546,7 @@ func TestFLAGRenderFunctionLiterals(t *testing.T) {
 	if got, want := renderDirectFunctionLiteral(one), "func(x flagrt.Value) flagrt.Value {\n\t_ = x\n\treturn x\n}"; got != want {
 		t.Fatalf("literal got:\n%s\nwant:\n%s", got, want)
 	}
-	if got, want := renderDirectFunctionLiteral(zero), "func() flagrt.Value {\n\treturn flagrt.NilValue()\n}"; got != want {
+	if got, want := renderDirectFunctionLiteral(zero), "func() flagrt.Value {\n\treturn flagrt.NilValue\n}"; got != want {
 		t.Fatalf("zero literal got:\n%s\nwant:\n%s", got, want)
 	}
 	if got, want := renderVariadicFunctionLiteral(one), "func(args ...flagrt.Value) flagrt.Value {\n"+
@@ -3338,7 +3581,7 @@ func TestFLAGRenderFunctionLiterals(t *testing.T) {
 		"\t_ = args[0]\n"+
 		"\tvar tmp flagrt.Value\n"+
 		"\t_ = tmp\n"+
-		"\treturn flagrt.NilValue()\n"+
+		"\treturn flagrt.NilValue\n"+
 		"}"; got != want {
 		t.Fatalf("fn literal unused got:\n%s\nwant:\n%s", got, want)
 	}
