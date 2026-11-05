@@ -76,10 +76,10 @@ func TestCloseFile(t *testing.T) {
 
 	file := OpenFile(path)
 	if got := CloseFile(file); !IsNil(got) {
-		t.Fatalf("CloseFile = %v", ValueToString(got))
+		t.Fatalf("CloseFile = %v", got.String())
 	}
 	if got := CloseFile(file); !IsNil(got) {
-		t.Fatalf("second CloseFile = %v", ValueToString(got))
+		t.Fatalf("second CloseFile = %v", got.String())
 	}
 
 	assertPanics(t, func() {

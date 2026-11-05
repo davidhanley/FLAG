@@ -8,17 +8,17 @@ import (
 func TestAtomDerefReset(t *testing.T) {
 	a := Atom()
 	if !IsNil(Deref(a)) {
-		t.Fatalf("empty atom: got %v", ValueToString(Deref(a)))
+		t.Fatalf("empty atom: got %v", Deref(a).String())
 	}
 	a = Atom(NewLong(7))
 	if got := Deref(a); got.tag != TagLong || got.Long() != 7 {
-		t.Fatalf("deref init: got %v", ValueToString(got))
+		t.Fatalf("deref init: got %v", got.String())
 	}
 	if got := Reset(a, NewString("ok")); got.tag != TagString || got.StringValue() != "ok" {
-		t.Fatalf("reset! return: got %v", ValueToString(got))
+		t.Fatalf("reset! return: got %v", got.String())
 	}
 	if got := Deref(a); got.tag != TagString || got.StringValue() != "ok" {
-		t.Fatalf("deref after reset: got %v", ValueToString(got))
+		t.Fatalf("deref after reset: got %v", got.String())
 	}
 }
 
@@ -28,10 +28,10 @@ func TestAtomSwap(t *testing.T) {
 		return Add(args[0], NewLong(1))
 	})
 	if got := Swap(a, inc); got.tag != TagLong || got.Long() != 2 {
-		t.Fatalf("swap! inc: got %v", ValueToString(got))
+		t.Fatalf("swap! inc: got %v", got.String())
 	}
 	if got := Swap(a, BuiltinFunction("+"), NewLong(3)); got.Long() != 5 {
-		t.Fatalf("swap! + 3: got %v", ValueToString(got))
+		t.Fatalf("swap! + 3: got %v", got.String())
 	}
 }
 
@@ -51,12 +51,12 @@ func TestAtomSwapConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 	if got := Deref(a); got.tag != TagLong || got.Long() != n {
-		t.Fatalf("expected %d, got %v", n, ValueToString(got))
+		t.Fatalf("expected %d, got %v", n, got.String())
 	}
 }
 
 func TestAtomTypeOf(t *testing.T) {
-	if got := ValueToString(TypeOf(Atom())); got != ":atom" {
+	if got := TypeOf(Atom()).String(); got != ":atom" {
 		t.Fatalf("type-of atom: %s", got)
 	}
 }

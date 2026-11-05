@@ -10,27 +10,12 @@ import (
 	"unsafe"
 )
 
-type Value struct {
-	d   float64
-	p   unsafe.Pointer
-	tag ValueTag
-}
-
-func (v Value) String() string {
-	return ValueToString(v)
-}
-
-// NilValue is the FLAG nil. Use the var directly; do not wrap it in a call.
-var NilValue = Value{tag: TagNil}
-
 func NewLong(v int64) Value {
-	out := Value{tag: TagLong}
-	*(*int64)(unsafe.Pointer(&out.d)) = v
-	return out
+	return makeValue(TagLong, packLong(v), nil)
 }
 
 func NewDouble(v float64) Value {
-	return Value{d: v, tag: TagDouble}
+	return makeValue(TagDouble, v, nil)
 }
 
 func Double(v Value) Value {
@@ -64,11 +49,11 @@ func Denominator(v Value) Value {
 
 func NewRatio(numerator, denominator int64) Value {
 	rat := big.NewRat(numerator, denominator)
-	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
+	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
 }
 
 func NewRatioFromRat(rat *big.Rat) Value {
-	return Value{p: unsafe.Pointer(rat), tag: TagRatio}
+	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
 }
 
 func NewBigInt(v int64) Value {
@@ -88,14 +73,14 @@ func NewBigIntFromBigInt(v *big.Int) Value {
 		panic("NewBigIntFromBigInt expects non-nil big.Int")
 	}
 	copied := new(big.Int).Set(v)
-	return Value{p: unsafe.Pointer(copied), tag: TagBigInt}
+	return makeValue(TagBigInt, 0, unsafe.Pointer(copied))
 }
 
 func NewBool(v bool) Value {
 	if v {
-		return Value{d: 1, tag: TagBool}
+		return makeValue(TagBool, 1, nil)
 	}
-	return Value{tag: TagBool}
+	return makeValue(TagBool, 0, nil)
 }
 
 func (v Value) Long() int64 {
@@ -387,120 +372,13 @@ func Println(args ...any) Value {
 	return NilValue
 }
 
-func ValueToString(v Value) string {
-	switch v.tag {
-	case TagLong:
-		return strconv.FormatInt(v.Long(), 10)
-	case TagDouble:
-		return strconv.FormatFloat(v.Double(), 'g', -1, 64)
-	case TagRatio:
-		return v.Ratio().RatString()
-	case TagBigInt:
-		return v.BigInt().String()
-	case TagBool:
-		return strconv.FormatBool(v.Bool())
-	case TagString:
-		return strconv.Quote(v.StringValue())
-	case TagDate:
-		return dateString(v)
-	case TagFile:
-		return "#<file " + v.FileObject().Path + ">"
-	case TagChannel:
-		return "#<channel>"
-	case TagAtom:
-		return "#<atom>"
-	case TagSymbol:
-		symbol := v.SymbolObject()
-		if symbol.IsKeyword {
-			return ":" + symbol.Name
-		}
-		return symbol.Name
-	case TagFunction:
-		return "#<fn>"
-	case TagMap:
-		entries := v.MapEntries()
-		var out strings.Builder
-		out.WriteByte('{')
-		for i, entry := range entries {
-			if i > 0 {
-				out.WriteByte(' ')
-			}
-			out.WriteString(ValueToString(entry.Key))
-			out.WriteByte(' ')
-			out.WriteString(ValueToString(entry.Value))
-		}
-		out.WriteByte('}')
-		return out.String()
-	case TagSet:
-		values := v.SetValues()
-		var out strings.Builder
-		out.WriteString("#{")
-		for i, value := range values {
-			if i > 0 {
-				out.WriteByte(' ')
-			}
-			out.WriteString(ValueToString(value))
-		}
-		out.WriteByte('}')
-		return out.String()
-	case TagNil:
-		return ""
-	case TagList:
-		values := v.ListValues()
-		var out strings.Builder
-		out.WriteByte('(')
-		for i, value := range values {
-			if i > 0 {
-				out.WriteByte(' ')
-			}
-			out.WriteString(ValueToString(value))
-		}
-		out.WriteByte(')')
-		return out.String()
-	case TagArray:
-		values := v.ArrayValues()
-		var out strings.Builder
-		out.WriteByte('[')
-		for i, value := range values {
-			if i > 0 {
-				out.WriteByte(' ')
-			}
-			out.WriteString(ValueToString(value))
-		}
-		out.WriteByte(']')
-		return out.String()
-	case TagVector:
-		values := v.VectorValues()
-		var out strings.Builder
-		out.WriteByte('|')
-		if len(values) == 0 {
-			out.WriteString(" |")
-			return out.String()
-		}
-		for _, value := range values {
-			out.WriteByte(' ')
-			out.WriteString(ValueToString(value))
-		}
-		out.WriteString(" |")
-		return out.String()
-	case TagLazyList:
-		return "#<lazy-list>"
-	case TagRecur:
-		return "#<recur>"
-	case TagRecord:
-		return fmt.Sprintf("%#v", v.recordBox().value)
-	default:
-		panic("unknown Value tag")
-	}
-}
-
 func anyToString(arg any) string {
 	switch value := arg.(type) {
 	case Value:
 		if value.tag == TagString {
 			return value.StringValue()
 		}
-		return ValueToString(value)
+		return value.String()
 	case string:
 		return value
 	case *SymbolObject:

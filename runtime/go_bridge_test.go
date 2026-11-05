@@ -29,10 +29,10 @@ func TestGoFunctionArgs(t *testing.T) {
 	if params.tag != TagArray || params.ArrayLen() != 2 {
 		t.Fatalf("expected 2 params, got %#v", params)
 	}
-	if got := ValueToString(ArrayGet(params, 0)); got != "int64" {
+	if got := (ArrayGet(params, 0)).String(); got != "int64" {
 		t.Fatalf("unexpected first param type: %q", got)
 	}
-	if got := ValueToString(ArrayGet(params, 1)); got != "int64..." {
+	if got := (ArrayGet(params, 1)).String(); got != "int64..." {
 		t.Fatalf("unexpected variadic param type: %q", got)
 	}
 

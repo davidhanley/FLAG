@@ -116,7 +116,7 @@ func csvReadDispatch(source Value, opt csvlib.Options) ([][]string, error) {
 		return csvlib.ReadLines(lines, opt)
 	}
 
-	return nil, fmt.Errorf("csv/read-csv expects a path, reader, or line sequence; got %s", ValueToString(source))
+	return nil, fmt.Errorf("csv/read-csv expects a path, reader, or line sequence; got %s", source.String())
 }
 
 func isSeqValue(v Value) bool {
@@ -158,7 +158,7 @@ func csvOptionsFromValue(name string, v Value) csvlib.Options {
 		return opt
 	}
 	if v.tag != TagMap {
-		panic(fmt.Sprintf("%s options: expected map, got %s", name, ValueToString(v)))
+		panic(fmt.Sprintf("%s options: expected map, got %s", name, v.String()))
 	}
 	for _, e := range v.MapEntries() {
 		key := optionKeyName(e.Key)
@@ -190,13 +190,13 @@ func optionKeyName(k Value) string {
 		if s, ok := ValueToAny(k).(string); ok {
 			return s
 		}
-		panic(fmt.Sprintf("option key must be keyword/string, got %s", ValueToString(k)))
+		panic(fmt.Sprintf("option key must be keyword/string, got %s", k.String()))
 	}
 }
 
 func goArgBool(name string, idx int, v Value) bool {
 	if v.tag != TagBool {
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to bool", name, idx+1, ValueToString(v)))
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to bool", name, idx+1, v.String()))
 	}
 	return v.Bool()
 }
@@ -212,6 +212,6 @@ func goArgRune(name string, idx int, v Value) rune {
 	case TagLong:
 		return rune(v.Long())
 	default:
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, ValueToString(v)))
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
 	}
 }

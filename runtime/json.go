@@ -252,7 +252,7 @@ func mapToJSONValue(v Value) (map[string]any, error) {
 	entries := v.MapEntries()
 	obj := make(map[string]any, len(entries))
 	for _, entry := range entries {
-		key := ValueToString(entry.Key)
+		key := entry.Key.String()
 		if entry.Key.tag == TagSymbol {
 			symbol := entry.Key.SymbolObject()
 			if symbol.IsKeyword {

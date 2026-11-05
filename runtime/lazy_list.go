@@ -41,9 +41,7 @@ func newLazyListValue(state *lazyListState, remaining int64, index int) Value {
 		panic("lazy list expects non-nil state")
 	}
 	view := &lazyListView{state: state, index: index}
-	out := Value{p: unsafe.Pointer(view), tag: TagLazyList}
-	*(*int64)(unsafe.Pointer(&out.d)) = remaining
-	return out
+	return makeValue(TagLazyList, packLong(remaining), unsafe.Pointer(view))
 }
 
 func (v Value) lazyListViewPointer() *lazyListView {

@@ -33,20 +33,20 @@ func TestHTTPBridgeSend(t *testing.T) {
 
 	resp := Call(GoBind_http_Send, req)
 	if resp.tag != TagMap {
-		t.Fatalf("expected response map, got %s", ValueToString(resp))
+		t.Fatalf("expected response map, got %s", resp.String())
 	}
 	if got := Get(resp, NewKeyword("status")); got.tag != TagLong || got.Long() != http.StatusCreated {
-		t.Fatalf("expected 201 status, got %s", ValueToString(got))
+		t.Fatalf("expected 201 status, got %s", got.String())
 	}
 	if got := Get(resp, NewKeyword("ok")); got.tag != TagBool || !got.Bool() {
-		t.Fatalf("expected ok response, got %s", ValueToString(got))
+		t.Fatalf("expected ok response, got %s", got.String())
 	}
 	if got := Get(resp, NewKeyword("body")); got.tag != TagString || got.StringValue() != "world" {
-		t.Fatalf("expected response body world, got %s", ValueToString(got))
+		t.Fatalf("expected response body world, got %s", got.String())
 	}
 	headers := Get(resp, NewKeyword("headers"))
 	if got := Get(headers, NewKeyword("x-reply")); got.tag != TagString || got.StringValue() != "pong" {
-		t.Fatalf("expected response header pong, got %s", ValueToString(got))
+		t.Fatalf("expected response header pong, got %s", got.String())
 	}
 }
 
@@ -57,15 +57,15 @@ func TestHTTPBridgeListenRoutes(t *testing.T) {
 		}
 		req := args[0]
 		if got := Get(req, NewKeyword("method")); got.tag != TagString || got.StringValue() != http.MethodGet {
-			t.Fatalf("expected GET method, got %s", ValueToString(got))
+			t.Fatalf("expected GET method, got %s", got.String())
 		}
 		if got := Get(Get(req, NewKeyword("query")), NewKeyword("lang")); got.tag != TagString || got.StringValue() != "flag" {
-			t.Fatalf("expected query lang=flag, got %s", ValueToString(got))
+			t.Fatalf("expected query lang=flag, got %s", got.String())
 		}
 		params := Get(req, NewKeyword("params"))
 		name := Get(params, NewKeyword("name"))
 		if name.tag != TagString {
-			t.Fatalf("expected route param name, got %s", ValueToString(name))
+			t.Fatalf("expected route param name, got %s", name.String())
 		}
 		return NewMap(
 			NewKeyword("status"), NewLong(http.StatusAccepted),
@@ -85,7 +85,7 @@ func TestHTTPBridgeListenRoutes(t *testing.T) {
 	))
 	addr := Call(GoBind_http_Address, server)
 	if addr.tag != TagString || addr.StringValue() == "" {
-		t.Fatalf("expected server address, got %s", ValueToString(addr))
+		t.Fatalf("expected server address, got %s", addr.String())
 	}
 
 	resp, err := http.Get("http://" + addr.StringValue() + "/hello/world?lang=flag")

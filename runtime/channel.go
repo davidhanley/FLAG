@@ -46,7 +46,7 @@ func MakeChannel(args ...Value) Value {
 }
 
 func newChannelValue(ch chan Value) Value {
-	return Value{p: unsafe.Pointer(&ChannelObject{data: ch, done: make(chan struct{})}), tag: TagChannel}
+	return makeValue(TagChannel, 0, unsafe.Pointer(&ChannelObject{data: ch, done: make(chan struct{})}))
 }
 
 func (v Value) ChannelObject() *ChannelObject {
@@ -63,7 +63,7 @@ func (v Value) ChannelObject() *ChannelObject {
 // Returns true if the value was sent, false if the channel was terminated.
 func ChannelSend(ch Value, value Value) Value {
 	if ch.tag != TagChannel {
-		panic(fmt.Sprintf("channel-send expects a channel, got %s", ValueToString(ch)))
+		panic(fmt.Sprintf("channel-send expects a channel, got %s", ch.String()))
 	}
 	c := ch.ChannelObject()
 	select {
@@ -83,7 +83,7 @@ func ChannelSend(ch Value, value Value) Value {
 // This is the single close signal for FLAG channels.
 func ChannelClose(ch Value) Value {
 	if ch.tag != TagChannel {
-		panic(fmt.Sprintf("channel-close expects a channel, got %s", ValueToString(ch)))
+		panic(fmt.Sprintf("channel-close expects a channel, got %s", ch.String()))
 	}
 	ch.ChannelObject().closeDone()
 	return NilValue
@@ -109,7 +109,7 @@ func recvChannelValue(c *ChannelObject) (Value, bool) {
 // Returns nil when the channel has been terminated and no buffered values remain.
 func ChannelReceive(ch Value) Value {
 	if ch.tag != TagChannel {
-		panic(fmt.Sprintf("channel-receive expects a channel, got %s", ValueToString(ch)))
+		panic(fmt.Sprintf("channel-receive expects a channel, got %s", ch.String()))
 	}
 	v, ok := recvChannelValue(ch.ChannelObject())
 	if !ok {
@@ -138,7 +138,7 @@ func ChannelSelect(args ...Value) Value {
 		ch := args[i]
 		handler := args[i+1]
 		if ch.tag != TagChannel {
-			panic(fmt.Sprintf("select expects a channel at position %d, got %s", i+1, ValueToString(ch)))
+			panic(fmt.Sprintf("select expects a channel at position %d, got %s", i+1, ch.String()))
 		}
 		select {
 		case v := <-ch.ChannelObject().data:

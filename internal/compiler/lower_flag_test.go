@@ -1238,7 +1238,7 @@ func TestFLAGCompileFormLet(t *testing.T) {
 	}}
 	got, err := flagCompileForm(form, ctx, nil)
 	if err != nil {
-		t.Fatalf("flagCompileForm let: %v\nnode=%s", err, flagrt.ValueToString(exprToFlagValue(form)))
+		t.Fatalf("flagCompileForm let: %v\nnode=%s", err, exprToFlagValue(form).String())
 	}
 	if got.code != "let_result_1" {
 		t.Fatalf("code %q", got.code)

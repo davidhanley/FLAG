@@ -13,21 +13,21 @@ func TestJSONRoundTrip(t *testing.T) {
 	)
 	roundTrip := FromJSON(ToJSON(original))
 	if !Eq(roundTrip, original) {
-		t.Fatalf("expected round-trip JSON value to match original; got %s want %s", ValueToString(roundTrip), ValueToString(original))
+		t.Fatalf("expected round-trip JSON value to match original; got %s want %s", roundTrip.String(), original.String())
 	}
 }
 
 func TestFromJSONLiteralArray(t *testing.T) {
 	decoded := FromJSON("[1,2]")
 	if !Eq(decoded, NewArray(NewLong(1), NewLong(2))) {
-		t.Fatalf("expected decoded array to match expected value; got %s", ValueToString(decoded))
+		t.Fatalf("expected decoded array to match expected value; got %s", decoded.String())
 	}
 }
 
 func TestFromJSONStringLiteral(t *testing.T) {
 	decoded := FromJSON(`"hello"`)
 	if !Eq(decoded, NewString("hello")) {
-		t.Fatalf("expected decoded string to match expected value; got %s", ValueToString(decoded))
+		t.Fatalf("expected decoded string to match expected value; got %s", decoded.String())
 	}
 }
 
@@ -55,7 +55,7 @@ func TestJSONReadStrFromStringWithTransforms(t *testing.T) {
 		),
 	)
 	if !Eq(decoded, expected) {
-		t.Fatalf("expected transformed JSON to match; got %s want %s", ValueToString(decoded), ValueToString(expected))
+		t.Fatalf("expected transformed JSON to match; got %s want %s", decoded.String(), expected.String())
 	}
 }
 
@@ -78,10 +78,10 @@ func TestJSONReadFromFileLeavesReaderAtNextObject(t *testing.T) {
 	third := JSONRead(file, NewKeyword("key-fn"), BuiltinFunction("keyword"))
 
 	if !Eq(first, NewMap(NewKeyword("a"), NewLong(1))) {
-		t.Fatalf("unexpected first JSON value: %s", ValueToString(first))
+		t.Fatalf("unexpected first JSON value: %s", first.String())
 	}
 	if !Eq(second, NewMap(NewKeyword("b"), NewLong(2))) {
-		t.Fatalf("unexpected second JSON value: %s", ValueToString(second))
+		t.Fatalf("unexpected second JSON value: %s", second.String())
 	}
 	if third.tag != TagNil {
 		t.Fatalf("expected nil at eof, got %#v", third)
@@ -93,9 +93,9 @@ func TestJSONReadFunctionsAreRegistered(t *testing.T) {
 	read := Call(GoFunction("json/read"), NewString(`{"b":2}`), NewKeyword("key-fn"), BuiltinFunction("keyword"))
 
 	if !Eq(readStr, NewMap(NewKeyword("a"), NewLong(1))) {
-		t.Fatalf("unexpected json/read-str result: %s", ValueToString(readStr))
+		t.Fatalf("unexpected json/read-str result: %s", readStr.String())
 	}
 	if !Eq(read, NewMap(NewKeyword("b"), NewLong(2))) {
-		t.Fatalf("unexpected json/read result: %s", ValueToString(read))
+		t.Fatalf("unexpected json/read result: %s", read.String())
 	}
 }

@@ -32,7 +32,7 @@ func NewFile(file *os.File) Value {
 	if file == nil {
 		panic("NewFile expects non-nil file")
 	}
-	return Value{p: unsafe.Pointer(&FileObject{File: file, Path: file.Name()}), tag: TagFile}
+	return makeValue(TagFile, 0, unsafe.Pointer(&FileObject{File: file, Path: file.Name()}))
 }
 
 func (v Value) FileObject() *FileObject {

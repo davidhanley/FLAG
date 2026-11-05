@@ -25,7 +25,7 @@ func NewRecord(v any) Value {
 		panic("NewRecord expects a Go struct")
 	}
 	box := &recordBox{value: v}
-	return Value{p: unsafe.Pointer(box), tag: TagRecord}
+	return makeValue(TagRecord, 0, unsafe.Pointer(box))
 }
 
 func (v Value) recordBox() *recordBox {

@@ -12,7 +12,7 @@ func TestChannelSendReceive(t *testing.T) {
 	got := ChannelReceive(ch)
 	<-done
 	if got.tag != TagLong || got.Long() != 42 {
-		t.Fatalf("got %v", ValueToString(got))
+		t.Fatalf("got %v", got.String())
 	}
 }
 
@@ -21,7 +21,7 @@ func TestBufferedChannel(t *testing.T) {
 	ChannelSend(ch, NewString("hi")) // must not block
 	got := ChannelReceive(ch)
 	if got.tag != TagString || got.StringValue() != "hi" {
-		t.Fatalf("got %v", ValueToString(got))
+		t.Fatalf("got %v", got.String())
 	}
 }
 
@@ -39,7 +39,7 @@ func TestChannelSelect(t *testing.T) {
 	})
 	n := ChannelSelect(a, handler, empty, handler, b, handler)
 	if n.tag != TagLong || n.Long() != 2 {
-		t.Fatalf("expected 2 ready, got %v", ValueToString(n))
+		t.Fatalf("expected 2 ready, got %v", n.String())
 	}
 	if len(seen) != 2 || seen[0] != 1 || seen[1] != 2 {
 		t.Fatalf("handlers saw %v", seen)
@@ -54,7 +54,7 @@ func TestChannelSelect(t *testing.T) {
 func TestCloseChannel(t *testing.T) {
 	ch := MakeChannel()
 	if got := ChannelClose(ch); !IsNil(got) {
-		t.Fatalf("ChannelClose = %v", ValueToString(got))
+		t.Fatalf("ChannelClose = %v", got.String())
 	}
 	if IsTruthy(ChannelSend(ch, NewLong(1))) {
 		t.Fatal("expected send to fail after ChannelClose")

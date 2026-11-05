@@ -11,7 +11,7 @@ type DateObject struct {
 }
 
 func NewDate(t time.Time) Value {
-	return Value{p: unsafe.Pointer(&DateObject{Time: normalizeDateTime(t)}), tag: TagDate}
+	return makeValue(TagDate, 0, unsafe.Pointer(&DateObject{Time: normalizeDateTime(t)}))
 }
 
 func NewDateFromYMD(year, month, day int) Value {
@@ -75,8 +75,8 @@ func normalizeDateTime(t time.Time) time.Time {
 func dateString(v Value) string {
 	entries := dateEntries(v)
 	return fmt.Sprintf("{%s %s %s %s %s %s}",
-		ValueToString(entries[0].Key), ValueToString(entries[0].Value),
-		ValueToString(entries[1].Key), ValueToString(entries[1].Value),
-		ValueToString(entries[2].Key), ValueToString(entries[2].Value),
+		entries[0].Key.String(), entries[0].Value.String(),
+		entries[1].Key.String(), entries[1].Value.String(),
+		entries[2].Key.String(), entries[2].Value.String(),
 	)
 }

@@ -69,8 +69,8 @@ func TestValueToAnyForList(t *testing.T) {
 	if converted.tag != TagList {
 		t.Fatalf("expected TagList, got %v", converted.tag)
 	}
-	if ValueToString(converted) != "(1 2.5)" {
-		t.Fatalf("unexpected list print: %s", ValueToString(converted))
+	if converted.String() != "(1 2.5)" {
+		t.Fatalf("unexpected list print: %s", converted.String())
 	}
 }
 

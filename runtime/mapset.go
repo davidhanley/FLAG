@@ -555,11 +555,11 @@ func (v Value) SetValues() []Value {
 }
 
 func newMapValue(items *immutable.Map[Value, Value]) Value {
-	return Value{p: unsafe.Pointer(&mapData{items: items}), tag: TagMap}
+	return makeValue(TagMap, 0, unsafe.Pointer(&mapData{items: items}))
 }
 
 func newSetValue(items immutable.Set[Value]) Value {
-	return Value{p: unsafe.Pointer(&setData{items: items}), tag: TagSet}
+	return makeValue(TagSet, 0, unsafe.Pointer(&setData{items: items}))
 }
 
 func (v Value) mapPointer() *mapData {

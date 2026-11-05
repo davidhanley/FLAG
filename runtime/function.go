@@ -10,7 +10,7 @@ func NewFunction(fn func(args ...Value) Value) Value {
 	if fn == nil {
 		panic("NewFunction expects non-nil function")
 	}
-	return Value{p: unsafe.Pointer(&FunctionObject{Fn: fn}), tag: TagFunction}
+	return makeValue(TagFunction, 0, unsafe.Pointer(&FunctionObject{Fn: fn}))
 }
 
 func (v Value) FunctionObject() *FunctionObject {

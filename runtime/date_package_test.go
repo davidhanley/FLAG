@@ -8,8 +8,8 @@ func TestDatePackageFunctionsAreRegistered(t *testing.T) {
 		if got.tag != TagDate {
 			t.Fatalf("expected date result from %s, got %#v", name, got)
 		}
-		if ValueToString(got) != "{:year 2026 :month 3 :day 8}" {
-			t.Fatalf("unexpected date rendering from %s: %q", name, ValueToString(got))
+		if got.String() != "{:year 2026 :month 3 :day 8}" {
+			t.Fatalf("unexpected date rendering from %s: %q", name, got.String())
 		}
 	}
 }

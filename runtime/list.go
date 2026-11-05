@@ -68,9 +68,7 @@ func ListAppend(listValue Value, item Value) Value {
 }
 
 func newListValue(head *listNode, length int) Value {
-	out := Value{p: unsafe.Pointer(head), tag: TagList}
-	*(*int64)(unsafe.Pointer(&out.d)) = int64(length)
-	return out
+	return makeValue(TagList, packLong(int64(length)), unsafe.Pointer(head))
 }
 
 func (v Value) listPointer() *listNode {

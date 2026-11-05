@@ -45,19 +45,19 @@ func goArgString(name string, idx int, v Value) string {
 	if raw, ok := ValueToAny(v).(string); ok {
 		return raw
 	}
-	panic(fmt.Sprintf("%s argument %d: cannot convert %s to string", name, idx+1, ValueToString(v)))
+	panic(fmt.Sprintf("%s argument %d: cannot convert %s to string", name, idx+1, v.String()))
 }
 
 func goArgInt64(name string, idx int, v Value) int64 {
 	if v.tag != TagLong {
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to int", name, idx+1, ValueToString(v)))
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to int", name, idx+1, v.String()))
 	}
 	return v.Long()
 }
 
 func goArgTime(name string, idx int, v Value) time.Time {
 	if v.tag != TagDate {
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to time", name, idx+1, ValueToString(v)))
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to time", name, idx+1, v.String()))
 	}
 	return v.DateTime()
 }
@@ -77,7 +77,7 @@ func goArgReader(name string, idx int, v Value) io.Reader {
 	if raw, ok := ValueToAny(v).(io.Reader); ok {
 		return raw
 	}
-	panic(fmt.Sprintf("%s argument %d: cannot convert %s to io.Reader", name, idx+1, ValueToString(v)))
+	panic(fmt.Sprintf("%s argument %d: cannot convert %s to io.Reader", name, idx+1, v.String()))
 }
 
 func goArgMapAnyAny(name string, idx int, v Value) map[any]any {
@@ -85,7 +85,7 @@ func goArgMapAnyAny(name string, idx int, v Value) map[any]any {
 		return nil
 	}
 	if v.tag != TagMap {
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to map", name, idx+1, ValueToString(v)))
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to map", name, idx+1, v.String()))
 	}
 	return nativeMap(v.MapEntries())
 }

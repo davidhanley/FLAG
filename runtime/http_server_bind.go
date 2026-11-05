@@ -27,7 +27,7 @@ func adaptHTTPListen(args ...Value) Value {
 	goArgArityExact("http/listen", args, 1)
 	opts := args[0]
 	if opts.tag != TagMap {
-		panic(fmt.Sprintf("http/listen expects an options map, got %s", ValueToString(opts)))
+		panic(fmt.Sprintf("http/listen expects an options map, got %s", opts.String()))
 	}
 	addr := httpListenAddress(opts)
 	handler := httpListenHandler(opts)
@@ -85,7 +85,7 @@ func httpListenHandler(opts Value) httplib.Handler {
 
 func httpHandlerFromValue(name string, handler Value) httplib.Handler {
 	if handler.tag != TagFunction {
-		panic(fmt.Sprintf("%s handler: expected function, got %s", name, ValueToString(handler)))
+		panic(fmt.Sprintf("%s handler: expected function, got %s", name, handler.String()))
 	}
 	return func(req httplib.ServerRequest) httplib.ServerResponse {
 		resp := Call(handler, httpServerRequestValue(req))
@@ -95,7 +95,7 @@ func httpHandlerFromValue(name string, handler Value) httplib.Handler {
 
 func httpRouterFromValue(name string, router Value) httplib.Handler {
 	if router.tag != TagMap {
-		panic(fmt.Sprintf("%s router: expected map, got %s", name, ValueToString(router)))
+		panic(fmt.Sprintf("%s router: expected map, got %s", name, router.String()))
 	}
 	routes := Get(router, NewKeyword("routes"))
 	if routes.tag == TagNil {
@@ -109,7 +109,7 @@ func httpRouterFromRoutesValue(name string, routes Value) httplib.Handler {
 	compiled := make([]httplib.Route, 0, len(items))
 	for i, route := range items {
 		if route.tag != TagMap {
-			panic(fmt.Sprintf("%s route %d: expected map, got %s", name, i+1, ValueToString(route)))
+			panic(fmt.Sprintf("%s route %d: expected map, got %s", name, i+1, route.String()))
 		}
 		handler := Get(route, NewKeyword("handler"))
 		if handler.tag != TagFunction {
@@ -142,7 +142,7 @@ func httpRouteValues(name string, v Value) []Value {
 	case TagNil:
 		return nil
 	default:
-		panic(fmt.Sprintf("%s routes: expected array or list, got %s", name, ValueToString(v)))
+		panic(fmt.Sprintf("%s routes: expected array or list, got %s", name, v.String()))
 	}
 }
 
@@ -235,11 +235,11 @@ func httpServerHandleValue(id int64, addr string) Value {
 
 func httpServerID(name string, handle Value) int64 {
 	if handle.tag != TagMap {
-		panic(fmt.Sprintf("%s expects a server handle map, got %s", name, ValueToString(handle)))
+		panic(fmt.Sprintf("%s expects a server handle map, got %s", name, handle.String()))
 	}
 	id := Get(handle, NewKeyword("server-id"))
 	if id.tag != TagLong {
-		panic(fmt.Sprintf("%s expects a server handle with :server-id, got %s", name, ValueToString(handle)))
+		panic(fmt.Sprintf("%s expects a server handle with :server-id, got %s", name, handle.String()))
 	}
 	return id.Long()
 }

@@ -317,8 +317,8 @@ func TestNilValueIsTaggedNil(t *testing.T) {
 	if !IsNil(NilValue) {
 		t.Fatal("expected IsNil(NilValue)")
 	}
-	if !Eq(NilValue, Value{tag: TagNil}) {
-		t.Fatal("expected NilValue to equal a TagNil Value")
+	if !Eq(NilValue, makeValue(TagNil, 0, nil)) {
+		t.Fatal("expected NilValue to equal another nil Value")
 	}
 	if Eq(NilValue, NewLong(0)) || Eq(NilValue, NewBool(false)) {
 		t.Fatal("nil is not 0 or false")
@@ -399,12 +399,12 @@ func TestSymbolAndName(t *testing.T) {
 	}
 
 	kwAsSymbol := Symbol(kw)
-	if got := ValueToString(kwAsSymbol); got != "kw" {
+	if got := kwAsSymbol.String(); got != "kw" {
 		t.Fatalf("expected symbol conversion to drop keyword marker, got %q", got)
 	}
 
 	kwFromSym := Keyword(sym)
-	if got := ValueToString(kwFromSym); got != ":abc" {
+	if got := kwFromSym.String(); got != ":abc" {
 		t.Fatalf("expected keyword conversion from symbol, got %q", got)
 	}
 
@@ -412,7 +412,7 @@ func TestSymbolAndName(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected Value from ValueToAny, got %T", ValueToAny(NewKeyword("key")))
 	}
-	if got := ValueToString(keywordAny); got != ":key" {
+	if got := keywordAny.String(); got != ":key" {
 		t.Fatalf("unexpected keyword value: %q", got)
 	}
 }
@@ -472,8 +472,8 @@ func TestStringValues(t *testing.T) {
 	if got.tag != TagString {
 		t.Fatalf("expected string tag, got %v", got.tag)
 	}
-	if ValueToString(got) != `"hello"` {
-		t.Fatalf("expected quoted string value, got %q", ValueToString(got))
+	if got.String() != `"hello"` {
+		t.Fatalf("expected quoted string value, got %q", got.String())
 	}
 	if Str(got) != "hello" {
 		t.Fatalf("expected raw string from Str, got %q", Str(got))
@@ -488,8 +488,8 @@ func TestDateValues(t *testing.T) {
 	if got.tag != TagDate {
 		t.Fatalf("expected date tag, got %v", got.tag)
 	}
-	if ValueToString(got) != "{:year 2026 :month 3 :day 8}" {
-		t.Fatalf("unexpected date string: %q", ValueToString(got))
+	if got.String() != "{:year 2026 :month 3 :day 8}" {
+		t.Fatalf("unexpected date string: %q", got.String())
 	}
 	if year := Get(got, NewKeyword("year")); year.Long() != 2026 {
 		t.Fatalf("expected year 2026, got %v", ValueToAny(year))

@@ -102,6 +102,6 @@ func valueAsString(v Value) string {
 	case TagSymbol:
 		return v.SymbolObject().Name
 	default:
-		return ValueToString(v)
+		return v.String()
 	}
 }

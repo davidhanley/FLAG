@@ -85,7 +85,7 @@ func adaptHTTPPost(args ...Value) Value {
 
 func httpRequestFromValue(name string, v Value) httplib.Request {
 	if v.tag != TagMap {
-		panic(fmt.Sprintf("%s expects a request map, got %s", name, ValueToString(v)))
+		panic(fmt.Sprintf("%s expects a request map, got %s", name, v.String()))
 	}
 	method := requestFieldString(name, v, "method", "GET")
 	url := requestFieldString(name, v, "url", "")
@@ -111,7 +111,7 @@ func applyHTTPRequestOptions(name string, req httplib.Request, opts Value) httpl
 		return req
 	}
 	if opts.tag != TagMap {
-		panic(fmt.Sprintf("%s options: expected map, got %s", name, ValueToString(opts)))
+		panic(fmt.Sprintf("%s options: expected map, got %s", name, opts.String()))
 	}
 	if headers := Get(opts, NewKeyword("headers")); headers.tag != TagNil {
 		req.Headers = requestHeadersFromValue(name, headers)
@@ -166,7 +166,7 @@ func requestHeadersFromValue(name string, v Value) map[string][]string {
 		return nil
 	}
 	if v.tag != TagMap {
-		panic(fmt.Sprintf("%s headers: expected map, got %s", name, ValueToString(v)))
+		panic(fmt.Sprintf("%s headers: expected map, got %s", name, v.String()))
 	}
 	headers := map[string][]string{}
 	for _, entry := range v.MapEntries() {

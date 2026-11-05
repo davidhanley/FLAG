@@ -17,6 +17,6 @@ func TestBurpHtmlThroughStaticBind(t *testing.T) {
 
 	want := `<div id="app" class="hero" data-role="main"><span>Hello &amp; &lt;world&gt;</span><br></div>`
 	if got.tag != TagString || got.StringValue() != want {
-		t.Fatalf("unexpected burp html: %q", ValueToString(got))
+		t.Fatalf("unexpected burp html: %q", got.String())
 	}
 }

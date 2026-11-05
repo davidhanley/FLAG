@@ -87,9 +87,7 @@ func newVectorValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid vector length")
 	}
-	out := Value{p: unsafe.Pointer(data), tag: TagVector}
-	*(*int64)(unsafe.Pointer(&out.d)) = int64(length)
-	return out
+	return makeValue(TagVector, packLong(int64(length)), unsafe.Pointer(data))
 }
 
 func (v Value) vectorPointer() *arrayData {

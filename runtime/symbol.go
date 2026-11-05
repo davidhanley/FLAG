@@ -8,11 +8,11 @@ type SymbolObject struct {
 }
 
 func NewSymbol(name string) Value {
-	return Value{p: unsafe.Pointer(&SymbolObject{Name: name}), tag: TagSymbol}
+	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name}))
 }
 
 func NewKeyword(name string) Value {
-	return Value{p: unsafe.Pointer(&SymbolObject{Name: name, IsKeyword: true}), tag: TagSymbol}
+	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name, IsKeyword: true}))
 }
 
 func (v Value) SymbolObject() *SymbolObject {

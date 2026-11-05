@@ -10,7 +10,7 @@ type StringObject struct {
 }
 
 func NewString(value string) Value {
-	return Value{p: unsafe.Pointer(&StringObject{Value: value}), tag: TagString}
+	return makeValue(TagString, 0, unsafe.Pointer(&StringObject{Value: value}))
 }
 
 func (v Value) StringObject() *StringObject {

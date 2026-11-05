@@ -25,12 +25,12 @@ func Atom(args ...Value) Value {
 		panic("atom expects 0 or 1 arguments")
 	}
 	a := &AtomObject{v: init}
-	return Value{p: unsafe.Pointer(a), tag: TagAtom}
+	return makeValue(TagAtom, 0, unsafe.Pointer(a))
 }
 
 func (v Value) AtomObject() *AtomObject {
 	if v.tag != TagAtom {
-		panic(fmt.Sprintf("expected atom, got %s", ValueToString(v)))
+		panic(fmt.Sprintf("expected atom, got %s", v.String()))
 	}
 	if v.p == nil {
 		panic("atom Value does not contain atom pointer")
@@ -45,7 +45,7 @@ func valueSlotEq(a, b Value) bool {
 // Deref returns the current value of atom.
 func Deref(atom Value) Value {
 	if atom.tag != TagAtom {
-		panic(fmt.Sprintf("deref expects an atom, got %s", ValueToString(atom)))
+		panic(fmt.Sprintf("deref expects an atom, got %s", atom.String()))
 	}
 	a := atom.AtomObject()
 	a.mu.Lock()
@@ -57,7 +57,7 @@ func Deref(atom Value) Value {
 // Reset sets atom to v and returns v.
 func Reset(atom, v Value) Value {
 	if atom.tag != TagAtom {
-		panic(fmt.Sprintf("reset! expects an atom, got %s", ValueToString(atom)))
+		panic(fmt.Sprintf("reset! expects an atom, got %s", atom.String()))
 	}
 	a := atom.AtomObject()
 	a.mu.Lock()
@@ -73,7 +73,7 @@ func Swap(args ...Value) Value {
 		panic("swap! expects atom, function, and optional extra arguments")
 	}
 	if args[0].tag != TagAtom {
-		panic(fmt.Sprintf("swap! expects an atom, got %s", ValueToString(args[0])))
+		panic(fmt.Sprintf("swap! expects an atom, got %s", args[0].String()))
 	}
 	a := args[0].AtomObject()
 	f := args[1]

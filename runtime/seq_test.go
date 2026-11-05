@@ -108,10 +108,10 @@ func TestSeqPredicateAcrossSequenceTypes(t *testing.T) {
 }
 
 func TestReverseAcrossSequenceTypes(t *testing.T) {
-	if got := ValueToString(Reverse(NewList(NewLong(1), NewLong(2), NewLong(3)))); got != "[3 2 1]" {
+	if got := (Reverse(NewList(NewLong(1), NewLong(2), NewLong(3)))).String(); got != "[3 2 1]" {
 		t.Fatalf("unexpected reverse list result: %q", got)
 	}
-	if got := ValueToString(Reverse(NewArray(NewLong(4), NewLong(5), NewLong(6)))); got != "[6 5 4]" {
+	if got := (Reverse(NewArray(NewLong(4), NewLong(5), NewLong(6)))).String(); got != "[6 5 4]" {
 		t.Fatalf("unexpected reverse array result: %q", got)
 	}
 
@@ -123,28 +123,28 @@ func TestReverseAcrossSequenceTypes(t *testing.T) {
 		count++
 		return NewLong(int64(count)), true
 	})
-	if got := ValueToString(Reverse(lazy)); got != "[3 2 1]" {
+	if got := Reverse(lazy).String(); got != "[3 2 1]" {
 		t.Fatalf("unexpected reverse lazy-list result: %q", got)
 	}
 	if got := First(lazy); got.Long() != 1 {
 		t.Fatalf("expected lazy list to remain readable after reverse, got %#v", got)
 	}
-	if got := ValueToString(Reverse(NilValue)); got != "[]" {
+	if got := Reverse(NilValue).String(); got != "[]" {
 		t.Fatalf("unexpected reverse nil result: %q", got)
 	}
 }
 
 func TestConsBuildsLists(t *testing.T) {
-	if got := ValueToString(Cons(NewLong(1), NilValue)); got != "(1)" {
+	if got := (Cons(NewLong(1), NilValue)).String(); got != "(1)" {
 		t.Fatalf("unexpected cons onto nil result: %q", got)
 	}
-	if got := ValueToString(Cons(NewLong(1), NewList(NewLong(2), NewLong(3)))); got != "(1 2 3)" {
+	if got := (Cons(NewLong(1), NewList(NewLong(2), NewLong(3)))).String(); got != "(1 2 3)" {
 		t.Fatalf("unexpected cons onto list result: %q", got)
 	}
-	if got := ValueToString(Cons(NewLong(1), NewArray())); got != "(1)" {
+	if got := (Cons(NewLong(1), NewArray())).String(); got != "(1)" {
 		t.Fatalf("unexpected cons onto empty array result: %q", got)
 	}
-	if got := ValueToString(Cons(NewLong(1), NewArray(NewLong(2), NewLong(3)))); got != "(1 2 3)" {
+	if got := (Cons(NewLong(1), NewArray(NewLong(2), NewLong(3)))).String(); got != "(1 2 3)" {
 		t.Fatalf("unexpected cons onto array result: %q", got)
 	}
 }
@@ -159,14 +159,14 @@ func TestNextAcrossSequenceTypes(t *testing.T) {
 	if got := Next(NewList(NewLong(1))); got.tag != TagNil {
 		t.Fatalf("expected nil next for singleton list, got %#v", got)
 	}
-	if got := Next(NewList(NewLong(1), NewLong(2))); got.tag != TagList || ValueToString(got) != "(2)" {
-		t.Fatalf("expected (2) next for list, got %#v / %s", got, ValueToString(got))
+	if got := Next(NewList(NewLong(1), NewLong(2))); got.tag != TagList || got.String() != "(2)" {
+		t.Fatalf("expected (2) next for list, got %#v / %s", got, got.String())
 	}
 	if got := Next(NewArray(NewLong(1))); got.tag != TagNil {
 		t.Fatalf("expected nil next for singleton array, got %#v", got)
 	}
-	if got := Next(NewArray(NewLong(1), NewLong(2))); got.tag != TagArray || ValueToString(got) != "[2]" {
-		t.Fatalf("expected [2] next for array, got %#v / %s", got, ValueToString(got))
+	if got := Next(NewArray(NewLong(1), NewLong(2))); got.tag != TagArray || got.String() != "[2]" {
+		t.Fatalf("expected [2] next for array, got %#v / %s", got, got.String())
 	}
 
 	emptyLazy := NewLazyList(func() (Value, bool) { return Value{}, false })
@@ -484,22 +484,22 @@ func TestSetRealizesSequenceIntoSet(t *testing.T) {
 
 func TestConjAcrossCollectionTypes(t *testing.T) {
 	list := Conj(NewList(NewLong(2), NewLong(3)), NewLong(1))
-	if got := ValueToString(list); got != "(1 2 3)" {
+	if got := list.String(); got != "(1 2 3)" {
 		t.Fatalf("unexpected list conj result: %q", got)
 	}
 
 	array := Conj(NewArray(NewLong(1), NewLong(2)), NewLong(3), NewLong(4))
-	if got := ValueToString(array); got != "[1 2 3 4]" {
+	if got := array.String(); got != "[1 2 3 4]" {
 		t.Fatalf("unexpected array conj result: %q", got)
 	}
 
 	set := Conj(NewSet(NewLong(1)), NewLong(2), NewLong(2))
-	if got := ValueToString(set); got != "#{1 2}" {
+	if got := set.String(); got != "#{1 2}" {
 		t.Fatalf("unexpected set conj result: %q", got)
 	}
 
 	m := Conj(NewMap(NewKeyword("a"), NewLong(1)), NewArray(NewKeyword("b"), NewLong(2)))
-	if got := ValueToString(m); got != "{:a 1 :b 2}" {
+	if got := m.String(); got != "{:a 1 :b 2}" {
 		t.Fatalf("unexpected map conj result: %q", got)
 	}
 
@@ -507,7 +507,7 @@ func TestConjAcrossCollectionTypes(t *testing.T) {
 		NewMap(NewKeyword("a"), NewLong(1)),
 		NewMap(NewKeyword("b"), NewLong(2), NewKeyword("c"), NewLong(3)),
 	)
-	if got := ValueToString(merged); got != "{:a 1 :b 2 :c 3}" {
+	if got := merged.String(); got != "{:a 1 :b 2 :c 3}" {
 		t.Fatalf("unexpected map-merge conj result: %q", got)
 	}
 }
@@ -677,7 +677,7 @@ func TestConcatReturnsLazySequenceAcrossInputs(t *testing.T) {
 	if joined.tag != TagLazyList {
 		t.Fatalf("expected lazy list from concat, got %v", joined.tag)
 	}
-	if got := ValueToString(Take(NewLong(5), joined)); got != "[1 2 3 4 4]" {
+	if got := (Take(NewLong(5), joined)).String(); got != "[1 2 3 4 4]" {
 		t.Fatalf("unexpected concat values: %q", got)
 	}
 	if got := First(Concat()); got.tag != TagNil {
@@ -687,7 +687,7 @@ func TestConcatReturnsLazySequenceAcrossInputs(t *testing.T) {
 
 func TestIntoFoldsSequenceIntoCollection(t *testing.T) {
 	got := Into(NewMap(), NewArray(NewArray(NewKeyword("a"), NewLong(1))))
-	if got.tag != TagMap || ValueToString(got) != "{:a 1}" {
+	if got.tag != TagMap || got.String() != "{:a 1}" {
 		t.Fatalf("unexpected into result: %#v", got)
 	}
 }
@@ -699,7 +699,7 @@ func TestMapCatFlattensMappedSequences(t *testing.T) {
 	if joined.tag != TagLazyList {
 		t.Fatalf("expected lazy list from mapcat, got %v", joined.tag)
 	}
-	if got := ValueToString(Take(NewLong(4), joined)); got != "[1 11 2 12]" {
+	if got := (Take(NewLong(4), joined)).String(); got != "[1 11 2 12]" {
 		t.Fatalf("unexpected mapcat values: %q", got)
 	}
 }
@@ -717,7 +717,7 @@ func TestSeqReturnsNilForEmptyAndCollectionForNonEmpty(t *testing.T) {
 }
 
 func TestVecRealizesCollectionsToArray(t *testing.T) {
-	if got := Vec(NewList(NewLong(1), NewLong(2))); got.tag != TagArray || ValueToString(got) != "[1 2]" {
+	if got := Vec(NewList(NewLong(1), NewLong(2))); got.tag != TagArray || got.String() != "[1 2]" {
 		t.Fatalf("unexpected vec result for list: %#v", got)
 	}
 	if got := Vec(NilValue); got.tag != TagArray || got.ArrayLen() != 0 {
@@ -735,7 +735,7 @@ func TestMapOverStringYieldsCharacterValues(t *testing.T) {
 		t.Fatalf("unexpected map result for string: %#v", got)
 	}
 	if ArrayGet(got, 0).StringValue() != "a" || ArrayGet(got, 1).StringValue() != "b" || ArrayGet(got, 2).StringValue() != "😀" {
-		t.Fatalf("unexpected mapped characters: %s", ValueToString(got))
+		t.Fatalf("unexpected mapped characters: %s", got.String())
 	}
 }
 
@@ -766,12 +766,12 @@ func TestApplyFnCallsGoFunctionDirectly(t *testing.T) {
 func TestSortBySortsSequences(t *testing.T) {
 	identity := NewFunction(func(args ...Value) Value { return args[0] })
 	asc := SortBy(identity, NewList(NewLong(3), NewLong(1), NewLong(2)))
-	if got := ValueToString(asc); got != "[1 2 3]" {
+	if got := asc.String(); got != "[1 2 3]" {
 		t.Fatalf("unexpected ascending sort-by result: %q", got)
 	}
 
 	desc := SortBy(identity, BuiltinFunction(">"), NewArray(NewLong(3), NewLong(1), NewLong(2)))
-	if got := ValueToString(desc); got != "[3 2 1]" {
+	if got := desc.String(); got != "[3 2 1]" {
 		t.Fatalf("unexpected descending sort-by result: %q", got)
 	}
 
@@ -792,7 +792,7 @@ func TestSortBySortsSequences(t *testing.T) {
 	if Get(first, NewKeyword("age")).tag != TagNil ||
 		Get(second, NewKeyword("age")).Long() != 20 ||
 		Get(third, NewKeyword("age")).Long() != 30 {
-		t.Fatalf("unexpected sort-by nil-key ordering: %s", ValueToString(withNil))
+		t.Fatalf("unexpected sort-by nil-key ordering: %s", withNil.String())
 	}
 }
 
@@ -854,7 +854,7 @@ func TestReduceWithInitialOnNilCollection(t *testing.T) {
 
 func TestDoAllIsNoOpForNonSequences(t *testing.T) {
 	m := NewMap(NewKeyword("a"), NewLong(1))
-	if got := DoAll(m); got.tag != TagMap || ValueToString(got) != "{:a 1}" {
+	if got := DoAll(m); got.tag != TagMap || got.String() != "{:a 1}" {
 		t.Fatalf("expected doall map no-op, got %#v", got)
 	}
 	if got := DoAll(NewString("abc")); got.tag != TagString || got.StringValue() != "abc" {
@@ -868,8 +868,8 @@ func TestRangeTwoArgsShortReturnsLazyList(t *testing.T) {
 		t.Fatalf("expected lazy list for short range, got %v", r.tag)
 	}
 	got := DoAll(r)
-	if ValueToString(got) != "[3 4 5 6]" {
-		t.Fatalf("unexpected short range values: %s", ValueToString(got))
+	if got.String() != "[3 4 5 6]" {
+		t.Fatalf("unexpected short range values: %s", got.String())
 	}
 }
 
@@ -878,7 +878,7 @@ func TestRangeOneArgIsExclusiveEndFromZero(t *testing.T) {
 	if r.tag != TagLazyList {
 		t.Fatalf("expected lazy list for (range 4), got %v", r.tag)
 	}
-	if got := ValueToString(DoAll(r)); got != "[0 1 2 3]" {
+	if got := DoAll(r).String(); got != "[0 1 2 3]" {
 		t.Fatalf("expected (range 4) to be 0..3, got %q", got)
 	}
 	empty := Range(NewLong(0))
@@ -923,10 +923,10 @@ func TestRangeLargeReturnsTerminatingLazyList(t *testing.T) {
 }
 
 func TestRangeThreeArgStep(t *testing.T) {
-	if got := ValueToString(DoAll(Range(NewLong(0), NewLong(8), NewLong(2)))); got != "[0 2 4 6]" {
+	if got := (DoAll(Range(NewLong(0), NewLong(8), NewLong(2)))).String(); got != "[0 2 4 6]" {
 		t.Fatalf("unexpected positive step range: %q", got)
 	}
-	if got := ValueToString(DoAll(Range(NewLong(5), NewLong(1), NewLong(-1)))); got != "[5 4 3 2]" {
+	if got := (DoAll(Range(NewLong(5), NewLong(1), NewLong(-1)))).String(); got != "[5 4 3 2]" {
 		t.Fatalf("unexpected negative step range: %q", got)
 	}
 	if got := Range(NewLong(4), NewLong(1)); got.tag != TagArray || got.ArrayLen() != 0 {
@@ -979,8 +979,8 @@ func TestRangeWalkIsLinear(t *testing.T) {
 
 func TestFnRangeMatchesRange(t *testing.T) {
 	got := DoAll(FnRange(NewLong(3)))
-	if ValueToString(got) != "[0 1 2]" {
-		t.Fatalf("FnRange(3) = %s", ValueToString(got))
+	if got.String() != "[0 1 2]" {
+		t.Fatalf("FnRange(3) = %s", got.String())
 	}
 }
 
@@ -1003,7 +1003,7 @@ func TestRepeatTwoArgsReturnsFiniteLazyList(t *testing.T) {
 	if r.tag != TagLazyList {
 		t.Fatalf("expected lazy list for two-arg repeat, got %v", r.tag)
 	}
-	if got := ValueToString(Take(NewLong(4), r)); got != `["x" "x" "x"]` {
+	if got := (Take(NewLong(4), r)).String(); got != `["x" "x" "x"]` {
 		t.Fatalf("unexpected repeat values: %q", got)
 	}
 	if got := First(Drop(NewLong(3), r)); got.tag != TagNil {

@@ -390,11 +390,11 @@ func convertMapToMap(value Value, targetType reflect.Type) (reflect.Value, error
 	for _, entry := range value.MapEntries() {
 		key, err := valueToGoArg(entry.Key, targetType.Key())
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("map key %s: %w", ValueToString(entry.Key), err)
+			return reflect.Value{}, fmt.Errorf("map key %s: %w", entry.Key.String(), err)
 		}
 		val, err := valueToGoArg(entry.Value, targetType.Elem())
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("map value for key %s: %w", ValueToString(entry.Key), err)
+			return reflect.Value{}, fmt.Errorf("map value for key %s: %w", entry.Key.String(), err)
 		}
 		out.SetMapIndex(key, val)
 	}

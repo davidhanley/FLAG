@@ -205,7 +205,7 @@ func flagString(v flagrt.Value) string {
 	case "string":
 		return v.StringValue()
 	default:
-		return flagrt.ValueToString(v)
+		return v.String()
 	}
 }
 

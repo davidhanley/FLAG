@@ -25,7 +25,7 @@ func TestTypeOfKeywords(t *testing.T) {
 		{name: "vector", v: NewVector(NewLong(1)), want: ":vector"},
 	}
 	for _, tc := range cases {
-		got := ValueToString(TypeOf(tc.v))
+		got := TypeOf(tc.v).String()
 		if got != tc.want {
 			t.Fatalf("%s: expected %s, got %s", tc.name, tc.want, got)
 		}

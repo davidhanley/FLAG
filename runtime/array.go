@@ -106,9 +106,7 @@ func newArrayValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid array length")
 	}
-	out := Value{p: unsafe.Pointer(data), tag: TagArray}
-	*(*int64)(unsafe.Pointer(&out.d)) = int64(length)
-	return out
+	return makeValue(TagArray, packLong(int64(length)), unsafe.Pointer(data))
 }
 
 func grownCapacity(length int) int {
