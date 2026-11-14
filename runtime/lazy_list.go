@@ -156,3 +156,10 @@ func (lazyListImpl) typ(Value) Value { return typeLazyList }
 func (lazyListImpl) String(Value) string {
 	return "#<lazy-list>"
 }
+func (lazyListImpl) first(v Value) Value {
+	next, ok := lazyPeek(v)
+	if !ok {
+		return NilValue
+	}
+	return next
+}

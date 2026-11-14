@@ -838,46 +838,7 @@ func nthMissing(notFound []Value) (Value, bool) {
 }
 
 func First(coll Value) Value {
-	switch coll.tag {
-	case TagNil:
-		return NilValue
-	case TagList:
-		if coll.ListLen() == 0 {
-			return NilValue
-		}
-		return coll.listPointer().value
-	case TagArray:
-		if coll.ArrayLen() == 0 {
-			return NilValue
-		}
-		return coll.arrayItems()[0]
-	case TagVector:
-		if coll.VectorLen() == 0 {
-			return NilValue
-		}
-		return coll.vectorItems()[0]
-	case TagLazyList:
-		next, ok := lazyPeek(coll)
-		if !ok {
-			return NilValue
-		}
-		return next
-	case TagString:
-		value := coll.StringValue()
-		if value == "" {
-			return NilValue
-		}
-		_, size := utf8.DecodeRuneInString(value)
-		return NewString(value[:size])
-	case TagSet:
-		values := coll.SetValues()
-		if len(values) == 0 {
-			return NilValue
-		}
-		return values[0]
-	default:
-		panic("first expects nil, list, array, vector, lazy-list, set, or string Value")
-	}
+	return coll.impl.first(coll)
 }
 
 func SeqPredicate(coll Value) Value {

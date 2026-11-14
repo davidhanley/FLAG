@@ -32,6 +32,9 @@ func (defaultImpl) keys(Value) Value {
 func (defaultImpl) vals(Value) Value {
 	panic("vals expects map Value")
 }
+func (defaultImpl) first(Value) Value {
+	panic("first expects nil, list, array, vector, lazy-list, set, or string Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

@@ -555,3 +555,10 @@ func (setImpl) get(v Value, key Value, missing Value) Value {
 func (setImpl) contains(v Value, key Value) bool {
 	return v.setPointer().items.Has(key)
 }
+func (setImpl) first(v Value) Value {
+	values := v.SetValues()
+	if len(values) == 0 {
+		return NilValue
+	}
+	return values[0]
+}

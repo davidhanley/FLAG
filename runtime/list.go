@@ -108,3 +108,9 @@ func (listImpl) String(v Value) string {
 	out.WriteByte(')')
 	return out.String()
 }
+func (listImpl) first(v Value) Value {
+	if v.ListLen() == 0 {
+		return NilValue
+	}
+	return v.listPointer().value
+}

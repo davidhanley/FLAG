@@ -170,3 +170,9 @@ func (arrayImpl) get(v Value, key Value, missing Value) Value {
 	}
 	return missing
 }
+func (arrayImpl) first(v Value) Value {
+	if v.ArrayLen() == 0 {
+		return NilValue
+	}
+	return v.arrayItems()[0]
+}

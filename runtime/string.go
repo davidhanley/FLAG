@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"strconv"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -53,6 +54,14 @@ func (stringImpl) get(v Value, key Value, missing Value) Value {
 		}
 	}
 	return missing
+}
+func (stringImpl) first(v Value) Value {
+	value := v.StringValue()
+	if value == "" {
+		return NilValue
+	}
+	_, size := utf8.DecodeRuneInString(value)
+	return NewString(value[:size])
 }
 
 func Subs(s Value, start Value, end ...Value) Value {

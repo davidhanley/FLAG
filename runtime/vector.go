@@ -142,3 +142,9 @@ func (vectorImpl) get(v Value, key Value, missing Value) Value {
 	}
 	return missing
 }
+func (vectorImpl) first(v Value) Value {
+	if v.VectorLen() == 0 {
+		return NilValue
+	}
+	return v.vectorItems()[0]
+}

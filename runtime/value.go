@@ -15,6 +15,7 @@ type impl interface {
 	find(v Value, key Value) Value
 	keys(v Value) Value
 	vals(v Value) Value
+	first(v Value) Value
 }
 
 type Value struct {
@@ -60,5 +61,6 @@ func (nilImpl) contains(Value, Value) bool {
 func (nilImpl) find(Value, Value) Value {
 	return NilValue
 }
-func (nilImpl) keys(Value) Value { return NilValue }
-func (nilImpl) vals(Value) Value { return NilValue }
+func (nilImpl) keys(Value) Value  { return NilValue }
+func (nilImpl) vals(Value) Value  { return NilValue }
+func (nilImpl) first(Value) Value { return NilValue }
