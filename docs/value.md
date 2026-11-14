@@ -18,6 +18,7 @@ type impl interface {
     keys(v Value) Value
     vals(v Value) Value
     first(v Value) Value
+    rest(v Value) Value
 }
 
 type Value struct {
@@ -41,8 +42,9 @@ checks; map, set, array, vector, string, date, record, and nil override `get`.
 and nil override `find` (`nil` is `nil`). `Keys` / `Vals` are `v.impl.keys(v)` and
 `v.impl.vals(v)`; map, date, and nil override them (`nil` is `nil`). Other types
 inherit `defaultImpl`, which panics. `First` is `v.impl.first(v)`; nil, list, array,
-vector, lazy-list, set, and string override it. A `Value` with a nil `impl` is
-uninitialized and those calls panic.
+vector, lazy-list, set, and string override it. `Rest` is `v.impl.rest(v)` on the
+same types except nil (which panics; `SeqRest` wraps nil as `()`). A `Value` with
+a nil `impl` is uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each

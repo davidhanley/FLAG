@@ -176,3 +176,6 @@ func (arrayImpl) first(v Value) Value {
 	}
 	return v.arrayItems()[0]
 }
+func (arrayImpl) rest(v Value) Value {
+	return ArrayRest(v)
+}

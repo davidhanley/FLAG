@@ -562,3 +562,10 @@ func (setImpl) first(v Value) Value {
 	}
 	return values[0]
 }
+func (setImpl) rest(v Value) Value {
+	values := v.SetValues()
+	if len(values) <= 1 {
+		return NewArray()
+	}
+	return NewArray(values[1:]...)
+}

@@ -63,6 +63,14 @@ func (stringImpl) first(v Value) Value {
 	_, size := utf8.DecodeRuneInString(value)
 	return NewString(value[:size])
 }
+func (stringImpl) rest(v Value) Value {
+	value := v.StringValue()
+	if value == "" {
+		return NewArray()
+	}
+	_, size := utf8.DecodeRuneInString(value)
+	return Vec(NewString(value[size:]))
+}
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {

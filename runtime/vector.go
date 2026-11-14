@@ -148,3 +148,6 @@ func (vectorImpl) first(v Value) Value {
 	}
 	return v.vectorItems()[0]
 }
+func (vectorImpl) rest(v Value) Value {
+	return VectorRest(v)
+}

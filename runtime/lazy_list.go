@@ -163,3 +163,6 @@ func (lazyListImpl) first(v Value) Value {
 	}
 	return next
 }
+func (lazyListImpl) rest(v Value) Value {
+	return lazyTail(v)
+}

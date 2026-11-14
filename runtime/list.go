@@ -114,3 +114,6 @@ func (listImpl) first(v Value) Value {
 	}
 	return v.listPointer().value
 }
+func (listImpl) rest(v Value) Value {
+	return ListRest(v)
+}

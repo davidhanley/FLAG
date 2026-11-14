@@ -16,6 +16,7 @@ type impl interface {
 	keys(v Value) Value
 	vals(v Value) Value
 	first(v Value) Value
+	rest(v Value) Value
 }
 
 type Value struct {

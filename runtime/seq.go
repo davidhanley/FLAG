@@ -851,31 +851,7 @@ func SeqPredicate(coll Value) Value {
 }
 
 func Rest(coll Value) Value {
-	switch coll.tag {
-	case TagList:
-		return ListRest(coll)
-	case TagArray:
-		return ArrayRest(coll)
-	case TagVector:
-		return VectorRest(coll)
-	case TagLazyList:
-		return lazyTail(coll)
-	case TagString:
-		value := coll.StringValue()
-		if value == "" {
-			return NewArray()
-		}
-		_, size := utf8.DecodeRuneInString(value)
-		return Vec(NewString(value[size:]))
-	case TagSet:
-		values := coll.SetValues()
-		if len(values) <= 1 {
-			return NewArray()
-		}
-		return NewArray(values[1:]...)
-	default:
-		panic("rest expects list, array, vector, lazy-list, set, or string Value")
-	}
+	return coll.impl.rest(coll)
 }
 
 func Next(coll Value) Value {
