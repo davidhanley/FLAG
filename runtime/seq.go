@@ -509,47 +509,7 @@ func Conj(coll Value, entries ...Value) Value {
 	if len(entries) == 0 {
 		panic("conj expects collection and at least one item")
 	}
-	switch coll.tag {
-	case TagList:
-		out := coll
-		for _, item := range entries {
-			out = ListCons(out, item)
-		}
-		return out
-	case TagArray:
-		out := coll
-		for _, item := range entries {
-			out = ArrayAppend(out, item)
-		}
-		return out
-	case TagVector:
-		out := coll
-		for _, item := range entries {
-			out = VectorAppend(out, item)
-		}
-		return out
-	case TagSet:
-		items := coll.setPointer().items
-		for _, item := range entries {
-			items = items.Add(item)
-		}
-		return newSetValue(items)
-	case TagMap:
-		items := coll.mapPointer().items
-		for _, entry := range entries {
-			if entry.tag == TagMap {
-				for _, mapEntry := range entry.MapEntries() {
-					items = items.Set(mapEntry.Key, mapEntry.Value)
-				}
-				continue
-			}
-			key, value := conjMapEntry(entry)
-			items = items.Set(key, value)
-		}
-		return newMapValue(items)
-	default:
-		panic("conj expects list, array, vector, set, or map Value")
-	}
+	return coll.impl.conj(coll, entries...)
 }
 
 func Into(coll Value, from Value) Value {

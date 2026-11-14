@@ -21,6 +21,7 @@ type impl interface {
     rest(v Value) Value
     next(v Value) Value
     last(v Value) Value
+    conj(v Value, entries ...Value) Value
 }
 
 type Value struct {
@@ -47,8 +48,9 @@ inherit `defaultImpl`, which panics. `First` is `v.impl.first(v)`; nil, list, ar
 vector, lazy-list, set, and string override it. `Rest` is `v.impl.rest(v)` on the
 same types except nil (which panics; `SeqRest` wraps nil as `()`). `Next` is
 `v.impl.next(v)` (nil is `nil`; empty rest is `nil`). `Last` is `v.impl.last(v)`
-on list, array, vector, and lazy-list. A `Value` with a nil `impl` is
-uninitialized and those calls panic.
+on list, array, vector, and lazy-list. `Conj` is `v.impl.conj(v, entries...)` after
+the arity check; list, array, vector, set, and map override it. A `Value` with a
+nil `impl` is uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each

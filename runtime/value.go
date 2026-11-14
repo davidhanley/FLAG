@@ -19,6 +19,7 @@ type impl interface {
 	rest(v Value) Value
 	next(v Value) Value
 	last(v Value) Value
+	conj(v Value, entries ...Value) Value
 }
 
 type Value struct {

@@ -131,3 +131,10 @@ func (listImpl) last(v Value) Value {
 	}
 	return node.value
 }
+func (listImpl) conj(v Value, entries ...Value) Value {
+	out := v
+	for _, item := range entries {
+		out = ListCons(out, item)
+	}
+	return out
+}

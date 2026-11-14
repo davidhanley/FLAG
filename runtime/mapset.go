@@ -520,6 +520,20 @@ func (mapImpl) find(v Value, key Value) Value {
 }
 func (mapImpl) keys(v Value) Value { return mapEntryKeys(v.MapEntries()) }
 func (mapImpl) vals(v Value) Value { return mapEntryVals(v.MapEntries()) }
+func (mapImpl) conj(v Value, entries ...Value) Value {
+	items := v.mapPointer().items
+	for _, entry := range entries {
+		if entry.tag == TagMap {
+			for _, mapEntry := range entry.MapEntries() {
+				items = items.Set(mapEntry.Key, mapEntry.Value)
+			}
+			continue
+		}
+		key, value := conjMapEntry(entry)
+		items = items.Set(key, value)
+	}
+	return newMapValue(items)
+}
 
 type setImpl struct{ defaultImpl }
 
@@ -572,4 +586,11 @@ func (setImpl) rest(v Value) Value {
 func (setImpl) next(v Value) Value {
 	rest := Rest(v)
 	return nextIfEmpty(rest, rest.ArrayLen() == 0)
+}
+func (setImpl) conj(v Value, entries ...Value) Value {
+	items := v.setPointer().items
+	for _, item := range entries {
+		items = items.Add(item)
+	}
+	return newSetValue(items)
 }

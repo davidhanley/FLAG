@@ -44,6 +44,9 @@ func (defaultImpl) next(Value) Value {
 func (defaultImpl) last(Value) Value {
 	panic("last expects list, array, vector, or lazy-list Value")
 }
+func (defaultImpl) conj(Value, ...Value) Value {
+	panic("conj expects list, array, vector, set, or map Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

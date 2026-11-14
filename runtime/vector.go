@@ -162,3 +162,10 @@ func (vectorImpl) last(v Value) Value {
 	}
 	return v.vectorItems()[n-1]
 }
+func (vectorImpl) conj(v Value, entries ...Value) Value {
+	out := v
+	for _, item := range entries {
+		out = VectorAppend(out, item)
+	}
+	return out
+}

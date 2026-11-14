@@ -190,3 +190,10 @@ func (arrayImpl) last(v Value) Value {
 	}
 	return v.arrayItems()[n-1]
 }
+func (arrayImpl) conj(v Value, entries ...Value) Value {
+	out := v
+	for _, item := range entries {
+		out = ArrayAppend(out, item)
+	}
+	return out
+}
