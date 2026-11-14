@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"strings"
+	"unsafe"
+)
 
 type listNode struct {
 	value Value
@@ -79,4 +82,29 @@ func (v Value) listPointer() *listNode {
 		return nil
 	}
 	return (*listNode)(v.p)
+}
+
+type listImpl struct{ defaultImpl }
+
+func (listImpl) hash(v Value) string {
+	values := v.ListValues()
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, valueIdentity(value))
+	}
+	return "T:(" + strings.Join(parts, ",") + ")"
+}
+func (listImpl) typ(Value) Value { return typeList }
+func (listImpl) String(v Value) string {
+	values := v.ListValues()
+	var out strings.Builder
+	out.WriteByte('(')
+	for i, value := range values {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(value.String())
+	}
+	out.WriteByte(')')
+	return out.String()
 }

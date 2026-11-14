@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"strconv"
+	"unsafe"
+)
 
 type FunctionObject struct {
 	Fn func(args ...Value) Value
@@ -70,4 +73,14 @@ func Call(fn Value, args ...Value) Value {
 		// fall through
 	}
 	panic("call expects function, map, set, or keyword Value")
+}
+
+type functionImpl struct{ defaultImpl }
+
+func (functionImpl) hash(v Value) string {
+	return "F:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FunctionObject()))), 16)
+}
+func (functionImpl) typ(Value) Value { return typeFn }
+func (functionImpl) String(Value) string {
+	return "#<fn>"
 }

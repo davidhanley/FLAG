@@ -79,3 +79,26 @@ func Name(arg any) string {
 		panic("name expects symbol or keyword")
 	}
 }
+
+type symbolImpl struct{ defaultImpl }
+
+func (symbolImpl) hash(v Value) string {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return "K:" + symbol.Name
+	}
+	return "Y:" + symbol.Name
+}
+func (symbolImpl) typ(v Value) Value {
+	if v.SymbolObject().IsKeyword {
+		return typeKeyword
+	}
+	return typeSymbol
+}
+func (symbolImpl) String(v Value) string {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return ":" + symbol.Name
+	}
+	return symbol.Name
+}

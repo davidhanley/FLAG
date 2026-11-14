@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -144,4 +145,14 @@ func (s *lazyListState) produceOne() bool {
 	s.tail.next = node
 	s.tail = node
 	return true
+}
+
+type lazyListImpl struct{ defaultImpl }
+
+func (lazyListImpl) hash(v Value) string {
+	return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)
+}
+func (lazyListImpl) typ(Value) Value { return typeLazyList }
+func (lazyListImpl) String(Value) string {
+	return "#<lazy-list>"
 }

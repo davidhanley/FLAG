@@ -35,3 +35,14 @@ func (v Value) String() string {
 
 // NilValue is the FLAG nil. Use the var directly; do not wrap it in a call.
 var NilValue = makeValue(TagNil, 0, nil)
+
+type nilImpl struct{ defaultImpl }
+
+func (nilImpl) hash(Value) string { return "N:" }
+func (nilImpl) typ(Value) Value   { return typeNil }
+func (nilImpl) String(Value) string {
+	return ""
+}
+func (nilImpl) dissoc(Value, ...Value) Value {
+	return NilValue
+}

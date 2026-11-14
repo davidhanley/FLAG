@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -94,4 +95,14 @@ func Swap(args ...Value) Value {
 		}
 		a.mu.Unlock()
 	}
+}
+
+type atomImpl struct{ defaultImpl }
+
+func (atomImpl) hash(v Value) string {
+	return "O:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+}
+func (atomImpl) typ(Value) Value { return typeAtom }
+func (atomImpl) String(Value) string {
+	return "#<atom>"
 }

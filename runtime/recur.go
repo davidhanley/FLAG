@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"strconv"
+	"unsafe"
+)
 
 type recurPayload struct {
 	values []Value
@@ -24,4 +27,14 @@ func UnwrapRecur(v Value) ([]Value, bool) {
 	}
 	payload := (*recurPayload)(v.p)
 	return append([]Value(nil), payload.values...), true
+}
+
+type recurImpl struct{ defaultImpl }
+
+func (recurImpl) hash(v Value) string {
+	return "U:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+}
+func (recurImpl) typ(Value) Value { return typeRecur }
+func (recurImpl) String(Value) string {
+	return "#<recur>"
 }

@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/benbjohnson/immutable"
+	"strings"
 )
 
 type MapEntry struct {
@@ -548,4 +549,68 @@ func (v Value) setPointer() *setData {
 		panic("set Value does not contain set pointer")
 	}
 	return (*setData)(v.p)
+}
+
+type mapImpl struct{ defaultImpl }
+
+func (mapImpl) hash(v Value) string {
+	entries := v.MapEntries()
+	parts := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		parts = append(parts, valueIdentity(entry.Key)+"="+valueIdentity(entry.Value))
+	}
+	sort.Strings(parts)
+	return "M:{" + strings.Join(parts, ",") + "}"
+}
+func (mapImpl) typ(Value) Value { return typeMap }
+func (mapImpl) String(v Value) string {
+	entries := v.MapEntries()
+	var out strings.Builder
+	out.WriteByte('{')
+	for i, entry := range entries {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(entry.Key.String())
+		out.WriteByte(' ')
+		out.WriteString(entry.Value.String())
+	}
+	out.WriteByte('}')
+	return out.String()
+}
+func (mapImpl) assoc(v Value, entries ...Value) Value {
+	return MapAssoc(v, entries...)
+}
+func (mapImpl) dissoc(v Value, keys ...Value) Value {
+	items := v.mapPointer().items
+	for _, key := range keys {
+		items = items.Delete(key)
+	}
+	return newMapValue(items)
+}
+
+type setImpl struct{ defaultImpl }
+
+func (setImpl) hash(v Value) string {
+	values := v.SetValues()
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, valueIdentity(value))
+	}
+	sort.Strings(parts)
+	return "S:#{" + strings.Join(parts, ",") + "}"
+}
+func (setImpl) typ(Value) Value { return typeSet }
+func (setImpl) String(v Value) string {
+	values := v.SetValues()
+	var out strings.Builder
+	out.WriteString("#{")
+	for i, value := range values {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(value.String())
+	}
+	out.WriteByte('}')
+	return out.String()
 }

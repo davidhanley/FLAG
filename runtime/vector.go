@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"strings"
+	"unsafe"
+)
 
 func NewVector(values ...Value) Value {
 	items := make([]Value, len(values))
@@ -102,4 +105,34 @@ func (v Value) vectorPointer() *arrayData {
 
 func (v Value) vectorItems() []Value {
 	return v.vectorPointer().items
+}
+
+type vectorImpl struct{ defaultImpl }
+
+func (vectorImpl) hash(v Value) string {
+	values := v.VectorValues()
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, valueIdentity(value))
+	}
+	return "V:|" + strings.Join(parts, ",") + "|"
+}
+func (vectorImpl) typ(Value) Value { return typeVector }
+func (vectorImpl) String(v Value) string {
+	values := v.VectorValues()
+	var out strings.Builder
+	out.WriteByte('|')
+	if len(values) == 0 {
+		out.WriteString(" |")
+		return out.String()
+	}
+	for _, value := range values {
+		out.WriteByte(' ')
+		out.WriteString(value.String())
+	}
+	out.WriteString(" |")
+	return out.String()
+}
+func (vectorImpl) assoc(v Value, entries ...Value) Value {
+	return assocIndexed(v, entries, func(coll Value) int { return coll.VectorLen() }, VectorAssoc, VectorAppend)
 }

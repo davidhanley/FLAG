@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"strings"
+	"unsafe"
+)
 
 type arrayData struct {
 	items []Value
@@ -132,4 +135,32 @@ func (v Value) arrayPointer() *arrayData {
 
 func (v Value) arrayItems() []Value {
 	return v.arrayPointer().items
+}
+
+type arrayImpl struct{ defaultImpl }
+
+func (arrayImpl) hash(v Value) string {
+	values := v.ArrayValues()
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, valueIdentity(value))
+	}
+	return "A:[" + strings.Join(parts, ",") + "]"
+}
+func (arrayImpl) typ(Value) Value { return typeArray }
+func (arrayImpl) String(v Value) string {
+	values := v.ArrayValues()
+	var out strings.Builder
+	out.WriteByte('[')
+	for i, value := range values {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(value.String())
+	}
+	out.WriteByte(']')
+	return out.String()
+}
+func (arrayImpl) assoc(v Value, entries ...Value) Value {
+	return assocIndexed(v, entries, func(coll Value) int { return coll.ArrayLen() }, ArrayAssoc, ArrayAppend)
 }

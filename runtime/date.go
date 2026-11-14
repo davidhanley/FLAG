@@ -80,3 +80,13 @@ func dateString(v Value) string {
 		entries[2].Key.String(), entries[2].Value.String(),
 	)
 }
+
+type dateImpl struct{ defaultImpl }
+
+func (dateImpl) hash(v Value) string {
+	return "D:" + v.DateTime().UTC().Format("2006-01-02")
+}
+func (dateImpl) typ(Value) Value { return typeDate }
+func (dateImpl) String(v Value) string {
+	return dateString(v)
+}

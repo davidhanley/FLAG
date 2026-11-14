@@ -31,5 +31,10 @@ and `MapDissoc` are `v.impl.dissoc(v, keys...)`; map and nil override `dissoc`.
 Other types inherit `defaultImpl`, which panics. A `Value` with a nil `impl` is
 uninitialized and those calls panic.
 
+`value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
+`implByTag` table. Required methods (`hash`, `typ`, `String`) live on each
+type’s file (`string.go`, `long.go`, `double.go`, …). Type-specific overrides
+such as `assoc`/`dissoc` stay in that same file.
+
 More builtins (`get`, `first`, …) will move onto `impl` the same way. Do not put
 every FLAG function on `impl` yet. Numerics stay on tags until math is optimized.

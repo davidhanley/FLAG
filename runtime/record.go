@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"unsafe"
 )
 
@@ -143,4 +144,14 @@ func goValueToRecordField(field reflect.Value) Value {
 		}
 		return NilValue
 	}
+}
+
+type recordImpl struct{ defaultImpl }
+
+func (recordImpl) hash(v Value) string {
+	return "R:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+}
+func (recordImpl) typ(Value) Value { return typeRecord }
+func (recordImpl) String(v Value) string {
+	return fmt.Sprintf("%#v", v.recordBox().value)
 }
