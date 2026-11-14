@@ -20,6 +20,9 @@ func (defaultImpl) dissoc(Value, ...Value) Value {
 func (defaultImpl) get(Value, Value, Value) Value {
 	panic("get expects associative Value")
 }
+func (defaultImpl) contains(Value, Value) bool {
+	panic("contains? expects map or set Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

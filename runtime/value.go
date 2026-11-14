@@ -11,6 +11,7 @@ type impl interface {
 	assoc(v Value, entries ...Value) Value
 	dissoc(v Value, keys ...Value) Value
 	get(v Value, key Value, missing Value) Value
+	contains(v Value, key Value) bool
 }
 
 type Value struct {
@@ -49,4 +50,7 @@ func (nilImpl) dissoc(Value, ...Value) Value {
 }
 func (nilImpl) get(_ Value, _ Value, missing Value) Value {
 	return missing
+}
+func (nilImpl) contains(Value, Value) bool {
+	return false
 }

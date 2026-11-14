@@ -96,3 +96,7 @@ func (dateImpl) get(v Value, key Value, missing Value) Value {
 	}
 	return missing
 }
+func (dateImpl) contains(v Value, key Value) bool {
+	_, ok := dateFieldValue(v, key)
+	return ok
+}

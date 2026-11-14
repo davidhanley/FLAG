@@ -161,3 +161,7 @@ func (recordImpl) get(v Value, key Value, missing Value) Value {
 	}
 	return missing
 }
+func (recordImpl) contains(v Value, key Value) bool {
+	_, ok := recordFieldValue(v, key)
+	return ok
+}

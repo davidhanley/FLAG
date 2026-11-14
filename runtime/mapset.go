@@ -401,23 +401,7 @@ func associativeIndex(key Value) (int, bool) {
 }
 
 func Contains(coll Value, key Value) bool {
-	switch coll.tag {
-	case TagNil:
-		return false
-	case TagMap:
-		_, ok := coll.mapPointer().items.Get(key)
-		return ok
-	case TagDate:
-		_, ok := dateFieldValue(coll, key)
-		return ok
-	case TagRecord:
-		_, ok := recordFieldValue(coll, key)
-		return ok
-	case TagSet:
-		return coll.setPointer().items.Has(key)
-	default:
-		panic("contains? expects map or set Value")
-	}
+	return coll.impl.contains(coll, key)
 }
 
 func MapDissoc(coll Value, keys ...Value) Value {
@@ -550,6 +534,10 @@ func (mapImpl) get(v Value, key Value, missing Value) Value {
 	}
 	return value
 }
+func (mapImpl) contains(v Value, key Value) bool {
+	_, ok := v.mapPointer().items.Get(key)
+	return ok
+}
 
 type setImpl struct{ defaultImpl }
 
@@ -581,4 +569,7 @@ func (setImpl) get(v Value, key Value, missing Value) Value {
 		return key
 	}
 	return missing
+}
+func (setImpl) contains(v Value, key Value) bool {
+	return v.setPointer().items.Has(key)
 }
