@@ -187,3 +187,7 @@ func (vectorImpl) drop(v Value, n int) Value {
 	return newVectorValue(items[n:length], length-n)
 }
 func (vectorImpl) seqQ(Value) bool { return true }
+func (vectorImpl) seqCursor(v Value) seqCursor {
+	length := v.VectorLen()
+	return arraySeqCursor(v.vectorItems()[:length])
+}

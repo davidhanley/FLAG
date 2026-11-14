@@ -29,6 +29,7 @@ type impl interface {
 	drop(v Value, n int) Value
 	cons(v Value, item Value) Value
 	seqQ(v Value) bool
+	seqCursor(v Value) seqCursor
 }
 
 type Value struct {
@@ -92,3 +93,4 @@ func (nilImpl) nth(_ Value, _ int, missing Value, hasMissing bool) Value {
 func (nilImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
 	return slowNthWalk(v, i, missing, hasMissing)
 }
+func (nilImpl) seqCursor(Value) seqCursor { return emptySeqCursor() }

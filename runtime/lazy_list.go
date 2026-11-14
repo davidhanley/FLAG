@@ -222,3 +222,12 @@ func (lazyListImpl) drop(v Value, n int) Value {
 	return out
 }
 func (lazyListImpl) seqQ(Value) bool { return true }
+func (lazyListImpl) seqCursor(v Value) seqCursor {
+	remaining := v.lazyListRemainingHint()
+	hasLength := remaining >= 0
+	length := 0
+	if hasLength {
+		length = int(remaining)
+	}
+	return lazySeqCursor(v, length, hasLength)
+}

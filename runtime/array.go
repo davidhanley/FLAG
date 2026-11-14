@@ -215,3 +215,7 @@ func (arrayImpl) drop(v Value, n int) Value {
 	return newArrayValue(items[n:length], length-n)
 }
 func (arrayImpl) seqQ(Value) bool { return true }
+func (arrayImpl) seqCursor(v Value) seqCursor {
+	length := v.ArrayLen()
+	return arraySeqCursor(v.arrayItems()[:length])
+}

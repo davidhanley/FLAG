@@ -518,8 +518,11 @@ func (mapImpl) find(v Value, key Value) Value {
 	value, ok := v.mapPointer().items.Get(key)
 	return findEntry(key, value, ok)
 }
-func (mapImpl) keys(v Value) Value     { return mapEntryKeys(v.MapEntries()) }
-func (mapImpl) vals(v Value) Value     { return mapEntryVals(v.MapEntries()) }
+func (mapImpl) keys(v Value) Value { return mapEntryKeys(v.MapEntries()) }
+func (mapImpl) vals(v Value) Value { return mapEntryVals(v.MapEntries()) }
+func (mapImpl) seqCursor(v Value) seqCursor {
+	return mapEntriesSeqCursor(v.MapEntries())
+}
 func (mapImpl) count(v Value) int      { return v.MapLen() }
 func (mapImpl) isEmpty(v Value) bool   { return v.MapLen() == 0 }
 func (mapImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.MapLen() == 0) }
@@ -589,6 +592,9 @@ func (setImpl) rest(v Value) Value {
 func (setImpl) next(v Value) Value {
 	rest := Rest(v)
 	return nextIfEmpty(rest, rest.ArrayLen() == 0)
+}
+func (setImpl) seqCursor(v Value) seqCursor {
+	return arraySeqCursor(v.SetValues())
 }
 func (setImpl) count(v Value) int      { return v.SetLen() }
 func (setImpl) isEmpty(v Value) bool   { return v.SetLen() == 0 }

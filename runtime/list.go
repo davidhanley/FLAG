@@ -158,3 +158,6 @@ func (listImpl) cons(v Value, item Value) Value {
 	return ListCons(v, item)
 }
 func (listImpl) seqQ(Value) bool { return true }
+func (listImpl) seqCursor(v Value) seqCursor {
+	return listSeqCursor(v.listPointer(), v.ListLen())
+}

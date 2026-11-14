@@ -846,8 +846,17 @@ func nonNegativeCount(name string, value Value) int {
 	}
 }
 
+type seqCursorKind uint8
+
+const (
+	seqKindArray seqCursorKind = iota + 1
+	seqKindList
+	seqKindLazy
+	seqKindString
+)
+
 type seqCursor struct {
-	kind      ValueTag
+	kind      seqCursorKind
 	listNode  *listNode
 	lazyList  Value
 	arrayVals []Value
@@ -859,80 +868,54 @@ type seqCursor struct {
 }
 
 func newSeqCursor(coll Value) seqCursor {
-	switch coll.tag {
-	case TagNil:
-		return seqCursor{
-			kind:      TagArray,
-			arrayVals: nil,
-			length:    0,
-			hasLength: true,
-		}
-	case TagList:
-		return seqCursor{
-			kind:      TagList,
-			listNode:  coll.listPointer(),
-			length:    coll.ListLen(),
-			hasLength: true,
-		}
-	case TagArray:
-		length := coll.ArrayLen()
-		return seqCursor{
-			kind:      TagArray,
-			arrayVals: coll.arrayItems()[:length],
-			length:    length,
-			hasLength: true,
-		}
-	case TagVector:
-		length := coll.VectorLen()
-		return seqCursor{
-			kind:      TagArray,
-			arrayVals: coll.vectorItems()[:length],
-			length:    length,
-			hasLength: true,
-		}
-	case TagLazyList:
-		remaining := coll.lazyListRemainingHint()
-		hasLength := remaining >= 0
-		length := 0
-		if hasLength {
-			length = int(remaining)
-		}
-		return seqCursor{
-			kind:      TagLazyList,
-			lazyList:  coll,
-			length:    length,
-			hasLength: hasLength,
-		}
-	case TagMap, TagDate:
-		entries := coll.MapEntries()
-		pairs := make([]Value, 0, len(entries))
-		for _, entry := range entries {
-			pairs = append(pairs, NewArray(entry.Key, entry.Value))
-		}
-		return seqCursor{
-			kind:      TagArray,
-			arrayVals: pairs,
-			length:    len(pairs),
-			hasLength: true,
-		}
-	case TagString:
-		return seqCursor{
-			kind:      TagString,
-			strValue:  coll.StringValue(),
-			strIndex:  0,
-			hasLength: false,
-		}
-	case TagSet:
-		values := coll.SetValues()
-		return seqCursor{
-			kind:      TagArray,
-			arrayVals: values,
-			length:    len(values),
-			hasLength: true,
-		}
-	default:
-		panic("sequence expects list, array, vector, lazy-list, map, set, string, or nil Value")
+	return coll.impl.seqCursor(coll)
+}
+
+func emptySeqCursor() seqCursor {
+	return arraySeqCursor(nil)
+}
+
+func arraySeqCursor(vals []Value) seqCursor {
+	return seqCursor{
+		kind:      seqKindArray,
+		arrayVals: vals,
+		length:    len(vals),
+		hasLength: true,
 	}
+}
+
+func listSeqCursor(node *listNode, length int) seqCursor {
+	return seqCursor{
+		kind:      seqKindList,
+		listNode:  node,
+		length:    length,
+		hasLength: true,
+	}
+}
+
+func lazySeqCursor(list Value, length int, hasLength bool) seqCursor {
+	return seqCursor{
+		kind:      seqKindLazy,
+		lazyList:  list,
+		length:    length,
+		hasLength: hasLength,
+	}
+}
+
+func stringSeqCursor(s string) seqCursor {
+	return seqCursor{
+		kind:      seqKindString,
+		strValue:  s,
+		hasLength: false,
+	}
+}
+
+func mapEntriesSeqCursor(entries []MapEntry) seqCursor {
+	pairs := make([]Value, 0, len(entries))
+	for _, entry := range entries {
+		pairs = append(pairs, NewArray(entry.Key, entry.Value))
+	}
+	return arraySeqCursor(pairs)
 }
 
 func (c *seqCursor) remainingKnown() (int, bool) {
@@ -940,11 +923,11 @@ func (c *seqCursor) remainingKnown() (int, bool) {
 		return 0, false
 	}
 	switch c.kind {
-	case TagList:
+	case seqKindList:
 		return c.length, true
-	case TagArray:
+	case seqKindArray:
 		return c.length - c.arrayIdx, true
-	case TagLazyList:
+	case seqKindLazy:
 		return c.length, true
 	default:
 		panic("unknown cursor kind")
@@ -953,7 +936,7 @@ func (c *seqCursor) remainingKnown() (int, bool) {
 
 func (c *seqCursor) nextOrDone() (Value, bool) {
 	switch c.kind {
-	case TagList:
+	case seqKindList:
 		if c.length == 0 {
 			return Value{}, false
 		}
@@ -961,14 +944,14 @@ func (c *seqCursor) nextOrDone() (Value, bool) {
 		c.listNode = c.listNode.next
 		c.length--
 		return value, true
-	case TagArray:
+	case seqKindArray:
 		if c.arrayIdx >= c.length {
 			return Value{}, false
 		}
 		value := c.arrayVals[c.arrayIdx]
 		c.arrayIdx++
 		return value, true
-	case TagLazyList:
+	case seqKindLazy:
 		value, ok := lazyPeek(c.lazyList)
 		if !ok {
 			if c.hasLength {
@@ -981,7 +964,7 @@ func (c *seqCursor) nextOrDone() (Value, bool) {
 			c.length--
 		}
 		return value, true
-	case TagString:
+	case seqKindString:
 		if c.strIndex >= len(c.strValue) {
 			return Value{}, false
 		}

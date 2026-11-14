@@ -72,6 +72,9 @@ func (defaultImpl) cons(v Value, item Value) Value {
 	return ListCons(seqToList(v), item)
 }
 func (defaultImpl) seqQ(Value) bool { return false }
+func (defaultImpl) seqCursor(Value) seqCursor {
+	panic("sequence expects list, array, vector, lazy-list, map, set, string, or nil Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

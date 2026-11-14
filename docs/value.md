@@ -31,6 +31,7 @@ type impl interface {
     drop(v Value, n int) Value
     cons(v Value, item Value) Value
     seqQ(v Value) bool
+    seqCursor(v Value) seqCursor
 }
 
 type Value struct {
@@ -62,7 +63,8 @@ the arity check; list, array, vector, set, and map override it. `Count` /
 `IsEmpty` / `NotEmpty` / `Seq` dispatch the same way. Nil counts as 0 and is
 empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
-A `Value` with a nil `impl` is uninitialized and those calls panic.
+`newSeqCursor` is `v.impl.seqCursor(v)`; cursor kinds are not `ValueTag`. A
+`Value` with a nil `impl` is uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each
