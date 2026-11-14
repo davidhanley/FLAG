@@ -367,7 +367,7 @@ func MapAssoc(coll Value, entries ...Value) Value {
 }
 
 func Dissoc(coll Value, keys ...Value) Value {
-	return MapDissoc(coll, keys...)
+	return coll.impl.dissoc(coll, keys...)
 }
 
 func Get(coll Value, key Value, notFound ...Value) Value {
@@ -465,18 +465,7 @@ func Contains(coll Value, key Value) bool {
 }
 
 func MapDissoc(coll Value, keys ...Value) Value {
-	switch coll.tag {
-	case TagNil:
-		return NilValue
-	case TagMap:
-		items := coll.mapPointer().items
-		for _, key := range keys {
-			items = items.Delete(key)
-		}
-		return newMapValue(items)
-	default:
-		panic("dissoc expects map Value")
-	}
+	return Dissoc(coll, keys...)
 }
 
 func (v Value) MapLen() int {
