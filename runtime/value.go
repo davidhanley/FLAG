@@ -10,6 +10,7 @@ type impl interface {
 	String(v Value) string
 	assoc(v Value, entries ...Value) Value
 	dissoc(v Value, keys ...Value) Value
+	get(v Value, key Value, missing Value) Value
 }
 
 type Value struct {
@@ -45,4 +46,7 @@ func (nilImpl) String(Value) string {
 }
 func (nilImpl) dissoc(Value, ...Value) Value {
 	return NilValue
+}
+func (nilImpl) get(_ Value, _ Value, missing Value) Value {
+	return missing
 }

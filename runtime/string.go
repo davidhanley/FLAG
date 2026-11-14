@@ -45,6 +45,15 @@ func (stringImpl) typ(Value) Value { return typeString }
 func (stringImpl) String(v Value) string {
 	return strconv.Quote(v.StringValue())
 }
+func (stringImpl) get(v Value, key Value, missing Value) Value {
+	if i, ok := associativeIndex(key); ok {
+		runes := []rune(v.StringValue())
+		if i < len(runes) {
+			return NewString(string(runes[i]))
+		}
+	}
+	return missing
+}
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {

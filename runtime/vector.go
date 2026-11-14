@@ -136,3 +136,9 @@ func (vectorImpl) String(v Value) string {
 func (vectorImpl) assoc(v Value, entries ...Value) Value {
 	return assocIndexed(v, entries, func(coll Value) int { return coll.VectorLen() }, VectorAssoc, VectorAppend)
 }
+func (vectorImpl) get(v Value, key Value, missing Value) Value {
+	if i, ok := associativeIndex(key); ok && i < v.VectorLen() {
+		return VectorGet(v, i)
+	}
+	return missing
+}

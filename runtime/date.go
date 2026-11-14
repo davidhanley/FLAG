@@ -90,3 +90,9 @@ func (dateImpl) typ(Value) Value { return typeDate }
 func (dateImpl) String(v Value) string {
 	return dateString(v)
 }
+func (dateImpl) get(v Value, key Value, missing Value) Value {
+	if value, ok := dateFieldValue(v, key); ok {
+		return value
+	}
+	return missing
+}

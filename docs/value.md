@@ -12,6 +12,7 @@ type impl interface {
     String(v Value) string
     assoc(v Value, entries ...Value) Value
     dissoc(v Value, keys ...Value) Value
+    get(v Value, key Value, missing Value) Value
 }
 
 type Value struct {
@@ -22,13 +23,15 @@ type Value struct {
 }
 ```
 
-`hash` / `typ` / `String` / `assoc` / `dissoc` take the `Value` so longs and
-bools can still read `d`. Constructors go through `makeValue`, which always fills
-`impl`. `TypeOf` and hashing call `v.impl` directly. Printing is `v.String()` →
-`v.impl.String(v)` (`fmt.Stringer`). There is no `ValueToString`. `Assoc` is
-`v.impl.assoc(v, entries...)`. Map, array, and vector override `assoc`. `Dissoc`
-and `MapDissoc` are `v.impl.dissoc(v, keys...)`; map and nil override `dissoc`.
-Other types inherit `defaultImpl`, which panics. A `Value` with a nil `impl` is
+`hash` / `typ` / `String` / `assoc` / `dissoc` / `get` take the `Value` so longs
+and bools can still read `d`. Constructors go through `makeValue`, which always
+fills `impl`. `TypeOf` and hashing call `v.impl` directly. Printing is
+`v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There is no `ValueToString`.
+`Assoc` is `v.impl.assoc(v, entries...)`. Map, array, and vector override
+`assoc`. `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`; map and nil
+override `dissoc`. `Get` is `v.impl.get(v, key, missing)` after arity checks;
+map, set, array, vector, string, date, record, and nil override `get`. Other
+types inherit `defaultImpl`, which panics. A `Value` with a nil `impl` is
 uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the

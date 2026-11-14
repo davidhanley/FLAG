@@ -155,3 +155,9 @@ func (recordImpl) typ(Value) Value { return typeRecord }
 func (recordImpl) String(v Value) string {
 	return fmt.Sprintf("%#v", v.recordBox().value)
 }
+func (recordImpl) get(v Value, key Value, missing Value) Value {
+	if value, ok := recordFieldValue(v, key); ok {
+		return value
+	}
+	return missing
+}

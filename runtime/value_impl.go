@@ -17,6 +17,9 @@ func (defaultImpl) assoc(Value, ...Value) Value {
 func (defaultImpl) dissoc(Value, ...Value) Value {
 	panic("dissoc expects map Value")
 }
+func (defaultImpl) get(Value, Value, Value) Value {
+	panic("get expects associative Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

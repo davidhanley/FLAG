@@ -379,52 +379,7 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 	if len(notFound) == 1 {
 		missing = notFound[0]
 	}
-
-	switch coll.tag {
-	case TagNil:
-		return missing
-	case TagDate:
-		if value, ok := dateFieldValue(coll, key); ok {
-			return value
-		}
-		return missing
-	case TagRecord:
-		if value, ok := recordFieldValue(coll, key); ok {
-			return value
-		}
-		return missing
-	case TagMap:
-		value, ok := coll.mapPointer().items.Get(key)
-		if !ok {
-			return missing
-		}
-		return value
-	case TagArray:
-		if i, ok := associativeIndex(key); ok && i < coll.ArrayLen() {
-			return ArrayGet(coll, i)
-		}
-		return missing
-	case TagVector:
-		if i, ok := associativeIndex(key); ok && i < coll.VectorLen() {
-			return VectorGet(coll, i)
-		}
-		return missing
-	case TagSet:
-		if coll.setPointer().items.Has(key) {
-			return key
-		}
-		return missing
-	case TagString:
-		if i, ok := associativeIndex(key); ok {
-			runes := []rune(coll.StringValue())
-			if i < len(runes) {
-				return NewString(string(runes[i]))
-			}
-		}
-		return missing
-	default:
-		panic("get expects associative Value")
-	}
+	return coll.impl.get(coll, key, missing)
 }
 
 func associativeIndex(key Value) (int, bool) {
@@ -588,6 +543,13 @@ func (mapImpl) dissoc(v Value, keys ...Value) Value {
 	}
 	return newMapValue(items)
 }
+func (mapImpl) get(v Value, key Value, missing Value) Value {
+	value, ok := v.mapPointer().items.Get(key)
+	if !ok {
+		return missing
+	}
+	return value
+}
 
 type setImpl struct{ defaultImpl }
 
@@ -613,4 +575,10 @@ func (setImpl) String(v Value) string {
 	}
 	out.WriteByte('}')
 	return out.String()
+}
+func (setImpl) get(v Value, key Value, missing Value) Value {
+	if v.setPointer().items.Has(key) {
+		return key
+	}
+	return missing
 }

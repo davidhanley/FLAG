@@ -164,3 +164,9 @@ func (arrayImpl) String(v Value) string {
 func (arrayImpl) assoc(v Value, entries ...Value) Value {
 	return assocIndexed(v, entries, func(coll Value) int { return coll.ArrayLen() }, ArrayAssoc, ArrayAppend)
 }
+func (arrayImpl) get(v Value, key Value, missing Value) Value {
+	if i, ok := associativeIndex(key); ok && i < v.ArrayLen() {
+		return ArrayGet(v, i)
+	}
+	return missing
+}
