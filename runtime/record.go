@@ -165,3 +165,7 @@ func (recordImpl) contains(v Value, key Value) bool {
 	_, ok := recordFieldValue(v, key)
 	return ok
 }
+func (recordImpl) find(v Value, key Value) Value {
+	value, ok := recordFieldValue(v, key)
+	return findEntry(key, value, ok)
+}

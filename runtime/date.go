@@ -100,3 +100,7 @@ func (dateImpl) contains(v Value, key Value) bool {
 	_, ok := dateFieldValue(v, key)
 	return ok
 }
+func (dateImpl) find(v Value, key Value) Value {
+	value, ok := dateFieldValue(v, key)
+	return findEntry(key, value, ok)
+}

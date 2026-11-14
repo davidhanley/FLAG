@@ -97,30 +97,14 @@ func Vals(coll Value) Value {
 }
 
 func Find(coll Value, key Value) Value {
-	switch coll.tag {
-	case TagNil:
+	return coll.impl.find(coll, key)
+}
+
+func findEntry(key Value, value Value, ok bool) Value {
+	if !ok {
 		return NilValue
-	case TagMap:
-		value, ok := coll.mapPointer().items.Get(key)
-		if !ok {
-			return NilValue
-		}
-		return NewArray(key, value)
-	case TagDate:
-		value, ok := dateFieldValue(coll, key)
-		if !ok {
-			return NilValue
-		}
-		return NewArray(key, value)
-	case TagRecord:
-		value, ok := recordFieldValue(coll, key)
-		if !ok {
-			return NilValue
-		}
-		return NewArray(key, value)
-	default:
-		panic("find expects map Value")
 	}
+	return NewArray(key, value)
 }
 
 func Union(sets ...Value) Value {
@@ -537,6 +521,10 @@ func (mapImpl) get(v Value, key Value, missing Value) Value {
 func (mapImpl) contains(v Value, key Value) bool {
 	_, ok := v.mapPointer().items.Get(key)
 	return ok
+}
+func (mapImpl) find(v Value, key Value) Value {
+	value, ok := v.mapPointer().items.Get(key)
+	return findEntry(key, value, ok)
 }
 
 type setImpl struct{ defaultImpl }

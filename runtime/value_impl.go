@@ -23,6 +23,9 @@ func (defaultImpl) get(Value, Value, Value) Value {
 func (defaultImpl) contains(Value, Value) bool {
 	panic("contains? expects map or set Value")
 }
+func (defaultImpl) find(Value, Value) Value {
+	panic("find expects map Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},
