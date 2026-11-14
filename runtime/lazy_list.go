@@ -166,3 +166,19 @@ func (lazyListImpl) first(v Value) Value {
 func (lazyListImpl) rest(v Value) Value {
 	return lazyTail(v)
 }
+func (lazyListImpl) next(v Value) Value {
+	rest := lazyTail(v)
+	_, ok := lazyPeek(rest)
+	return nextIfEmpty(rest, !ok)
+}
+func (lazyListImpl) last(v Value) Value {
+	cursor := newSeqCursor(v)
+	last := NilValue
+	for {
+		next, ok := cursor.nextOrDone()
+		if !ok {
+			return last
+		}
+		last = next
+	}
+}

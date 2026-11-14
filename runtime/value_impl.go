@@ -38,6 +38,12 @@ func (defaultImpl) first(Value) Value {
 func (defaultImpl) rest(Value) Value {
 	panic("rest expects list, array, vector, lazy-list, set, or string Value")
 }
+func (defaultImpl) next(Value) Value {
+	panic("next expects list, array, vector, or lazy-list Value")
+}
+func (defaultImpl) last(Value) Value {
+	panic("last expects list, array, vector, or lazy-list Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

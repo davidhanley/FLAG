@@ -151,3 +151,14 @@ func (vectorImpl) first(v Value) Value {
 func (vectorImpl) rest(v Value) Value {
 	return VectorRest(v)
 }
+func (vectorImpl) next(v Value) Value {
+	rest := VectorRest(v)
+	return nextIfEmpty(rest, rest.VectorLen() == 0)
+}
+func (vectorImpl) last(v Value) Value {
+	n := v.VectorLen()
+	if n == 0 {
+		return NilValue
+	}
+	return v.vectorItems()[n-1]
+}

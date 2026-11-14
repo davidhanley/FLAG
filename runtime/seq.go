@@ -855,69 +855,18 @@ func Rest(coll Value) Value {
 }
 
 func Next(coll Value) Value {
-	if coll.tag == TagNil {
-		return NilValue
-	}
-	rest := Rest(coll)
-	switch rest.tag {
-	case TagList:
-		if rest.ListLen() == 0 {
-			return NilValue
-		}
-	case TagArray:
-		if rest.ArrayLen() == 0 {
-			return NilValue
-		}
-	case TagVector:
-		if rest.VectorLen() == 0 {
-			return NilValue
-		}
-	case TagLazyList:
-		if _, ok := lazyPeek(rest); !ok {
-			return NilValue
-		}
-	default:
-		panic("next expects list, array, vector, or lazy-list Value")
-	}
-	return rest
+	return coll.impl.next(coll)
 }
 
 func Last(coll Value) Value {
-	switch coll.tag {
-	case TagList:
-		if coll.ListLen() == 0 {
-			return NilValue
-		}
-		node := coll.listPointer()
-		for node.next != nil {
-			node = node.next
-		}
-		return node.value
-	case TagArray:
-		if coll.ArrayLen() == 0 {
-			return NilValue
-		}
-		items := coll.arrayItems()
-		return items[coll.ArrayLen()-1]
-	case TagVector:
-		if coll.VectorLen() == 0 {
-			return NilValue
-		}
-		items := coll.vectorItems()
-		return items[coll.VectorLen()-1]
-	case TagLazyList:
-		cursor := newSeqCursor(coll)
-		last := NilValue
-		for {
-			next, ok := cursor.nextOrDone()
-			if !ok {
-				return last
-			}
-			last = next
-		}
-	default:
-		panic("last expects list, array, vector, or lazy-list Value")
+	return coll.impl.last(coll)
+}
+
+func nextIfEmpty(rest Value, empty bool) Value {
+	if empty {
+		return NilValue
 	}
+	return rest
 }
 
 func Reverse(coll Value) Value {

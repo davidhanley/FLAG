@@ -179,3 +179,14 @@ func (arrayImpl) first(v Value) Value {
 func (arrayImpl) rest(v Value) Value {
 	return ArrayRest(v)
 }
+func (arrayImpl) next(v Value) Value {
+	rest := ArrayRest(v)
+	return nextIfEmpty(rest, rest.ArrayLen() == 0)
+}
+func (arrayImpl) last(v Value) Value {
+	n := v.ArrayLen()
+	if n == 0 {
+		return NilValue
+	}
+	return v.arrayItems()[n-1]
+}

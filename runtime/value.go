@@ -17,6 +17,8 @@ type impl interface {
 	vals(v Value) Value
 	first(v Value) Value
 	rest(v Value) Value
+	next(v Value) Value
+	last(v Value) Value
 }
 
 type Value struct {
@@ -65,3 +67,4 @@ func (nilImpl) find(Value, Value) Value {
 func (nilImpl) keys(Value) Value  { return NilValue }
 func (nilImpl) vals(Value) Value  { return NilValue }
 func (nilImpl) first(Value) Value { return NilValue }
+func (nilImpl) next(Value) Value  { return NilValue }

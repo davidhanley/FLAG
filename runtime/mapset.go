@@ -569,3 +569,7 @@ func (setImpl) rest(v Value) Value {
 	}
 	return NewArray(values[1:]...)
 }
+func (setImpl) next(v Value) Value {
+	rest := Rest(v)
+	return nextIfEmpty(rest, rest.ArrayLen() == 0)
+}

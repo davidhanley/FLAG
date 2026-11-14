@@ -71,6 +71,10 @@ func (stringImpl) rest(v Value) Value {
 	_, size := utf8.DecodeRuneInString(value)
 	return Vec(NewString(value[size:]))
 }
+func (stringImpl) next(v Value) Value {
+	rest := Rest(v)
+	return nextIfEmpty(rest, rest.ArrayLen() == 0)
+}
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {

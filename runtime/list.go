@@ -117,3 +117,17 @@ func (listImpl) first(v Value) Value {
 func (listImpl) rest(v Value) Value {
 	return ListRest(v)
 }
+func (listImpl) next(v Value) Value {
+	rest := ListRest(v)
+	return nextIfEmpty(rest, rest.ListLen() == 0)
+}
+func (listImpl) last(v Value) Value {
+	if v.ListLen() == 0 {
+		return NilValue
+	}
+	node := v.listPointer()
+	for node.next != nil {
+		node = node.next
+	}
+	return node.value
+}
