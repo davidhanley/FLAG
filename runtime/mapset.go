@@ -65,35 +65,27 @@ func assocIndexed(coll Value, entries []Value, length func(Value) int, assocAt f
 }
 
 func Keys(coll Value) Value {
-	switch coll.tag {
-	case TagNil:
-		return NilValue
-	case TagMap, TagDate:
-		entries := coll.MapEntries()
-		keys := make([]Value, 0, len(entries))
-		for _, entry := range entries {
-			keys = append(keys, entry.Key)
-		}
-		return NewArray(keys...)
-	default:
-		panic("keys expects map Value")
-	}
+	return coll.impl.keys(coll)
 }
 
 func Vals(coll Value) Value {
-	switch coll.tag {
-	case TagNil:
-		return NilValue
-	case TagMap, TagDate:
-		entries := coll.MapEntries()
-		vals := make([]Value, 0, len(entries))
-		for _, entry := range entries {
-			vals = append(vals, entry.Value)
-		}
-		return NewArray(vals...)
-	default:
-		panic("vals expects map Value")
+	return coll.impl.vals(coll)
+}
+
+func mapEntryKeys(entries []MapEntry) Value {
+	keys := make([]Value, 0, len(entries))
+	for _, entry := range entries {
+		keys = append(keys, entry.Key)
 	}
+	return NewArray(keys...)
+}
+
+func mapEntryVals(entries []MapEntry) Value {
+	vals := make([]Value, 0, len(entries))
+	for _, entry := range entries {
+		vals = append(vals, entry.Value)
+	}
+	return NewArray(vals...)
 }
 
 func Find(coll Value, key Value) Value {
@@ -526,6 +518,8 @@ func (mapImpl) find(v Value, key Value) Value {
 	value, ok := v.mapPointer().items.Get(key)
 	return findEntry(key, value, ok)
 }
+func (mapImpl) keys(v Value) Value { return mapEntryKeys(v.MapEntries()) }
+func (mapImpl) vals(v Value) Value { return mapEntryVals(v.MapEntries()) }
 
 type setImpl struct{ defaultImpl }
 

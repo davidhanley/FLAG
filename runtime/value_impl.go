@@ -26,6 +26,12 @@ func (defaultImpl) contains(Value, Value) bool {
 func (defaultImpl) find(Value, Value) Value {
 	panic("find expects map Value")
 }
+func (defaultImpl) keys(Value) Value {
+	panic("keys expects map Value")
+}
+func (defaultImpl) vals(Value) Value {
+	panic("vals expects map Value")
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

@@ -104,3 +104,5 @@ func (dateImpl) find(v Value, key Value) Value {
 	value, ok := dateFieldValue(v, key)
 	return findEntry(key, value, ok)
 }
+func (dateImpl) keys(v Value) Value { return mapEntryKeys(dateEntries(v)) }
+func (dateImpl) vals(v Value) Value { return mapEntryVals(dateEntries(v)) }
