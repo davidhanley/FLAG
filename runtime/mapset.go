@@ -518,8 +518,11 @@ func (mapImpl) find(v Value, key Value) Value {
 	value, ok := v.mapPointer().items.Get(key)
 	return findEntry(key, value, ok)
 }
-func (mapImpl) keys(v Value) Value { return mapEntryKeys(v.MapEntries()) }
-func (mapImpl) vals(v Value) Value { return mapEntryVals(v.MapEntries()) }
+func (mapImpl) keys(v Value) Value     { return mapEntryKeys(v.MapEntries()) }
+func (mapImpl) vals(v Value) Value     { return mapEntryVals(v.MapEntries()) }
+func (mapImpl) count(v Value) int      { return v.MapLen() }
+func (mapImpl) isEmpty(v Value) bool   { return v.MapLen() == 0 }
+func (mapImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.MapLen() == 0) }
 func (mapImpl) conj(v Value, entries ...Value) Value {
 	items := v.mapPointer().items
 	for _, entry := range entries {
@@ -587,6 +590,9 @@ func (setImpl) next(v Value) Value {
 	rest := Rest(v)
 	return nextIfEmpty(rest, rest.ArrayLen() == 0)
 }
+func (setImpl) count(v Value) int      { return v.SetLen() }
+func (setImpl) isEmpty(v Value) bool   { return v.SetLen() == 0 }
+func (setImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.SetLen() == 0) }
 func (setImpl) conj(v Value, entries ...Value) Value {
 	items := v.setPointer().items
 	for _, item := range entries {

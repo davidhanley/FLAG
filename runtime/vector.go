@@ -169,3 +169,6 @@ func (vectorImpl) conj(v Value, entries ...Value) Value {
 	}
 	return out
 }
+func (vectorImpl) count(v Value) int      { return v.VectorLen() }
+func (vectorImpl) isEmpty(v Value) bool   { return v.VectorLen() == 0 }
+func (vectorImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.VectorLen() == 0) }

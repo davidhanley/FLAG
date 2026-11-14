@@ -182,3 +182,26 @@ func (lazyListImpl) last(v Value) Value {
 		last = next
 	}
 }
+func (lazyListImpl) count(v Value) int {
+	if hint := v.lazyListRemainingHint(); hint >= 0 {
+		return int(hint)
+	}
+	cursor := newSeqCursor(v)
+	count := 0
+	for {
+		_, ok := cursor.nextOrDone()
+		if !ok {
+			break
+		}
+		count++
+	}
+	return count
+}
+func (lazyListImpl) isEmpty(v Value) bool {
+	_, ok := lazyPeek(v)
+	return !ok
+}
+func (lazyListImpl) notEmpty(v Value) Value {
+	_, ok := lazyPeek(v)
+	return notEmptyIf(v, !ok)
+}

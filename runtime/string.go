@@ -75,6 +75,21 @@ func (stringImpl) next(v Value) Value {
 	rest := Rest(v)
 	return nextIfEmpty(rest, rest.ArrayLen() == 0)
 }
+func (stringImpl) count(v Value) int {
+	return utf8.RuneCountInString(v.StringValue())
+}
+func (stringImpl) isEmpty(v Value) bool {
+	return v.StringValue() == ""
+}
+func (stringImpl) notEmpty(v Value) Value {
+	return notEmptyIf(v, v.StringValue() == "")
+}
+func (stringImpl) seq(v Value) Value {
+	if v.StringValue() == "" {
+		return NilValue
+	}
+	return Vec(v)
+}
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {

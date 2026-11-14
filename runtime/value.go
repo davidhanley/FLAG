@@ -20,6 +20,10 @@ type impl interface {
 	next(v Value) Value
 	last(v Value) Value
 	conj(v Value, entries ...Value) Value
+	count(v Value) int
+	isEmpty(v Value) bool
+	notEmpty(v Value) Value
+	seq(v Value) Value
 }
 
 type Value struct {
@@ -65,7 +69,9 @@ func (nilImpl) contains(Value, Value) bool {
 func (nilImpl) find(Value, Value) Value {
 	return NilValue
 }
-func (nilImpl) keys(Value) Value  { return NilValue }
-func (nilImpl) vals(Value) Value  { return NilValue }
-func (nilImpl) first(Value) Value { return NilValue }
-func (nilImpl) next(Value) Value  { return NilValue }
+func (nilImpl) keys(Value) Value   { return NilValue }
+func (nilImpl) vals(Value) Value   { return NilValue }
+func (nilImpl) first(Value) Value  { return NilValue }
+func (nilImpl) next(Value) Value   { return NilValue }
+func (nilImpl) count(Value) int    { return 0 }
+func (nilImpl) isEmpty(Value) bool { return true }

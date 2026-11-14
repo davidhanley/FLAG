@@ -104,5 +104,8 @@ func (dateImpl) find(v Value, key Value) Value {
 	value, ok := dateFieldValue(v, key)
 	return findEntry(key, value, ok)
 }
-func (dateImpl) keys(v Value) Value { return mapEntryKeys(dateEntries(v)) }
-func (dateImpl) vals(v Value) Value { return mapEntryVals(dateEntries(v)) }
+func (dateImpl) keys(v Value) Value     { return mapEntryKeys(dateEntries(v)) }
+func (dateImpl) vals(v Value) Value     { return mapEntryVals(dateEntries(v)) }
+func (dateImpl) count(v Value) int      { return len(dateEntries(v)) }
+func (dateImpl) isEmpty(v Value) bool   { return len(dateEntries(v)) == 0 }
+func (dateImpl) notEmpty(v Value) Value { return notEmptyIf(v, len(dateEntries(v)) == 0) }

@@ -327,86 +327,15 @@ func Some(fn Value, seq Value) Value {
 }
 
 func NotEmpty(coll Value) Value {
-	switch coll.tag {
-	case TagList:
-		if coll.ListLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagArray:
-		if coll.ArrayLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagVector:
-		if coll.VectorLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagLazyList:
-		if _, ok := lazyPeek(coll); !ok {
-			return NilValue
-		}
-		return coll
-	case TagMap:
-		if coll.MapLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagDate:
-		if coll.MapLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagSet:
-		if coll.SetLen() == 0 {
-			return NilValue
-		}
-		return coll
-	case TagString:
-		if coll.StringValue() == "" {
-			return NilValue
-		}
-		return coll
-	default:
-		panic("not-empty expects list, array, vector, lazy-list, map, set, or string Value")
-	}
+	return coll.impl.notEmpty(coll)
 }
 
 func Seq(coll Value) Value {
-	switch coll.tag {
-	case TagString:
-		if coll.StringValue() == "" {
-			return NilValue
-		}
-		return Vec(coll)
-	default:
-		return NotEmpty(coll)
-	}
+	return coll.impl.seq(coll)
 }
 
 func IsEmpty(coll Value) bool {
-	switch coll.tag {
-	case TagNil:
-		return true
-	case TagList:
-		return coll.ListLen() == 0
-	case TagArray:
-		return coll.ArrayLen() == 0
-	case TagVector:
-		return coll.VectorLen() == 0
-	case TagLazyList:
-		_, ok := lazyPeek(coll)
-		return !ok
-	case TagMap, TagDate:
-		return coll.MapLen() == 0
-	case TagSet:
-		return coll.SetLen() == 0
-	case TagString:
-		return coll.StringValue() == ""
-	default:
-		panic("empty? expects collection Value")
-	}
+	return coll.impl.isEmpty(coll)
 }
 
 func IsNil(v Value) bool {
@@ -547,40 +476,14 @@ func conjMapEntry(entry Value) (Value, Value) {
 }
 
 func Count(coll Value) int {
-	switch coll.tag {
-	case TagList:
-		return coll.ListLen()
-	case TagArray:
-		return coll.ArrayLen()
-	case TagVector:
-		return coll.VectorLen()
-	case TagLazyList:
-		if hint := coll.lazyListRemainingHint(); hint >= 0 {
-			return int(hint)
-		}
-		cursor := newSeqCursor(coll)
-		count := 0
-		for {
-			_, ok := cursor.nextOrDone()
-			if !ok {
-				break
-			}
-			count++
-		}
-		return count
-	case TagMap:
-		return coll.MapLen()
-	case TagDate:
-		return coll.MapLen()
-	case TagSet:
-		return coll.SetLen()
-	case TagString:
-		return utf8.RuneCountInString(coll.StringValue())
-	case TagNil:
-		return 0
-	default:
-		panic("count expects collection Value")
+	return coll.impl.count(coll)
+}
+
+func notEmptyIf(coll Value, empty bool) Value {
+	if empty {
+		return NilValue
 	}
+	return coll
 }
 
 func DoAll(coll Value) Value {

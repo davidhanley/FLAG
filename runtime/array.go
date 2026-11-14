@@ -197,3 +197,6 @@ func (arrayImpl) conj(v Value, entries ...Value) Value {
 	}
 	return out
 }
+func (arrayImpl) count(v Value) int      { return v.ArrayLen() }
+func (arrayImpl) isEmpty(v Value) bool   { return v.ArrayLen() == 0 }
+func (arrayImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.ArrayLen() == 0) }

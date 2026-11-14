@@ -47,6 +47,18 @@ func (defaultImpl) last(Value) Value {
 func (defaultImpl) conj(Value, ...Value) Value {
 	panic("conj expects list, array, vector, set, or map Value")
 }
+func (defaultImpl) count(Value) int {
+	panic("count expects collection Value")
+}
+func (defaultImpl) isEmpty(Value) bool {
+	panic("empty? expects collection Value")
+}
+func (defaultImpl) notEmpty(Value) Value {
+	panic("not-empty expects list, array, vector, lazy-list, map, set, or string Value")
+}
+func (defaultImpl) seq(v Value) Value {
+	return NotEmpty(v)
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

@@ -138,3 +138,6 @@ func (listImpl) conj(v Value, entries ...Value) Value {
 	}
 	return out
 }
+func (listImpl) count(v Value) int      { return v.ListLen() }
+func (listImpl) isEmpty(v Value) bool   { return v.ListLen() == 0 }
+func (listImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.ListLen() == 0) }
