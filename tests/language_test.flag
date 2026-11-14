@@ -186,6 +186,17 @@
     (is (= -1 (compare nil 1)))
     (is (= 1 (compare 1 nil)))
     (is (= 0 (compare nil nil)))
+    (is (= false (= nil 0)))
+    (is (= false (= [] '())))
+    (is (= {:a 1} {:a 1}))
+    (is (nil? nil))
+    (is (= false (nil? false)))
+    (is (= false (nil? [])))
+    (is (= 1 (if nil 0 1)))
+    (is (= 0 (if false 1 0)))
+    (is (= 1 (if true 1 0)))
+    (is (= 1 (if [] 1 0)))
+    (is (= 1 (if 0 1 0)))
     (expect-exception (== 1 :a) "numeric")))
 
 (deftest if-let-and-names

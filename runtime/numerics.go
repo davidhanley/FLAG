@@ -266,15 +266,7 @@ func Eq(lhs, rhs Value) bool {
 	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
 		return compareNumeric(lhs, rhs) == 0
 	}
-	if lhs.tag != rhs.tag {
-		return false
-	}
-	switch lhs.tag {
-	case TagNil:
-		return true
-	default:
-		return valueIdentity(lhs) == valueIdentity(rhs)
-	}
+	return lhs.impl.eq(lhs, rhs)
 }
 
 func isNumericTag(tag ValueTag) bool {
@@ -303,17 +295,7 @@ func Ge(lhs, rhs Value) bool {
 }
 
 func Compare(lhs, rhs Value) Value {
-	if lhs.tag == TagNil || rhs.tag == TagNil {
-		switch {
-		case lhs.tag == TagNil && rhs.tag == TagNil:
-			return NewLong(0)
-		case lhs.tag == TagNil:
-			return NewLong(-1)
-		default:
-			return NewLong(1)
-		}
-	}
-	return NewLong(int64(compareOrdered(lhs, rhs)))
+	return lhs.impl.compare(lhs, rhs)
 }
 
 func NumericEq(values ...Value) bool {
@@ -349,14 +331,7 @@ func compareOrdered(lhs, rhs Value) int {
 }
 
 func IsTruthy(v Value) bool {
-	switch v.tag {
-	case TagNil:
-		return false
-	case TagBool:
-		return v.Bool()
-	default:
-		return true
-	}
+	return v.impl.isTruthy(v)
 }
 
 func Str(args ...any) string {

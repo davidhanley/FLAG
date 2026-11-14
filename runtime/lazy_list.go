@@ -214,7 +214,7 @@ func (lazyListImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Valu
 func (lazyListImpl) drop(v Value, n int) Value {
 	out := v
 	for i := 0; i < n; i++ {
-		if got := First(out); got.tag == TagNil {
+		if got := First(out); IsNil(got) {
 			return out
 		}
 		out = lazyTail(out)

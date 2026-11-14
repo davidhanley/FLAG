@@ -339,7 +339,7 @@ func IsEmpty(coll Value) bool {
 }
 
 func IsNil(v Value) bool {
-	return v.tag == TagNil
+	return v.impl.isNil(v)
 }
 
 func Set(coll Value) Value {

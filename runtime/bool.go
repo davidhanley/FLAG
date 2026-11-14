@@ -14,3 +14,4 @@ func (boolImpl) typ(Value) Value { return typeBool }
 func (boolImpl) String(v Value) string {
 	return strconv.FormatBool(v.Bool())
 }
+func (boolImpl) isTruthy(v Value) bool { return v.Bool() }

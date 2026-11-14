@@ -75,6 +75,17 @@ func (defaultImpl) seqQ(Value) bool { return false }
 func (defaultImpl) seqCursor(Value) seqCursor {
 	panic("sequence expects list, array, vector, lazy-list, map, set, string, or nil Value")
 }
+func (defaultImpl) eq(v Value, other Value) bool {
+	return valueIdentity(v) == valueIdentity(other)
+}
+func (defaultImpl) isTruthy(Value) bool { return true }
+func (defaultImpl) isNil(Value) bool    { return false }
+func (defaultImpl) compare(v Value, other Value) Value {
+	if other.impl.isNil(other) {
+		return NewLong(1)
+	}
+	return NewLong(int64(compareOrdered(v, other)))
+}
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

@@ -30,6 +30,10 @@ type impl interface {
 	cons(v Value, item Value) Value
 	seqQ(v Value) bool
 	seqCursor(v Value) seqCursor
+	eq(v Value, other Value) bool
+	isTruthy(v Value) bool
+	isNil(v Value) bool
+	compare(v Value, other Value) Value
 }
 
 type Value struct {
@@ -94,3 +98,14 @@ func (nilImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
 	return slowNthWalk(v, i, missing, hasMissing)
 }
 func (nilImpl) seqCursor(Value) seqCursor { return emptySeqCursor() }
+func (nilImpl) eq(_ Value, other Value) bool {
+	return other.impl.isNil(other)
+}
+func (nilImpl) isTruthy(Value) bool { return false }
+func (nilImpl) isNil(Value) bool    { return true }
+func (nilImpl) compare(_ Value, other Value) Value {
+	if other.impl.isNil(other) {
+		return NewLong(0)
+	}
+	return NewLong(-1)
+}
