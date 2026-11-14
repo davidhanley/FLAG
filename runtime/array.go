@@ -200,3 +200,18 @@ func (arrayImpl) conj(v Value, entries ...Value) Value {
 func (arrayImpl) count(v Value) int      { return v.ArrayLen() }
 func (arrayImpl) isEmpty(v Value) bool   { return v.ArrayLen() == 0 }
 func (arrayImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.ArrayLen() == 0) }
+func (arrayImpl) nth(v Value, i int, missing Value, hasMissing bool) Value {
+	return nthAt(v.ArrayLen(), i, missing, hasMissing, func(idx int) Value { return ArrayGet(v, idx) })
+}
+func (arrayImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (arrayImpl) drop(v Value, n int) Value {
+	length := v.ArrayLen()
+	if n >= length {
+		return NewArray()
+	}
+	items := v.arrayItems()
+	return newArrayValue(items[n:length], length-n)
+}
+func (arrayImpl) seqQ(Value) bool { return true }

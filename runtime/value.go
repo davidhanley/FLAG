@@ -24,6 +24,11 @@ type impl interface {
 	isEmpty(v Value) bool
 	notEmpty(v Value) Value
 	seq(v Value) Value
+	nth(v Value, i int, missing Value, hasMissing bool) Value
+	slowNth(v Value, i int, missing Value, hasMissing bool) Value
+	drop(v Value, n int) Value
+	cons(v Value, item Value) Value
+	seqQ(v Value) bool
 }
 
 type Value struct {
@@ -75,3 +80,15 @@ func (nilImpl) first(Value) Value  { return NilValue }
 func (nilImpl) next(Value) Value   { return NilValue }
 func (nilImpl) count(Value) int    { return 0 }
 func (nilImpl) isEmpty(Value) bool { return true }
+func (nilImpl) cons(_ Value, item Value) Value {
+	return NewList(item)
+}
+func (nilImpl) nth(_ Value, _ int, missing Value, hasMissing bool) Value {
+	if hasMissing {
+		return missing
+	}
+	panic("nth index out of range")
+}
+func (nilImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}

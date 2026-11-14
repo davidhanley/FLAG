@@ -26,6 +26,11 @@ type impl interface {
     isEmpty(v Value) bool
     notEmpty(v Value) Value
     seq(v Value) Value
+    nth(v Value, i int, missing Value, hasMissing bool) Value
+    slowNth(v Value, i int, missing Value, hasMissing bool) Value
+    drop(v Value, n int) Value
+    cons(v Value, item Value) Value
+    seqQ(v Value) bool
 }
 
 type Value struct {
@@ -55,8 +60,9 @@ same types except nil (which panics; `SeqRest` wraps nil as `()`). `Next` is
 on list, array, vector, and lazy-list. `Conj` is `v.impl.conj(v, entries...)` after
 the arity check; list, array, vector, set, and map override it. `Count` /
 `IsEmpty` / `NotEmpty` / `Seq` dispatch the same way. Nil counts as 0 and is
-empty; string `seq` is `vec` of runes. A `Value` with a nil `impl` is
-uninitialized and those calls panic.
+empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
+`seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
+A `Value` with a nil `impl` is uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each

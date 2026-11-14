@@ -90,6 +90,12 @@ func (stringImpl) seq(v Value) Value {
 	}
 	return Vec(v)
 }
+func (stringImpl) nth(v Value, i int, missing Value, hasMissing bool) Value {
+	return walkIndex(v, i, missing, hasMissing, "nth")
+}
+func (stringImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {

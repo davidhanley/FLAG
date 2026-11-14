@@ -172,3 +172,18 @@ func (vectorImpl) conj(v Value, entries ...Value) Value {
 func (vectorImpl) count(v Value) int      { return v.VectorLen() }
 func (vectorImpl) isEmpty(v Value) bool   { return v.VectorLen() == 0 }
 func (vectorImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.VectorLen() == 0) }
+func (vectorImpl) nth(v Value, i int, missing Value, hasMissing bool) Value {
+	return nthAt(v.VectorLen(), i, missing, hasMissing, func(idx int) Value { return VectorGet(v, idx) })
+}
+func (vectorImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (vectorImpl) drop(v Value, n int) Value {
+	length := v.VectorLen()
+	if n >= length {
+		return NewVector()
+	}
+	items := v.vectorItems()
+	return newVectorValue(items[n:length], length-n)
+}
+func (vectorImpl) seqQ(Value) bool { return true }

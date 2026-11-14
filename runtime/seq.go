@@ -576,40 +576,7 @@ func Drop(n Value, coll Value) Value {
 	if count == 0 {
 		return coll
 	}
-
-	switch coll.tag {
-	case TagArray:
-		length := coll.ArrayLen()
-		if count >= length {
-			return NewArray()
-		}
-		items := coll.arrayItems()
-		return newArrayValue(items[count:length], length-count)
-	case TagVector:
-		length := coll.VectorLen()
-		if count >= length {
-			return NewVector()
-		}
-		items := coll.vectorItems()
-		return newVectorValue(items[count:length], length-count)
-	case TagList:
-		out := coll
-		for i := 0; i < count && out.ListLen() > 0; i++ {
-			out = ListRest(out)
-		}
-		return out
-	case TagLazyList:
-		out := coll
-		for i := 0; i < count; i++ {
-			if got := First(out); got.tag == TagNil {
-				return out
-			}
-			out = lazyTail(out)
-		}
-		return out
-	default:
-		panic("drop expects list, array, vector, or lazy-list Value")
-	}
+	return coll.impl.drop(coll, count)
 }
 
 func Nth(coll Value, index Value, notFound ...Value) Value {
@@ -618,49 +585,7 @@ func Nth(coll Value, index Value, notFound ...Value) Value {
 	}
 	i := nonNegativeCount("nth", index)
 	missing, hasMissing := nthMissing(notFound)
-
-	switch coll.tag {
-	case TagArray:
-		if i >= coll.ArrayLen() {
-			if hasMissing {
-				return missing
-			}
-			panic("nth index out of range")
-		}
-		return ArrayGet(coll, i)
-	case TagVector:
-		if i >= coll.VectorLen() {
-			if hasMissing {
-				return missing
-			}
-			panic("nth index out of range")
-		}
-		return VectorGet(coll, i)
-	case TagString:
-		cursor := newSeqCursor(coll)
-		for pos := 0; pos <= i; pos++ {
-			next, ok := cursor.nextOrDone()
-			if !ok {
-				if hasMissing {
-					return missing
-				}
-				panic("nth index out of range")
-			}
-			if pos == i {
-				return next
-			}
-		}
-		panic("unreachable")
-	case TagNil:
-		if hasMissing {
-			return missing
-		}
-		panic("nth index out of range")
-	case TagList, TagLazyList:
-		panic("nth does not support list or lazy-list; use slow-nth")
-	default:
-		panic("nth expects array, vector, string, or nil Value")
-	}
+	return coll.impl.nth(coll, i, missing, hasMissing)
 }
 
 func SlowNth(coll Value, index Value, notFound ...Value) Value {
@@ -669,14 +594,24 @@ func SlowNth(coll Value, index Value, notFound ...Value) Value {
 	}
 	i := nonNegativeCount("slow-nth", index)
 	missing, hasMissing := nthMissing(notFound)
+	return coll.impl.slowNth(coll, i, missing, hasMissing)
+}
 
-	switch coll.tag {
-	case TagNil, TagList, TagArray, TagVector, TagLazyList, TagString:
-		// supported sequential values
-	default:
-		panic("slow-nth expects list, array, vector, lazy-list, string, or nil Value")
+func nthAt(length int, i int, missing Value, hasMissing bool, get func(int) Value) Value {
+	if i >= length {
+		if hasMissing {
+			return missing
+		}
+		panic("nth index out of range")
 	}
+	return get(i)
+}
 
+func slowNthWalk(coll Value, i int, missing Value, hasMissing bool) Value {
+	return walkIndex(coll, i, missing, hasMissing, "slow-nth")
+}
+
+func walkIndex(coll Value, i int, missing Value, hasMissing bool, name string) Value {
 	cursor := newSeqCursor(coll)
 	for pos := 0; pos <= i; pos++ {
 		next, ok := cursor.nextOrDone()
@@ -684,7 +619,7 @@ func SlowNth(coll Value, index Value, notFound ...Value) Value {
 			if hasMissing {
 				return missing
 			}
-			panic("slow-nth index out of range")
+			panic(name + " index out of range")
 		}
 		if pos == i {
 			return next
@@ -705,12 +640,7 @@ func First(coll Value) Value {
 }
 
 func SeqPredicate(coll Value) Value {
-	switch coll.tag {
-	case TagList, TagArray, TagVector, TagLazyList:
-		return NewBool(true)
-	default:
-		return NewBool(false)
-	}
+	return NewBool(coll.impl.seqQ(coll))
 }
 
 func Rest(coll Value) Value {
@@ -752,14 +682,7 @@ func Reverse(coll Value) Value {
 }
 
 func Cons(item Value, coll Value) Value {
-	switch coll.tag {
-	case TagNil:
-		return NewList(item)
-	case TagList:
-		return ListCons(coll, item)
-	default:
-		return ListCons(seqToList(coll), item)
-	}
+	return coll.impl.cons(coll, item)
 }
 
 func seqToList(coll Value) Value {

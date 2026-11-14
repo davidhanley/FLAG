@@ -141,3 +141,20 @@ func (listImpl) conj(v Value, entries ...Value) Value {
 func (listImpl) count(v Value) int      { return v.ListLen() }
 func (listImpl) isEmpty(v Value) bool   { return v.ListLen() == 0 }
 func (listImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.ListLen() == 0) }
+func (listImpl) nth(Value, int, Value, bool) Value {
+	panic("nth does not support list or lazy-list; use slow-nth")
+}
+func (listImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (listImpl) drop(v Value, n int) Value {
+	out := v
+	for i := 0; i < n && out.ListLen() > 0; i++ {
+		out = ListRest(out)
+	}
+	return out
+}
+func (listImpl) cons(v Value, item Value) Value {
+	return ListCons(v, item)
+}
+func (listImpl) seqQ(Value) bool { return true }

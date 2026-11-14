@@ -59,6 +59,19 @@ func (defaultImpl) notEmpty(Value) Value {
 func (defaultImpl) seq(v Value) Value {
 	return NotEmpty(v)
 }
+func (defaultImpl) nth(Value, int, Value, bool) Value {
+	panic("nth expects array, vector, string, or nil Value")
+}
+func (defaultImpl) slowNth(Value, int, Value, bool) Value {
+	panic("slow-nth expects list, array, vector, lazy-list, string, or nil Value")
+}
+func (defaultImpl) drop(Value, int) Value {
+	panic("drop expects list, array, vector, or lazy-list Value")
+}
+func (defaultImpl) cons(v Value, item Value) Value {
+	return ListCons(seqToList(v), item)
+}
+func (defaultImpl) seqQ(Value) bool { return false }
 
 var implByTag = [TagAtom + 1]impl{
 	TagLong:     longImpl{},

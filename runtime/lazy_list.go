@@ -205,3 +205,20 @@ func (lazyListImpl) notEmpty(v Value) Value {
 	_, ok := lazyPeek(v)
 	return notEmptyIf(v, !ok)
 }
+func (lazyListImpl) nth(Value, int, Value, bool) Value {
+	panic("nth does not support list or lazy-list; use slow-nth")
+}
+func (lazyListImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (lazyListImpl) drop(v Value, n int) Value {
+	out := v
+	for i := 0; i < n; i++ {
+		if got := First(out); got.tag == TagNil {
+			return out
+		}
+		out = lazyTail(out)
+	}
+	return out
+}
+func (lazyListImpl) seqQ(Value) bool { return true }
