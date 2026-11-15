@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -151,8 +150,8 @@ func ChannelSelect(args ...Value) Value {
 	return NewLong(count)
 }
 
-func (channelImpl) hash(v Value) string {
-	return "C:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.ChannelObject()))), 16)
+func (channelImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedChannel, uintptr(unsafe.Pointer(v.ChannelObject())))
 }
 func (channelImpl) typ(Value) Value { return typeChannel }
 func (channelImpl) String(Value) string {

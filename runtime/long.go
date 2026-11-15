@@ -7,8 +7,9 @@ import (
 
 type longImpl struct{ defaultImpl }
 
-func (longImpl) hash(v Value) string {
-	return "L:" + strconv.FormatInt(v.Long(), 10)
+func (longImpl) hash(v Value) uint64 { return uncachedHash(v) }
+func (longImpl) hashImpl(v Value) uint64 {
+	return hashInt(big.NewInt(v.Long()))
 }
 func (longImpl) typ(Value) Value { return typeInt }
 func (longImpl) String(v Value) string {

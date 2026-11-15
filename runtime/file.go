@@ -3,7 +3,6 @@ package runtime
 import (
 	"bufio"
 	"os"
-	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -69,8 +68,8 @@ func (f *FileObject) Close() error {
 	return f.File.Close()
 }
 
-func (fileImpl) hash(v Value) string {
-	return "H:" + v.FileObject().Path + ":" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FileObject()))), 16)
+func (fileImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedFile, uintptr(unsafe.Pointer(v.FileObject())))
 }
 func (fileImpl) typ(Value) Value { return typeFile }
 func (fileImpl) String(v Value) string {

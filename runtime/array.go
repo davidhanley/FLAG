@@ -135,13 +135,14 @@ type arrayImpl struct {
 	data *arrayData
 }
 
-func (arrayImpl) hash(v Value) string {
-	values := v.ArrayValues()
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, valueIdentity(value))
+func (arrayImpl) hashImpl(v Value) uint64 {
+	return hashOrdered(hashSeedArray, v.arrayItems()[:v.ArrayLen()])
+}
+func (arrayImpl) eq(v Value, other Value) bool {
+	if !isType[*arrayImpl](other) {
+		return false
 	}
-	return "A:[" + strings.Join(parts, ",") + "]"
+	return valuesEq(v.arrayItems()[:v.ArrayLen()], other.arrayItems()[:other.ArrayLen()])
 }
 func (arrayImpl) typ(Value) Value { return typeArray }
 func (arrayImpl) String(v Value) string {

@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"unsafe"
 )
 
@@ -145,8 +144,8 @@ type recordImpl struct {
 	box *recordBox
 }
 
-func (recordImpl) hash(v Value) string {
-	return "R:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.recordBox()))), 16)
+func (recordImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedRecord, uintptr(unsafe.Pointer(v.recordBox())))
 }
 func (recordImpl) typ(Value) Value { return typeRecord }
 func (recordImpl) String(v Value) string {

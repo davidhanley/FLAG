@@ -35,8 +35,14 @@ func Format(format string, args ...Value) string {
 	return fmt.Sprintf(format, values...)
 }
 
-func (stringImpl) hash(v Value) string {
-	return "Q:" + v.StringValue()
+func (stringImpl) hashImpl(v Value) uint64 {
+	return mix(hashSeedString, hashBytes([]byte(v.StringValue())))
+}
+func (stringImpl) eq(v Value, other Value) bool {
+	if !isType[*stringImpl](other) {
+		return false
+	}
+	return v.StringValue() == other.StringValue()
 }
 func (stringImpl) typ(Value) Value { return typeString }
 func (stringImpl) String(v Value) string {

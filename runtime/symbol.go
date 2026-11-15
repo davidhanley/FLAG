@@ -66,12 +66,21 @@ func Name(arg any) string {
 	}
 }
 
-func (symbolImpl) hash(v Value) string {
+func (symbolImpl) hashImpl(v Value) uint64 {
 	symbol := v.SymbolObject()
+	seed := hashSeedSymbol
 	if symbol.IsKeyword {
-		return "K:" + symbol.Name
+		seed = hashSeedKeyword
 	}
-	return "Y:" + symbol.Name
+	return mix(seed, hashBytes([]byte(symbol.Name)))
+}
+func (symbolImpl) eq(v Value, other Value) bool {
+	if !isType[*symbolImpl](other) {
+		return false
+	}
+	a := v.SymbolObject()
+	b := other.SymbolObject()
+	return a.IsKeyword == b.IsKeyword && a.Name == b.Name
 }
 func (symbolImpl) typ(v Value) Value {
 	if v.SymbolObject().IsKeyword {

@@ -384,7 +384,7 @@ func (v Value) MapEntries() []MapEntry {
 		entries = append(entries, MapEntry{Key: key, Value: value})
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		return valueIdentity(entries[i].Key) < valueIdentity(entries[j].Key)
+		return valueLess(entries[i].Key, entries[j].Key)
 	})
 	return entries
 }
@@ -407,7 +407,7 @@ func (v Value) SetValues() []Value {
 		values = append(values, value)
 	}
 	sort.Slice(values, func(i, j int) bool {
-		return valueIdentity(values[i]) < valueIdentity(values[j])
+		return valueLess(values[i], values[j])
 	})
 	return values
 }
@@ -433,14 +433,30 @@ type mapImpl struct {
 	data *mapData
 }
 
-func (mapImpl) hash(v Value) string {
-	entries := v.MapEntries()
-	parts := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		parts = append(parts, valueIdentity(entry.Key)+"="+valueIdentity(entry.Value))
+func (mapImpl) hashImpl(v Value) uint64 {
+	h := hashSeedMap
+	n := uint64(0)
+	itr := v.mapPointer().items.Iterator()
+	for !itr.Done() {
+		key, value, _ := itr.Next()
+		h += mix(Hash(key), Hash(value))
+		n++
 	}
-	sort.Strings(parts)
-	return "M:{" + strings.Join(parts, ",") + "}"
+	return mix(h, n)
+}
+func (mapImpl) eq(v Value, other Value) bool {
+	if !isType[*mapImpl](other) || v.MapLen() != other.MapLen() {
+		return false
+	}
+	itr := v.mapPointer().items.Iterator()
+	for !itr.Done() {
+		key, value, _ := itr.Next()
+		got, ok := other.mapPointer().items.Get(key)
+		if !ok || !Eq(got, value) {
+			return false
+		}
+	}
+	return true
 }
 func (mapImpl) typ(Value) Value { return typeMap }
 func (mapImpl) String(v Value) string {
@@ -526,14 +542,29 @@ type setImpl struct {
 	data *setData
 }
 
-func (setImpl) hash(v Value) string {
-	values := v.SetValues()
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, valueIdentity(value))
+func (setImpl) hashImpl(v Value) uint64 {
+	h := hashSeedSet
+	n := uint64(0)
+	itr := v.setPointer().items.Iterator()
+	for !itr.Done() {
+		value, _ := itr.Next()
+		h += Hash(value)
+		n++
 	}
-	sort.Strings(parts)
-	return "S:#{" + strings.Join(parts, ",") + "}"
+	return mix(h, n)
+}
+func (setImpl) eq(v Value, other Value) bool {
+	if !isType[*setImpl](other) || v.SetLen() != other.SetLen() {
+		return false
+	}
+	itr := v.setPointer().items.Iterator()
+	for !itr.Done() {
+		value, _ := itr.Next()
+		if !Contains(other, value) {
+			return false
+		}
+	}
+	return true
 }
 func (setImpl) typ(Value) Value { return typeSet }
 func (setImpl) String(v Value) string {

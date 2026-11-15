@@ -5,8 +5,9 @@ var NilValue = Value{impl: nilImpl{}}
 
 type nilImpl struct{ defaultImpl }
 
-func (nilImpl) hash(Value) string { return "N:" }
-func (nilImpl) typ(Value) Value   { return typeNil }
+func (nilImpl) hash(v Value) uint64   { return uncachedHash(v) }
+func (nilImpl) hashImpl(Value) uint64 { return hashSeedNil }
+func (nilImpl) typ(Value) Value       { return typeNil }
 func (nilImpl) String(Value) string {
 	return ""
 }
