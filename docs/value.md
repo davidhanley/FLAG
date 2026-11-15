@@ -118,8 +118,8 @@ binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
 those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops). Required
-methods (`hash`, `typ`, `String`) live on each type’s file (`string.go`,
-`long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
+methods (`hash`, `typ`, `String`) live on each type’s file (`nil.go`,
+`string.go`, `long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
 stay in that same file. Remaining Go type checks use `isType[T]` or a solitary
 `asImpl[T]` assertion. Avoid switching on `v.impl`.
 
