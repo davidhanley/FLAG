@@ -5,7 +5,7 @@ import "time"
 // Sleep pauses the current goroutine for the given number of milliseconds
 // (truncated toward zero if a float is passed). Returns nil.
 func Sleep(ms Value) Value {
-	if !isNumericTag(ms.tag) {
+	if !ms.impl.isNumeric(ms) {
 		panic("sleep expects milliseconds as a number")
 	}
 	n := ms.Long()
@@ -26,7 +26,7 @@ func TimeNanoTime() Value {
 }
 
 func TimeYears(v Value) Value {
-	if !isNumericTag(v.tag) {
+	if !v.impl.isNumeric(v) {
 		panic("t/years expects a numeric Value")
 	}
 	return NewLong(int64(v.Long()))
@@ -36,7 +36,7 @@ func TimeMinus(left Value, right Value) Value {
 	if left.tag != TagDate {
 		panic("t/minus expects a date as the first argument")
 	}
-	if !isNumericTag(right.tag) {
+	if !right.impl.isNumeric(right) {
 		panic("t/minus expects a numeric Value as the second argument")
 	}
 	return NewDate(left.DateTime().AddDate(-int(right.Long()), 0, 0))

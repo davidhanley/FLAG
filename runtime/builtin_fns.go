@@ -8,7 +8,7 @@ func FnPlus(args ...Value) Value {
 	case 0:
 		return NewLong(0)
 	case 1:
-		if !isNumericTag(args[0].tag) {
+		if !args[0].impl.isNumeric(args[0]) {
 			panic("+ expects numeric Value arguments")
 		}
 		return args[0]

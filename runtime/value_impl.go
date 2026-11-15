@@ -1,6 +1,9 @@
 package runtime
 
-import "fmt"
+import (
+	"fmt"
+	"math/big"
+)
 
 func implFor(tag ValueTag) impl {
 	if tag == 0 || int(tag) >= len(implByTag) || implByTag[tag] == nil {
@@ -103,6 +106,121 @@ func (defaultImpl) name(Value) string {
 func (defaultImpl) exMessage(Value) Value { return NilValue }
 func (defaultImpl) goSeq(Value) []Value {
 	panic("ListValues called on non-list Value")
+}
+func (defaultImpl) isNumeric(Value) bool { return false }
+func (defaultImpl) add(Value, Value) Value {
+	panic("Add expects numeric Value arguments")
+}
+func (defaultImpl) sub(Value, Value) Value {
+	panic("Sub expects numeric Value arguments")
+}
+func (defaultImpl) mul(Value, Value) Value {
+	panic("Mul expects numeric Value arguments")
+}
+func (defaultImpl) div(Value, Value) Value {
+	panic("Div expects numeric Value arguments")
+}
+func (defaultImpl) quot(Value, Value) Value {
+	panic("quot expects numeric Value arguments")
+}
+func (defaultImpl) cmpNum(Value, Value) int {
+	panic("compare expects numeric Value arguments")
+}
+func (defaultImpl) abs(Value) Value {
+	panic("abs expects numeric Value argument")
+}
+func (defaultImpl) toDouble(Value) Value {
+	panic("double expects numeric Value")
+}
+func (defaultImpl) numerator(Value) Value {
+	panic("numerator expects an integer or ratio")
+}
+func (defaultImpl) denominator(Value) Value {
+	panic("denominator expects an integer or ratio")
+}
+func (defaultImpl) toFloat64(Value) float64 {
+	panic("numericToFloat64 called on non-numeric Value")
+}
+func (defaultImpl) toRat(Value) *big.Rat {
+	panic("valueToRat expects integer or ratio Value")
+}
+func (defaultImpl) toBigInt(Value) *big.Int {
+	panic("valueToBigInt expects integer Value")
+}
+func (defaultImpl) bitLong(_ Value, name string) int64 {
+	panic(name + " expects an integer")
+}
+func (defaultImpl) addLong(Value, int64) Value {
+	panic("Add expects numeric Value arguments")
+}
+func (defaultImpl) addDouble(Value, float64) Value {
+	panic("Add expects numeric Value arguments")
+}
+func (defaultImpl) addRatio(Value, *big.Rat) Value {
+	panic("Add expects numeric Value arguments")
+}
+func (defaultImpl) addBigInt(Value, *big.Int) Value {
+	panic("Add expects numeric Value arguments")
+}
+func (defaultImpl) subLong(Value, int64) Value {
+	panic("Sub expects numeric Value arguments")
+}
+func (defaultImpl) subDouble(Value, float64) Value {
+	panic("Sub expects numeric Value arguments")
+}
+func (defaultImpl) subRatio(Value, *big.Rat) Value {
+	panic("Sub expects numeric Value arguments")
+}
+func (defaultImpl) subBigInt(Value, *big.Int) Value {
+	panic("Sub expects numeric Value arguments")
+}
+func (defaultImpl) mulLong(Value, int64) Value {
+	panic("Mul expects numeric Value arguments")
+}
+func (defaultImpl) mulDouble(Value, float64) Value {
+	panic("Mul expects numeric Value arguments")
+}
+func (defaultImpl) mulRatio(Value, *big.Rat) Value {
+	panic("Mul expects numeric Value arguments")
+}
+func (defaultImpl) mulBigInt(Value, *big.Int) Value {
+	panic("Mul expects numeric Value arguments")
+}
+func (defaultImpl) divLong(Value, int64) Value {
+	panic("Div expects numeric Value arguments")
+}
+func (defaultImpl) divDouble(Value, float64) Value {
+	panic("Div expects numeric Value arguments")
+}
+func (defaultImpl) divRatio(Value, *big.Rat) Value {
+	panic("Div expects numeric Value arguments")
+}
+func (defaultImpl) divBigInt(Value, *big.Int) Value {
+	panic("Div expects numeric Value arguments")
+}
+func (defaultImpl) quotLong(Value, int64) Value {
+	panic("quot expects numeric Value arguments")
+}
+func (defaultImpl) quotDouble(Value, float64) Value {
+	panic("quot expects numeric Value arguments")
+}
+func (defaultImpl) quotRatio(Value, *big.Rat) Value {
+	panic("quot expects numeric Value arguments")
+}
+func (defaultImpl) quotBigInt(Value, *big.Int) Value {
+	panic("quot expects numeric Value arguments")
+}
+func (defaultImpl) cmpLong(Value, int64) int {
+	panic("compare expects numeric Value arguments")
+}
+func (defaultImpl) cmpDouble(Value, float64) int {
+	panic("compare expects numeric Value arguments")
+}
+func (defaultImpl) cmpRatio(Value, *big.Rat) int {
+	panic("compare expects numeric Value arguments")
+}
+func (defaultImpl) cmpBigInt(Value, *big.Int) int {
+	panic("compare expects numeric Value arguments")
 }
 
 var implByTag = [TagAtom + 1]impl{

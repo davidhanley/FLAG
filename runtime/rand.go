@@ -37,7 +37,7 @@ func Rand(args ...Value) Value {
 	}
 	n := 1.0
 	if len(args) == 1 {
-		if !isNumericTag(args[0].tag) {
+		if !args[0].impl.isNumeric(args[0]) {
 			panic("rand expects a numeric Value")
 		}
 		n = numericToFloat64(args[0])

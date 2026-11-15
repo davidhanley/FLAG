@@ -44,6 +44,26 @@ type impl interface {
     name(v Value) string
     exMessage(v Value) Value
     goSeq(v Value) []Value
+    isNumeric(v Value) bool
+    add(v, other Value) Value
+    sub(v, other Value) Value
+    mul(v, other Value) Value
+    div(v, other Value) Value
+    quot(v, other Value) Value
+    cmpNum(v, other Value) int
+    abs(v Value) Value
+    toDouble(v Value) Value
+    numerator(v Value) Value
+    denominator(v Value) Value
+    toFloat64(v Value) float64
+    toRat(v Value) *big.Rat
+    toBigInt(v Value) *big.Int
+    bitLong(v Value, name string) int64
+    addLong(v Value, n int64) Value
+    addDouble(v Value, n float64) Value
+    addRatio(v Value, n *big.Rat) Value
+    addBigInt(v Value, n *big.Int) Value
+    // sub/mul/div/quot/cmp + Long/Double/Ratio/BigInt similarly
 }
 
 type Value struct {
@@ -76,17 +96,25 @@ the arity check; list, array, vector, set, and map override it. `Count` /
 empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
 `newSeqCursor` is `v.impl.seqCursor(v)`; cursor kinds are not `ValueTag`. `Eq` /
-`IsTruthy` / `IsNil` / `Compare` dispatch through `impl` (numeric `=` still uses
-tags until math is optimized). FFI conversion is the same: `ValueToAny` is
+`IsTruthy` / `IsNil` / `Compare` dispatch through `impl`. Numeric `=` uses
+`isNumeric` then `cmpNum`. FFI conversion is the same: `ValueToAny` is
 `toAny`, Go/native unbox is `toNative`, JSON is `toJSON`, `name` is `name`,
 `ex-message` is `exMessage`, and string/symbol names use `asIdent`/`asString`.
-Array `toAny` is `[]any`; file `toNative` is the host `*os.File`. A `Value` with
-a nil `impl` is uninitialized and those calls panic.
+Array `toAny` is `[]any`; file `toNative` is the host `*os.File`.
+
+Binary math is double-dispatch, not a tag switch. `(+ a b)` is `flagrt.Add(a, b)`
+→ `a.impl.add(a, b)`. If `a` is a long it unboxes and calls
+`b.impl.addLong(b, a.Long())` (same pattern for double/ratio/bigint and for
+`-` `*` `/` `quot` `cmpNum`). Variadic `(+ 1 2 3)` and `(apply + xs)` fold that
+binary `Add`; the two-arg path is not itself variadic. `(< a b c d)` is chained
+binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
+those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each
 type’s file (`string.go`, `long.go`, `double.go`, …). Type-specific overrides
 such as `assoc`/`dissoc` stay in that same file.
 
-Do not put every FLAG function on `impl` yet. Numerics stay on tags until math is
-optimized.
+Do not put every FLAG function on `impl` yet. When types are known at compile
+time, `(+ a b)` can skip the first hop (`b.addLong(a.longValue)`) or become a
+native add.

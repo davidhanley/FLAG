@@ -1,17 +1,7 @@
 package runtime
 
 func requireBitLong(name string, v Value) int64 {
-	switch v.tag {
-	case TagLong:
-		return v.Long()
-	case TagBigInt:
-		if v.BigInt().IsInt64() {
-			return v.BigInt().Int64()
-		}
-		panic(name + " value out of range for long")
-	default:
-		panic(name + " expects an integer")
-	}
+	return v.impl.bitLong(v, name)
 }
 
 func bitShiftCount(n int64) uint {

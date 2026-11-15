@@ -3,14 +3,14 @@ package runtime
 import "math"
 
 func mathFloat1(name string, value Value, fn func(float64) float64) Value {
-	if !isNumericTag(value.tag) {
+	if !value.impl.isNumeric(value) {
 		panic(name + " expects numeric Value argument")
 	}
 	return NewDouble(fn(numericToFloat64(value)))
 }
 
 func mathFloat2(name string, a, b Value, fn func(float64, float64) float64) Value {
-	if !isNumericTag(a.tag) || !isNumericTag(b.tag) {
+	if !a.impl.isNumeric(a) || !b.impl.isNumeric(b) {
 		panic(name + " expects numeric Value arguments")
 	}
 	return NewDouble(fn(numericToFloat64(a), numericToFloat64(b)))
@@ -59,7 +59,7 @@ func Ceil(value Value) Value {
 // Round matches clojure.math/round / java.lang.Math.round: nearest long,
 // with ties rounding toward +∞. NaN becomes 0; infinities saturate.
 func Round(value Value) Value {
-	if !isNumericTag(value.tag) {
+	if !value.impl.isNumeric(value) {
 		panic("round expects numeric Value argument")
 	}
 	return NewLong(javaMathRound(numericToFloat64(value)))

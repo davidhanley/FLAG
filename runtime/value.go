@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"math/big"
+	"unsafe"
+)
 
 // impl is the per-type vtable on Value. Methods take Value so immediates can
 // still read d. typ is type-of; type is a Go keyword.
@@ -42,6 +45,45 @@ type impl interface {
 	name(v Value) string
 	exMessage(v Value) Value
 	goSeq(v Value) []Value
+	isNumeric(v Value) bool
+	add(v, other Value) Value
+	sub(v, other Value) Value
+	mul(v, other Value) Value
+	div(v, other Value) Value
+	quot(v, other Value) Value
+	cmpNum(v, other Value) int
+	abs(v Value) Value
+	toDouble(v Value) Value
+	numerator(v Value) Value
+	denominator(v Value) Value
+	toFloat64(v Value) float64
+	toRat(v Value) *big.Rat
+	toBigInt(v Value) *big.Int
+	bitLong(v Value, name string) int64
+	addLong(v Value, n int64) Value
+	addDouble(v Value, n float64) Value
+	addRatio(v Value, n *big.Rat) Value
+	addBigInt(v Value, n *big.Int) Value
+	subLong(v Value, n int64) Value
+	subDouble(v Value, n float64) Value
+	subRatio(v Value, n *big.Rat) Value
+	subBigInt(v Value, n *big.Int) Value
+	mulLong(v Value, n int64) Value
+	mulDouble(v Value, n float64) Value
+	mulRatio(v Value, n *big.Rat) Value
+	mulBigInt(v Value, n *big.Int) Value
+	divLong(v Value, n int64) Value
+	divDouble(v Value, n float64) Value
+	divRatio(v Value, n *big.Rat) Value
+	divBigInt(v Value, n *big.Int) Value
+	quotLong(v Value, n int64) Value
+	quotDouble(v Value, n float64) Value
+	quotRatio(v Value, n *big.Rat) Value
+	quotBigInt(v Value, n *big.Int) Value
+	cmpLong(v Value, n int64) int
+	cmpDouble(v Value, n float64) int
+	cmpRatio(v Value, n *big.Rat) int
+	cmpBigInt(v Value, n *big.Int) int
 }
 
 type Value struct {

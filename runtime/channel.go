@@ -29,7 +29,7 @@ func MakeChannel(args ...Value) Value {
 	case 0:
 		// unbuffered
 	case 1:
-		if !isNumericTag(args[0].tag) {
+		if !args[0].impl.isNumeric(args[0]) {
 			panic("make-channel capacity must be a non-negative integer")
 		}
 		n := args[0].Long()
