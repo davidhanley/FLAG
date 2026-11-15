@@ -29,21 +29,23 @@ const (
 	hashMixConst    uint64 = 0x9e3779b97f4a7c15
 )
 
+type hashCacher interface {
+	hashCachePtr() *uint64
+}
+
 // Hash is the FLAG hash of v. Heap values cache it on impl after the first
 // call. The low bit is always set, so 0 is reserved as “not yet hashed”.
 func Hash(v Value) uint64 {
-	return v.impl.hash(v)
-}
-
-func finishHash(computed uint64, slot *uint64) uint64 {
-	if slot != nil && *slot != 0 {
-		return *slot
-	}
-	h := computed | 1
-	if slot != nil {
+	if d, ok := v.impl.(hashCacher); ok {
+		slot := d.hashCachePtr()
+		if h := *slot; h != 0 {
+			return h
+		}
+		h := v.impl.hashImpl(v) | 1
 		*slot = h
+		return h
 	}
-	return h
+	return v.impl.hashImpl(v) | 1
 }
 
 func mix(h, x uint64) uint64 {
@@ -92,10 +94,6 @@ func hashFloat(f float64) uint64 {
 		return hashRat(r)
 	}
 	return mix(hashSeedNum, math.Float64bits(f))
-}
-
-func uncachedHash(v Value) uint64 {
-	return finishHash(v.impl.hashImpl(v), nil)
 }
 
 func hashOrdered(seed uint64, values []Value) uint64 {

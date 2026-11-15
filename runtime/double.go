@@ -8,7 +8,6 @@ import (
 
 type doubleImpl struct{ defaultImpl }
 
-func (doubleImpl) hash(v Value) uint64 { return uncachedHash(v) }
 func (doubleImpl) hashImpl(v Value) uint64 {
 	return hashFloat(v.Double())
 }

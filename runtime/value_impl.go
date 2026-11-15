@@ -12,9 +12,7 @@ type defaultImpl struct {
 	hashCache uint64
 }
 
-func (d *defaultImpl) hash(v Value) uint64 {
-	return finishHash(v.impl.hashImpl(v), &d.hashCache)
-}
+func (d *defaultImpl) hashCachePtr() *uint64 { return &d.hashCache }
 
 func (defaultImpl) hashImpl(Value) uint64 {
 	panic("hashImpl not implemented")

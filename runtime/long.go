@@ -7,7 +7,6 @@ import (
 
 type longImpl struct{ defaultImpl }
 
-func (longImpl) hash(v Value) uint64 { return uncachedHash(v) }
 func (longImpl) hashImpl(v Value) uint64 {
 	return hashInt(big.NewInt(v.Long()))
 }

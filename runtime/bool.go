@@ -4,7 +4,6 @@ import "strconv"
 
 type boolImpl struct{ defaultImpl }
 
-func (boolImpl) hash(v Value) uint64 { return uncachedHash(v) }
 func (boolImpl) hashImpl(v Value) uint64 {
 	if v.Bool() {
 		return mix(hashSeedBool, 1)

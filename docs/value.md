@@ -8,7 +8,6 @@ Heap payload lives on that impl (for example `*stringImpl.value`).
 
 ```go
 type impl interface {
-    hash(v Value) uint64 // cached mix; low bit always set
     hashImpl(v Value) uint64
     typ(v Value) Value   // type-of keyword (`type` is reserved in Go)
     String(v Value) string
@@ -80,11 +79,10 @@ type Value struct {
 `hash` / `typ` / `String` / `assoc` / `dissoc` / `get` / `contains` take the
 `Value` so longs and bools can still read `d`. Constructors return
 `Value{d, impl}` directly (`NewLong` uses `longImpl{}`; `NewString` uses
-`&stringImpl{value: s}`). `TypeOf` calls `v.impl` directly. `(hash x)` is
-`flagrt.Hash` → `v.impl.hash(v)`. Heap impls cache the result in
-`defaultImpl.hashCache` (0 means unset). `hashImpl` computes an uncached mix;
-`hash` stores `computed | 1`, so a valid hash is never 0. Immediates
-(long/double/bool/nil) skip the cache because they share a value impl.
+`&stringImpl{value: s}`). `TypeOf` calls `v.impl` directly. `(hash x)` is `flagrt.Hash`, a direct
+function (not on `impl`): if `hashCache` is 0 it calls `hashImpl` and stores
+`computed | 1`. Heap impls cache on `defaultImpl`; immediates skip the cache
+because they share a value impl.
 Equal numbers share a hash (`1`, `1.0`, `1N`, `2/2`). Ordered collections mix
 element hashes; maps/sets mix keys and values commutatively. Printing is
 `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
@@ -127,7 +125,7 @@ those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops). Required
 methods (`hashImpl`, `typ`, `String`) live on each type’s file (`nil.go`,
-`string.go`, `long.go`, `double.go`, …). `hash` itself lives on `defaultImpl`. Type-specific overrides such as `assoc`/`dissoc`
+`string.go`, `long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
 stay in that same file. Remaining Go type checks use `isType[T]` or a solitary
 `asImpl[T]` assertion. Avoid switching on `v.impl`.
 
