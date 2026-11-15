@@ -79,8 +79,19 @@ func dateString(v Value) string {
 	)
 }
 
-func (dateImpl) hash(v Value) string {
-	return "D:" + v.DateTime().UTC().Format("2006-01-02")
+func (dateImpl) hashImpl(v Value) uint64 {
+	t := v.DateTime().UTC()
+	h := mix(hashSeedDate, uint64(t.Year()))
+	h = mix(h, uint64(t.Month()))
+	h = mix(h, uint64(t.Day()))
+	h = mix(h, uint64(t.UnixNano()))
+	return h
+}
+func (dateImpl) eq(v Value, other Value) bool {
+	if !isType[*dateImpl](other) {
+		return false
+	}
+	return v.DateTime().Equal(other.DateTime())
 }
 func (dateImpl) typ(Value) Value { return typeDate }
 func (dateImpl) String(v Value) string {

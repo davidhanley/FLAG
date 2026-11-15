@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -146,8 +145,8 @@ type lazyListImpl struct {
 	view *lazyListView
 }
 
-func (lazyListImpl) hash(v Value) string {
-	return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)
+func (lazyListImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedLazy, uintptr(unsafe.Pointer(v.lazyListPointer())))
 }
 func (lazyListImpl) typ(Value) Value { return typeLazyList }
 func (lazyListImpl) String(Value) string {

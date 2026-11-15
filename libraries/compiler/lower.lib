@@ -491,6 +491,7 @@
    "disjoint?" "FnDisjointQ" "rename-keys" "FnRenameKeys"
    "map-invert" "FnMapInvert" "select" "FnSelect"
    "project" "FnProject" "rename" "FnRename"
+   "hash" "FnHash"
    "hash-map" "FnHashMap" "list" "FnList"
    "array" "FnArray" "repeat" "FnRepeat" "range" "FnRange"
    "assoc" "FnAssoc" "dissoc" "FnDissoc"

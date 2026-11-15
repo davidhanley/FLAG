@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 )
 
 type ratioImpl struct {
@@ -11,15 +10,8 @@ type ratioImpl struct {
 	rat *big.Rat
 }
 
-func (ratioImpl) hash(v Value) string {
-	if v.Ratio().IsInt() {
-		num := v.Ratio().Num()
-		if num.IsInt64() {
-			return "L:" + strconv.FormatInt(num.Int64(), 10)
-		}
-		return "I:" + num.String()
-	}
-	return "R:" + v.Ratio().RatString()
+func (ratioImpl) hashImpl(v Value) uint64 {
+	return hashRat(v.Ratio())
 }
 func (ratioImpl) typ(Value) Value { return typeRatio }
 func (ratioImpl) String(v Value) string {

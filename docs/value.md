@@ -8,7 +8,7 @@ Heap payload lives on that impl (for example `*stringImpl.value`).
 
 ```go
 type impl interface {
-    hash(v Value) string // map/set identity key
+    hashImpl(v Value) uint64
     typ(v Value) Value   // type-of keyword (`type` is reserved in Go)
     String(v Value) string
     assoc(v Value, entries ...Value) Value
@@ -79,7 +79,13 @@ type Value struct {
 `hash` / `typ` / `String` / `assoc` / `dissoc` / `get` / `contains` take the
 `Value` so longs and bools can still read `d`. Constructors return
 `Value{d, impl}` directly (`NewLong` uses `longImpl{}`; `NewString` uses
-`&stringImpl{value: s}`). `TypeOf` and hashing call `v.impl` directly. Printing is `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
+`&stringImpl{value: s}`). `TypeOf` calls `v.impl` directly. `(hash x)` is `flagrt.Hash`, a direct
+function (not on `impl`): if `hashCache` is 0 it calls `hashImpl` and stores
+`computed | 1`. Heap impls cache on `defaultImpl`; immediates skip the cache
+because they share a value impl.
+Equal numbers share a hash (`1`, `1.0`, `1N`, `2/2`). Ordered collections mix
+element hashes; maps/sets mix keys and values commutatively. Printing is
+`v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
 is no `ValueToString`. `Assoc` is `v.impl.assoc(v, entries...)`. Map, array, and
 vector override `assoc`. `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`;
 map and nil override `dissoc`. `Get` is `v.impl.get(v, key, missing)` after arity
@@ -118,7 +124,7 @@ binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
 those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops). Required
-methods (`hash`, `typ`, `String`) live on each type’s file (`nil.go`,
+methods (`hashImpl`, `typ`, `String`) live on each type’s file (`nil.go`,
 `string.go`, `long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
 stay in that same file. Remaining Go type checks use `isType[T]` or a solitary
 `asImpl[T]` assertion. Avoid switching on `v.impl`.

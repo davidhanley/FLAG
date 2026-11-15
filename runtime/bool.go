@@ -4,11 +4,11 @@ import "strconv"
 
 type boolImpl struct{ defaultImpl }
 
-func (boolImpl) hash(v Value) string {
+func (boolImpl) hashImpl(v Value) uint64 {
 	if v.Bool() {
-		return "B:true"
+		return mix(hashSeedBool, 1)
 	}
-	return "B:false"
+	return mix(hashSeedBool, 0)
 }
 func (boolImpl) typ(Value) Value { return typeBool }
 func (boolImpl) String(v Value) string {

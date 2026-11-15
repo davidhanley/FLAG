@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -100,8 +99,8 @@ type atomImpl struct {
 	atom *AtomObject
 }
 
-func (atomImpl) hash(v Value) string {
-	return "O:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.AtomObject()))), 16)
+func (atomImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedAtom, uintptr(unsafe.Pointer(v.AtomObject())))
 }
 func (atomImpl) typ(Value) Value { return typeAtom }
 func (atomImpl) String(Value) string {

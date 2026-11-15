@@ -82,13 +82,29 @@ type listImpl struct {
 	head *listNode
 }
 
-func (listImpl) hash(v Value) string {
-	values := v.ListValues()
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, valueIdentity(value))
+func (listImpl) hashImpl(v Value) uint64 {
+	h := hashSeedList
+	n := 0
+	for node := v.listPointer(); node != nil; node = node.next {
+		h = mix(h, Hash(node.value))
+		n++
 	}
-	return "T:(" + strings.Join(parts, ",") + ")"
+	return mix(h, uint64(n))
+}
+func (listImpl) eq(v Value, other Value) bool {
+	if !isType[*listImpl](other) || v.ListLen() != other.ListLen() {
+		return false
+	}
+	a := v.listPointer()
+	b := other.listPointer()
+	for a != nil {
+		if !Eq(a.value, b.value) {
+			return false
+		}
+		a = a.next
+		b = b.next
+	}
+	return true
 }
 func (listImpl) typ(Value) Value { return typeList }
 func (listImpl) String(v Value) string {

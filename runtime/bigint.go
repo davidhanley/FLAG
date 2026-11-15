@@ -7,8 +7,8 @@ type bigIntImpl struct {
 	n *big.Int
 }
 
-func (bigIntImpl) hash(v Value) string {
-	return "I:" + v.BigInt().String()
+func (bigIntImpl) hashImpl(v Value) uint64 {
+	return hashInt(v.BigInt())
 }
 func (bigIntImpl) typ(Value) Value { return typeBigInt }
 func (bigIntImpl) String(v Value) string {

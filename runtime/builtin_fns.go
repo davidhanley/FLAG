@@ -683,6 +683,14 @@ func FnRename(args ...Value) Value {
 	return SetRename(args[0], args[1])
 }
 
+// FnHash implements builtin hash.
+func FnHash(args ...Value) Value {
+	if len(args) != 1 {
+		panic("hash expects 1 argument")
+	}
+	return NewLong(int64(Hash(args[0])))
+}
+
 // FnHashMap implements builtin hash-map.
 func FnHashMap(args ...Value) Value {
 	return NewMap(args...)

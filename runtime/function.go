@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"strconv"
 	"unsafe"
 )
 
@@ -46,8 +45,8 @@ func lookupApply(coll Value, args []Value, kind string) Value {
 	return Get(coll, args[0], args[1])
 }
 
-func (functionImpl) hash(v Value) string {
-	return "F:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FunctionObject()))), 16)
+func (functionImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedFn, uintptr(unsafe.Pointer(v.FunctionObject())))
 }
 func (functionImpl) typ(Value) Value { return typeFn }
 func (functionImpl) String(Value) string {

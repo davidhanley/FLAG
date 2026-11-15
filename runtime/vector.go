@@ -105,13 +105,14 @@ type vectorImpl struct {
 	data *arrayData
 }
 
-func (vectorImpl) hash(v Value) string {
-	values := v.VectorValues()
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, valueIdentity(value))
+func (vectorImpl) hashImpl(v Value) uint64 {
+	return hashOrdered(hashSeedVector, v.vectorItems()[:v.VectorLen()])
+}
+func (vectorImpl) eq(v Value, other Value) bool {
+	if !isType[*vectorImpl](other) {
+		return false
 	}
-	return "V:|" + strings.Join(parts, ",") + "|"
+	return valuesEq(v.vectorItems()[:v.VectorLen()], other.vectorItems()[:other.VectorLen()])
 }
 func (vectorImpl) typ(Value) Value { return typeVector }
 func (vectorImpl) String(v Value) string {

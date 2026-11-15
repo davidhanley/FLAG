@@ -8,7 +8,7 @@ import (
 // impl is the per-type vtable on Value. Methods take Value so immediates can
 // still read d. typ is type-of; type is a Go keyword.
 type impl interface {
-	hash(v Value) string
+	hashImpl(v Value) uint64
 	typ(v Value) Value
 	String(v Value) string
 	assoc(v Value, entries ...Value) Value

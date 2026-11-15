@@ -6,8 +6,17 @@ import (
 )
 
 // defaultImpl panics for optional vtable ops. Each type file must implement
-// hash, typ, and String.
-type defaultImpl struct{}
+// hashImpl, typ, and String. hash is cached in hashCache; 0 means unset.
+// Computed hashes always have the low bit set, so 0 is never stored.
+type defaultImpl struct {
+	hashCache uint64
+}
+
+func (d *defaultImpl) hashCachePtr() *uint64 { return &d.hashCache }
+
+func (defaultImpl) hashImpl(Value) uint64 {
+	panic("hashImpl not implemented")
+}
 
 func (defaultImpl) assoc(Value, ...Value) Value {
 	panic("assoc expects map, array, or vector Value")
@@ -74,7 +83,7 @@ func (defaultImpl) seqCursor(Value) seqCursor {
 	panic("sequence expects list, array, vector, lazy-list, map, set, string, or nil Value")
 }
 func (defaultImpl) eq(v Value, other Value) bool {
-	return valueIdentity(v) == valueIdentity(other)
+	return valueSlotEq(v, other)
 }
 func (defaultImpl) isTruthy(Value) bool { return true }
 func (defaultImpl) isNil(Value) bool    { return false }

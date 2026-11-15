@@ -49,8 +49,12 @@ func TestValueImplPresentAndMatchesHelpers(t *testing.T) {
 		if got, want := v.impl.String(v), v.String(); got != want {
 			t.Fatalf("String %v: got %q want %q", TypeOf(v), got, want)
 		}
-		if got, want := v.impl.hash(v), valueIdentity(v); got != want {
-			t.Fatalf("hash %v: got %q want %q", TypeOf(v), got, want)
+		h := Hash(v)
+		if h&1 == 0 {
+			t.Fatalf("hash %v is even: %d", TypeOf(v), h)
+		}
+		if Hash(v) != h {
+			t.Fatalf("hash %v was not stable", TypeOf(v))
 		}
 		seen[TypeOf(v).String()] = true
 	}
@@ -73,10 +77,25 @@ func TestValueImplUninitializedPanics(t *testing.T) {
 }
 
 func TestValueImplHashStableForEqualImmediates(t *testing.T) {
-	if valueIdentity(NewLong(1)) != valueIdentity(NewLong(1)) {
+	if Hash(NewLong(1)) != Hash(NewLong(1)) {
 		t.Fatal("long hash should be stable")
 	}
-	if valueIdentity(NewDouble(2.0)) != valueIdentity(NewLong(2)) {
+	if Hash(NewDouble(2.0)) != Hash(NewLong(2)) {
 		t.Fatal("integral double should hash like long")
+	}
+}
+
+func TestValueImplHashCachesOnHeap(t *testing.T) {
+	s := NewString("hello")
+	h := Hash(s)
+	if h&1 == 0 {
+		t.Fatalf("expected odd hash, got %d", h)
+	}
+	cached := asImpl[*stringImpl](s, "string").hashCache
+	if cached != h {
+		t.Fatalf("cached hash %d want %d", cached, h)
+	}
+	if Hash(s) != h {
+		t.Fatal("second hash should use cache")
 	}
 }

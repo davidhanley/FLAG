@@ -170,6 +170,8 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnProject)
 	case "rename":
 		return NewFunction(FnRename)
+	case "hash":
+		return NewFunction(FnHash)
 	case "hash-map":
 		return NewFunction(FnHashMap)
 	case "list":

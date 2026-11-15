@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"strconv"
 	"unsafe"
 )
 
@@ -34,8 +33,8 @@ type recurImpl struct {
 	payload *recurPayload
 }
 
-func (recurImpl) hash(v Value) string {
-	return "U:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(asImpl[*recurImpl](v, "recur hash")))), 16)
+func (recurImpl) hashImpl(v Value) uint64 {
+	return hashPointer(hashSeedRecur, uintptr(unsafe.Pointer(asImpl[*recurImpl](v, "recur hash"))))
 }
 func (recurImpl) typ(Value) Value { return typeRecur }
 func (recurImpl) String(Value) string {
