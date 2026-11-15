@@ -4,29 +4,27 @@ import (
 	"fmt"
 	"strconv"
 	"unicode/utf8"
-	"unsafe"
 )
 
 type StringObject struct {
 	Value string
 }
 
+type stringImpl struct {
+	defaultImpl
+	value string
+}
+
 func NewString(value string) Value {
-	return makeValue(TagString, 0, unsafe.Pointer(&StringObject{Value: value}))
+	return makeValue(TagString, 0, &stringImpl{value: value})
 }
 
 func (v Value) StringObject() *StringObject {
-	if v.tag != TagString {
-		panic("StringObject called on non-string Value")
-	}
-	if v.p == nil {
-		panic("string Value does not contain string pointer")
-	}
-	return (*StringObject)(v.p)
+	return &StringObject{Value: v.StringValue()}
 }
 
 func (v Value) StringValue() string {
-	return v.StringObject().Value
+	return asImpl[*stringImpl](v, "StringValue called on non-string Value").value
 }
 
 func Format(format string, args ...Value) string {
@@ -36,8 +34,6 @@ func Format(format string, args ...Value) string {
 	}
 	return fmt.Sprintf(format, values...)
 }
-
-type stringImpl struct{ defaultImpl }
 
 func (stringImpl) hash(v Value) string {
 	return "Q:" + v.StringValue()

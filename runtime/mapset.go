@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"sort"
-	"unsafe"
 
 	"github.com/benbjohnson/immutable"
 	"strings"
@@ -439,34 +438,25 @@ func (v Value) SetValues() []Value {
 }
 
 func newMapValue(items *immutable.Map[Value, Value]) Value {
-	return makeValue(TagMap, 0, unsafe.Pointer(&mapData{items: items}))
+	return makeValue(TagMap, 0, &mapImpl{data: &mapData{items: items}})
 }
 
 func newSetValue(items immutable.Set[Value]) Value {
-	return makeValue(TagSet, 0, unsafe.Pointer(&setData{items: items}))
+	return makeValue(TagSet, 0, &setImpl{data: &setData{items: items}})
 }
 
 func (v Value) mapPointer() *mapData {
-	if v.tag != TagMap {
-		panic("mapPointer called on non-map Value")
-	}
-	if v.p == nil {
-		panic("map Value does not contain map pointer")
-	}
-	return (*mapData)(v.p)
+	return asImpl[*mapImpl](v, "mapPointer called on non-map Value").data
 }
 
 func (v Value) setPointer() *setData {
-	if v.tag != TagSet {
-		panic("setPointer called on non-set Value")
-	}
-	if v.p == nil {
-		panic("set Value does not contain set pointer")
-	}
-	return (*setData)(v.p)
+	return asImpl[*setImpl](v, "setPointer called on non-set Value").data
 }
 
-type mapImpl struct{ defaultImpl }
+type mapImpl struct {
+	defaultImpl
+	data *mapData
+}
 
 func (mapImpl) hash(v Value) string {
 	entries := v.MapEntries()
@@ -553,7 +543,10 @@ func (mapImpl) conj(v Value, entries ...Value) Value {
 	return newMapValue(items)
 }
 
-type setImpl struct{ defaultImpl }
+type setImpl struct {
+	defaultImpl
+	data *setData
+}
 
 func (setImpl) hash(v Value) string {
 	values := v.SetValues()

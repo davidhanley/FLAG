@@ -6,7 +6,10 @@ import (
 	"strconv"
 )
 
-type ratioImpl struct{ defaultImpl }
+type ratioImpl struct {
+	defaultImpl
+	rat *big.Rat
+}
 
 func (ratioImpl) hash(v Value) string {
 	if v.Ratio().IsInt() {

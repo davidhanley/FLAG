@@ -46,18 +46,17 @@ func MakeChannel(args ...Value) Value {
 	return newChannelValue(make(chan Value, capacity))
 }
 
+type channelImpl struct {
+	defaultImpl
+	ch *ChannelObject
+}
+
 func newChannelValue(ch chan Value) Value {
-	return makeValue(TagChannel, 0, unsafe.Pointer(&ChannelObject{data: ch, done: make(chan struct{})}))
+	return makeValue(TagChannel, 0, &channelImpl{ch: &ChannelObject{data: ch, done: make(chan struct{})}})
 }
 
 func (v Value) ChannelObject() *ChannelObject {
-	if v.tag != TagChannel {
-		panic("ChannelObject called on non-channel Value")
-	}
-	if v.p == nil {
-		panic("channel Value does not contain channel pointer")
-	}
-	return (*ChannelObject)(v.p)
+	return asImpl[*channelImpl](v, "ChannelObject called on non-channel Value").ch
 }
 
 // ChannelSend sends value on ch.
@@ -151,8 +150,6 @@ func ChannelSelect(args ...Value) Value {
 	}
 	return NewLong(count)
 }
-
-type channelImpl struct{ defaultImpl }
 
 func (channelImpl) hash(v Value) string {
 	return "C:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.ChannelObject()))), 16)

@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"strings"
-	"unsafe"
 )
 
 type arrayData struct {
@@ -109,7 +108,7 @@ func newArrayValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid array length")
 	}
-	return makeValue(TagArray, packLong(int64(length)), unsafe.Pointer(data))
+	return makeValue(TagArray, packLong(int64(length)), &arrayImpl{data: data})
 }
 
 func grownCapacity(length int) int {
@@ -124,20 +123,17 @@ func grownCapacity(length int) int {
 }
 
 func (v Value) arrayPointer() *arrayData {
-	if v.tag != TagArray {
-		panic("arrayPointer called on non-array Value")
-	}
-	if v.p == nil {
-		panic("array Value does not contain array pointer")
-	}
-	return (*arrayData)(v.p)
+	return asImpl[*arrayImpl](v, "arrayPointer called on non-array Value").data
 }
 
 func (v Value) arrayItems() []Value {
 	return v.arrayPointer().items
 }
 
-type arrayImpl struct{ defaultImpl }
+type arrayImpl struct {
+	defaultImpl
+	data *arrayData
+}
 
 func (arrayImpl) hash(v Value) string {
 	values := v.ArrayValues()

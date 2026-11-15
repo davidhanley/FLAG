@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"strings"
-	"unsafe"
 )
 
 type listNode struct {
@@ -71,20 +70,17 @@ func ListAppend(listValue Value, item Value) Value {
 }
 
 func newListValue(head *listNode, length int) Value {
-	return makeValue(TagList, packLong(int64(length)), unsafe.Pointer(head))
+	return makeValue(TagList, packLong(int64(length)), &listImpl{head: head})
 }
 
 func (v Value) listPointer() *listNode {
-	if v.tag != TagList {
-		panic("listPointer called on non-list Value")
-	}
-	if v.p == nil {
-		return nil
-	}
-	return (*listNode)(v.p)
+	return asImpl[*listImpl](v, "listPointer called on non-list Value").head
 }
 
-type listImpl struct{ defaultImpl }
+type listImpl struct {
+	defaultImpl
+	head *listNode
+}
 
 func (listImpl) hash(v Value) string {
 	values := v.ListValues()

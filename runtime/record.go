@@ -26,17 +26,11 @@ func NewRecord(v any) Value {
 		panic("NewRecord expects a Go struct")
 	}
 	box := &recordBox{value: v}
-	return makeValue(TagRecord, 0, unsafe.Pointer(box))
+	return makeValue(TagRecord, 0, &recordImpl{box: box})
 }
 
 func (v Value) recordBox() *recordBox {
-	if v.tag != TagRecord {
-		panic("record Value expected")
-	}
-	if v.p == nil {
-		panic("record Value does not contain a struct")
-	}
-	return (*recordBox)(v.p)
+	return asImpl[*recordImpl](v, "record Value expected").box
 }
 
 func GoStruct[T any](v Value) T {
@@ -146,10 +140,13 @@ func goValueToRecordField(field reflect.Value) Value {
 	}
 }
 
-type recordImpl struct{ defaultImpl }
+type recordImpl struct {
+	defaultImpl
+	box *recordBox
+}
 
 func (recordImpl) hash(v Value) string {
-	return "R:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+	return "R:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.recordBox()))), 16)
 }
 func (recordImpl) typ(Value) Value { return typeRecord }
 func (recordImpl) String(v Value) string {

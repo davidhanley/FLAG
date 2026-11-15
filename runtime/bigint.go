@@ -2,7 +2,10 @@ package runtime
 
 import "math/big"
 
-type bigIntImpl struct{ defaultImpl }
+type bigIntImpl struct {
+	defaultImpl
+	n *big.Int
+}
 
 func (bigIntImpl) hash(v Value) string {
 	return "I:" + v.BigInt().String()

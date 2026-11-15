@@ -26,21 +26,19 @@ func Atom(args ...Value) Value {
 		panic("atom expects 0 or 1 arguments")
 	}
 	a := &AtomObject{v: init}
-	return makeValue(TagAtom, 0, unsafe.Pointer(a))
+	return makeValue(TagAtom, 0, &atomImpl{atom: a})
 }
 
 func (v Value) AtomObject() *AtomObject {
-	if v.tag != TagAtom {
+	a, ok := v.impl.(*atomImpl)
+	if !ok {
 		panic(fmt.Sprintf("expected atom, got %s", v.String()))
 	}
-	if v.p == nil {
-		panic("atom Value does not contain atom pointer")
-	}
-	return (*AtomObject)(v.p)
+	return a.atom
 }
 
 func valueSlotEq(a, b Value) bool {
-	return a.tag == b.tag && a.p == b.p && math.Float64bits(a.d) == math.Float64bits(b.d)
+	return a.tag == b.tag && a.impl == b.impl && math.Float64bits(a.d) == math.Float64bits(b.d)
 }
 
 // Deref returns the current value of atom.
@@ -97,10 +95,13 @@ func Swap(args ...Value) Value {
 	}
 }
 
-type atomImpl struct{ defaultImpl }
+type atomImpl struct {
+	defaultImpl
+	atom *AtomObject
+}
 
 func (atomImpl) hash(v Value) string {
-	return "O:" + strconv.FormatUint(uint64(uintptr(v.p)), 16)
+	return "O:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.AtomObject()))), 16)
 }
 func (atomImpl) typ(Value) Value { return typeAtom }
 func (atomImpl) String(Value) string {

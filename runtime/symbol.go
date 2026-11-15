@@ -1,28 +1,25 @@
 package runtime
 
-import "unsafe"
-
 type SymbolObject struct {
 	Name      string
 	IsKeyword bool
 }
 
+type symbolImpl struct {
+	defaultImpl
+	obj *SymbolObject
+}
+
 func NewSymbol(name string) Value {
-	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name}))
+	return makeValue(TagSymbol, 0, &symbolImpl{obj: &SymbolObject{Name: name}})
 }
 
 func NewKeyword(name string) Value {
-	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name, IsKeyword: true}))
+	return makeValue(TagSymbol, 0, &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: true}})
 }
 
 func (v Value) SymbolObject() *SymbolObject {
-	if v.tag != TagSymbol {
-		panic("SymbolObject called on non-symbol Value")
-	}
-	if v.p == nil {
-		panic("symbol Value does not contain symbol pointer")
-	}
-	return (*SymbolObject)(v.p)
+	return asImpl[*symbolImpl](v, "SymbolObject called on non-symbol Value").obj
 }
 
 func Symbol(arg any) Value {
@@ -68,8 +65,6 @@ func Name(arg any) string {
 		panic("name expects symbol or keyword")
 	}
 }
-
-type symbolImpl struct{ defaultImpl }
 
 func (symbolImpl) hash(v Value) string {
 	symbol := v.SymbolObject()

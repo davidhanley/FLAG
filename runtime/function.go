@@ -9,21 +9,20 @@ type FunctionObject struct {
 	Fn func(args ...Value) Value
 }
 
+type functionImpl struct {
+	defaultImpl
+	obj *FunctionObject
+}
+
 func NewFunction(fn func(args ...Value) Value) Value {
 	if fn == nil {
 		panic("NewFunction expects non-nil function")
 	}
-	return makeValue(TagFunction, 0, unsafe.Pointer(&FunctionObject{Fn: fn}))
+	return makeValue(TagFunction, 0, &functionImpl{obj: &FunctionObject{Fn: fn}})
 }
 
 func (v Value) FunctionObject() *FunctionObject {
-	if v.tag != TagFunction {
-		panic("FunctionObject called on non-function Value")
-	}
-	if v.p == nil {
-		panic("function Value does not contain function pointer")
-	}
-	return (*FunctionObject)(v.p)
+	return asImpl[*functionImpl](v, "FunctionObject called on non-function Value").obj
 }
 
 // Fn invokes a function Value. Compiled FLAG uses this for `def`/`GoBind`
@@ -74,8 +73,6 @@ func Call(fn Value, args ...Value) Value {
 	}
 	panic("call expects function, map, set, or keyword Value")
 }
-
-type functionImpl struct{ defaultImpl }
 
 func (functionImpl) hash(v Value) string {
 	return "F:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FunctionObject()))), 16)

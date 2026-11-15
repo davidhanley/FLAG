@@ -3,15 +3,19 @@ package runtime
 import (
 	"fmt"
 	"time"
-	"unsafe"
 )
 
 type DateObject struct {
 	Time time.Time
 }
 
+type dateImpl struct {
+	defaultImpl
+	obj *DateObject
+}
+
 func NewDate(t time.Time) Value {
-	return makeValue(TagDate, 0, unsafe.Pointer(&DateObject{Time: normalizeDateTime(t)}))
+	return makeValue(TagDate, 0, &dateImpl{obj: &DateObject{Time: normalizeDateTime(t)}})
 }
 
 func NewDateFromYMD(year, month, day int) Value {
@@ -19,13 +23,7 @@ func NewDateFromYMD(year, month, day int) Value {
 }
 
 func (v Value) DateObject() *DateObject {
-	if v.tag != TagDate {
-		panic("DateObject called on non-date Value")
-	}
-	if v.p == nil {
-		panic("date Value does not contain date pointer")
-	}
-	return (*DateObject)(v.p)
+	return asImpl[*dateImpl](v, "DateObject called on non-date Value").obj
 }
 
 func (v Value) DateTime() time.Time {
@@ -80,8 +78,6 @@ func dateString(v Value) string {
 		entries[2].Key.String(), entries[2].Value.String(),
 	)
 }
-
-type dateImpl struct{ defaultImpl }
 
 func (dateImpl) hash(v Value) string {
 	return "D:" + v.DateTime().UTC().Format("2006-01-02")

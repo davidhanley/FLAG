@@ -2,8 +2,10 @@
 
 Part of **[The FLAG Book](flag-book.md)**.
 
-Runtime `Value` is still a tagged immediate (`d`, `p`, `tag`) plus a small
-per-type vtable:
+Runtime `Value` is a tagged immediate (`d`, `tag`) plus a per-type `impl`.
+Heap payload lives on that impl (for example `*stringImpl.value`), not on
+an `unsafe.Pointer` field. `d` still holds longs, doubles, bools, and packed
+collection lengths.
 
 ```go
 type impl interface {
@@ -68,7 +70,6 @@ type impl interface {
 
 type Value struct {
     d    float64
-    p    unsafe.Pointer
     tag  ValueTag
     impl impl
 }
@@ -76,8 +77,9 @@ type Value struct {
 
 `hash` / `typ` / `String` / `assoc` / `dissoc` / `get` / `contains` take the
 `Value` so longs and bools can still read `d`. Constructors go through
-`makeValue`, which always fills `impl`. `TypeOf` and hashing call `v.impl`
-directly. Printing is `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
+`makeValue(tag, d, impl)`. Immediates may pass a nil impl and get the
+singleton from `implFor(tag)`; heap values pass a `*typeImpl` that owns
+their data. `TypeOf` and hashing call `v.impl` directly. Printing is `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
 is no `ValueToString`. `Assoc` is `v.impl.assoc(v, entries...)`. Map, array, and
 vector override `assoc`. `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`;
 map and nil override `dissoc`. `Get` is `v.impl.get(v, key, missing)` after arity

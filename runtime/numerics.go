@@ -32,11 +32,11 @@ func Denominator(v Value) Value {
 
 func NewRatio(numerator, denominator int64) Value {
 	rat := big.NewRat(numerator, denominator)
-	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
+	return NewRatioFromRat(rat)
 }
 
 func NewRatioFromRat(rat *big.Rat) Value {
-	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
+	return makeValue(TagRatio, 0, &ratioImpl{rat: rat})
 }
 
 func NewBigInt(v int64) Value {
@@ -56,7 +56,7 @@ func NewBigIntFromBigInt(v *big.Int) Value {
 		panic("NewBigIntFromBigInt expects non-nil big.Int")
 	}
 	copied := new(big.Int).Set(v)
-	return makeValue(TagBigInt, 0, unsafe.Pointer(copied))
+	return makeValue(TagBigInt, 0, &bigIntImpl{n: copied})
 }
 
 func NewBool(v bool) Value {
@@ -289,10 +289,11 @@ func ValueToAny(v Value) any {
 }
 
 func (v Value) ratioPointer() *big.Rat {
-	if v.p == nil {
+	r := asImpl[*ratioImpl](v, "ratio Value does not contain rat pointer").rat
+	if r == nil {
 		panic("ratio Value does not contain rat pointer")
 	}
-	return (*big.Rat)(v.p)
+	return r
 }
 
 func ratToFloat64(r *big.Rat) float64 {
@@ -337,10 +338,11 @@ func compareFloat64(lhs, rhs float64) int {
 }
 
 func (v Value) bigIntPointer() *big.Int {
-	if v.p == nil {
+	n := asImpl[*bigIntImpl](v, "bigint Value does not contain big.Int pointer").n
+	if n == nil {
 		panic("bigint Value does not contain big.Int pointer")
 	}
-	return (*big.Int)(v.p)
+	return n
 }
 
 func ensureNumericOperands(op string, lhs, rhs Value) {

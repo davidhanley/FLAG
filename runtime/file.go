@@ -29,21 +29,20 @@ func (f *FileObject) bufferedReaderLocked() *bufio.Reader {
 	return f.lineReader
 }
 
+type fileImpl struct {
+	defaultImpl
+	file *FileObject
+}
+
 func NewFile(file *os.File) Value {
 	if file == nil {
 		panic("NewFile expects non-nil file")
 	}
-	return makeValue(TagFile, 0, unsafe.Pointer(&FileObject{File: file, Path: file.Name()}))
+	return makeValue(TagFile, 0, &fileImpl{file: &FileObject{File: file, Path: file.Name()}})
 }
 
 func (v Value) FileObject() *FileObject {
-	if v.tag != TagFile {
-		panic("FileObject called on non-file Value")
-	}
-	if v.p == nil {
-		panic("file Value does not contain file pointer")
-	}
-	return (*FileObject)(v.p)
+	return asImpl[*fileImpl](v, "FileObject called on non-file Value").file
 }
 
 func (v Value) Close() error {
@@ -69,8 +68,6 @@ func (f *FileObject) Close() error {
 	f.lineReader = nil
 	return f.File.Close()
 }
-
-type fileImpl struct{ defaultImpl }
 
 func (fileImpl) hash(v Value) string {
 	return "H:" + v.FileObject().Path + ":" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FileObject()))), 16)

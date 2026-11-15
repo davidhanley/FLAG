@@ -88,7 +88,6 @@ type impl interface {
 
 type Value struct {
 	d    float64
-	p    unsafe.Pointer
 	tag  ValueTag
 	impl impl
 }
@@ -99,8 +98,19 @@ func packLong(n int64) float64 {
 	return d
 }
 
-func makeValue(tag ValueTag, d float64, p unsafe.Pointer) Value {
-	return Value{d: d, p: p, tag: tag, impl: implFor(tag)}
+func makeValue(tag ValueTag, d float64, impl impl) Value {
+	if impl == nil {
+		impl = implFor(tag)
+	}
+	return Value{d: d, tag: tag, impl: impl}
+}
+
+func asImpl[T impl](v Value, msg string) T {
+	x, ok := v.impl.(T)
+	if !ok {
+		panic(msg)
+	}
+	return x
 }
 
 func (v Value) String() string {

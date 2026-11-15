@@ -42,17 +42,11 @@ func newLazyListValue(state *lazyListState, remaining int64, index int) Value {
 		panic("lazy list expects non-nil state")
 	}
 	view := &lazyListView{state: state, index: index}
-	return makeValue(TagLazyList, packLong(remaining), unsafe.Pointer(view))
+	return makeValue(TagLazyList, packLong(remaining), &lazyListImpl{view: view})
 }
 
 func (v Value) lazyListViewPointer() *lazyListView {
-	if v.tag != TagLazyList {
-		panic("lazyListViewPointer called on non-lazy-list Value")
-	}
-	if v.p == nil {
-		panic("lazy list Value does not contain view pointer")
-	}
-	return (*lazyListView)(v.p)
+	return asImpl[*lazyListImpl](v, "lazyListViewPointer called on non-lazy-list Value").view
 }
 
 func (v Value) lazyListPointer() *lazyListState {
@@ -147,7 +141,10 @@ func (s *lazyListState) produceOne() bool {
 	return true
 }
 
-type lazyListImpl struct{ defaultImpl }
+type lazyListImpl struct {
+	defaultImpl
+	view *lazyListView
+}
 
 func (lazyListImpl) hash(v Value) string {
 	return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)

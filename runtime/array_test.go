@@ -47,7 +47,7 @@ func TestArrayAppendReusesBackingWhenCapacityAvailable(t *testing.T) {
 	original := newArrayValue(backing, 2)
 	appended := ArrayAppend(original, NewLong(3))
 
-	if original.p != appended.p {
+	if original.arrayPointer() != appended.arrayPointer() {
 		t.Fatal("expected append to reuse backing storage")
 	}
 	if got := original.ArrayLen(); got != 2 {

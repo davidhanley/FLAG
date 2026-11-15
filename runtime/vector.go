@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"strings"
-	"unsafe"
 )
 
 func NewVector(values ...Value) Value {
@@ -90,24 +89,21 @@ func newVectorValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid vector length")
 	}
-	return makeValue(TagVector, packLong(int64(length)), unsafe.Pointer(data))
+	return makeValue(TagVector, packLong(int64(length)), &vectorImpl{data: data})
 }
 
 func (v Value) vectorPointer() *arrayData {
-	if v.tag != TagVector {
-		panic("vectorPointer called on non-vector Value")
-	}
-	if v.p == nil {
-		panic("vector Value does not contain vector pointer")
-	}
-	return (*arrayData)(v.p)
+	return asImpl[*vectorImpl](v, "vectorPointer called on non-vector Value").data
 }
 
 func (v Value) vectorItems() []Value {
 	return v.vectorPointer().items
 }
 
-type vectorImpl struct{ defaultImpl }
+type vectorImpl struct {
+	defaultImpl
+	data *arrayData
+}
 
 func (vectorImpl) hash(v Value) string {
 	values := v.VectorValues()
