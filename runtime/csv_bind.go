@@ -192,16 +192,15 @@ func goArgBool(name string, idx int, v Value) bool {
 }
 
 func goArgRune(name string, idx int, v Value) rune {
-	switch v.impl.(type) {
-	case *stringImpl:
+	if isType[*stringImpl](v) {
 		s := v.StringValue()
 		if len([]rune(s)) != 1 {
 			panic(fmt.Sprintf("%s argument %d: expected single character string, got %q", name, idx+1, s))
 		}
 		return []rune(s)[0]
-	case longImpl:
-		return rune(v.Long())
-	default:
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
 	}
+	if isType[longImpl](v) {
+		return rune(v.Long())
+	}
+	panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
 }

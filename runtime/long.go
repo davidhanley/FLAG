@@ -41,7 +41,19 @@ func (longImpl) toFloat64(v Value) float64       { return float64(v.Long()) }
 func (longImpl) toRat(v Value) *big.Rat          { return longRat(v.Long()) }
 func (longImpl) toBigInt(v Value) *big.Int       { return big.NewInt(v.Long()) }
 func (longImpl) bitLong(v Value, _ string) int64 { return v.Long() }
-func (longImpl) addLong(v Value, n int64) Value  { return addLongs(n, v.Long()) }
+func (longImpl) asIndex(v Value) (int, bool) {
+	if v.Long() < 0 {
+		return 0, false
+	}
+	return int(v.Long()), true
+}
+func (longImpl) asCount(v Value, name string) int {
+	if v.Long() < 0 {
+		panic(name + " expects non-negative count")
+	}
+	return int(v.Long())
+}
+func (longImpl) addLong(v Value, n int64) Value { return addLongs(n, v.Long()) }
 func (longImpl) addDouble(v Value, n float64) Value {
 	return NewDouble(n + float64(v.Long()))
 }

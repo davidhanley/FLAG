@@ -114,6 +114,9 @@ func (dateImpl) toJSON(v Value) (any, error) {
 		"day":   v.DateDay(),
 	}, nil
 }
+func (dateImpl) apply(v Value, args ...Value) Value {
+	return lookupApply(v, args, "map")
+}
 func (dateImpl) count(v Value) int      { return len(dateEntries(v)) }
 func (dateImpl) isEmpty(v Value) bool   { return len(dateEntries(v)) == 0 }
 func (dateImpl) notEmpty(v Value) Value { return notEmptyIf(v, len(dateEntries(v)) == 0) }

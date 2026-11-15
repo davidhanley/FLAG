@@ -41,6 +41,9 @@ type impl interface {
     toNative(v Value) any
     asString(v Value) string
     asIdent(v Value) (string, bool)
+    apply(v Value, args ...Value) Value
+    asIndex(v Value) (int, bool)
+    asCount(v Value, name string) int
     toJSON(v Value) (any, error)
     name(v Value) string
     exMessage(v Value) Value
@@ -100,6 +103,11 @@ empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `toAny`, Go/native unbox is `toNative`, JSON is `toJSON`, `name` is `name`,
 `ex-message` is `exMessage`, and string/symbol names use `asIdent`/`asString`.
 Array `toAny` is `[]any`; file `toNative` is the host `*os.File`.
+`Call` is `fn.impl.apply(fn, args...)`. Keywords look up themselves in the
+argument (`(:name person)` is `(get person :name)`). Maps, dates, and records
+look up the argument in themselves (`({:a 1} :a)`). Sets return the member or
+the optional default. Functions run `Fn`. `asIndex` / `asCount` unbox non-negative
+integers without a type switch.
 
 Binary math is double-dispatch, not a tag switch. `(+ a b)` is `flagrt.Add(a, b)`
 → `a.impl.add(a, b)`. If `a` is a long it unboxes and calls
@@ -112,8 +120,8 @@ those calls panic.
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops). Required
 methods (`hash`, `typ`, `String`) live on each type’s file (`string.go`,
 `long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
-stay in that same file. Remaining Go type checks use `isType[T]` or a type
-switch on `v.impl`.
+stay in that same file. Remaining Go type checks use `isType[T]` or a solitary
+`asImpl[T]` assertion. Avoid switching on `v.impl`.
 
 Do not put every FLAG function on `impl` yet. When types are known at compile
 time, `(+ a b)` can skip the first hop (`b.addLong(a.longValue)`) or become a

@@ -33,45 +33,17 @@ func (v Value) Fn(args ...Value) Value {
 }
 
 func Call(fn Value, args ...Value) Value {
-	switch fn.impl.(type) {
-	case *functionImpl:
-		return fn.FunctionObject().Fn(args...)
-	case *mapImpl, *dateImpl, *recordImpl:
-		if len(args) != 1 && len(args) != 2 {
-			panic("map invocation expects key and optional default")
-		}
-		if len(args) == 1 {
-			return Get(fn, args[0])
-		}
-		return Get(fn, args[0], args[1])
-	case *setImpl:
-		if len(args) != 1 && len(args) != 2 {
-			panic("set invocation expects value and optional default")
-		}
-		if Contains(fn, args[0]) {
-			return args[0]
-		}
-		if len(args) == 2 {
-			return args[1]
-		}
-		return NilValue
-	case *symbolImpl:
-		symbol := fn.SymbolObject()
-		if !symbol.IsKeyword {
-			break
-		}
-		if len(args) != 1 && len(args) != 2 {
-			panic("keyword invocation expects map and optional default")
-		}
-		key := NewKeyword(symbol.Name)
-		if len(args) == 1 {
-			return Get(args[0], key)
-		}
-		return Get(args[0], key, args[1])
-	default:
-		// fall through
+	return fn.impl.apply(fn, args...)
+}
+
+func lookupApply(coll Value, args []Value, kind string) Value {
+	if len(args) != 1 && len(args) != 2 {
+		panic(kind + " invocation expects key and optional default")
 	}
-	panic("call expects function, map, set, or keyword Value")
+	if len(args) == 1 {
+		return Get(coll, args[0])
+	}
+	return Get(coll, args[0], args[1])
 }
 
 func (functionImpl) hash(v Value) string {
@@ -83,4 +55,7 @@ func (functionImpl) String(Value) string {
 }
 func (functionImpl) toJSON(Value) (any, error) {
 	return "#<fn>", nil
+}
+func (functionImpl) apply(v Value, args ...Value) Value {
+	return v.FunctionObject().Fn(args...)
 }

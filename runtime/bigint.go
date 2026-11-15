@@ -20,6 +20,23 @@ func (bigIntImpl) toJSON(v Value) (any, error) {
 	return v.BigInt().String(), nil
 }
 func (bigIntImpl) isNumeric(Value) bool { return true }
+func (bigIntImpl) asIndex(v Value) (int, bool) {
+	bi := v.BigInt()
+	if bi.Sign() < 0 || bi.BitLen() > 62 {
+		return 0, false
+	}
+	return int(bi.Int64()), true
+}
+func (bigIntImpl) asCount(v Value, name string) int {
+	bi := v.BigInt()
+	if bi.Sign() < 0 {
+		panic(name + " expects non-negative count")
+	}
+	if bi.BitLen() > 62 {
+		panic(name + " count is too large")
+	}
+	return int(bi.Int64())
+}
 func (bigIntImpl) add(a, b Value) Value {
 	return b.impl.addBigInt(b, a.BigInt())
 }

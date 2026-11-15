@@ -73,24 +73,7 @@ func ChannelPipeReduce(fn, init, inch Value) Value {
 // Non-blocking: returns the output channel immediately.
 func ChannelLinesPipe(source Value) Value {
 	out := newChannelValue(make(chan Value, pipeBufferSize))
-	switch source.impl.(type) {
-	case *stringImpl:
-		path := source.StringValue()
-		f, err := os.Open(path)
-		if err != nil {
-			panic("channel-lines: cannot open file: " + err.Error())
-		}
-		go func() {
-			defer f.Close()
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				if !ChannelSend(out, NewString(scanner.Text())).Bool() {
-					return
-				}
-			}
-			ChannelClose(out)
-		}()
-	case *fileImpl:
+	if isType[*fileImpl](source) {
 		fo := source.FileObject()
 		go func() {
 			fo.mu.Lock()
@@ -107,8 +90,25 @@ func ChannelLinesPipe(source Value) Value {
 			}
 			ChannelClose(out)
 		}()
-	default:
+		return out
+	}
+	path, ok := source.impl.asIdent(source)
+	if !ok {
 		panic("channel-lines: source must be a string path or file")
 	}
+	f, err := os.Open(path)
+	if err != nil {
+		panic("channel-lines: cannot open file: " + err.Error())
+	}
+	go func() {
+		defer f.Close()
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			if !ChannelSend(out, NewString(scanner.Text())).Bool() {
+				return
+			}
+		}
+		ChannelClose(out)
+	}()
 	return out
 }

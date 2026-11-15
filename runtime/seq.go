@@ -454,10 +454,7 @@ func Into(coll Value, from Value) Value {
 }
 
 func conjMapEntry(entry Value) (Value, Value) {
-	switch entry.impl.(type) {
-	case *listImpl, *arrayImpl, *vectorImpl, *lazyListImpl:
-		// valid pair sequence input
-	default:
+	if !entry.impl.seqQ(entry) {
 		panic("conj on map expects pair sequences")
 	}
 	cursor := newSeqCursor(entry)
@@ -487,11 +484,7 @@ func notEmptyIf(coll Value, empty bool) Value {
 }
 
 func DoAll(coll Value) Value {
-	switch coll.impl.(type) {
-	case *listImpl, *arrayImpl, *vectorImpl, *lazyListImpl:
-		// Realize seqable collections.
-	default:
-		// Non-seq values are already realized; keep doall as a no-op.
+	if !coll.impl.seqQ(coll) {
 		return coll
 	}
 	cursor := newSeqCursor(coll)
@@ -826,24 +819,7 @@ func rangeArgLong(name string, value Value) int64 {
 }
 
 func nonNegativeCount(name string, value Value) int {
-	switch value.impl.(type) {
-	case longImpl:
-		if value.Long() < 0 {
-			panic(name + " expects non-negative count")
-		}
-		return int(value.Long())
-	case *bigIntImpl:
-		bi := value.BigInt()
-		if bi.Sign() < 0 {
-			panic(name + " expects non-negative count")
-		}
-		if bi.BitLen() > 62 {
-			panic(name + " count is too large")
-		}
-		return int(bi.Int64())
-	default:
-		panic(name + " expects integer count")
-	}
+	return value.impl.asCount(value, name)
 }
 
 type seqCursorKind uint8

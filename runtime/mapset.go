@@ -329,17 +329,11 @@ func MapAssoc(coll Value, entries ...Value) Value {
 	if len(entries) < 2 || len(entries)%2 != 0 {
 		panic("assoc expects collection and key/value pairs")
 	}
-
-	switch coll.impl.(type) {
-	case *mapImpl:
-		items := coll.mapPointer().items
-		for i := 0; i < len(entries); i += 2 {
-			items = items.Set(entries[i], entries[i+1])
-		}
-		return newMapValue(items)
-	default:
-		panic("assoc expects map Value")
+	items := coll.mapPointer().items
+	for i := 0; i < len(entries); i += 2 {
+		items = items.Set(entries[i], entries[i+1])
 	}
+	return newMapValue(items)
 }
 
 func Dissoc(coll Value, keys ...Value) Value {
@@ -358,21 +352,7 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 }
 
 func associativeIndex(key Value) (int, bool) {
-	switch key.impl.(type) {
-	case longImpl:
-		if key.Long() < 0 {
-			return 0, false
-		}
-		return int(key.Long()), true
-	case *bigIntImpl:
-		bi := key.BigInt()
-		if bi.Sign() < 0 || bi.BitLen() > 62 {
-			return 0, false
-		}
-		return int(bi.Int64()), true
-	default:
-		return 0, false
-	}
+	return key.impl.asIndex(key)
 }
 
 func Contains(coll Value, key Value) bool {
@@ -384,34 +364,29 @@ func MapDissoc(coll Value, keys ...Value) Value {
 }
 
 func (v Value) MapLen() int {
-	switch v.impl.(type) {
-	case *mapImpl:
+	if isType[*mapImpl](v) {
 		return v.mapPointer().items.Len()
-	case *dateImpl:
-		return len(dateEntries(v))
-	default:
-		panic("MapLen called on non-map Value")
 	}
+	if isType[*dateImpl](v) {
+		return len(dateEntries(v))
+	}
+	panic("MapLen called on non-map Value")
 }
 
 func (v Value) MapEntries() []MapEntry {
-	switch v.impl.(type) {
-	case *mapImpl:
-		itr := v.mapPointer().items.Iterator()
-		entries := make([]MapEntry, 0, v.MapLen())
-		for !itr.Done() {
-			key, value, _ := itr.Next()
-			entries = append(entries, MapEntry{Key: key, Value: value})
-		}
-		sort.Slice(entries, func(i, j int) bool {
-			return valueIdentity(entries[i].Key) < valueIdentity(entries[j].Key)
-		})
-		return entries
-	case *dateImpl:
+	if isType[*dateImpl](v) {
 		return dateEntries(v)
-	default:
-		panic("MapEntries called on non-map Value")
 	}
+	itr := v.mapPointer().items.Iterator()
+	entries := make([]MapEntry, 0, v.MapLen())
+	for !itr.Done() {
+		key, value, _ := itr.Next()
+		entries = append(entries, MapEntry{Key: key, Value: value})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return valueIdentity(entries[i].Key) < valueIdentity(entries[j].Key)
+	})
+	return entries
 }
 
 func (v Value) SetLen() int {
@@ -528,6 +503,9 @@ func (mapImpl) exMessage(v Value) Value {
 func (mapImpl) count(v Value) int      { return v.MapLen() }
 func (mapImpl) isEmpty(v Value) bool   { return v.MapLen() == 0 }
 func (mapImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.MapLen() == 0) }
+func (mapImpl) apply(v Value, args ...Value) Value {
+	return lookupApply(v, args, "map")
+}
 func (mapImpl) conj(v Value, entries ...Value) Value {
 	items := v.mapPointer().items
 	for _, entry := range entries {
@@ -616,4 +594,16 @@ func (setImpl) conj(v Value, entries ...Value) Value {
 		items = items.Add(item)
 	}
 	return newSetValue(items)
+}
+func (setImpl) apply(v Value, args ...Value) Value {
+	if len(args) != 1 && len(args) != 2 {
+		panic("set invocation expects value and optional default")
+	}
+	if Contains(v, args[0]) {
+		return args[0]
+	}
+	if len(args) == 2 {
+		return args[1]
+	}
+	return NilValue
 }

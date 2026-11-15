@@ -41,6 +41,9 @@ type impl interface {
 	toNative(v Value) any
 	asString(v Value) string
 	asIdent(v Value) (string, bool)
+	apply(v Value, args ...Value) Value
+	asIndex(v Value) (int, bool)
+	asCount(v Value, name string) int
 	toJSON(v Value) (any, error)
 	name(v Value) string
 	exMessage(v Value) Value

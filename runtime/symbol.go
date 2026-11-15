@@ -105,3 +105,15 @@ func (symbolImpl) toNative(v Value) any {
 func (symbolImpl) toJSON(v Value) (any, error) {
 	return symbolImpl{}.toNative(v), nil
 }
+func (symbolImpl) apply(v Value, args ...Value) Value {
+	if !v.SymbolObject().IsKeyword {
+		panic("call expects function, map, set, or keyword Value")
+	}
+	if len(args) != 1 && len(args) != 2 {
+		panic("keyword invocation expects map and optional default")
+	}
+	if len(args) == 1 {
+		return Get(args[0], v)
+	}
+	return Get(args[0], v, args[1])
+}

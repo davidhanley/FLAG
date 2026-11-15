@@ -90,6 +90,13 @@ func (defaultImpl) asString(v Value) string {
 	return v.String()
 }
 func (defaultImpl) asIdent(Value) (string, bool) { return "", false }
+func (defaultImpl) apply(Value, ...Value) Value {
+	panic("call expects function, map, set, or keyword Value")
+}
+func (defaultImpl) asIndex(Value) (int, bool) { return 0, false }
+func (defaultImpl) asCount(_ Value, name string) int {
+	panic(name + " expects integer count")
+}
 func (defaultImpl) toJSON(v Value) (any, error) {
 	return nil, fmt.Errorf("unsupported value type for JSON: %s", TypeOf(v).String())
 }
