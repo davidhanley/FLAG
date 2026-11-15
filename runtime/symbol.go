@@ -11,11 +11,11 @@ type symbolImpl struct {
 }
 
 func NewSymbol(name string) Value {
-	return makeValue(TagSymbol, 0, &symbolImpl{obj: &SymbolObject{Name: name}})
+	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name}}}
 }
 
 func NewKeyword(name string) Value {
-	return makeValue(TagSymbol, 0, &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: true}})
+	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: true}}}
 }
 
 func (v Value) SymbolObject() *SymbolObject {

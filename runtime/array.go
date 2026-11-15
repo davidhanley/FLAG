@@ -15,14 +15,14 @@ func NewArray(values ...Value) Value {
 }
 
 func (v Value) ArrayLen() int {
-	if v.tag != TagArray {
+	if !isType[*arrayImpl](v) {
 		panic("ArrayLen called on non-array Value")
 	}
 	return int(v.Long())
 }
 
 func (v Value) ArrayValues() []Value {
-	if v.tag != TagArray {
+	if !isType[*arrayImpl](v) {
 		panic("ArrayValues called on non-array Value")
 	}
 	items := v.arrayItems()
@@ -32,7 +32,7 @@ func (v Value) ArrayValues() []Value {
 }
 
 func ArrayGet(arrayValue Value, index int) Value {
-	if arrayValue.tag != TagArray {
+	if !isType[*arrayImpl](arrayValue) {
 		panic("ArrayGet expects array Value")
 	}
 	if index < 0 || index >= arrayValue.ArrayLen() {
@@ -43,7 +43,7 @@ func ArrayGet(arrayValue Value, index int) Value {
 }
 
 func ArrayAssoc(arrayValue Value, index int, item Value) Value {
-	if arrayValue.tag != TagArray {
+	if !isType[*arrayImpl](arrayValue) {
 		panic("ArrayAssoc expects array Value")
 	}
 	length := arrayValue.ArrayLen()
@@ -58,7 +58,7 @@ func ArrayAssoc(arrayValue Value, index int, item Value) Value {
 }
 
 func ArrayAppend(arrayValue Value, item Value) Value {
-	if arrayValue.tag != TagArray {
+	if !isType[*arrayImpl](arrayValue) {
 		panic("ArrayAppend expects array Value")
 	}
 	length := arrayValue.ArrayLen()
@@ -77,7 +77,7 @@ func ArrayAppend(arrayValue Value, item Value) Value {
 }
 
 func ArrayRest(arrayValue Value) Value {
-	if arrayValue.tag != TagArray {
+	if !isType[*arrayImpl](arrayValue) {
 		panic("ArrayRest expects array Value")
 	}
 	length := arrayValue.ArrayLen()
@@ -108,7 +108,7 @@ func newArrayValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid array length")
 	}
-	return makeValue(TagArray, packLong(int64(length)), &arrayImpl{data: data})
+	return Value{d: packLong(int64(length)), impl: &arrayImpl{data: data}}
 }
 
 func grownCapacity(length int) int {

@@ -14,7 +14,7 @@ type recurPayload struct {
 func NewRecur(values ...Value) Value {
 	copied := append([]Value(nil), values...)
 	payload := &recurPayload{values: copied}
-	return makeValue(TagRecur, 0, &recurImpl{payload: payload})
+	return Value{impl: &recurImpl{payload: payload}}
 }
 
 // UnwrapRecur returns loop replacement values when v is a recur marker.

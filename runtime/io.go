@@ -23,7 +23,7 @@ func OpenFile(path string) Value {
 
 // CloseFile closes a FLAG file Value. Idempotent; panics on a non-file.
 func CloseFile(v Value) Value {
-	if v.tag != TagFile {
+	if !isType[*fileImpl](v) {
 		panic("close-file expects a file")
 	}
 	if err := v.Close(); err != nil {
@@ -44,8 +44,8 @@ func OpenWriter(path string) Value {
 }
 
 func Write(file Value, content string) Value {
-	switch file.tag {
-	case TagFile:
+	switch file.impl.(type) {
+	case *fileImpl:
 		f := file.FileObject()
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -66,8 +66,8 @@ func LineSeq(file Value) Value {
 }
 
 func ReadLine(file Value) Value {
-	switch file.tag {
-	case TagFile:
+	switch file.impl.(type) {
+	case *fileImpl:
 		return readLineFile(file.FileObject())
 	default:
 		panic("io/readline expects a file")
@@ -146,12 +146,12 @@ func readLineFile(file *FileObject) Value {
 }
 
 func FileToStrings(file Value) Value {
-	switch file.tag {
-	case TagFile:
+	switch file.impl.(type) {
+	case *fileImpl:
 		return fileToStringsFile(file.FileObject())
-	case TagString:
+	case *stringImpl:
 		return FileToStringsPath(file.StringValue())
-	case TagSymbol:
+	case *symbolImpl:
 		return FileToStringsPath(Name(file))
 	default:
 		panic("file-to-strings expects a file, string, symbol, or keyword")

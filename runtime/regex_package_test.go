@@ -5,32 +5,32 @@ import "testing"
 func TestRegexPackageFunctionsAreRegistered(t *testing.T) {
 	compile := GoFunction("regex/compile")
 	matcher := Call(compile, NewString("^he.*o$"))
-	if matcher.tag != TagFunction {
+	if !isType[*functionImpl](matcher) {
 		t.Fatalf("expected matcher function, got %#v", matcher)
 	}
-	if got := Call(matcher, NewString("hello")); got.tag != TagBool || !got.Bool() {
+	if got := Call(matcher, NewString("hello")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected match for hello, got %#v", got)
 	}
 
-	if got := Call(GoFunction("re-pattern"), NewString("^he.*o$")); got.tag != TagFunction {
+	if got := Call(GoFunction("re-pattern"), NewString("^he.*o$")); !isType[*functionImpl](got) {
 		t.Fatalf("expected re-pattern matcher function, got %#v", got)
 	}
-	if got := Call(GoFunction("re-matches"), matcher, NewString("hello")); got.tag != TagBool || !got.Bool() {
+	if got := Call(GoFunction("re-matches"), matcher, NewString("hello")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected re-matches truthy result, got %#v", got)
 	}
-	if got := Call(GoFunction("re-matches"), matcher, NewString("bye")); got.tag != TagBool || got.Bool() {
+	if got := Call(GoFunction("re-matches"), matcher, NewString("bye")); !isType[boolImpl](got) || got.Bool() {
 		t.Fatalf("expected re-matches false result, got %#v", got)
 	}
 
 	caseInsensitive := Call(compile, NewString("^hello$"), NewLong(0x02))
-	if caseInsensitive.tag != TagFunction {
+	if !isType[*functionImpl](caseInsensitive) {
 		t.Fatalf("expected regex/compile with flags to return matcher function, got %#v", caseInsensitive)
 	}
-	if got := Call(caseInsensitive, NewString("HELLO")); got.tag != TagBool || !got.Bool() {
+	if got := Call(caseInsensitive, NewString("HELLO")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected case-insensitive match for HELLO, got %#v", got)
 	}
 
-	if got := Call(compile, matcher, NewString("hello")); got.tag != TagBool || !got.Bool() {
+	if got := Call(compile, matcher, NewString("hello")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected two-arity regex/compile matcher+value to return true, got %#v", got)
 	}
 }
@@ -43,7 +43,7 @@ func TestSomeWorksWithRegexMatcher(t *testing.T) {
 			return args[0]
 		}
 		return NilValue
-	}), values); got.tag != TagString || got.StringValue() != "hello" {
+	}), values); !isType[*stringImpl](got) || got.StringValue() != "hello" {
 		t.Fatalf("unexpected some regex result: %#v", got)
 	}
 }

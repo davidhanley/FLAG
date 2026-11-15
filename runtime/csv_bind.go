@@ -185,21 +185,21 @@ func optionKeyName(k Value) string {
 }
 
 func goArgBool(name string, idx int, v Value) bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to bool", name, idx+1, v.String()))
 	}
 	return v.Bool()
 }
 
 func goArgRune(name string, idx int, v Value) rune {
-	switch v.tag {
-	case TagString:
+	switch v.impl.(type) {
+	case *stringImpl:
 		s := v.StringValue()
 		if len([]rune(s)) != 1 {
 			panic(fmt.Sprintf("%s argument %d: expected single character string, got %q", name, idx+1, s))
 		}
 		return []rune(s)[0]
-	case TagLong:
+	case longImpl:
 		return rune(v.Long())
 	default:
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))

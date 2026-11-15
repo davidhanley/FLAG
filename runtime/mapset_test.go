@@ -18,7 +18,7 @@ func TestMapAndSetStringRendering(t *testing.T) {
 }
 
 func TestNewMapSupportsHashMapSemantics(t *testing.T) {
-	if got := NewMap(); got.tag != TagMap || got.MapLen() != 0 {
+	if got := NewMap(); !isType[*mapImpl](got) || got.MapLen() != 0 {
 		t.Fatalf("expected empty map from zero-arg NewMap, got %#v", got)
 	}
 
@@ -48,10 +48,10 @@ func TestAssocAndDissocMap(t *testing.T) {
 	if got := (Dissoc(NewMap(NewKeyword("a"), NewLong(1)))).String(); got != "{:a 1}" {
 		t.Fatalf("unexpected no-op dissoc result: %q", got)
 	}
-	if got := Dissoc(NilValue); got.tag != TagNil {
+	if got := Dissoc(NilValue); !IsNil(got) {
 		t.Fatalf("expected nil dissoc on nil, got %v", ValueToAny(got))
 	}
-	if got := Dissoc(NilValue, NewKeyword("a"), NewKeyword("b")); got.tag != TagNil {
+	if got := Dissoc(NilValue, NewKeyword("a"), NewKeyword("b")); !IsNil(got) {
 		t.Fatalf("expected nil dissoc with keys on nil, got %v", ValueToAny(got))
 	}
 }
@@ -108,7 +108,7 @@ func TestGetFromMap(t *testing.T) {
 	if got := Get(m, NewKeyword("a")); got.Long() != 1 {
 		t.Fatalf("expected map get 1, got %v", ValueToAny(got))
 	}
-	if got := Get(m, NewKeyword("missing")); got.tag != TagNil {
+	if got := Get(m, NewKeyword("missing")); !IsNil(got) {
 		t.Fatalf("expected nil for missing key, got %v", ValueToAny(got))
 	}
 	if got := Get(m, NewKeyword("missing"), NewLong(42)); got.Long() != 42 {
@@ -121,13 +121,13 @@ func TestGetFromArrayVectorSetAndString(t *testing.T) {
 	if got := Get(arr, NewLong(1)); got.Long() != 2 {
 		t.Fatalf("expected array get 2, got %v", ValueToAny(got))
 	}
-	if got := Get(arr, NewLong(9)); got.tag != TagNil {
+	if got := Get(arr, NewLong(9)); !IsNil(got) {
 		t.Fatalf("expected nil for out-of-range array index, got %v", ValueToAny(got))
 	}
 	if got := Get(arr, NewLong(9), NewKeyword("missing")); !Eq(got, NewKeyword("missing")) {
 		t.Fatalf("expected default for out-of-range array index, got %v", ValueToAny(got))
 	}
-	if got := Get(arr, NewKeyword("a")); got.tag != TagNil {
+	if got := Get(arr, NewKeyword("a")); !IsNil(got) {
 		t.Fatalf("expected nil for non-index array key, got %v", ValueToAny(got))
 	}
 
@@ -140,7 +140,7 @@ func TestGetFromArrayVectorSetAndString(t *testing.T) {
 	if got := Get(s, NewLong(2)); got.Long() != 2 {
 		t.Fatalf("expected set get member, got %v", ValueToAny(got))
 	}
-	if got := Get(s, NewLong(3)); got.tag != TagNil {
+	if got := Get(s, NewLong(3)); !IsNil(got) {
 		t.Fatalf("expected nil for missing set member, got %v", ValueToAny(got))
 	}
 
@@ -202,7 +202,7 @@ func TestKeysAndVals(t *testing.T) {
 	if got := Vals(m).String(); got != "[1 2]" {
 		t.Fatalf("unexpected vals: %q", got)
 	}
-	if got := Vals(NilValue); got.tag != TagNil {
+	if got := Vals(NilValue); !IsNil(got) {
 		t.Fatalf("expected nil vals for nil map, got %v", ValueToAny(got))
 	}
 }
@@ -212,10 +212,10 @@ func TestFind(t *testing.T) {
 	if got := (Find(m, NewKeyword("a"))).String(); got != "[:a 1]" {
 		t.Fatalf("unexpected find entry: %q", got)
 	}
-	if got := Find(m, NewKeyword("z")); got.tag != TagNil {
+	if got := Find(m, NewKeyword("z")); !IsNil(got) {
 		t.Fatalf("expected nil for missing find key, got %v", ValueToAny(got))
 	}
-	if got := Find(NilValue, NewKeyword("a")); got.tag != TagNil {
+	if got := Find(NilValue, NewKeyword("a")); !IsNil(got) {
 		t.Fatalf("expected nil find on nil map, got %v", ValueToAny(got))
 	}
 }
@@ -251,7 +251,7 @@ func TestSetAndSetMapHelpers(t *testing.T) {
 		t.Fatalf("unexpected map-invert: %q", got)
 	}
 	evenFn := NewFunction(func(args ...Value) Value {
-		if len(args) != 1 || args[0].tag != TagLong {
+		if len(args) != 1 || !isType[longImpl](args[0]) {
 			panic("evenFn expects one long")
 		}
 		return NewBool(args[0].Long()%2 == 0)

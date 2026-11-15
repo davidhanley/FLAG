@@ -18,7 +18,7 @@ func seedRand(seed int64) {
 }
 
 func RandInt(max Value) Value {
-	if max.tag != TagLong && max.tag != TagBigInt {
+	if !isType[longImpl](max) && !isType[*bigIntImpl](max) {
 		panic("rand-int expects an integer Value")
 	}
 	n := valueToBigInt(max)

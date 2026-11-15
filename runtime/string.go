@@ -16,7 +16,7 @@ type stringImpl struct {
 }
 
 func NewString(value string) Value {
-	return makeValue(TagString, 0, &stringImpl{value: value})
+	return Value{impl: &stringImpl{value: value}}
 }
 
 func (v Value) StringObject() *StringObject {
@@ -105,7 +105,7 @@ func (stringImpl) toJSON(v Value) (any, error) { return v.StringValue(), nil }
 func (stringImpl) exMessage(v Value) Value     { return v }
 
 func Subs(s Value, start Value, end ...Value) Value {
-	if s.tag != TagString {
+	if !isType[*stringImpl](s) {
 		panic("subs expects a string")
 	}
 	if len(end) > 1 {

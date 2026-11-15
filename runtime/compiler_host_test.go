@@ -117,7 +117,7 @@ func TestGoModTidyRejectsEmpty(t *testing.T) {
 
 func TestCompilerHostGoFnDispatch(t *testing.T) {
 	formatted := Call(GoFunction("compiler/format-go-source"), NewString("package p\nfunc F(){}\n"))
-	if formatted.tag != TagString || !strings.Contains(formatted.StringValue(), "func F()") {
+	if !isType[*stringImpl](formatted) || !strings.Contains(formatted.StringValue(), "func F()") {
 		t.Fatalf("go-fn format %#v", formatted)
 	}
 	kind := Call(GoFunction("compiler/path-stat-kind"), NewString("."))

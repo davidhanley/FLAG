@@ -101,10 +101,10 @@ func findEntry(key Value, value Value, ok bool) Value {
 func Union(sets ...Value) Value {
 	items := immutable.NewSet[Value](valueHasher{})
 	for _, set := range sets {
-		if set.tag == TagNil {
+		if IsNil(set) {
 			continue
 		}
-		if set.tag != TagSet {
+		if !isType[*setImpl](set) {
 			panic("union expects set arguments")
 		}
 		for _, value := range set.SetValues() {
@@ -119,15 +119,15 @@ func Intersection(sets ...Value) Value {
 		return NewSet()
 	}
 	for _, set := range sets {
-		if set.tag != TagSet && set.tag != TagNil {
+		if !isType[*setImpl](set) && !IsNil(set) {
 			panic("intersection expects set arguments")
 		}
-		if set.tag == TagNil {
+		if IsNil(set) {
 			return NewSet()
 		}
 	}
 	base := sets[0]
-	if base.tag == TagNil {
+	if IsNil(base) {
 		return NewSet()
 	}
 	items := immutable.NewSet[Value](valueHasher{})
@@ -151,18 +151,18 @@ func Difference(sets ...Value) Value {
 		return NewSet()
 	}
 	first := sets[0]
-	if first.tag == TagNil {
+	if IsNil(first) {
 		return NewSet()
 	}
-	if first.tag != TagSet {
+	if !isType[*setImpl](first) {
 		panic("difference expects set arguments")
 	}
 	items := first.setPointer().items
 	for _, set := range sets[1:] {
-		if set.tag == TagNil {
+		if IsNil(set) {
 			continue
 		}
-		if set.tag != TagSet {
+		if !isType[*setImpl](set) {
 			panic("difference expects set arguments")
 		}
 		for _, value := range set.SetValues() {
@@ -173,16 +173,16 @@ func Difference(sets ...Value) Value {
 }
 
 func Subset(set1 Value, set2 Value) bool {
-	if set1.tag == TagNil {
+	if IsNil(set1) {
 		return true
 	}
-	if set1.tag != TagSet {
+	if !isType[*setImpl](set1) {
 		panic("subset? expects set arguments")
 	}
-	if set2.tag == TagNil {
+	if IsNil(set2) {
 		return set1.SetLen() == 0
 	}
-	if set2.tag != TagSet {
+	if !isType[*setImpl](set2) {
 		panic("subset? expects set arguments")
 	}
 	for _, value := range set1.SetValues() {
@@ -198,10 +198,10 @@ func Superset(set1 Value, set2 Value) bool {
 }
 
 func Disjoint(set1 Value, set2 Value) bool {
-	if set1.tag == TagNil || set2.tag == TagNil {
+	if IsNil(set1) || IsNil(set2) {
 		return true
 	}
-	if set1.tag != TagSet || set2.tag != TagSet {
+	if !isType[*setImpl](set1) || !isType[*setImpl](set2) {
 		panic("disjoint? expects set arguments")
 	}
 	left := set1
@@ -218,16 +218,16 @@ func Disjoint(set1 Value, set2 Value) bool {
 }
 
 func RenameKeys(coll Value, keyMap Value) Value {
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return NilValue
 	}
-	if coll.tag != TagMap {
+	if !isType[*mapImpl](coll) {
 		panic("rename-keys expects map and key-map")
 	}
-	if keyMap.tag == TagNil {
+	if IsNil(keyMap) {
 		return coll
 	}
-	if keyMap.tag != TagMap {
+	if !isType[*mapImpl](keyMap) {
 		panic("rename-keys expects map and key-map")
 	}
 	out := coll
@@ -245,10 +245,10 @@ func RenameKeys(coll Value, keyMap Value) Value {
 }
 
 func MapInvert(coll Value) Value {
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return NilValue
 	}
-	if coll.tag != TagMap {
+	if !isType[*mapImpl](coll) {
 		panic("map-invert expects map")
 	}
 	out := NewMap()
@@ -259,10 +259,10 @@ func MapInvert(coll Value) Value {
 }
 
 func SetSelect(pred Value, set Value) Value {
-	if set.tag == TagNil {
+	if IsNil(set) {
 		return NewSet()
 	}
-	if set.tag != TagSet {
+	if !isType[*setImpl](set) {
 		panic("select expects predicate and set")
 	}
 	items := immutable.NewSet[Value](valueHasher{})
@@ -275,10 +275,10 @@ func SetSelect(pred Value, set Value) Value {
 }
 
 func SetProject(rel Value, keys Value) Value {
-	if rel.tag == TagNil {
+	if IsNil(rel) {
 		return NewSet()
 	}
-	if rel.tag != TagSet {
+	if !isType[*setImpl](rel) {
 		panic("project expects relation set and key sequence")
 	}
 	keyCursor := newSeqCursor(keys)
@@ -299,10 +299,10 @@ func SetProject(rel Value, keys Value) Value {
 }
 
 func SetRename(rel Value, keyMap Value) Value {
-	if rel.tag == TagNil {
+	if IsNil(rel) {
 		return NewSet()
 	}
-	if rel.tag != TagSet {
+	if !isType[*setImpl](rel) {
 		panic("rename expects relation set and key-map")
 	}
 	items := immutable.NewSet[Value](valueHasher{})
@@ -313,7 +313,7 @@ func SetRename(rel Value, keyMap Value) Value {
 }
 
 func projectRow(row Value, keys []Value) Value {
-	if row.tag != TagMap && row.tag != TagDate && row.tag != TagRecord {
+	if !isType[*mapImpl](row) && !isType[*dateImpl](row) && !isType[*recordImpl](row) {
 		panic("project expects set of map-like values")
 	}
 	out := NewMap()
@@ -330,8 +330,8 @@ func MapAssoc(coll Value, entries ...Value) Value {
 		panic("assoc expects collection and key/value pairs")
 	}
 
-	switch coll.tag {
-	case TagMap:
+	switch coll.impl.(type) {
+	case *mapImpl:
 		items := coll.mapPointer().items
 		for i := 0; i < len(entries); i += 2 {
 			items = items.Set(entries[i], entries[i+1])
@@ -358,13 +358,13 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 }
 
 func associativeIndex(key Value) (int, bool) {
-	switch key.tag {
-	case TagLong:
+	switch key.impl.(type) {
+	case longImpl:
 		if key.Long() < 0 {
 			return 0, false
 		}
 		return int(key.Long()), true
-	case TagBigInt:
+	case *bigIntImpl:
 		bi := key.BigInt()
 		if bi.Sign() < 0 || bi.BitLen() > 62 {
 			return 0, false
@@ -384,10 +384,10 @@ func MapDissoc(coll Value, keys ...Value) Value {
 }
 
 func (v Value) MapLen() int {
-	switch v.tag {
-	case TagMap:
+	switch v.impl.(type) {
+	case *mapImpl:
 		return v.mapPointer().items.Len()
-	case TagDate:
+	case *dateImpl:
 		return len(dateEntries(v))
 	default:
 		panic("MapLen called on non-map Value")
@@ -395,8 +395,8 @@ func (v Value) MapLen() int {
 }
 
 func (v Value) MapEntries() []MapEntry {
-	switch v.tag {
-	case TagMap:
+	switch v.impl.(type) {
+	case *mapImpl:
 		itr := v.mapPointer().items.Iterator()
 		entries := make([]MapEntry, 0, v.MapLen())
 		for !itr.Done() {
@@ -407,7 +407,7 @@ func (v Value) MapEntries() []MapEntry {
 			return valueIdentity(entries[i].Key) < valueIdentity(entries[j].Key)
 		})
 		return entries
-	case TagDate:
+	case *dateImpl:
 		return dateEntries(v)
 	default:
 		panic("MapEntries called on non-map Value")
@@ -415,14 +415,14 @@ func (v Value) MapEntries() []MapEntry {
 }
 
 func (v Value) SetLen() int {
-	if v.tag != TagSet {
+	if !isType[*setImpl](v) {
 		panic("SetLen called on non-set Value")
 	}
 	return v.setPointer().items.Len()
 }
 
 func (v Value) SetValues() []Value {
-	if v.tag != TagSet {
+	if !isType[*setImpl](v) {
 		panic("SetValues called on non-set Value")
 	}
 	itr := v.setPointer().items.Iterator()
@@ -438,11 +438,11 @@ func (v Value) SetValues() []Value {
 }
 
 func newMapValue(items *immutable.Map[Value, Value]) Value {
-	return makeValue(TagMap, 0, &mapImpl{data: &mapData{items: items}})
+	return Value{impl: &mapImpl{data: &mapData{items: items}}}
 }
 
 func newSetValue(items immutable.Set[Value]) Value {
-	return makeValue(TagSet, 0, &setImpl{data: &setData{items: items}})
+	return Value{impl: &setImpl{data: &setData{items: items}}}
 }
 
 func (v Value) mapPointer() *mapData {
@@ -531,7 +531,7 @@ func (mapImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.MapLen() == 0) }
 func (mapImpl) conj(v Value, entries ...Value) Value {
 	items := v.mapPointer().items
 	for _, entry := range entries {
-		if entry.tag == TagMap {
+		if isType[*mapImpl](entry) {
 			for _, mapEntry := range entry.MapEntries() {
 				items = items.Set(mapEntry.Key, mapEntry.Value)
 			}

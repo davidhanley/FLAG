@@ -11,14 +11,14 @@ func NewVector(values ...Value) Value {
 }
 
 func (v Value) VectorLen() int {
-	if v.tag != TagVector {
+	if !isType[*vectorImpl](v) {
 		panic("VectorLen called on non-vector Value")
 	}
 	return int(v.Long())
 }
 
 func (v Value) VectorValues() []Value {
-	if v.tag != TagVector {
+	if !isType[*vectorImpl](v) {
 		panic("VectorValues called on non-vector Value")
 	}
 	items := v.vectorItems()
@@ -28,7 +28,7 @@ func (v Value) VectorValues() []Value {
 }
 
 func VectorGet(vectorValue Value, index int) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorGet expects vector Value")
 	}
 	if index < 0 || index >= vectorValue.VectorLen() {
@@ -38,7 +38,7 @@ func VectorGet(vectorValue Value, index int) Value {
 }
 
 func VectorAssoc(vectorValue Value, index int, item Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorAssoc expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -53,7 +53,7 @@ func VectorAssoc(vectorValue Value, index int, item Value) Value {
 }
 
 func VectorRest(vectorValue Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorRest expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -65,7 +65,7 @@ func VectorRest(vectorValue Value) Value {
 }
 
 func VectorAppend(vectorValue Value, item Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorAppend expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -89,7 +89,7 @@ func newVectorValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid vector length")
 	}
-	return makeValue(TagVector, packLong(int64(length)), &vectorImpl{data: data})
+	return Value{d: packLong(int64(length)), impl: &vectorImpl{data: data}}
 }
 
 func (v Value) vectorPointer() *arrayData {

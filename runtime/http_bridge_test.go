@@ -32,20 +32,20 @@ func TestHTTPBridgeSend(t *testing.T) {
 	req = Call(GoBind_http_Body, req, NewString("hello"))
 
 	resp := Call(GoBind_http_Send, req)
-	if resp.tag != TagMap {
+	if !isType[*mapImpl](resp) {
 		t.Fatalf("expected response map, got %s", resp.String())
 	}
-	if got := Get(resp, NewKeyword("status")); got.tag != TagLong || got.Long() != http.StatusCreated {
+	if got := Get(resp, NewKeyword("status")); !isType[longImpl](got) || got.Long() != http.StatusCreated {
 		t.Fatalf("expected 201 status, got %s", got.String())
 	}
-	if got := Get(resp, NewKeyword("ok")); got.tag != TagBool || !got.Bool() {
+	if got := Get(resp, NewKeyword("ok")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected ok response, got %s", got.String())
 	}
-	if got := Get(resp, NewKeyword("body")); got.tag != TagString || got.StringValue() != "world" {
+	if got := Get(resp, NewKeyword("body")); !isType[*stringImpl](got) || got.StringValue() != "world" {
 		t.Fatalf("expected response body world, got %s", got.String())
 	}
 	headers := Get(resp, NewKeyword("headers"))
-	if got := Get(headers, NewKeyword("x-reply")); got.tag != TagString || got.StringValue() != "pong" {
+	if got := Get(headers, NewKeyword("x-reply")); !isType[*stringImpl](got) || got.StringValue() != "pong" {
 		t.Fatalf("expected response header pong, got %s", got.String())
 	}
 }
@@ -56,15 +56,15 @@ func TestHTTPBridgeListenRoutes(t *testing.T) {
 			t.Fatalf("expected one request arg, got %d", len(args))
 		}
 		req := args[0]
-		if got := Get(req, NewKeyword("method")); got.tag != TagString || got.StringValue() != http.MethodGet {
+		if got := Get(req, NewKeyword("method")); !isType[*stringImpl](got) || got.StringValue() != http.MethodGet {
 			t.Fatalf("expected GET method, got %s", got.String())
 		}
-		if got := Get(Get(req, NewKeyword("query")), NewKeyword("lang")); got.tag != TagString || got.StringValue() != "flag" {
+		if got := Get(Get(req, NewKeyword("query")), NewKeyword("lang")); !isType[*stringImpl](got) || got.StringValue() != "flag" {
 			t.Fatalf("expected query lang=flag, got %s", got.String())
 		}
 		params := Get(req, NewKeyword("params"))
 		name := Get(params, NewKeyword("name"))
-		if name.tag != TagString {
+		if !isType[*stringImpl](name) {
 			t.Fatalf("expected route param name, got %s", name.String())
 		}
 		return NewMap(
@@ -84,7 +84,7 @@ func TestHTTPBridgeListenRoutes(t *testing.T) {
 		NewKeyword("routes"), NewArray(route),
 	))
 	addr := Call(GoBind_http_Address, server)
-	if addr.tag != TagString || addr.StringValue() == "" {
+	if !isType[*stringImpl](addr) || addr.StringValue() == "" {
 		t.Fatalf("expected server address, got %s", addr.String())
 	}
 

@@ -13,8 +13,8 @@ func TestSubAndDiv(t *testing.T) {
 	}
 
 	div := Div(NewLong(3), NewLong(2))
-	if div.tag != TagRatio {
-		t.Fatalf("expected ratio result, got tag %v", div.tag)
+	if !isType[*ratioImpl](div) {
+		t.Fatalf("expected ratio result, got tag %v", TypeOf(div))
 	}
 
 	rat := div.Ratio()
@@ -38,67 +38,67 @@ func TestModIntegers(t *testing.T) {
 
 	for _, tc := range cases {
 		got := Mod(NewLong(tc.lhs), NewLong(tc.rhs))
-		if got.tag != TagLong || got.Long() != tc.want {
+		if !isType[longImpl](got) || got.Long() != tc.want {
 			t.Fatalf("%s: expected %d, got %#v", tc.name, tc.want, got)
 		}
 	}
 }
 
 func TestQuotRemMod(t *testing.T) {
-	if got := Quot(NewLong(10), NewLong(3)); got.tag != TagLong || got.Long() != 3 {
+	if got := Quot(NewLong(10), NewLong(3)); !isType[longImpl](got) || got.Long() != 3 {
 		t.Fatalf("quot 10 3: expected 3, got %#v", got)
 	}
-	if got := Quot(NewLong(-10), NewLong(3)); got.tag != TagLong || got.Long() != -3 {
+	if got := Quot(NewLong(-10), NewLong(3)); !isType[longImpl](got) || got.Long() != -3 {
 		t.Fatalf("quot -10 3: expected -3, got %#v", got)
 	}
-	if got := Quot(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != -3 {
+	if got := Quot(NewLong(10), NewLong(-3)); !isType[longImpl](got) || got.Long() != -3 {
 		t.Fatalf("quot 10 -3: expected -3, got %#v", got)
 	}
-	if got := Quot(NewRatio(5, 2), NewRatio(1, 2)); got.tag != TagLong || got.Long() != 5 {
+	if got := Quot(NewRatio(5, 2), NewRatio(1, 2)); !isType[longImpl](got) || got.Long() != 5 {
 		t.Fatalf("quot 5/2 1/2: expected 5, got %#v", got)
 	}
-	if got := Quot(NewDouble(10), NewLong(3)); got.tag != TagDouble || got.Double() != 3 {
+	if got := Quot(NewDouble(10), NewLong(3)); !isType[doubleImpl](got) || got.Double() != 3 {
 		t.Fatalf("quot 10.0 3: expected 3.0, got %#v", got)
 	}
 
-	if got := Rem(NewLong(10), NewLong(3)); got.tag != TagLong || got.Long() != 1 {
+	if got := Rem(NewLong(10), NewLong(3)); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("rem 10 3: expected 1, got %#v", got)
 	}
-	if got := Rem(NewLong(-10), NewLong(3)); got.tag != TagLong || got.Long() != -1 {
+	if got := Rem(NewLong(-10), NewLong(3)); !isType[longImpl](got) || got.Long() != -1 {
 		t.Fatalf("rem -10 3: expected -1, got %#v", got)
 	}
-	if got := Rem(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != 1 {
+	if got := Rem(NewLong(10), NewLong(-3)); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("rem 10 -3: expected 1, got %#v", got)
 	}
-	if got := Rem(NewLong(-10), NewLong(-3)); got.tag != TagLong || got.Long() != -1 {
+	if got := Rem(NewLong(-10), NewLong(-3)); !isType[longImpl](got) || got.Long() != -1 {
 		t.Fatalf("rem -10 -3: expected -1, got %#v", got)
 	}
 
-	if got := Mod(NewLong(10), NewLong(-3)); got.tag != TagLong || got.Long() != -2 {
+	if got := Mod(NewLong(10), NewLong(-3)); !isType[longImpl](got) || got.Long() != -2 {
 		t.Fatalf("mod 10 -3: expected -2, got %#v", got)
 	}
-	if got := Mod(NewDouble(-5), NewLong(3)); got.tag != TagDouble || got.Double() != 1 {
+	if got := Mod(NewDouble(-5), NewLong(3)); !isType[doubleImpl](got) || got.Double() != 1 {
 		t.Fatalf("mod -5.0 3: expected 1.0, got %#v", got)
 	}
 }
 
 func TestCompareAndNumericEq(t *testing.T) {
-	if got := Compare(NewLong(1), NewLong(2)); got.tag != TagLong || got.Long() != -1 {
+	if got := Compare(NewLong(1), NewLong(2)); !isType[longImpl](got) || got.Long() != -1 {
 		t.Fatalf("compare 1 2: expected -1, got %#v", got)
 	}
-	if got := Compare(NewLong(2), NewLong(1)); got.tag != TagLong || got.Long() != 1 {
+	if got := Compare(NewLong(2), NewLong(1)); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("compare 2 1: expected 1, got %#v", got)
 	}
-	if got := Compare(NewLong(1), NewDouble(1)); got.tag != TagLong || got.Long() != 0 {
+	if got := Compare(NewLong(1), NewDouble(1)); !isType[longImpl](got) || got.Long() != 0 {
 		t.Fatalf("compare 1 1.0: expected 0, got %#v", got)
 	}
-	if got := Compare(NewString("a"), NewString("b")); got.tag != TagLong || got.Long() != -1 {
+	if got := Compare(NewString("a"), NewString("b")); !isType[longImpl](got) || got.Long() != -1 {
 		t.Fatalf("compare a b: expected -1, got %#v", got)
 	}
-	if got := Compare(NilValue, NewLong(1)); got.tag != TagLong || got.Long() != -1 {
+	if got := Compare(NilValue, NewLong(1)); !isType[longImpl](got) || got.Long() != -1 {
 		t.Fatalf("compare nil 1: expected -1, got %#v", got)
 	}
-	if got := Compare(NewLong(1), NilValue); got.tag != TagLong || got.Long() != 1 {
+	if got := Compare(NewLong(1), NilValue); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("compare 1 nil: expected 1, got %#v", got)
 	}
 	if !NumericEq() || !NumericEq(NewLong(1)) || !NumericEq(NewLong(1), NewDouble(1), NewRatio(2, 2)) {
@@ -111,31 +111,31 @@ func TestCompareAndNumericEq(t *testing.T) {
 }
 
 func TestNumeratorDenominator(t *testing.T) {
-	if got := Numerator(NewRatio(5, 6)); got.tag != TagLong || got.Long() != 5 {
+	if got := Numerator(NewRatio(5, 6)); !isType[longImpl](got) || got.Long() != 5 {
 		t.Fatalf("numerator 5/6: %#v", got)
 	}
-	if got := Denominator(NewRatio(5, 6)); got.tag != TagLong || got.Long() != 6 {
+	if got := Denominator(NewRatio(5, 6)); !isType[longImpl](got) || got.Long() != 6 {
 		t.Fatalf("denominator 5/6: %#v", got)
 	}
-	if got := Numerator(NewRatio(4, 6)); got.tag != TagLong || got.Long() != 2 {
+	if got := Numerator(NewRatio(4, 6)); !isType[longImpl](got) || got.Long() != 2 {
 		t.Fatalf("numerator 4/6 reduced: %#v", got)
 	}
-	if got := Denominator(NewRatio(4, 6)); got.tag != TagLong || got.Long() != 3 {
+	if got := Denominator(NewRatio(4, 6)); !isType[longImpl](got) || got.Long() != 3 {
 		t.Fatalf("denominator 4/6 reduced: %#v", got)
 	}
-	if got := Numerator(NewRatio(-2, 3)); got.tag != TagLong || got.Long() != -2 {
+	if got := Numerator(NewRatio(-2, 3)); !isType[longImpl](got) || got.Long() != -2 {
 		t.Fatalf("numerator -2/3: %#v", got)
 	}
-	if got := Denominator(NewRatio(-2, 3)); got.tag != TagLong || got.Long() != 3 {
+	if got := Denominator(NewRatio(-2, 3)); !isType[longImpl](got) || got.Long() != 3 {
 		t.Fatalf("denominator -2/3: %#v", got)
 	}
-	if got := Numerator(NewLong(7)); got.tag != TagLong || got.Long() != 7 {
+	if got := Numerator(NewLong(7)); !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("numerator 7: %#v", got)
 	}
-	if got := Denominator(NewLong(7)); got.tag != TagLong || got.Long() != 1 {
+	if got := Denominator(NewLong(7)); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("denominator 7: %#v", got)
 	}
-	if got := Denominator(NewBigInt(10)); got.tag != TagLong || got.Long() != 1 {
+	if got := Denominator(NewBigInt(10)); !isType[longImpl](got) || got.Long() != 1 {
 		t.Fatalf("denominator bigint: %#v", got)
 	}
 	assertPanics(t, func() { Numerator(NewDouble(1.5)) })
@@ -211,49 +211,49 @@ func TestOrderedComparisonsNumericAndString(t *testing.T) {
 }
 
 func TestAbsAcrossNumericTypes(t *testing.T) {
-	if got := Abs(NewLong(-7)); got.tag != TagLong || got.Long() != 7 {
+	if got := Abs(NewLong(-7)); !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("expected abs long 7, got %#v", got)
 	}
 
-	if got := Abs(NewDouble(-3.5)); got.tag != TagDouble || got.Double() != 3.5 {
+	if got := Abs(NewDouble(-3.5)); !isType[doubleImpl](got) || got.Double() != 3.5 {
 		t.Fatalf("expected abs double 3.5, got %#v", got)
 	}
 
-	if got := Abs(NewRatio(-3, 2)); got.tag != TagRatio || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+	if got := Abs(NewRatio(-3, 2)); !isType[*ratioImpl](got) || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
 		t.Fatalf("expected abs ratio 3/2, got %#v", got)
 	}
 
 	minAbs := Abs(NewLong(minInt64))
-	if minAbs.tag != TagBigInt || minAbs.BigInt().Cmp(new(big.Int).Abs(big.NewInt(minInt64))) != 0 {
+	if !isType[*bigIntImpl](minAbs) || minAbs.BigInt().Cmp(new(big.Int).Abs(big.NewInt(minInt64))) != 0 {
 		t.Fatalf("expected bigint abs for min int64, got %#v", minAbs)
 	}
 }
 
 func TestMaxAndMinAcrossNumericTypes(t *testing.T) {
-	if got := Max(NewLong(7)); got.tag != TagLong || got.Long() != 7 {
+	if got := Max(NewLong(7)); !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("expected single-arg max passthrough, got %#v", got)
 	}
-	if got := Min(NewDouble(3.5)); got.tag != TagDouble || got.Double() != 3.5 {
+	if got := Min(NewDouble(3.5)); !isType[doubleImpl](got) || got.Double() != 3.5 {
 		t.Fatalf("expected single-arg min passthrough, got %#v", got)
 	}
 
 	maxed := Max(NewLong(2), NewRatio(5, 2), NewDouble(2.25), NewBigInt(2))
-	if maxed.tag != TagRatio || maxed.Ratio().Cmp(big.NewRat(5, 2)) != 0 {
+	if !isType[*ratioImpl](maxed) || maxed.Ratio().Cmp(big.NewRat(5, 2)) != 0 {
 		t.Fatalf("expected max ratio 5/2, got %#v", maxed)
 	}
 
 	mined := Min(NewLong(2), NewRatio(3, 2), NewDouble(1.75), NewBigInt(5))
-	if mined.tag != TagRatio || mined.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+	if !isType[*ratioImpl](mined) || mined.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
 		t.Fatalf("expected min ratio 3/2, got %#v", mined)
 	}
 
 	tiedMax := Max(NewLong(2), NewDouble(2.0))
-	if tiedMax.tag != TagDouble || tiedMax.Double() != 2.0 {
+	if !isType[doubleImpl](tiedMax) || tiedMax.Double() != 2.0 {
 		t.Fatalf("expected max to prefer later equal argument, got %#v", tiedMax)
 	}
 
 	tiedMin := Min(NewLong(2), NewBigInt(2))
-	if tiedMin.tag != TagBigInt || tiedMin.BigInt().Cmp(big.NewInt(2)) != 0 {
+	if !isType[*bigIntImpl](tiedMin) || tiedMin.BigInt().Cmp(big.NewInt(2)) != 0 {
 		t.Fatalf("expected min to prefer later equal argument, got %#v", tiedMin)
 	}
 }
@@ -261,11 +261,11 @@ func TestMaxAndMinAcrossNumericTypes(t *testing.T) {
 func TestBuiltinPlusSupportsZeroAndUnaryArity(t *testing.T) {
 	plus := BuiltinFunction("+")
 
-	if got := Call(plus); got.tag != TagLong || got.Long() != 0 {
+	if got := Call(plus); !isType[longImpl](got) || got.Long() != 0 {
 		t.Fatalf("expected zero-arity + to return 0, got %#v", got)
 	}
 
-	if got := Call(plus, NewRatio(3, 2)); got.tag != TagRatio || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
+	if got := Call(plus, NewRatio(3, 2)); !isType[*ratioImpl](got) || got.Ratio().Cmp(big.NewRat(3, 2)) != 0 {
 		t.Fatalf("expected unary + to return its argument, got %#v", got)
 	}
 
@@ -282,7 +282,7 @@ func TestValueFnInvokesFunction(t *testing.T) {
 		return args[0]
 	})
 	got := fn.Fn(NewLong(7))
-	if got.tag != TagLong || got.Long() != 7 {
+	if !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("Fn: got %#v", got)
 	}
 }
@@ -299,25 +299,25 @@ func TestValueFnPanicsOnNonFunction(t *testing.T) {
 func TestCallSupportsSetInvocation(t *testing.T) {
 	set := NewSet(NewLong(1), NewLong(2))
 
-	if got := Call(set, NewLong(2)); got.tag != TagLong || got.Long() != 2 {
+	if got := Call(set, NewLong(2)); !isType[longImpl](got) || got.Long() != 2 {
 		t.Fatalf("expected set lookup to return matching value, got %#v", got)
 	}
-	if got := Call(set, NewLong(3)); got.tag != TagNil {
+	if got := Call(set, NewLong(3)); !IsNil(got) {
 		t.Fatalf("expected set lookup miss to return nil, got %#v", got)
 	}
-	if got := Call(set, NewLong(3), NewString("missing")); got.tag != TagString || got.StringValue() != "missing" {
+	if got := Call(set, NewLong(3), NewString("missing")); !isType[*stringImpl](got) || got.StringValue() != "missing" {
 		t.Fatalf("expected set lookup miss with default, got %#v", got)
 	}
 }
 
 func TestNilValueIsTaggedNil(t *testing.T) {
-	if NilValue.tag != TagNil {
-		t.Fatalf("NilValue tag: got %v want %v", NilValue.tag, TagNil)
+	if !IsNil(NilValue) {
+		t.Fatalf("NilValue type: got %v", TypeOf(NilValue))
 	}
 	if !IsNil(NilValue) {
 		t.Fatal("expected IsNil(NilValue)")
 	}
-	if !Eq(NilValue, makeValue(TagNil, 0, nil)) {
+	if !Eq(NilValue, Value{impl: nilImpl{}}) {
 		t.Fatal("expected NilValue to equal another nil Value")
 	}
 	if Eq(NilValue, NewLong(0)) || Eq(NilValue, NewBool(false)) {
@@ -352,7 +352,7 @@ func TestValueToAnyForChannel(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected channel Value from ValueToAny, got %T", ValueToAny(ch))
 	}
-	if converted.tag != TagChannel {
+	if !isType[*channelImpl](converted) {
 		t.Fatalf("expected TagChannel, got %#v", converted)
 	}
 }
@@ -382,12 +382,12 @@ func TestStr(t *testing.T) {
 
 func TestSymbolAndName(t *testing.T) {
 	sym := Symbol("abc")
-	if sym.tag != TagSymbol {
-		t.Fatalf("expected symbol tag, got %v", sym.tag)
+	if !isType[*symbolImpl](sym) {
+		t.Fatalf("expected symbol tag, got %v", TypeOf(sym))
 	}
 
 	kw := Keyword("kw")
-	if kw.tag != TagSymbol || !kw.SymbolObject().IsKeyword {
+	if !isType[*symbolImpl](kw) || !kw.SymbolObject().IsKeyword {
 		t.Fatalf("expected keyword tag, got %#v", kw)
 	}
 
@@ -419,21 +419,21 @@ func TestSymbolAndName(t *testing.T) {
 
 func TestIntegerOverflowPromotesToBigInt(t *testing.T) {
 	added := Add(NewLong(9223372036854775807), NewLong(1))
-	if added.tag != TagBigInt {
-		t.Fatalf("expected bigint from add overflow, got %v", added.tag)
+	if !isType[*bigIntImpl](added) {
+		t.Fatalf("expected bigint from add overflow, got %v", TypeOf(added))
 	}
 	if added.BigInt().Cmp(big.NewInt(0).Add(big.NewInt(9223372036854775807), big.NewInt(1))) != 0 {
 		t.Fatalf("unexpected add overflow value: %s", added.BigInt().String())
 	}
 
 	subbed := Sub(NewLong(-9223372036854775808), NewLong(1))
-	if subbed.tag != TagBigInt {
-		t.Fatalf("expected bigint from sub overflow, got %v", subbed.tag)
+	if !isType[*bigIntImpl](subbed) {
+		t.Fatalf("expected bigint from sub overflow, got %v", TypeOf(subbed))
 	}
 
 	mulled := Mul(NewLong(3037000500), NewLong(3037000500))
-	if mulled.tag != TagBigInt {
-		t.Fatalf("expected bigint from mul overflow, got %v", mulled.tag)
+	if !isType[*bigIntImpl](mulled) {
+		t.Fatalf("expected bigint from mul overflow, got %v", TypeOf(mulled))
 	}
 }
 
@@ -447,20 +447,20 @@ func TestBigIntNumericInterop(t *testing.T) {
 	}
 
 	mod := Mod(huge, NewLong(2))
-	if mod.tag != TagLong || mod.Long() != 0 {
+	if !isType[longImpl](mod) || mod.Long() != 0 {
 		t.Fatalf("expected bigint mod 2 => 0, got %#v", mod)
 	}
 
 	ratio := Div(huge, NewLong(2))
-	if ratio.tag != TagRatio {
-		t.Fatalf("expected ratio from bigint division, got %v", ratio.tag)
+	if !isType[*ratioImpl](ratio) {
+		t.Fatalf("expected ratio from bigint division, got %v", TypeOf(ratio))
 	}
 }
 
 func TestNewBigIntFromString(t *testing.T) {
 	got := NewBigIntFromString("9223372036854775808")
-	if got.tag != TagBigInt {
-		t.Fatalf("expected bigint tag, got %v", got.tag)
+	if !isType[*bigIntImpl](got) {
+		t.Fatalf("expected bigint tag, got %v", TypeOf(got))
 	}
 	if got.BigInt().String() != "9223372036854775808" {
 		t.Fatalf("unexpected bigint value: %s", got.BigInt().String())
@@ -469,8 +469,8 @@ func TestNewBigIntFromString(t *testing.T) {
 
 func TestStringValues(t *testing.T) {
 	got := NewString("hello")
-	if got.tag != TagString {
-		t.Fatalf("expected string tag, got %v", got.tag)
+	if !isType[*stringImpl](got) {
+		t.Fatalf("expected string tag, got %v", TypeOf(got))
 	}
 	if got.String() != `"hello"` {
 		t.Fatalf("expected quoted string value, got %q", got.String())
@@ -485,8 +485,8 @@ func TestStringValues(t *testing.T) {
 
 func TestDateValues(t *testing.T) {
 	got := NewDateFromYMD(2026, 3, 8)
-	if got.tag != TagDate {
-		t.Fatalf("expected date tag, got %v", got.tag)
+	if !isType[*dateImpl](got) {
+		t.Fatalf("expected date tag, got %v", TypeOf(got))
 	}
 	if got.String() != "{:year 2026 :month 3 :day 8}" {
 		t.Fatalf("unexpected date string: %q", got.String())
@@ -500,22 +500,22 @@ func TestDateValues(t *testing.T) {
 	if native, ok := ValueToAny(got).(time.Time); !ok || native.UTC().Year() != 2026 || native.UTC().Month() != 3 || native.UTC().Day() != 8 {
 		t.Fatalf("expected native time.Time from ValueToAny, got %#v", ValueToAny(got))
 	}
-	if got := anyToValue(time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC)); got.tag != TagDate {
-		t.Fatalf("expected anyToValue(time.Time) to produce date, got %v", got.tag)
+	if got := anyToValue(time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC)); !isType[*dateImpl](got) {
+		t.Fatalf("expected anyToValue(time.Time) to produce date, got %v", TypeOf(got))
 	}
 }
 
 func TestSymbolAndKeywordAcceptStringValues(t *testing.T) {
-	if got := Symbol(NewString("alpha")); got.tag != TagSymbol || got.SymbolObject().IsKeyword || got.SymbolObject().Name != "alpha" {
+	if got := Symbol(NewString("alpha")); !isType[*symbolImpl](got) || got.SymbolObject().IsKeyword || got.SymbolObject().Name != "alpha" {
 		t.Fatalf("unexpected symbol result: %#v", got)
 	}
-	if got := Keyword(NewString("beta")); got.tag != TagSymbol || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "beta" {
+	if got := Keyword(NewString("beta")); !isType[*symbolImpl](got) || !got.SymbolObject().IsKeyword || got.SymbolObject().Name != "beta" {
 		t.Fatalf("unexpected keyword result: %#v", got)
 	}
 }
 
 func TestDoubleCoercesNumericValues(t *testing.T) {
-	if got := Double(NewLong(3)); got.tag != TagDouble || got.Double() != 3.0 {
+	if got := Double(NewLong(3)); !isType[doubleImpl](got) || got.Double() != 3.0 {
 		t.Fatalf("unexpected double result: %#v", got)
 	}
 }

@@ -18,7 +18,7 @@ func NewFunction(fn func(args ...Value) Value) Value {
 	if fn == nil {
 		panic("NewFunction expects non-nil function")
 	}
-	return makeValue(TagFunction, 0, &functionImpl{obj: &FunctionObject{Fn: fn}})
+	return Value{impl: &functionImpl{obj: &FunctionObject{Fn: fn}}}
 }
 
 func (v Value) FunctionObject() *FunctionObject {
@@ -33,10 +33,10 @@ func (v Value) Fn(args ...Value) Value {
 }
 
 func Call(fn Value, args ...Value) Value {
-	switch fn.tag {
-	case TagFunction:
+	switch fn.impl.(type) {
+	case *functionImpl:
 		return fn.FunctionObject().Fn(args...)
-	case TagMap, TagDate, TagRecord:
+	case *mapImpl, *dateImpl, *recordImpl:
 		if len(args) != 1 && len(args) != 2 {
 			panic("map invocation expects key and optional default")
 		}
@@ -44,7 +44,7 @@ func Call(fn Value, args ...Value) Value {
 			return Get(fn, args[0])
 		}
 		return Get(fn, args[0], args[1])
-	case TagSet:
+	case *setImpl:
 		if len(args) != 1 && len(args) != 2 {
 			panic("set invocation expects value and optional default")
 		}
@@ -55,7 +55,7 @@ func Call(fn Value, args ...Value) Value {
 			return args[1]
 		}
 		return NilValue
-	case TagSymbol:
+	case *symbolImpl:
 		symbol := fn.SymbolObject()
 		if !symbol.IsKeyword {
 			break

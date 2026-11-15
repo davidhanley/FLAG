@@ -88,7 +88,6 @@ type impl interface {
 
 type Value struct {
 	d    float64
-	tag  ValueTag
 	impl impl
 }
 
@@ -96,13 +95,6 @@ func packLong(n int64) float64 {
 	var d float64
 	*(*int64)(unsafe.Pointer(&d)) = n
 	return d
-}
-
-func makeValue(tag ValueTag, d float64, impl impl) Value {
-	if impl == nil {
-		impl = implFor(tag)
-	}
-	return Value{d: d, tag: tag, impl: impl}
 }
 
 func asImpl[T impl](v Value, msg string) T {
@@ -113,12 +105,17 @@ func asImpl[T impl](v Value, msg string) T {
 	return x
 }
 
+func isType[T impl](v Value) bool {
+	_, ok := v.impl.(T)
+	return ok
+}
+
 func (v Value) String() string {
 	return v.impl.String(v)
 }
 
 // NilValue is the FLAG nil. Use the var directly; do not wrap it in a call.
-var NilValue = makeValue(TagNil, 0, nil)
+var NilValue = Value{impl: nilImpl{}}
 
 type nilImpl struct{ defaultImpl }
 

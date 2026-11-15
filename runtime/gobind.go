@@ -46,21 +46,21 @@ func goArgString(name string, idx int, v Value) string {
 }
 
 func goArgInt64(name string, idx int, v Value) int64 {
-	if v.tag != TagLong {
+	if !isType[longImpl](v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to int", name, idx+1, v.String()))
 	}
 	return v.Long()
 }
 
 func goArgTime(name string, idx int, v Value) time.Time {
-	if v.tag != TagDate {
+	if !isType[*dateImpl](v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to time", name, idx+1, v.String()))
 	}
 	return v.DateTime()
 }
 
 func goArgReader(name string, idx int, v Value) io.Reader {
-	if v.tag == TagFile {
+	if isType[*fileImpl](v) {
 		f := v.FileObject()
 		if f == nil || f.File == nil || f.closed {
 			panic(fmt.Sprintf("%s argument %d: expected open file", name, idx+1))
@@ -78,10 +78,10 @@ func goArgReader(name string, idx int, v Value) io.Reader {
 }
 
 func goArgMapAnyAny(name string, idx int, v Value) map[any]any {
-	if v.tag == TagNil {
+	if IsNil(v) {
 		return nil
 	}
-	if v.tag != TagMap {
+	if !isType[*mapImpl](v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to map", name, idx+1, v.String()))
 	}
 	return nativeMap(v.MapEntries())

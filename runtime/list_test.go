@@ -5,8 +5,8 @@ import "testing"
 func TestNewListStoresLengthInNumericField(t *testing.T) {
 	listValue := NewList(NewLong(1), NewDouble(2.5), NewLong(3))
 
-	if listValue.tag != TagList {
-		t.Fatalf("expected TagList, got %v", listValue.tag)
+	if !isType[*listImpl](listValue) {
+		t.Fatalf("expected TagList, got %v", TypeOf(listValue))
 	}
 	if got := listValue.ListLen(); got != 3 {
 		t.Fatalf("expected ListLen 3, got %d", got)
@@ -66,8 +66,8 @@ func TestValueToAnyForList(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected list Value from ValueToAny, got %T", ValueToAny(listValue))
 	}
-	if converted.tag != TagList {
-		t.Fatalf("expected TagList, got %v", converted.tag)
+	if !isType[*listImpl](converted) {
+		t.Fatalf("expected TagList, got %v", TypeOf(converted))
 	}
 	if converted.String() != "(1 2.5)" {
 		t.Fatalf("unexpected list print: %s", converted.String())
@@ -81,13 +81,13 @@ func TestFirstAndRestForList(t *testing.T) {
 	}
 
 	rest := Rest(listValue)
-	if rest.tag != TagList {
-		t.Fatalf("expected rest to be list, got %v", rest.tag)
+	if !isType[*listImpl](rest) {
+		t.Fatalf("expected rest to be list, got %v", TypeOf(rest))
 	}
 	checkListValues(t, rest, []Value{NewLong(2), NewLong(3)})
 
-	if got := First(NewList()); got.tag != TagNil {
-		t.Fatalf("expected first of empty list to be nil, got %v", got.tag)
+	if got := First(NewList()); !IsNil(got) {
+		t.Fatalf("expected first of empty list to be nil, got %v", TypeOf(got))
 	}
 }
 
@@ -99,7 +99,7 @@ func checkListValues(t *testing.T, listValue Value, want []Value) {
 		t.Fatalf("expected %d values, got %d", len(want), len(got))
 	}
 	for i := range want {
-		if got[i].tag != want[i].tag || got[i].Long() != want[i].Long() {
+		if !Eq(TypeOf(got[i]), TypeOf(want[i])) || got[i].Long() != want[i].Long() {
 			t.Fatalf("value %d mismatch: got %#v want %#v", i, got[i], want[i])
 		}
 	}

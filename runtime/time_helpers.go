@@ -33,7 +33,7 @@ func TimeYears(v Value) Value {
 }
 
 func TimeMinus(left Value, right Value) Value {
-	if left.tag != TagDate {
+	if !isType[*dateImpl](left) {
 		panic("t/minus expects a date as the first argument")
 	}
 	if !right.impl.isNumeric(right) {
@@ -43,7 +43,7 @@ func TimeMinus(left Value, right Value) Value {
 }
 
 func TimeAfter(left Value, right Value) Value {
-	if left.tag != TagDate || right.tag != TagDate {
+	if !isType[*dateImpl](left) || !isType[*dateImpl](right) {
 		panic("t/after? expects two dates")
 	}
 	return NewBool(left.DateTime().After(right.DateTime()))

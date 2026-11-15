@@ -11,13 +11,13 @@ func TestAtomDerefReset(t *testing.T) {
 		t.Fatalf("empty atom: got %v", Deref(a).String())
 	}
 	a = Atom(NewLong(7))
-	if got := Deref(a); got.tag != TagLong || got.Long() != 7 {
+	if got := Deref(a); !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("deref init: got %v", got.String())
 	}
-	if got := Reset(a, NewString("ok")); got.tag != TagString || got.StringValue() != "ok" {
+	if got := Reset(a, NewString("ok")); !isType[*stringImpl](got) || got.StringValue() != "ok" {
 		t.Fatalf("reset! return: got %v", got.String())
 	}
-	if got := Deref(a); got.tag != TagString || got.StringValue() != "ok" {
+	if got := Deref(a); !isType[*stringImpl](got) || got.StringValue() != "ok" {
 		t.Fatalf("deref after reset: got %v", got.String())
 	}
 }
@@ -27,7 +27,7 @@ func TestAtomSwap(t *testing.T) {
 	inc := NewFunction(func(args ...Value) Value {
 		return Add(args[0], NewLong(1))
 	})
-	if got := Swap(a, inc); got.tag != TagLong || got.Long() != 2 {
+	if got := Swap(a, inc); !isType[longImpl](got) || got.Long() != 2 {
 		t.Fatalf("swap! inc: got %v", got.String())
 	}
 	if got := Swap(a, BuiltinFunction("+"), NewLong(3)); got.Long() != 5 {
@@ -50,7 +50,7 @@ func TestAtomSwapConcurrent(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if got := Deref(a); got.tag != TagLong || got.Long() != n {
+	if got := Deref(a); !isType[longImpl](got) || got.Long() != n {
 		t.Fatalf("expected %d, got %v", n, got.String())
 	}
 }

@@ -26,7 +26,7 @@ func NewRecord(v any) Value {
 		panic("NewRecord expects a Go struct")
 	}
 	box := &recordBox{value: v}
-	return makeValue(TagRecord, 0, &recordImpl{box: box})
+	return Value{impl: &recordImpl{box: box}}
 }
 
 func (v Value) recordBox() *recordBox {
@@ -69,7 +69,7 @@ func recordFieldValue(coll Value, key Value) (Value, bool) {
 }
 
 func recordKeyName(key Value) (string, bool) {
-	if key.tag != TagSymbol {
+	if !isType[*symbolImpl](key) {
 		return "", false
 	}
 	sym := key.SymbolObject()
@@ -87,28 +87,28 @@ func recordFieldFlagName(field reflect.StructField) string {
 }
 
 func RequireString(v Value) string {
-	if v.tag != TagString {
+	if !isType[*stringImpl](v) {
 		panic(fmt.Sprintf("expected string, got %s", v.String()))
 	}
 	return v.StringValue()
 }
 
 func RequireLong(v Value) int64 {
-	if v.tag != TagLong {
+	if !isType[longImpl](v) {
 		panic(fmt.Sprintf("expected integer, got %s", v.String()))
 	}
 	return v.Long()
 }
 
 func RequireDouble(v Value) float64 {
-	if v.tag != TagDouble {
+	if !isType[doubleImpl](v) {
 		panic(fmt.Sprintf("expected double, got %s", v.String()))
 	}
 	return v.Double()
 }
 
 func RequireBool(v Value) bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic(fmt.Sprintf("expected boolean, got %s", v.String()))
 	}
 	return v.Bool()

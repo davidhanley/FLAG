@@ -10,14 +10,14 @@ const pipeBufferSize = 32
 // ChannelPipeMap applies fn to each value on inch, sending results to a new
 // buffered output channel. Non-blocking: returns the output channel immediately.
 func ChannelPipeMap(fn, inch Value) Value {
-	if inch.tag != TagChannel {
+	if !isType[*channelImpl](inch) {
 		panic("channel-map: second argument must be a channel")
 	}
 	out := newChannelValue(make(chan Value, pipeBufferSize))
 	go func() {
 		for {
 			v := ChannelReceive(inch)
-			if v.tag == TagNil {
+			if IsNil(v) {
 				ChannelClose(out)
 				return
 			}
@@ -32,14 +32,14 @@ func ChannelPipeMap(fn, inch Value) Value {
 // ChannelPipeFilter sends values from inch to a new output channel only when
 // pred returns truthy. Non-blocking: returns the output channel immediately.
 func ChannelPipeFilter(pred, inch Value) Value {
-	if inch.tag != TagChannel {
+	if !isType[*channelImpl](inch) {
 		panic("channel-filter: second argument must be a channel")
 	}
 	out := newChannelValue(make(chan Value, pipeBufferSize))
 	go func() {
 		for {
 			v := ChannelReceive(inch)
-			if v.tag == TagNil {
+			if IsNil(v) {
 				ChannelClose(out)
 				return
 			}
@@ -54,13 +54,13 @@ func ChannelPipeFilter(pred, inch Value) Value {
 // ChannelPipeReduce drains inch, folding with fn(acc, v).
 // Blocking: returns the final accumulated value.
 func ChannelPipeReduce(fn, init, inch Value) Value {
-	if inch.tag != TagChannel {
+	if !isType[*channelImpl](inch) {
 		panic("channel-reduce: third argument must be a channel")
 	}
 	acc := init
 	for {
 		v := ChannelReceive(inch)
-		if v.tag == TagNil {
+		if IsNil(v) {
 			return acc
 		}
 		acc = Call(fn, acc, v)
@@ -73,8 +73,8 @@ func ChannelPipeReduce(fn, init, inch Value) Value {
 // Non-blocking: returns the output channel immediately.
 func ChannelLinesPipe(source Value) Value {
 	out := newChannelValue(make(chan Value, pipeBufferSize))
-	switch source.tag {
-	case TagString:
+	switch source.impl.(type) {
+	case *stringImpl:
 		path := source.StringValue()
 		f, err := os.Open(path)
 		if err != nil {
@@ -90,7 +90,7 @@ func ChannelLinesPipe(source Value) Value {
 			}
 			ChannelClose(out)
 		}()
-	case TagFile:
+	case *fileImpl:
 		fo := source.FileObject()
 		go func() {
 			fo.mu.Lock()

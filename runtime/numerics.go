@@ -11,11 +11,11 @@ import (
 )
 
 func NewLong(v int64) Value {
-	return makeValue(TagLong, packLong(v), nil)
+	return Value{d: packLong(v), impl: longImpl{}}
 }
 
 func NewDouble(v float64) Value {
-	return makeValue(TagDouble, v, nil)
+	return Value{d: v, impl: doubleImpl{}}
 }
 
 func Double(v Value) Value {
@@ -36,7 +36,7 @@ func NewRatio(numerator, denominator int64) Value {
 }
 
 func NewRatioFromRat(rat *big.Rat) Value {
-	return makeValue(TagRatio, 0, &ratioImpl{rat: rat})
+	return Value{impl: &ratioImpl{rat: rat}}
 }
 
 func NewBigInt(v int64) Value {
@@ -56,14 +56,14 @@ func NewBigIntFromBigInt(v *big.Int) Value {
 		panic("NewBigIntFromBigInt expects non-nil big.Int")
 	}
 	copied := new(big.Int).Set(v)
-	return makeValue(TagBigInt, 0, &bigIntImpl{n: copied})
+	return Value{impl: &bigIntImpl{n: copied}}
 }
 
 func NewBool(v bool) Value {
 	if v {
-		return makeValue(TagBool, 1, nil)
+		return Value{d: 1, impl: boolImpl{}}
 	}
-	return makeValue(TagBool, 0, nil)
+	return Value{d: 0, impl: boolImpl{}}
 }
 
 func (v Value) Long() int64 {
@@ -75,21 +75,21 @@ func (v Value) Double() float64 {
 }
 
 func (v Value) Ratio() *big.Rat {
-	if v.tag != TagRatio {
+	if !isType[*ratioImpl](v) {
 		panic("Ratio called on non-ratio Value")
 	}
 	return v.ratioPointer()
 }
 
 func (v Value) BigInt() *big.Int {
-	if v.tag != TagBigInt {
+	if !isType[*bigIntImpl](v) {
 		panic("BigInt called on non-bigint Value")
 	}
 	return v.bigIntPointer()
 }
 
 func (v Value) Bool() bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic("Bool called on non-bool Value")
 	}
 	return v.d != 0
@@ -259,7 +259,7 @@ func Println(args ...any) Value {
 func anyToString(arg any) string {
 	switch value := arg.(type) {
 	case Value:
-		if value.tag == TagString {
+		if isType[*stringImpl](value) {
 			return value.StringValue()
 		}
 		return value.String()

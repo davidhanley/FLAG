@@ -2,10 +2,9 @@
 
 Part of **[The FLAG Book](flag-book.md)**.
 
-Runtime `Value` is a tagged immediate (`d`, `tag`) plus a per-type `impl`.
-Heap payload lives on that impl (for example `*stringImpl.value`), not on
-an `unsafe.Pointer` field. `d` still holds longs, doubles, bools, and packed
-collection lengths.
+Runtime `Value` is `{d, impl}`. There is no tag and no `unsafe.Pointer`.
+Heap payload lives on that impl (for example `*stringImpl.value`).
+`d` still holds longs, doubles, bools, and packed collection lengths.
 
 ```go
 type impl interface {
@@ -70,16 +69,14 @@ type impl interface {
 
 type Value struct {
     d    float64
-    tag  ValueTag
     impl impl
 }
 ```
 
 `hash` / `typ` / `String` / `assoc` / `dissoc` / `get` / `contains` take the
-`Value` so longs and bools can still read `d`. Constructors go through
-`makeValue(tag, d, impl)`. Immediates may pass a nil impl and get the
-singleton from `implFor(tag)`; heap values pass a `*typeImpl` that owns
-their data. `TypeOf` and hashing call `v.impl` directly. Printing is `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
+`Value` so longs and bools can still read `d`. Constructors return
+`Value{d, impl}` directly (`NewLong` uses `longImpl{}`; `NewString` uses
+`&stringImpl{value: s}`). `TypeOf` and hashing call `v.impl` directly. Printing is `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
 is no `ValueToString`. `Assoc` is `v.impl.assoc(v, entries...)`. Map, array, and
 vector override `assoc`. `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`;
 map and nil override `dissoc`. `Get` is `v.impl.get(v, key, missing)` after arity
@@ -97,7 +94,7 @@ the arity check; list, array, vector, set, and map override it. `Count` /
 `IsEmpty` / `NotEmpty` / `Seq` dispatch the same way. Nil counts as 0 and is
 empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
-`newSeqCursor` is `v.impl.seqCursor(v)`; cursor kinds are not `ValueTag`. `Eq` /
+`newSeqCursor` is `v.impl.seqCursor(v)`. `Eq` /
 `IsTruthy` / `IsNil` / `Compare` dispatch through `impl`. Numeric `=` uses
 `isNumeric` then `cmpNum`. FFI conversion is the same: `ValueToAny` is
 `toAny`, Go/native unbox is `toNative`, JSON is `toJSON`, `name` is `name`,
@@ -112,10 +109,11 @@ binary `Add`; the two-arg path is not itself variadic. `(< a b c d)` is chained
 binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
 those calls panic.
 
-`value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
-`implByTag` table. Required methods (`hash`, `typ`, `String`) live on each
-type’s file (`string.go`, `long.go`, `double.go`, …). Type-specific overrides
-such as `assoc`/`dissoc` stay in that same file.
+`value_impl.go` holds `defaultImpl` (panic stubs for optional ops). Required
+methods (`hash`, `typ`, `String`) live on each type’s file (`string.go`,
+`long.go`, `double.go`, …). Type-specific overrides such as `assoc`/`dissoc`
+stay in that same file. Remaining Go type checks use `isType[T]` or a type
+switch on `v.impl`.
 
 Do not put every FLAG function on `impl` yet. When types are known at compile
 time, `(+ a b)` can skip the first hop (`b.addLong(a.longValue)`) or become a

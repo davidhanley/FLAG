@@ -83,7 +83,7 @@ func TestJSONReadFromFileLeavesReaderAtNextObject(t *testing.T) {
 	if !Eq(second, NewMap(NewKeyword("b"), NewLong(2))) {
 		t.Fatalf("unexpected second JSON value: %s", second.String())
 	}
-	if third.tag != TagNil {
+	if !IsNil(third) {
 		t.Fatalf("expected nil at eof, got %#v", third)
 	}
 }

@@ -5,11 +5,11 @@ import "testing"
 func TestRandRange(t *testing.T) {
 	seedRand(1)
 	got := Rand()
-	if got.tag != TagDouble || got.Double() < 0 || got.Double() >= 1 {
+	if !isType[doubleImpl](got) || got.Double() < 0 || got.Double() >= 1 {
 		t.Fatalf("rand: expected [0, 1), got %#v", got)
 	}
 	got = Rand(NewLong(10))
-	if got.tag != TagDouble || got.Double() < 0 || got.Double() >= 10 {
+	if !isType[doubleImpl](got) || got.Double() < 0 || got.Double() >= 10 {
 		t.Fatalf("rand 10: expected [0, 10), got %#v", got)
 	}
 	assertPanics(t, func() { Rand(NewKeyword("a")) })
@@ -17,12 +17,12 @@ func TestRandRange(t *testing.T) {
 }
 
 func TestRandNth(t *testing.T) {
-	if got := RandNth(NewArray(NewKeyword("a"))); got.tag != TagSymbol || got.SymbolObject().Name != "a" {
+	if got := RandNth(NewArray(NewKeyword("a"))); !isType[*symbolImpl](got) || got.SymbolObject().Name != "a" {
 		t.Fatalf("rand-nth singleton: %#v", got)
 	}
 	seedRand(2)
 	got := RandNth(NewArray(NewLong(1), NewLong(2), NewLong(3)))
-	if got.tag != TagLong || got.Long() < 1 || got.Long() > 3 {
+	if !isType[longImpl](got) || got.Long() < 1 || got.Long() > 3 {
 		t.Fatalf("rand-nth: %#v", got)
 	}
 	assertPanics(t, func() { RandNth(NewArray()) })
@@ -30,7 +30,7 @@ func TestRandNth(t *testing.T) {
 }
 
 func TestShuffle(t *testing.T) {
-	if got := Shuffle(NewArray()); got.tag != TagArray || got.ArrayLen() != 0 {
+	if got := Shuffle(NewArray()); !isType[*arrayImpl](got) || got.ArrayLen() != 0 {
 		t.Fatalf("shuffle empty: %#v", got)
 	}
 	if got := Shuffle(NewArray(NewLong(1))); got.ArrayLen() != 1 || ArrayGet(got, 0).Long() != 1 {

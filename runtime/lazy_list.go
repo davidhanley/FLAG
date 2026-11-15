@@ -42,7 +42,7 @@ func newLazyListValue(state *lazyListState, remaining int64, index int) Value {
 		panic("lazy list expects non-nil state")
 	}
 	view := &lazyListView{state: state, index: index}
-	return makeValue(TagLazyList, packLong(remaining), &lazyListImpl{view: view})
+	return Value{d: packLong(remaining), impl: &lazyListImpl{view: view}}
 }
 
 func (v Value) lazyListViewPointer() *lazyListView {
@@ -58,7 +58,7 @@ func (v Value) lazyListIndex() int {
 }
 
 func (v Value) lazyListRemainingHint() int64 {
-	if v.tag != TagLazyList {
+	if !isType[*lazyListImpl](v) {
 		panic("lazyListRemainingHint called on non-lazy-list Value")
 	}
 	return v.Long()

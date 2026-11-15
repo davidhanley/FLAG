@@ -5,13 +5,6 @@ import (
 	"math/big"
 )
 
-func implFor(tag ValueTag) impl {
-	if tag == 0 || int(tag) >= len(implByTag) || implByTag[tag] == nil {
-		panic("missing Value impl")
-	}
-	return implByTag[tag]
-}
-
 // defaultImpl panics for optional vtable ops. Each type file must implement
 // hash, typ, and String.
 type defaultImpl struct{}
@@ -221,28 +214,4 @@ func (defaultImpl) cmpRatio(Value, *big.Rat) int {
 }
 func (defaultImpl) cmpBigInt(Value, *big.Int) int {
 	panic("compare expects numeric Value arguments")
-}
-
-var implByTag = [TagAtom + 1]impl{
-	TagLong:     longImpl{},
-	TagBigInt:   bigIntImpl{},
-	TagDouble:   doubleImpl{},
-	TagRatio:    ratioImpl{},
-	TagBool:     boolImpl{},
-	TagString:   stringImpl{},
-	TagDate:     dateImpl{},
-	TagFile:     fileImpl{},
-	TagSymbol:   symbolImpl{},
-	TagFunction: functionImpl{},
-	TagMap:      mapImpl{},
-	TagSet:      setImpl{},
-	TagNil:      nilImpl{},
-	TagList:     listImpl{},
-	TagArray:    arrayImpl{},
-	TagLazyList: lazyListImpl{},
-	TagChannel:  channelImpl{},
-	TagRecur:    recurImpl{},
-	TagRecord:   recordImpl{},
-	TagVector:   vectorImpl{},
-	TagAtom:     atomImpl{},
 }

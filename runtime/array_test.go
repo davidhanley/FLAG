@@ -4,8 +4,8 @@ import "testing"
 
 func TestArrayStoresLengthInNumericField(t *testing.T) {
 	arrayValue := NewArray(NewLong(1), NewLong(2), NewLong(3))
-	if arrayValue.tag != TagArray {
-		t.Fatalf("expected TagArray, got %v", arrayValue.tag)
+	if !isType[*arrayImpl](arrayValue) {
+		t.Fatalf("expected TagArray, got %v", TypeOf(arrayValue))
 	}
 	if got := arrayValue.ArrayLen(); got != 3 {
 		t.Fatalf("expected ArrayLen 3, got %d", got)
@@ -106,8 +106,8 @@ func TestFirstAndRestForArray(t *testing.T) {
 	}
 
 	rest := Rest(arrayValue)
-	if rest.tag != TagArray {
-		t.Fatalf("expected rest to be array, got %v", rest.tag)
+	if !isType[*arrayImpl](rest) {
+		t.Fatalf("expected rest to be array, got %v", TypeOf(rest))
 	}
 	if rest.ArrayLen() != 2 {
 		t.Fatalf("expected rest length 2, got %d", rest.ArrayLen())
@@ -116,8 +116,8 @@ func TestFirstAndRestForArray(t *testing.T) {
 		t.Fatalf("unexpected rest values: %#v", rest.ArrayValues())
 	}
 
-	if got := First(NewArray()); got.tag != TagNil {
-		t.Fatalf("expected first of empty array to be nil, got %v", got.tag)
+	if got := First(NewArray()); !IsNil(got) {
+		t.Fatalf("expected first of empty array to be nil, got %v", TypeOf(got))
 	}
 }
 

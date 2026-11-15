@@ -21,7 +21,7 @@ func NewList(values ...Value) Value {
 }
 
 func ListCons(listValue Value, item Value) Value {
-	if listValue.tag != TagList {
+	if !isType[*listImpl](listValue) {
 		panic("ListCons expects list Value")
 	}
 	head := &listNode{
@@ -32,7 +32,7 @@ func ListCons(listValue Value, item Value) Value {
 }
 
 func ListRest(listValue Value) Value {
-	if listValue.tag != TagList {
+	if !isType[*listImpl](listValue) {
 		panic("ListRest expects list Value")
 	}
 	head := listValue.listPointer()
@@ -43,14 +43,14 @@ func ListRest(listValue Value) Value {
 }
 
 func (v Value) ListLen() int {
-	if v.tag != TagList {
+	if !isType[*listImpl](v) {
 		panic("ListLen called on non-list Value")
 	}
 	return int(v.Long())
 }
 
 func (v Value) ListValues() []Value {
-	if v.tag != TagList {
+	if !isType[*listImpl](v) {
 		panic("ListValues called on non-list Value")
 	}
 	head := v.listPointer()
@@ -62,7 +62,7 @@ func (v Value) ListValues() []Value {
 }
 
 func ListAppend(listValue Value, item Value) Value {
-	if listValue.tag != TagList {
+	if !isType[*listImpl](listValue) {
 		panic("ListAppend expects list Value")
 	}
 	values := append(listValue.ListValues(), item)
@@ -70,7 +70,7 @@ func ListAppend(listValue Value, item Value) Value {
 }
 
 func newListValue(head *listNode, length int) Value {
-	return makeValue(TagList, packLong(int64(length)), &listImpl{head: head})
+	return Value{d: packLong(int64(length)), impl: &listImpl{head: head}}
 }
 
 func (v Value) listPointer() *listNode {

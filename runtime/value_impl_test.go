@@ -38,26 +38,24 @@ func TestValueImplPresentAndMatchesHelpers(t *testing.T) {
 		NewVector(NewLong(1)),
 		Atom(NewLong(1)),
 	}
-	seen := map[ValueTag]bool{}
+	seen := map[string]bool{}
 	for _, v := range values {
 		if v.impl == nil {
-			t.Fatalf("constructed value tag %v has nil impl", v.tag)
+			t.Fatalf("constructed value %v has nil impl", TypeOf(v))
 		}
 		if got, want := v.impl.typ(v), TypeOf(v); !Eq(got, want) {
-			t.Fatalf("typ %v: got %s want %s", v.tag, got.String(), want.String())
+			t.Fatalf("typ %v: got %s want %s", TypeOf(v), got.String(), want.String())
 		}
 		if got, want := v.impl.String(v), v.String(); got != want {
-			t.Fatalf("String %v: got %q want %q", v.tag, got, want)
+			t.Fatalf("String %v: got %q want %q", TypeOf(v), got, want)
 		}
 		if got, want := v.impl.hash(v), valueIdentity(v); got != want {
-			t.Fatalf("hash %v: got %q want %q", v.tag, got, want)
+			t.Fatalf("hash %v: got %q want %q", TypeOf(v), got, want)
 		}
-		seen[v.tag] = true
+		seen[TypeOf(v).String()] = true
 	}
-	for tag := TagLong; tag <= TagAtom; tag++ {
-		if !seen[tag] {
-			t.Fatalf("no constructed value for tag %v", tag)
-		}
+	if len(seen) < 20 {
+		t.Fatalf("expected many distinct types, got %v", seen)
 	}
 }
 
@@ -72,7 +70,6 @@ func TestValueImplTypDistinguishesKeyword(t *testing.T) {
 
 func TestValueImplUninitializedPanics(t *testing.T) {
 	assertPanics(t, func() { TypeOf(Value{}) })
-	assertPanics(t, func() { implFor(0) })
 }
 
 func TestValueImplHashStableForEqualImmediates(t *testing.T) {

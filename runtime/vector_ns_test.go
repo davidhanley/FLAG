@@ -12,8 +12,8 @@ func TestValueToAnyKeepsVector(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected vector Value from ValueToAny, got %T", ValueToAny(v))
 	}
-	if converted.tag != TagVector {
-		t.Fatalf("expected TagVector, got %v", converted.tag)
+	if !isType[*vectorImpl](converted) {
+		t.Fatalf("expected TagVector, got %v", TypeOf(converted))
 	}
 	if converted.String() != "| 1 2 3 |" {
 		t.Fatalf("unexpected vector print: %s", converted.String())
@@ -22,7 +22,7 @@ func TestValueToAnyKeepsVector(t *testing.T) {
 
 func TestVectorNSVectorAndGet(t *testing.T) {
 	v := VectorNSVector(NewLong(1), NewKeyword("a"))
-	if v.tag != TagVector || v.VectorLen() != 2 {
+	if !isType[*vectorImpl](v) || v.VectorLen() != 2 {
 		t.Fatalf("expected vector of len 2, got %s", v.String())
 	}
 	if got := VectorNSGet(v, NewLong(1)); !Eq(got, NewKeyword("a")) {

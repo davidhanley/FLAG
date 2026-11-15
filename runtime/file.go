@@ -38,7 +38,7 @@ func NewFile(file *os.File) Value {
 	if file == nil {
 		panic("NewFile expects non-nil file")
 	}
-	return makeValue(TagFile, 0, &fileImpl{file: &FileObject{File: file, Path: file.Name()}})
+	return Value{impl: &fileImpl{file: &FileObject{File: file, Path: file.Name()}}}
 }
 
 func (v Value) FileObject() *FileObject {
@@ -46,7 +46,7 @@ func (v Value) FileObject() *FileObject {
 }
 
 func (v Value) Close() error {
-	if v.tag != TagFile {
+	if !isType[*fileImpl](v) {
 		panic("close expects a file Value")
 	}
 	return v.FileObject().Close()

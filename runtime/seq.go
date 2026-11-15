@@ -144,7 +144,7 @@ func MapCat(fn Value, seq Value) Value {
 					return Value{}, false
 				}
 				inner := Call(fn, nextItem)
-				if inner.tag == TagNil {
+				if IsNil(inner) {
 					continue
 				}
 				innerCursor = newSeqCursor(inner)
@@ -176,7 +176,7 @@ func lazyMap(fn Value, seqs ...Value) Value {
 
 func allLazySeqs(seqs []Value) bool {
 	for _, seq := range seqs {
-		if seq.tag != TagLazyList {
+		if !isType[*lazyListImpl](seq) {
 			return false
 		}
 	}
@@ -310,7 +310,7 @@ func Filter(fn Value, seq Value) Value {
 }
 
 func Some(fn Value, seq Value) Value {
-	if seq.tag == TagNil {
+	if IsNil(seq) {
 		return NilValue
 	}
 	cursor := newSeqCursor(seq)
@@ -409,7 +409,7 @@ func SortBy(keyFn Value, args ...Value) Value {
 		})
 	}
 
-	if cmpFn.tag != 0 {
+	if cmpFn.impl != nil {
 		sort.SliceStable(items, func(i, j int) bool {
 			return IsTruthy(Call(cmpFn, items[i].key, items[j].key))
 		})
@@ -417,10 +417,10 @@ func SortBy(keyFn Value, args ...Value) Value {
 		sort.SliceStable(items, func(i, j int) bool {
 			left := items[i].key
 			right := items[j].key
-			if left.tag == TagNil {
-				return right.tag != TagNil
+			if IsNil(left) {
+				return !IsNil(right)
 			}
-			if right.tag == TagNil {
+			if IsNil(right) {
 				return false
 			}
 			return Lt(left, right)
@@ -454,8 +454,8 @@ func Into(coll Value, from Value) Value {
 }
 
 func conjMapEntry(entry Value) (Value, Value) {
-	switch entry.tag {
-	case TagList, TagArray, TagVector, TagLazyList:
+	switch entry.impl.(type) {
+	case *listImpl, *arrayImpl, *vectorImpl, *lazyListImpl:
 		// valid pair sequence input
 	default:
 		panic("conj on map expects pair sequences")
@@ -487,8 +487,8 @@ func notEmptyIf(coll Value, empty bool) Value {
 }
 
 func DoAll(coll Value) Value {
-	switch coll.tag {
-	case TagList, TagArray, TagVector, TagLazyList:
+	switch coll.impl.(type) {
+	case *listImpl, *arrayImpl, *vectorImpl, *lazyListImpl:
 		// Realize seqable collections.
 	default:
 		// Non-seq values are already realized; keep doall as a no-op.
@@ -702,14 +702,14 @@ func seqToList(coll Value) Value {
 }
 
 func SeqFirst(coll Value) Value {
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return NilValue
 	}
 	return First(coll)
 }
 
 func SeqRest(coll Value) Value {
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return NewList()
 	}
 	return Rest(coll)
@@ -819,20 +819,20 @@ func newLazyRepeat(value Value, remaining int64, finite bool) Value {
 }
 
 func rangeArgLong(name string, value Value) int64 {
-	if value.tag != TagLong {
+	if !isType[longImpl](value) {
 		panic(name + " expects integer arguments")
 	}
 	return value.Long()
 }
 
 func nonNegativeCount(name string, value Value) int {
-	switch value.tag {
-	case TagLong:
+	switch value.impl.(type) {
+	case longImpl:
 		if value.Long() < 0 {
 			panic(name + " expects non-negative count")
 		}
 		return int(value.Long())
-	case TagBigInt:
+	case *bigIntImpl:
 		bi := value.BigInt()
 		if bi.Sign() < 0 {
 			panic(name + " expects non-negative count")

@@ -15,7 +15,7 @@ type dateImpl struct {
 }
 
 func NewDate(t time.Time) Value {
-	return makeValue(TagDate, 0, &dateImpl{obj: &DateObject{Time: normalizeDateTime(t)}})
+	return Value{impl: &dateImpl{obj: &DateObject{Time: normalizeDateTime(t)}}}
 }
 
 func NewDateFromYMD(year, month, day int) Value {
@@ -51,7 +51,7 @@ func dateEntries(v Value) []MapEntry {
 }
 
 func dateFieldValue(v Value, key Value) (Value, bool) {
-	if key.tag != TagSymbol || !key.SymbolObject().IsKeyword {
+	if !isType[*symbolImpl](key) || !key.SymbolObject().IsKeyword {
 		return Value{}, false
 	}
 	switch key.SymbolObject().Name {

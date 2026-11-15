@@ -8,37 +8,37 @@ import (
 
 func requireDouble(t *testing.T, got Value, want float64) {
 	t.Helper()
-	if got.tag != TagDouble || got.Double() != want {
-		t.Fatalf("expected double %v, got %#v (tag=%v d=%v)", want, got, got.tag, got.Double())
+	if !isType[doubleImpl](got) || got.Double() != want {
+		t.Fatalf("expected double %v, got %#v (tag=%v d=%v)", want, got, TypeOf(got), got.Double())
 	}
 }
 
 func requireLong(t *testing.T, got Value, want int64) {
 	t.Helper()
-	if got.tag != TagLong || got.Long() != want {
+	if !isType[longImpl](got) || got.Long() != want {
 		t.Fatalf("expected long %d, got %#v", want, got)
 	}
 }
 
 func requireNaN(t *testing.T, got Value) {
 	t.Helper()
-	if got.tag != TagDouble || !math.IsNaN(got.Double()) {
+	if !isType[doubleImpl](got) || !math.IsNaN(got.Double()) {
 		t.Fatalf("expected NaN double, got %#v", got)
 	}
 }
 
 func requireInf(t *testing.T, got Value, sign int) {
 	t.Helper()
-	if got.tag != TagDouble || !math.IsInf(got.Double(), sign) {
+	if !isType[doubleImpl](got) || !math.IsInf(got.Double(), sign) {
 		t.Fatalf("expected Inf(sign=%d) double, got %#v", sign, got)
 	}
 }
 
 func TestMathAbsFunctionIsRegistered(t *testing.T) {
-	if got := Call(GoFunction("math/abs"), NewLong(-42)); got.tag != TagLong || got.Long() != 42 {
+	if got := Call(GoFunction("math/abs"), NewLong(-42)); !isType[longImpl](got) || got.Long() != 42 {
 		t.Fatalf("unexpected math/abs long result: %#v", got)
 	}
-	if got := Call(GoFunction("math/abs"), NewDouble(-2.5)); got.tag != TagDouble || got.Double() != 2.5 {
+	if got := Call(GoFunction("math/abs"), NewDouble(-2.5)); !isType[doubleImpl](got) || got.Double() != 2.5 {
 		t.Fatalf("unexpected math/abs double result: %#v", got)
 	}
 }
