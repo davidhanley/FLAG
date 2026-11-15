@@ -219,3 +219,15 @@ func (arrayImpl) seqCursor(v Value) seqCursor {
 	length := v.ArrayLen()
 	return arraySeqCursor(v.arrayItems()[:length])
 }
+func (arrayImpl) toAny(v Value) any {
+	return arrayValueToAny(v)
+}
+func (arrayImpl) toNative(v Value) any {
+	return nativeSeq(v.ArrayValues())
+}
+func (arrayImpl) toJSON(v Value) (any, error) {
+	return arrayToJSONValue(v.ArrayValues())
+}
+func (arrayImpl) goSeq(v Value) []Value {
+	return v.ArrayValues()
+}

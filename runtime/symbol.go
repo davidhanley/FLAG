@@ -30,14 +30,10 @@ func Symbol(arg any) Value {
 	case string:
 		return NewSymbol(value)
 	case Value:
-		switch value.tag {
-		case TagString:
-			return NewSymbol(value.StringValue())
-		case TagSymbol:
-			return NewSymbol(value.SymbolObject().Name)
-		default:
-			panic("symbol expects string or symbol")
+		if s, ok := value.impl.asIdent(value); ok {
+			return NewSymbol(s)
 		}
+		panic("symbol expects string or symbol")
 	default:
 		panic("symbol expects string or symbol")
 	}
@@ -48,14 +44,10 @@ func Keyword(arg any) Value {
 	case string:
 		return NewKeyword(value)
 	case Value:
-		switch value.tag {
-		case TagString:
-			return NewKeyword(value.StringValue())
-		case TagSymbol:
-			return NewKeyword(value.SymbolObject().Name)
-		default:
-			panic("keyword expects string, symbol, or keyword")
+		if s, ok := value.impl.asIdent(value); ok {
+			return NewKeyword(s)
 		}
+		panic("keyword expects string, symbol, or keyword")
 	default:
 		panic("keyword expects string, symbol, or keyword")
 	}
@@ -66,10 +58,7 @@ func Name(arg any) string {
 	case string:
 		return value
 	case Value:
-		if value.tag != TagSymbol {
-			panic("name expects symbol or keyword")
-		}
-		return value.SymbolObject().Name
+		return value.impl.name(value)
 	case *SymbolObject:
 		if value == nil {
 			panic("name expects symbol or keyword")
@@ -101,4 +90,23 @@ func (symbolImpl) String(v Value) string {
 		return ":" + symbol.Name
 	}
 	return symbol.Name
+}
+func (symbolImpl) asString(v Value) string {
+	return v.SymbolObject().Name
+}
+func (symbolImpl) asIdent(v Value) (string, bool) {
+	return v.SymbolObject().Name, true
+}
+func (symbolImpl) name(v Value) string {
+	return v.SymbolObject().Name
+}
+func (symbolImpl) toNative(v Value) any {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return ":" + symbol.Name
+	}
+	return symbol.Name
+}
+func (symbolImpl) toJSON(v Value) (any, error) {
+	return symbolImpl{}.toNative(v), nil
 }

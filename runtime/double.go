@@ -17,3 +17,6 @@ func (doubleImpl) typ(Value) Value { return typeFloat }
 func (doubleImpl) String(v Value) string {
 	return strconv.FormatFloat(v.Double(), 'g', -1, 64)
 }
+func (doubleImpl) toAny(v Value) any           { return v.Double() }
+func (doubleImpl) toNative(v Value) any        { return v.Double() }
+func (doubleImpl) toJSON(v Value) (any, error) { return v.Double(), nil }

@@ -1,5 +1,7 @@
 package runtime
 
+import "fmt"
+
 func implFor(tag ValueTag) impl {
 	if tag == 0 || int(tag) >= len(implByTag) || implByTag[tag] == nil {
 		panic("missing Value impl")
@@ -85,6 +87,22 @@ func (defaultImpl) compare(v Value, other Value) Value {
 		return NewLong(1)
 	}
 	return NewLong(int64(compareOrdered(v, other)))
+}
+func (defaultImpl) toAny(v Value) any    { return v }
+func (defaultImpl) toNative(v Value) any { return v }
+func (defaultImpl) asString(v Value) string {
+	return v.String()
+}
+func (defaultImpl) asIdent(Value) (string, bool) { return "", false }
+func (defaultImpl) toJSON(v Value) (any, error) {
+	return nil, fmt.Errorf("unsupported value type for JSON: %s", TypeOf(v).String())
+}
+func (defaultImpl) name(Value) string {
+	panic("name expects symbol or keyword")
+}
+func (defaultImpl) exMessage(Value) Value { return NilValue }
+func (defaultImpl) goSeq(Value) []Value {
+	panic("ListValues called on non-list Value")
 }
 
 var implByTag = [TagAtom + 1]impl{

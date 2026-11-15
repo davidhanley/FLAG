@@ -36,6 +36,14 @@ type impl interface {
     isTruthy(v Value) bool
     isNil(v Value) bool
     compare(v Value, other Value) Value
+    toAny(v Value) any
+    toNative(v Value) any
+    asString(v Value) string
+    asIdent(v Value) (string, bool)
+    toJSON(v Value) (any, error)
+    name(v Value) string
+    exMessage(v Value) Value
+    goSeq(v Value) []Value
 }
 
 type Value struct {
@@ -69,13 +77,16 @@ empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
 `newSeqCursor` is `v.impl.seqCursor(v)`; cursor kinds are not `ValueTag`. `Eq` /
 `IsTruthy` / `IsNil` / `Compare` dispatch through `impl` (numeric `=` still uses
-tags until math is optimized). A `Value` with a nil `impl` is uninitialized and
-those calls panic.
+tags until math is optimized). FFI conversion is the same: `ValueToAny` is
+`toAny`, Go/native unbox is `toNative`, JSON is `toJSON`, `name` is `name`,
+`ex-message` is `exMessage`, and string/symbol names use `asIdent`/`asString`.
+Array `toAny` is `[]any`; file `toNative` is the host `*os.File`. A `Value` with
+a nil `impl` is uninitialized and those calls panic.
 
 `value_impl.go` holds `defaultImpl` (panic stubs for optional ops) and the
 `implByTag` table. Required methods (`hash`, `typ`, `String`) live on each
 type’s file (`string.go`, `long.go`, `double.go`, …). Type-specific overrides
 such as `assoc`/`dissoc` stay in that same file.
 
-More builtins (`first`, `rest`, …) will move onto `impl` the same way. Do not put
-every FLAG function on `impl` yet. Numerics stay on tags until math is optimized.
+Do not put every FLAG function on `impl` yet. Numerics stay on tags until math is
+optimized.

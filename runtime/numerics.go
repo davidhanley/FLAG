@@ -376,30 +376,7 @@ func anyToString(arg any) string {
 }
 
 func ValueToAny(v Value) any {
-	switch v.tag {
-	case TagLong:
-		return v.Long()
-	case TagDouble:
-		return v.Double()
-	case TagRatio:
-		return v.Ratio()
-	case TagBigInt:
-		return v.BigInt()
-	case TagBool:
-		return v.Bool()
-	case TagString:
-		return v.StringValue()
-	case TagDate:
-		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagAtom, TagRecur, TagRecord, TagVector, TagList:
-		return v
-	case TagNil:
-		return nil
-	case TagArray:
-		return arrayValueToAny(v)
-	default:
-		panic("unknown Value tag")
-	}
+	return v.impl.toAny(v)
 }
 
 func (v Value) ratioPointer() *big.Rat {

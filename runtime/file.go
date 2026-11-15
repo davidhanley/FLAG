@@ -79,3 +79,9 @@ func (fileImpl) typ(Value) Value { return typeFile }
 func (fileImpl) String(v Value) string {
 	return "#<file " + v.FileObject().Path + ">"
 }
+func (fileImpl) toNative(v Value) any {
+	return v.FileObject().File
+}
+func (fileImpl) toJSON(v Value) (any, error) {
+	return "#<file " + v.FileObject().Path + ">", nil
+}

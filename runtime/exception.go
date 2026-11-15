@@ -62,19 +62,7 @@ func CatchMatches(class string, thrown Value) bool {
 
 // ExMessage returns the message of an exception, a thrown string, or nil.
 func ExMessage(v Value) Value {
-	switch v.tag {
-	case TagNil:
-		return NilValue
-	case TagString:
-		return v
-	case TagMap:
-		if msg, ok := mapLookup(v, exMessageKey); ok {
-			return msg
-		}
-		return NilValue
-	default:
-		return NilValue
-	}
+	return v.impl.exMessage(v)
 }
 
 // ExData returns the data map of an ExceptionInfo value, or nil.

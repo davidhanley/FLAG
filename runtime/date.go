@@ -109,6 +109,15 @@ func (dateImpl) vals(v Value) Value { return mapEntryVals(dateEntries(v)) }
 func (dateImpl) seqCursor(v Value) seqCursor {
 	return mapEntriesSeqCursor(dateEntries(v))
 }
+func (dateImpl) toAny(v Value) any    { return v.DateTime() }
+func (dateImpl) toNative(v Value) any { return v.DateTime() }
+func (dateImpl) toJSON(v Value) (any, error) {
+	return map[string]any{
+		"year":  v.DateYear(),
+		"month": v.DateMonth(),
+		"day":   v.DateDay(),
+	}, nil
+}
 func (dateImpl) count(v Value) int      { return len(dateEntries(v)) }
 func (dateImpl) isEmpty(v Value) bool   { return len(dateEntries(v)) == 0 }
 func (dateImpl) notEmpty(v Value) Value { return notEmptyIf(v, len(dateEntries(v)) == 0) }

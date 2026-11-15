@@ -84,3 +84,6 @@ func (functionImpl) typ(Value) Value { return typeFn }
 func (functionImpl) String(Value) string {
 	return "#<fn>"
 }
+func (functionImpl) toJSON(Value) (any, error) {
+	return "#<fn>", nil
+}

@@ -161,3 +161,12 @@ func (listImpl) seqQ(Value) bool { return true }
 func (listImpl) seqCursor(v Value) seqCursor {
 	return listSeqCursor(v.listPointer(), v.ListLen())
 }
+func (listImpl) toNative(v Value) any {
+	return nativeSeq(v.ListValues())
+}
+func (listImpl) toJSON(v Value) (any, error) {
+	return arrayToJSONValue(v.ListValues())
+}
+func (listImpl) goSeq(v Value) []Value {
+	return v.ListValues()
+}

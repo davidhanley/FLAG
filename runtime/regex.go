@@ -96,12 +96,5 @@ func RegexMatches(pattern any, value string) bool {
 }
 
 func valueAsString(v Value) string {
-	switch v.tag {
-	case TagString:
-		return v.StringValue()
-	case TagSymbol:
-		return v.SymbolObject().Name
-	default:
-		return v.String()
-	}
+	return v.impl.asString(v)
 }

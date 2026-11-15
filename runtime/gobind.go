@@ -36,11 +36,8 @@ func goArgArityAtLeast(name string, args []Value, n int) {
 }
 
 func goArgString(name string, idx int, v Value) string {
-	switch v.tag {
-	case TagSymbol:
-		return v.SymbolObject().Name
-	case TagString:
-		return v.StringValue()
+	if s, ok := v.impl.asIdent(v); ok {
+		return s
 	}
 	if raw, ok := ValueToAny(v).(string); ok {
 		return raw

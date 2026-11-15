@@ -523,6 +523,18 @@ func (mapImpl) vals(v Value) Value { return mapEntryVals(v.MapEntries()) }
 func (mapImpl) seqCursor(v Value) seqCursor {
 	return mapEntriesSeqCursor(v.MapEntries())
 }
+func (mapImpl) toNative(v Value) any {
+	return nativeMap(v.MapEntries())
+}
+func (mapImpl) toJSON(v Value) (any, error) {
+	return mapToJSONValue(v)
+}
+func (mapImpl) exMessage(v Value) Value {
+	if msg, ok := mapLookup(v, exMessageKey); ok {
+		return msg
+	}
+	return NilValue
+}
 func (mapImpl) count(v Value) int      { return v.MapLen() }
 func (mapImpl) isEmpty(v Value) bool   { return v.MapLen() == 0 }
 func (mapImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.MapLen() == 0) }
@@ -595,6 +607,12 @@ func (setImpl) next(v Value) Value {
 }
 func (setImpl) seqCursor(v Value) seqCursor {
 	return arraySeqCursor(v.SetValues())
+}
+func (setImpl) toNative(v Value) any {
+	return nativeSeq(v.SetValues())
+}
+func (setImpl) toJSON(v Value) (any, error) {
+	return arrayToJSONValue(v.SetValues())
 }
 func (setImpl) count(v Value) int      { return v.SetLen() }
 func (setImpl) isEmpty(v Value) bool   { return v.SetLen() == 0 }

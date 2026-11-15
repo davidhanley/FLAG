@@ -217,13 +217,7 @@ func valueToGoArg(value Value, targetType reflect.Type) (reflect.Value, error) {
 		}
 		return reflect.ValueOf(native), nil
 	}
-	if (value.tag == TagSymbol || value.tag == TagString) && targetType.Kind() == reflect.String {
-		s := ""
-		if value.tag == TagSymbol {
-			s = value.SymbolObject().Name
-		} else {
-			s = value.StringValue()
-		}
+	if s, ok := value.impl.asIdent(value); ok && targetType.Kind() == reflect.String {
 		rv := reflect.ValueOf(s)
 		if rv.Type().AssignableTo(targetType) {
 			return rv, nil
@@ -247,12 +241,13 @@ func valueToGoArg(value Value, targetType reflect.Type) (reflect.Value, error) {
 		return rv.Convert(targetType), nil
 	}
 
-	if value.tag == TagArray || value.tag == TagVector || value.tag == TagList {
+	kind := TypeOf(value)
+	if kind == typeArray || kind == typeVector || kind == typeList {
 		if targetType.Kind() == reflect.Slice {
 			return convertSeqToSlice(value, targetType)
 		}
 	}
-	if value.tag == TagMap {
+	if kind == typeMap {
 		switch targetType.Kind() {
 		case reflect.Map:
 			return convertMapToMap(value, targetType)
@@ -279,48 +274,7 @@ func isEmptyInterface(t reflect.Type) bool {
 }
 
 func nativeAny(value Value) any {
-	switch value.tag {
-	case TagNil:
-		return nil
-	case TagLong:
-		return value.Long()
-	case TagDouble:
-		return value.Double()
-	case TagRatio:
-		return value.Ratio()
-	case TagBigInt:
-		return value.BigInt()
-	case TagBool:
-		return value.Bool()
-	case TagString:
-		return value.StringValue()
-	case TagDate:
-		return value.DateTime()
-	case TagFile:
-		return value.FileObject().File
-	case TagSymbol:
-		symbol := value.SymbolObject()
-		if symbol.IsKeyword {
-			return ":" + symbol.Name
-		}
-		return symbol.Name
-	case TagList:
-		return nativeSeq(value.ListValues())
-	case TagArray:
-		return nativeSeq(value.ArrayValues())
-	case TagVector:
-		return nativeSeq(value.VectorValues())
-	case TagSet:
-		return nativeSeq(value.SetValues())
-	case TagLazyList:
-		return nativeLazySeq(value)
-	case TagMap:
-		return nativeMap(value.MapEntries())
-	case TagFunction:
-		return value
-	default:
-		return value
-	}
+	return value.impl.toNative(value)
 }
 
 func nativeSeq(values []Value) []any {
@@ -336,12 +290,12 @@ func nativeLazySeq(value Value) []any {
 	current := value
 	for {
 		first := First(current)
-		if first.tag == TagNil {
+		if IsNil(first) {
 			return out
 		}
 		out = append(out, nativeAny(first))
 		current = Rest(current)
-		if current.tag == TagNil {
+		if IsNil(current) {
 			return out
 		}
 	}
@@ -365,15 +319,7 @@ func canBeNilType(t reflect.Type) bool {
 }
 
 func convertSeqToSlice(value Value, targetType reflect.Type) (reflect.Value, error) {
-	var items []Value
-	switch value.tag {
-	case TagArray:
-		items = value.ArrayValues()
-	case TagVector:
-		items = value.VectorValues()
-	default:
-		items = value.ListValues()
-	}
+	items := value.impl.goSeq(value)
 	out := reflect.MakeSlice(targetType, len(items), len(items))
 	for i, item := range items {
 		converted, err := valueToGoArg(item, targetType.Elem())
@@ -437,14 +383,7 @@ func convertMapToStruct(value Value, targetType reflect.Type) (reflect.Value, er
 }
 
 func mapKeyName(key Value) (string, bool) {
-	switch key.tag {
-	case TagSymbol:
-		return key.SymbolObject().Name, true
-	case TagString:
-		return key.StringValue(), true
-	default:
-		return "", false
-	}
+	return key.impl.asIdent(key)
 }
 
 func normalizeInteropFieldName(name string) string {

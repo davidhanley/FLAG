@@ -895,7 +895,13 @@
     (is (= "xyz" (name :xyz)))
     (is (= "abc" (name (symbol "abc"))))
     (is (= 'xyz (symbol :xyz)))
-    (is (= :abc (keyword "abc"))))
+    (is (= :abc (keyword "abc")))
+    (is (= 'abc (symbol (identity "abc"))))
+    (is (= :abc (keyword (identity "abc"))))
+    (expect-exception (name (identity "abc")) "name expects")
+    (expect-exception (name 1) "name expects")
+    (expect-exception (symbol 1) "symbol expects")
+    (expect-exception (keyword 1) "keyword expects"))
   (testing "declare then defn"
     (is (= 42 (declared-answer)))))
 
@@ -1119,6 +1125,19 @@
       (is (= "hello-flag" (first (file-to-strings path))))))
   (testing "json to-json json/read json/read-str"
     (is (= "{\"a\":1}" (to-json {:a 1})))
+    (is (= "null" (to-json nil)))
+    (is (= "true" (to-json true)))
+    (is (= "[1,2]" (to-json [1 2])))
+    (is (= "[1,2]" (to-json (list 1 2))))
+    (is (= 1 (get (from-json (to-json {:a 1})) :a)))
+    (let [parsed (from-json (to-json (date/from-string "2026-03-08")))]
+      (is (= 2026 (:year parsed)))
+      (is (= 3 (:month parsed)))
+      (is (= 8 (:day parsed))))
+    (is (= "\"#<fn>\"" (to-json identity)))
+    (is (= "\"#<lazy-list>\"" (to-json (range))))
+    (is (= "hi" (ex-message (identity "hi"))))
+    (is (= nil (ex-message 1)))
     (is (= 1 (get (json/read-str "{\"a\":1}") "a")))
     (is (= 1 (get (json/read "{\"a\":1}") "a"))))
   (testing "str helpers .endsWith"

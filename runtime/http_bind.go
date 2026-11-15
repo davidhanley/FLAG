@@ -84,45 +84,45 @@ func adaptHTTPPost(args ...Value) Value {
 }
 
 func httpRequestFromValue(name string, v Value) httplib.Request {
-	if v.tag != TagMap {
+	if TypeOf(v) != typeMap {
 		panic(fmt.Sprintf("%s expects a request map, got %s", name, v.String()))
 	}
 	method := requestFieldString(name, v, "method", "GET")
 	url := requestFieldString(name, v, "url", "")
 	req := httplib.NewRequest(method, url)
 
-	if headers := Get(v, NewKeyword("headers")); headers.tag != TagNil {
+	if headers := Get(v, NewKeyword("headers")); !IsNil(headers) {
 		req.Headers = requestHeadersFromValue(name, headers)
 	}
-	if body := Get(v, NewKeyword("body")); body.tag != TagNil {
+	if body := Get(v, NewKeyword("body")); !IsNil(body) {
 		req.Body = httpBodyBytes(name, body)
 	}
-	if timeout := Get(v, NewKeyword("timeout-ms")); timeout.tag != TagNil {
+	if timeout := Get(v, NewKeyword("timeout-ms")); !IsNil(timeout) {
 		req.Timeout = time.Duration(goArgInt64(name, 0, timeout)) * time.Millisecond
 	}
-	if follow := Get(v, NewKeyword("follow-redirects")); follow.tag != TagNil {
+	if follow := Get(v, NewKeyword("follow-redirects")); !IsNil(follow) {
 		req.FollowRedirects = goArgBool(name, 0, follow)
 	}
 	return req
 }
 
 func applyHTTPRequestOptions(name string, req httplib.Request, opts Value) httplib.Request {
-	if opts.tag == TagNil {
+	if IsNil(opts) {
 		return req
 	}
-	if opts.tag != TagMap {
+	if TypeOf(opts) != typeMap {
 		panic(fmt.Sprintf("%s options: expected map, got %s", name, opts.String()))
 	}
-	if headers := Get(opts, NewKeyword("headers")); headers.tag != TagNil {
+	if headers := Get(opts, NewKeyword("headers")); !IsNil(headers) {
 		req.Headers = requestHeadersFromValue(name, headers)
 	}
-	if body := Get(opts, NewKeyword("body")); body.tag != TagNil {
+	if body := Get(opts, NewKeyword("body")); !IsNil(body) {
 		req.Body = httpBodyBytes(name, body)
 	}
-	if timeout := Get(opts, NewKeyword("timeout-ms")); timeout.tag != TagNil {
+	if timeout := Get(opts, NewKeyword("timeout-ms")); !IsNil(timeout) {
 		req.Timeout = time.Duration(goArgInt64(name, 0, timeout)) * time.Millisecond
 	}
-	if follow := Get(opts, NewKeyword("follow-redirects")); follow.tag != TagNil {
+	if follow := Get(opts, NewKeyword("follow-redirects")); !IsNil(follow) {
 		req.FollowRedirects = goArgBool(name, 0, follow)
 	}
 	return req
@@ -139,22 +139,17 @@ func httpSendFromValue(name string, v Value) httplib.Response {
 
 func requestFieldString(name string, req Value, field string, fallback string) string {
 	value := Get(req, NewKeyword(field))
-	if value.tag == TagNil {
+	if IsNil(value) {
 		return fallback
 	}
 	return goArgString(name, 0, value)
 }
 
 func httpHeaderKey(v Value) string {
-	switch v.tag {
-	case TagSymbol:
-		symbol := v.SymbolObject()
-		return strings.ToLower(symbol.Name)
-	case TagString:
-		return strings.ToLower(v.StringValue())
-	default:
-		return strings.ToLower(anyToString(ValueToAny(v)))
+	if s, ok := v.impl.asIdent(v); ok {
+		return strings.ToLower(s)
 	}
+	return strings.ToLower(anyToString(ValueToAny(v)))
 }
 
 func httpHeaderValue(name string, v Value) string {
@@ -162,10 +157,10 @@ func httpHeaderValue(name string, v Value) string {
 }
 
 func requestHeadersFromValue(name string, v Value) map[string][]string {
-	if v.tag == TagNil {
+	if IsNil(v) {
 		return nil
 	}
-	if v.tag != TagMap {
+	if TypeOf(v) != typeMap {
 		panic(fmt.Sprintf("%s headers: expected map, got %s", name, v.String()))
 	}
 	headers := map[string][]string{}
@@ -179,17 +174,18 @@ func requestHeadersFromValue(name string, v Value) map[string][]string {
 }
 
 func headerValuesFromValue(name string, v Value) []string {
-	switch v.tag {
-	case TagNil:
+	if IsNil(v) {
 		return nil
-	case TagArray:
+	}
+	switch TypeOf(v) {
+	case typeArray:
 		values := v.ArrayValues()
 		out := make([]string, 0, len(values))
 		for _, item := range values {
 			out = append(out, httpHeaderValue(name, item))
 		}
 		return out
-	case TagList:
+	case typeList:
 		values := v.ListValues()
 		out := make([]string, 0, len(values))
 		for _, item := range values {
@@ -202,26 +198,25 @@ func headerValuesFromValue(name string, v Value) []string {
 }
 
 func httpBodyBytes(name string, v Value) []byte {
-	switch v.tag {
-	case TagNil:
+	if IsNil(v) {
 		return nil
-	case TagFile:
+	}
+	if TypeOf(v) == typeFile {
 		reader := goArgReader(name, 0, v)
 		body, err := io.ReadAll(reader)
 		if err != nil {
 			panic(fmt.Sprintf("%s body: %v", name, err))
 		}
 		return body
-	default:
-		if reader, ok := ValueToAny(v).(io.Reader); ok {
-			body, err := io.ReadAll(reader)
-			if err != nil {
-				panic(fmt.Sprintf("%s body: %v", name, err))
-			}
-			return body
-		}
-		return []byte(anyToString(v))
 	}
+	if reader, ok := ValueToAny(v).(io.Reader); ok {
+		body, err := io.ReadAll(reader)
+		if err != nil {
+			panic(fmt.Sprintf("%s body: %v", name, err))
+		}
+		return body
+	}
+	return []byte(anyToString(v))
 }
 
 func httpRequestValue(req httplib.Request) Value {

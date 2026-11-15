@@ -34,6 +34,14 @@ type impl interface {
 	isTruthy(v Value) bool
 	isNil(v Value) bool
 	compare(v Value, other Value) Value
+	toAny(v Value) any
+	toNative(v Value) any
+	asString(v Value) string
+	asIdent(v Value) (string, bool)
+	toJSON(v Value) (any, error)
+	name(v Value) string
+	exMessage(v Value) Value
+	goSeq(v Value) []Value
 }
 
 type Value struct {
@@ -109,3 +117,7 @@ func (nilImpl) compare(_ Value, other Value) Value {
 	}
 	return NewLong(-1)
 }
+func (nilImpl) toAny(Value) any           { return nil }
+func (nilImpl) toNative(Value) any        { return nil }
+func (nilImpl) toJSON(Value) (any, error) { return nil, nil }
+func (nilImpl) exMessage(Value) Value     { return NilValue }

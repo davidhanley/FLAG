@@ -222,6 +222,12 @@ func (lazyListImpl) drop(v Value, n int) Value {
 	return out
 }
 func (lazyListImpl) seqQ(Value) bool { return true }
+func (lazyListImpl) toNative(v Value) any {
+	return nativeLazySeq(v)
+}
+func (lazyListImpl) toJSON(Value) (any, error) {
+	return "#<lazy-list>", nil
+}
 func (lazyListImpl) seqCursor(v Value) seqCursor {
 	remaining := v.lazyListRemainingHint()
 	hasLength := remaining >= 0

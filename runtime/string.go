@@ -99,6 +99,14 @@ func (stringImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value 
 func (stringImpl) seqCursor(v Value) seqCursor {
 	return stringSeqCursor(v.StringValue())
 }
+func (stringImpl) toAny(v Value) any       { return v.StringValue() }
+func (stringImpl) toNative(v Value) any    { return v.StringValue() }
+func (stringImpl) asString(v Value) string { return v.StringValue() }
+func (stringImpl) asIdent(v Value) (string, bool) {
+	return v.StringValue(), true
+}
+func (stringImpl) toJSON(v Value) (any, error) { return v.StringValue(), nil }
+func (stringImpl) exMessage(v Value) Value     { return v }
 
 func Subs(s Value, start Value, end ...Value) Value {
 	if s.tag != TagString {
