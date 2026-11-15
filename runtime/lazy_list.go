@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -41,17 +42,11 @@ func newLazyListValue(state *lazyListState, remaining int64, index int) Value {
 		panic("lazy list expects non-nil state")
 	}
 	view := &lazyListView{state: state, index: index}
-	return makeValue(TagLazyList, packLong(remaining), unsafe.Pointer(view))
+	return Value{d: packLong(remaining), impl: &lazyListImpl{view: view}}
 }
 
 func (v Value) lazyListViewPointer() *lazyListView {
-	if v.tag != TagLazyList {
-		panic("lazyListViewPointer called on non-lazy-list Value")
-	}
-	if v.p == nil {
-		panic("lazy list Value does not contain view pointer")
-	}
-	return (*lazyListView)(v.p)
+	return asImpl[*lazyListImpl](v, "lazyListViewPointer called on non-lazy-list Value").view
 }
 
 func (v Value) lazyListPointer() *lazyListState {
@@ -63,7 +58,7 @@ func (v Value) lazyListIndex() int {
 }
 
 func (v Value) lazyListRemainingHint() int64 {
-	if v.tag != TagLazyList {
+	if !isType[*lazyListImpl](v) {
 		panic("lazyListRemainingHint called on non-lazy-list Value")
 	}
 	return v.Long()
@@ -144,4 +139,98 @@ func (s *lazyListState) produceOne() bool {
 	s.tail.next = node
 	s.tail = node
 	return true
+}
+
+type lazyListImpl struct {
+	defaultImpl
+	view *lazyListView
+}
+
+func (lazyListImpl) hash(v Value) string {
+	return "Z:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.lazyListPointer()))), 16)
+}
+func (lazyListImpl) typ(Value) Value { return typeLazyList }
+func (lazyListImpl) String(Value) string {
+	return "#<lazy-list>"
+}
+func (lazyListImpl) first(v Value) Value {
+	next, ok := lazyPeek(v)
+	if !ok {
+		return NilValue
+	}
+	return next
+}
+func (lazyListImpl) rest(v Value) Value {
+	return lazyTail(v)
+}
+func (lazyListImpl) next(v Value) Value {
+	rest := lazyTail(v)
+	_, ok := lazyPeek(rest)
+	return nextIfEmpty(rest, !ok)
+}
+func (lazyListImpl) last(v Value) Value {
+	cursor := newSeqCursor(v)
+	last := NilValue
+	for {
+		next, ok := cursor.nextOrDone()
+		if !ok {
+			return last
+		}
+		last = next
+	}
+}
+func (lazyListImpl) count(v Value) int {
+	if hint := v.lazyListRemainingHint(); hint >= 0 {
+		return int(hint)
+	}
+	cursor := newSeqCursor(v)
+	count := 0
+	for {
+		_, ok := cursor.nextOrDone()
+		if !ok {
+			break
+		}
+		count++
+	}
+	return count
+}
+func (lazyListImpl) isEmpty(v Value) bool {
+	_, ok := lazyPeek(v)
+	return !ok
+}
+func (lazyListImpl) notEmpty(v Value) Value {
+	_, ok := lazyPeek(v)
+	return notEmptyIf(v, !ok)
+}
+func (lazyListImpl) nth(Value, int, Value, bool) Value {
+	panic("nth does not support list or lazy-list; use slow-nth")
+}
+func (lazyListImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (lazyListImpl) drop(v Value, n int) Value {
+	out := v
+	for i := 0; i < n; i++ {
+		if got := First(out); IsNil(got) {
+			return out
+		}
+		out = lazyTail(out)
+	}
+	return out
+}
+func (lazyListImpl) seqQ(Value) bool { return true }
+func (lazyListImpl) toNative(v Value) any {
+	return nativeLazySeq(v)
+}
+func (lazyListImpl) toJSON(Value) (any, error) {
+	return "#<lazy-list>", nil
+}
+func (lazyListImpl) seqCursor(v Value) seqCursor {
+	remaining := v.lazyListRemainingHint()
+	hasLength := remaining >= 0
+	length := 0
+	if hasLength {
+		length = int(remaining)
+	}
+	return lazySeqCursor(v, length, hasLength)
 }

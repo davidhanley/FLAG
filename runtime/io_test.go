@@ -16,16 +16,16 @@ func TestFileToStringsReadsLinesLazily(t *testing.T) {
 	lines := FileToStringsPath(path)
 
 	first := First(lines)
-	if first.tag != TagString || first.StringValue() != "alpha" {
+	if !isType[*stringImpl](first) || first.StringValue() != "alpha" {
 		t.Fatalf("expected first line string %q, got %#v", "alpha", first)
 	}
 	lines = Rest(lines)
 	second := First(lines)
-	if second.tag != TagString || second.StringValue() != "beta" {
+	if !isType[*stringImpl](second) || second.StringValue() != "beta" {
 		t.Fatalf("expected second line string %q, got %#v", "beta", second)
 	}
 	lines = Rest(lines)
-	if got := First(lines); got.tag != TagNil {
+	if got := First(lines); !IsNil(got) {
 		t.Fatalf("expected nil after exhausting lines, got %#v", got)
 	}
 }
@@ -62,7 +62,7 @@ func TestOpenFileAndFileToStringsIntegration(t *testing.T) {
 	}()
 	lines := FileToStrings(file)
 
-	if got := First(lines); got.tag != TagString || got.StringValue() != "x" {
+	if got := First(lines); !isType[*stringImpl](got) || got.StringValue() != "x" {
 		t.Fatalf("expected first line string %q, got %#v", "x", got)
 	}
 }
@@ -111,7 +111,7 @@ func TestLineSeqReadsFileLines(t *testing.T) {
 	}
 
 	lines := LineSeq(OpenFile(path))
-	if got := First(lines); got.tag != TagString || got.StringValue() != "a" {
+	if got := First(lines); !isType[*stringImpl](got) || got.StringValue() != "a" {
 		t.Fatalf("expected first line string %q, got %#v", "a", got)
 	}
 }
@@ -130,13 +130,13 @@ func TestReadLineReadsSequentialLines(t *testing.T) {
 		}
 	}()
 
-	if got := ReadLine(file); got.tag != TagString || got.StringValue() != "alpha" {
+	if got := ReadLine(file); !isType[*stringImpl](got) || got.StringValue() != "alpha" {
 		t.Fatalf("expected first line alpha, got %#v", got)
 	}
-	if got := ReadLine(file); got.tag != TagString || got.StringValue() != "beta" {
+	if got := ReadLine(file); !isType[*stringImpl](got) || got.StringValue() != "beta" {
 		t.Fatalf("expected second line beta, got %#v", got)
 	}
-	if got := ReadLine(file); got.tag != TagNil {
+	if got := ReadLine(file); !IsNil(got) {
 		t.Fatalf("expected nil at eof, got %#v", got)
 	}
 }

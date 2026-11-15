@@ -41,7 +41,7 @@ func PanicValue(r any) Value {
 
 // IsExInfo reports whether v is an ExceptionInfo map from ex-info.
 func IsExInfo(v Value) bool {
-	if v.tag != TagMap {
+	if !isType[*mapImpl](v) {
 		return false
 	}
 	return Contains(v, exMessageKey) && Contains(v, exDataKey)
@@ -62,24 +62,12 @@ func CatchMatches(class string, thrown Value) bool {
 
 // ExMessage returns the message of an exception, a thrown string, or nil.
 func ExMessage(v Value) Value {
-	switch v.tag {
-	case TagNil:
-		return NilValue
-	case TagString:
-		return v
-	case TagMap:
-		if msg, ok := mapLookup(v, exMessageKey); ok {
-			return msg
-		}
-		return NilValue
-	default:
-		return NilValue
-	}
+	return v.impl.exMessage(v)
 }
 
 // ExData returns the data map of an ExceptionInfo value, or nil.
 func ExData(v Value) Value {
-	if v.tag != TagMap {
+	if !isType[*mapImpl](v) {
 		return NilValue
 	}
 	if data, ok := mapLookup(v, exDataKey); ok {
@@ -90,7 +78,7 @@ func ExData(v Value) Value {
 
 // ExCause returns the cause of an ExceptionInfo value, or nil.
 func ExCause(v Value) Value {
-	if v.tag != TagMap {
+	if !isType[*mapImpl](v) {
 		return NilValue
 	}
 	if cause, ok := mapLookup(v, exCauseKey); ok {
@@ -100,7 +88,7 @@ func ExCause(v Value) Value {
 }
 
 func mapLookup(v Value, key Value) (Value, bool) {
-	if v.tag != TagMap {
+	if !isType[*mapImpl](v) {
 		return NilValue, false
 	}
 	return v.mapPointer().items.Get(key)

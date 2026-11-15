@@ -49,13 +49,13 @@ func TestBitShifts(t *testing.T) {
 }
 
 func TestBitTestSetClearFlip(t *testing.T) {
-	if got := BitTest(NewLong(2), NewLong(1)); got.tag != TagBool || !got.Bool() {
+	if got := BitTest(NewLong(2), NewLong(1)); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected bit-test 2 1 true, got %#v", got)
 	}
-	if got := BitTest(NewLong(2), NewLong(0)); got.tag != TagBool || got.Bool() {
+	if got := BitTest(NewLong(2), NewLong(0)); !isType[boolImpl](got) || got.Bool() {
 		t.Fatalf("expected bit-test 2 0 false, got %#v", got)
 	}
-	if got := BitTest(NewLong(1), NewLong(64)); got.tag != TagBool || !got.Bool() {
+	if got := BitTest(NewLong(1), NewLong(64)); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected bit-test 1 64 true (n & 63), got %#v", got)
 	}
 	requireLong(t, BitSet(NewLong(0), NewLong(1)), 2)
@@ -80,7 +80,7 @@ func TestBitOpsAsBuiltinFunctions(t *testing.T) {
 	requireLong(t, Call(BuiltinFunction("bit-shift-left"), NewLong(1), NewLong(3)), 8)
 	requireLong(t, Call(BuiltinFunction("bit-shift-right"), NewLong(-8), NewLong(2)), -2)
 	requireLong(t, Call(BuiltinFunction("unsigned-bit-shift-right"), NewLong(-8), NewLong(2)), 4611686018427387902)
-	if got := Call(BuiltinFunction("bit-test"), NewLong(8), NewLong(3)); got.tag != TagBool || !got.Bool() {
+	if got := Call(BuiltinFunction("bit-test"), NewLong(8), NewLong(3)); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected bit-test builtin true, got %#v", got)
 	}
 	requireLong(t, Call(BuiltinFunction("bit-set"), NewLong(0), NewLong(3)), 8)

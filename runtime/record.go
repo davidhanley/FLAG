@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"unsafe"
 )
 
@@ -25,17 +26,11 @@ func NewRecord(v any) Value {
 		panic("NewRecord expects a Go struct")
 	}
 	box := &recordBox{value: v}
-	return makeValue(TagRecord, 0, unsafe.Pointer(box))
+	return Value{impl: &recordImpl{box: box}}
 }
 
 func (v Value) recordBox() *recordBox {
-	if v.tag != TagRecord {
-		panic("record Value expected")
-	}
-	if v.p == nil {
-		panic("record Value does not contain a struct")
-	}
-	return (*recordBox)(v.p)
+	return asImpl[*recordImpl](v, "record Value expected").box
 }
 
 func GoStruct[T any](v Value) T {
@@ -74,7 +69,7 @@ func recordFieldValue(coll Value, key Value) (Value, bool) {
 }
 
 func recordKeyName(key Value) (string, bool) {
-	if key.tag != TagSymbol {
+	if !isType[*symbolImpl](key) {
 		return "", false
 	}
 	sym := key.SymbolObject()
@@ -92,28 +87,28 @@ func recordFieldFlagName(field reflect.StructField) string {
 }
 
 func RequireString(v Value) string {
-	if v.tag != TagString {
+	if !isType[*stringImpl](v) {
 		panic(fmt.Sprintf("expected string, got %s", v.String()))
 	}
 	return v.StringValue()
 }
 
 func RequireLong(v Value) int64 {
-	if v.tag != TagLong {
+	if !isType[longImpl](v) {
 		panic(fmt.Sprintf("expected integer, got %s", v.String()))
 	}
 	return v.Long()
 }
 
 func RequireDouble(v Value) float64 {
-	if v.tag != TagDouble {
+	if !isType[doubleImpl](v) {
 		panic(fmt.Sprintf("expected double, got %s", v.String()))
 	}
 	return v.Double()
 }
 
 func RequireBool(v Value) bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic(fmt.Sprintf("expected boolean, got %s", v.String()))
 	}
 	return v.Bool()
@@ -143,4 +138,34 @@ func goValueToRecordField(field reflect.Value) Value {
 		}
 		return NilValue
 	}
+}
+
+type recordImpl struct {
+	defaultImpl
+	box *recordBox
+}
+
+func (recordImpl) hash(v Value) string {
+	return "R:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.recordBox()))), 16)
+}
+func (recordImpl) typ(Value) Value { return typeRecord }
+func (recordImpl) String(v Value) string {
+	return fmt.Sprintf("%#v", v.recordBox().value)
+}
+func (recordImpl) get(v Value, key Value, missing Value) Value {
+	if value, ok := recordFieldValue(v, key); ok {
+		return value
+	}
+	return missing
+}
+func (recordImpl) contains(v Value, key Value) bool {
+	_, ok := recordFieldValue(v, key)
+	return ok
+}
+func (recordImpl) find(v Value, key Value) Value {
+	value, ok := recordFieldValue(v, key)
+	return findEntry(key, value, ok)
+}
+func (recordImpl) apply(v Value, args ...Value) Value {
+	return lookupApply(v, args, "map")
 }

@@ -19,7 +19,7 @@ func collectPipe(ch Value) []Value {
 	var out []Value
 	for {
 		v := ChannelReceive(ch)
-		if v.tag == TagNil {
+		if IsNil(v) {
 			return out
 		}
 		out = append(out, v)
@@ -37,12 +37,12 @@ func TestChannelReceive_ClosedReturnsNil(t *testing.T) {
 	ChannelSend(ch, NewLong(42))
 	ChannelClose(ch)
 	v1 := ChannelReceive(ch)
-	if v1.tag != TagLong || v1.Long() != 42 {
+	if !isType[longImpl](v1) || v1.Long() != 42 {
 		t.Fatalf("expected 42, got %v", v1)
 	}
 	v2 := ChannelReceive(ch)
-	if v2.tag != TagNil {
-		t.Fatalf("expected nil on closed channel, got tag %v", v2.tag)
+	if !IsNil(v2) {
+		t.Fatalf("expected nil on closed channel, got tag %v", TypeOf(v2))
 	}
 }
 
@@ -50,7 +50,7 @@ func TestChannelSend_ReturnsFalseAfterClose(t *testing.T) {
 	ch := MakeChannel(NewLong(1))
 	ChannelClose(ch)
 	sent := ChannelSend(ch, NewLong(99))
-	if sent.tag != TagBool || sent.Bool() {
+	if !isType[boolImpl](sent) || sent.Bool() {
 		t.Fatalf("expected false after close, got %v", sent)
 	}
 }
@@ -90,7 +90,7 @@ func TestLinesPipe_FromPath(t *testing.T) {
 	if len(got) == 0 {
 		t.Fatal("channel-lines returned no lines for channel_pipe.go")
 	}
-	if got[0].tag != TagString || got[0].StringValue() != "package runtime" {
+	if !isType[*stringImpl](got[0]) || got[0].StringValue() != "package runtime" {
 		t.Fatalf("unexpected first line: %q", got[0].StringValue())
 	}
 }

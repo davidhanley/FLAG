@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -25,26 +26,24 @@ func Atom(args ...Value) Value {
 		panic("atom expects 0 or 1 arguments")
 	}
 	a := &AtomObject{v: init}
-	return makeValue(TagAtom, 0, unsafe.Pointer(a))
+	return Value{impl: &atomImpl{atom: a}}
 }
 
 func (v Value) AtomObject() *AtomObject {
-	if v.tag != TagAtom {
+	a, ok := v.impl.(*atomImpl)
+	if !ok {
 		panic(fmt.Sprintf("expected atom, got %s", v.String()))
 	}
-	if v.p == nil {
-		panic("atom Value does not contain atom pointer")
-	}
-	return (*AtomObject)(v.p)
+	return a.atom
 }
 
 func valueSlotEq(a, b Value) bool {
-	return a.tag == b.tag && a.p == b.p && math.Float64bits(a.d) == math.Float64bits(b.d)
+	return a.impl == b.impl && math.Float64bits(a.d) == math.Float64bits(b.d)
 }
 
 // Deref returns the current value of atom.
 func Deref(atom Value) Value {
-	if atom.tag != TagAtom {
+	if !isType[*atomImpl](atom) {
 		panic(fmt.Sprintf("deref expects an atom, got %s", atom.String()))
 	}
 	a := atom.AtomObject()
@@ -56,7 +55,7 @@ func Deref(atom Value) Value {
 
 // Reset sets atom to v and returns v.
 func Reset(atom, v Value) Value {
-	if atom.tag != TagAtom {
+	if !isType[*atomImpl](atom) {
 		panic(fmt.Sprintf("reset! expects an atom, got %s", atom.String()))
 	}
 	a := atom.AtomObject()
@@ -72,7 +71,7 @@ func Swap(args ...Value) Value {
 	if len(args) < 2 {
 		panic("swap! expects atom, function, and optional extra arguments")
 	}
-	if args[0].tag != TagAtom {
+	if !isType[*atomImpl](args[0]) {
 		panic(fmt.Sprintf("swap! expects an atom, got %s", args[0].String()))
 	}
 	a := args[0].AtomObject()
@@ -94,4 +93,17 @@ func Swap(args ...Value) Value {
 		}
 		a.mu.Unlock()
 	}
+}
+
+type atomImpl struct {
+	defaultImpl
+	atom *AtomObject
+}
+
+func (atomImpl) hash(v Value) string {
+	return "O:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.AtomObject()))), 16)
+}
+func (atomImpl) typ(Value) Value { return typeAtom }
+func (atomImpl) String(Value) string {
+	return "#<atom>"
 }

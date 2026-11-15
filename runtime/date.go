@@ -3,15 +3,19 @@ package runtime
 import (
 	"fmt"
 	"time"
-	"unsafe"
 )
 
 type DateObject struct {
 	Time time.Time
 }
 
+type dateImpl struct {
+	defaultImpl
+	obj *DateObject
+}
+
 func NewDate(t time.Time) Value {
-	return makeValue(TagDate, 0, unsafe.Pointer(&DateObject{Time: normalizeDateTime(t)}))
+	return Value{impl: &dateImpl{obj: &DateObject{Time: normalizeDateTime(t)}}}
 }
 
 func NewDateFromYMD(year, month, day int) Value {
@@ -19,13 +23,7 @@ func NewDateFromYMD(year, month, day int) Value {
 }
 
 func (v Value) DateObject() *DateObject {
-	if v.tag != TagDate {
-		panic("DateObject called on non-date Value")
-	}
-	if v.p == nil {
-		panic("date Value does not contain date pointer")
-	}
-	return (*DateObject)(v.p)
+	return asImpl[*dateImpl](v, "DateObject called on non-date Value").obj
 }
 
 func (v Value) DateTime() time.Time {
@@ -53,7 +51,7 @@ func dateEntries(v Value) []MapEntry {
 }
 
 func dateFieldValue(v Value, key Value) (Value, bool) {
-	if key.tag != TagSymbol || !key.SymbolObject().IsKeyword {
+	if !isType[*symbolImpl](key) || !key.SymbolObject().IsKeyword {
 		return Value{}, false
 	}
 	switch key.SymbolObject().Name {
@@ -80,3 +78,45 @@ func dateString(v Value) string {
 		entries[2].Key.String(), entries[2].Value.String(),
 	)
 }
+
+func (dateImpl) hash(v Value) string {
+	return "D:" + v.DateTime().UTC().Format("2006-01-02")
+}
+func (dateImpl) typ(Value) Value { return typeDate }
+func (dateImpl) String(v Value) string {
+	return dateString(v)
+}
+func (dateImpl) get(v Value, key Value, missing Value) Value {
+	if value, ok := dateFieldValue(v, key); ok {
+		return value
+	}
+	return missing
+}
+func (dateImpl) contains(v Value, key Value) bool {
+	_, ok := dateFieldValue(v, key)
+	return ok
+}
+func (dateImpl) find(v Value, key Value) Value {
+	value, ok := dateFieldValue(v, key)
+	return findEntry(key, value, ok)
+}
+func (dateImpl) keys(v Value) Value { return mapEntryKeys(dateEntries(v)) }
+func (dateImpl) vals(v Value) Value { return mapEntryVals(dateEntries(v)) }
+func (dateImpl) seqCursor(v Value) seqCursor {
+	return mapEntriesSeqCursor(dateEntries(v))
+}
+func (dateImpl) toAny(v Value) any    { return v.DateTime() }
+func (dateImpl) toNative(v Value) any { return v.DateTime() }
+func (dateImpl) toJSON(v Value) (any, error) {
+	return map[string]any{
+		"year":  v.DateYear(),
+		"month": v.DateMonth(),
+		"day":   v.DateDay(),
+	}, nil
+}
+func (dateImpl) apply(v Value, args ...Value) Value {
+	return lookupApply(v, args, "map")
+}
+func (dateImpl) count(v Value) int      { return len(dateEntries(v)) }
+func (dateImpl) isEmpty(v Value) bool   { return len(dateEntries(v)) == 0 }
+func (dateImpl) notEmpty(v Value) Value { return notEmptyIf(v, len(dateEntries(v)) == 0) }

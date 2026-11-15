@@ -11,15 +11,15 @@ func TestFutureReadyPredicate(t *testing.T) {
 		return NewLong(42)
 	})
 
-	if got := Call(f, NewKeyword("ready?")); got.tag != TagBool || got.Bool() {
+	if got := Call(f, NewKeyword("ready?")); !isType[boolImpl](got) || got.Bool() {
 		t.Fatalf("expected future to report not ready, got %#v", got)
 	}
 
-	if got := Call(f); got.tag != TagLong || got.Long() != 42 {
+	if got := Call(f); !isType[longImpl](got) || got.Long() != 42 {
 		t.Fatalf("expected future result 42, got %#v", got)
 	}
 
-	if got := Call(f, NewKeyword("ready?")); got.tag != TagBool || !got.Bool() {
+	if got := Call(f, NewKeyword("ready?")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected future to report ready, got %#v", got)
 	}
 }
@@ -32,7 +32,7 @@ func TestFuturePipeRun(t *testing.T) {
 		return NewString("ok")
 	}))
 
-	if got := ChannelReceive(ch); got.tag != TagString || got.StringValue() != "ok" {
+	if got := ChannelReceive(ch); !isType[*stringImpl](got) || got.StringValue() != "ok" {
 		t.Fatalf("expected piped future value 'ok', got %#v", got)
 	}
 }

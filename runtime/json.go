@@ -73,19 +73,15 @@ func parseJSONReadOptions(name string, opts []Value) jsonReadOptions {
 }
 
 func jsonOptionName(name string, option Value) string {
-	switch option.tag {
-	case TagString:
-		return option.StringValue()
-	case TagSymbol:
-		return option.SymbolObject().Name
-	default:
-		panic(name + " option keys must be strings, symbols, or keywords")
+	if s, ok := option.impl.asIdent(option); ok {
+		return s
 	}
+	panic(name + " option keys must be strings, symbols, or keywords")
 }
 
 func readJSONValue(name string, source Value, options jsonReadOptions) Value {
-	switch source.tag {
-	case TagString:
+	switch TypeOf(source) {
+	case typeString:
 		decoder := json.NewDecoder(strings.NewReader(source.StringValue()))
 		decoder.UseNumber()
 		obj, ok := decodeJSONObject(name, decoder, false)
@@ -93,7 +89,7 @@ func readJSONValue(name string, source Value, options jsonReadOptions) Value {
 			return NilValue
 		}
 		return jsonToValueWithOptions(obj, options)
-	case TagFile:
+	case typeFile:
 		file := source.FileObject()
 		file.mu.Lock()
 		defer file.mu.Unlock()
@@ -135,56 +131,7 @@ func restoreJSONBufferedInput(file *FileObject, decoder *json.Decoder, reader *b
 }
 
 func valueToJSONValue(v Value) (any, error) {
-	switch v.tag {
-	case TagNil:
-		return nil, nil
-	case TagLong:
-		return v.Long(), nil
-	case TagBigInt:
-		return v.BigInt().String(), nil
-	case TagDouble:
-		return v.Double(), nil
-	case TagRatio:
-		f, exact := v.Ratio().Float64()
-		if !exact {
-			return nil, fmt.Errorf("ratio %s cannot be represented as float64", v.Ratio().RatString())
-		}
-		return f, nil
-	case TagBool:
-		return v.Bool(), nil
-	case TagString:
-		return v.StringValue(), nil
-	case TagDate:
-		return map[string]any{
-			"year":  v.DateYear(),
-			"month": v.DateMonth(),
-			"day":   v.DateDay(),
-		}, nil
-	case TagFile:
-		return "#<file " + v.FileObject().Path + ">", nil
-	case TagSymbol:
-		symbol := v.SymbolObject()
-		if symbol.IsKeyword {
-			return ":" + symbol.Name, nil
-		}
-		return symbol.Name, nil
-	case TagMap:
-		return mapToJSONValue(v)
-	case TagArray:
-		return arrayToJSONValue(v.ArrayValues())
-	case TagVector:
-		return arrayToJSONValue(v.VectorValues())
-	case TagList:
-		return arrayToJSONValue(v.ListValues())
-	case TagLazyList:
-		return "#<lazy-list>", nil
-	case TagFunction:
-		return "#<fn>", nil
-	case TagSet:
-		return arrayToJSONValue(v.SetValues())
-	default:
-		return nil, fmt.Errorf("unsupported value type for JSON: %v", v.tag)
-	}
+	return v.impl.toJSON(v)
 }
 
 func jsonToValue(obj any) Value {
@@ -253,11 +200,8 @@ func mapToJSONValue(v Value) (map[string]any, error) {
 	obj := make(map[string]any, len(entries))
 	for _, entry := range entries {
 		key := entry.Key.String()
-		if entry.Key.tag == TagSymbol {
-			symbol := entry.Key.SymbolObject()
-			if symbol.IsKeyword {
-				key = symbol.Name
-			}
+		if s, ok := entry.Key.impl.asIdent(entry.Key); ok {
+			key = s
 		}
 		val, err := valueToJSONValue(entry.Value)
 		if err != nil {

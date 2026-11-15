@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -28,7 +29,7 @@ func MakeChannel(args ...Value) Value {
 	case 0:
 		// unbuffered
 	case 1:
-		if !isNumericTag(args[0].tag) {
+		if !args[0].impl.isNumeric(args[0]) {
 			panic("make-channel capacity must be a non-negative integer")
 		}
 		n := args[0].Long()
@@ -45,24 +46,23 @@ func MakeChannel(args ...Value) Value {
 	return newChannelValue(make(chan Value, capacity))
 }
 
+type channelImpl struct {
+	defaultImpl
+	ch *ChannelObject
+}
+
 func newChannelValue(ch chan Value) Value {
-	return makeValue(TagChannel, 0, unsafe.Pointer(&ChannelObject{data: ch, done: make(chan struct{})}))
+	return Value{impl: &channelImpl{ch: &ChannelObject{data: ch, done: make(chan struct{})}}}
 }
 
 func (v Value) ChannelObject() *ChannelObject {
-	if v.tag != TagChannel {
-		panic("ChannelObject called on non-channel Value")
-	}
-	if v.p == nil {
-		panic("channel Value does not contain channel pointer")
-	}
-	return (*ChannelObject)(v.p)
+	return asImpl[*channelImpl](v, "ChannelObject called on non-channel Value").ch
 }
 
 // ChannelSend sends value on ch.
 // Returns true if the value was sent, false if the channel was terminated.
 func ChannelSend(ch Value, value Value) Value {
-	if ch.tag != TagChannel {
+	if !isType[*channelImpl](ch) {
 		panic(fmt.Sprintf("channel-send expects a channel, got %s", ch.String()))
 	}
 	c := ch.ChannelObject()
@@ -82,7 +82,7 @@ func ChannelSend(ch Value, value Value) Value {
 // ChannelClose terminates ch; safe to call multiple times (idempotent).
 // This is the single close signal for FLAG channels.
 func ChannelClose(ch Value) Value {
-	if ch.tag != TagChannel {
+	if !isType[*channelImpl](ch) {
 		panic(fmt.Sprintf("channel-close expects a channel, got %s", ch.String()))
 	}
 	ch.ChannelObject().closeDone()
@@ -108,7 +108,7 @@ func recvChannelValue(c *ChannelObject) (Value, bool) {
 // ChannelReceive receives one value from ch.
 // Returns nil when the channel has been terminated and no buffered values remain.
 func ChannelReceive(ch Value) Value {
-	if ch.tag != TagChannel {
+	if !isType[*channelImpl](ch) {
 		panic(fmt.Sprintf("channel-receive expects a channel, got %s", ch.String()))
 	}
 	v, ok := recvChannelValue(ch.ChannelObject())
@@ -137,7 +137,7 @@ func ChannelSelect(args ...Value) Value {
 	for i := 0; i < len(args); i += 2 {
 		ch := args[i]
 		handler := args[i+1]
-		if ch.tag != TagChannel {
+		if !isType[*channelImpl](ch) {
 			panic(fmt.Sprintf("select expects a channel at position %d, got %s", i+1, ch.String()))
 		}
 		select {
@@ -149,4 +149,12 @@ func ChannelSelect(args ...Value) Value {
 		}
 	}
 	return NewLong(count)
+}
+
+func (channelImpl) hash(v Value) string {
+	return "C:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.ChannelObject()))), 16)
+}
+func (channelImpl) typ(Value) Value { return typeChannel }
+func (channelImpl) String(Value) string {
+	return "#<channel>"
 }

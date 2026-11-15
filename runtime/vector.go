@@ -1,6 +1,8 @@
 package runtime
 
-import "unsafe"
+import (
+	"strings"
+)
 
 func NewVector(values ...Value) Value {
 	items := make([]Value, len(values))
@@ -9,14 +11,14 @@ func NewVector(values ...Value) Value {
 }
 
 func (v Value) VectorLen() int {
-	if v.tag != TagVector {
+	if !isType[*vectorImpl](v) {
 		panic("VectorLen called on non-vector Value")
 	}
 	return int(v.Long())
 }
 
 func (v Value) VectorValues() []Value {
-	if v.tag != TagVector {
+	if !isType[*vectorImpl](v) {
 		panic("VectorValues called on non-vector Value")
 	}
 	items := v.vectorItems()
@@ -26,7 +28,7 @@ func (v Value) VectorValues() []Value {
 }
 
 func VectorGet(vectorValue Value, index int) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorGet expects vector Value")
 	}
 	if index < 0 || index >= vectorValue.VectorLen() {
@@ -36,7 +38,7 @@ func VectorGet(vectorValue Value, index int) Value {
 }
 
 func VectorAssoc(vectorValue Value, index int, item Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorAssoc expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -51,7 +53,7 @@ func VectorAssoc(vectorValue Value, index int, item Value) Value {
 }
 
 func VectorRest(vectorValue Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorRest expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -63,7 +65,7 @@ func VectorRest(vectorValue Value) Value {
 }
 
 func VectorAppend(vectorValue Value, item Value) Value {
-	if vectorValue.tag != TagVector {
+	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorAppend expects vector Value")
 	}
 	length := vectorValue.VectorLen()
@@ -87,19 +89,110 @@ func newVectorValueWithData(data *arrayData, length int) Value {
 	if length < 0 || length > len(data.items) {
 		panic("invalid vector length")
 	}
-	return makeValue(TagVector, packLong(int64(length)), unsafe.Pointer(data))
+	return Value{d: packLong(int64(length)), impl: &vectorImpl{data: data}}
 }
 
 func (v Value) vectorPointer() *arrayData {
-	if v.tag != TagVector {
-		panic("vectorPointer called on non-vector Value")
-	}
-	if v.p == nil {
-		panic("vector Value does not contain vector pointer")
-	}
-	return (*arrayData)(v.p)
+	return asImpl[*vectorImpl](v, "vectorPointer called on non-vector Value").data
 }
 
 func (v Value) vectorItems() []Value {
 	return v.vectorPointer().items
+}
+
+type vectorImpl struct {
+	defaultImpl
+	data *arrayData
+}
+
+func (vectorImpl) hash(v Value) string {
+	values := v.VectorValues()
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, valueIdentity(value))
+	}
+	return "V:|" + strings.Join(parts, ",") + "|"
+}
+func (vectorImpl) typ(Value) Value { return typeVector }
+func (vectorImpl) String(v Value) string {
+	values := v.VectorValues()
+	var out strings.Builder
+	out.WriteByte('|')
+	if len(values) == 0 {
+		out.WriteString(" |")
+		return out.String()
+	}
+	for _, value := range values {
+		out.WriteByte(' ')
+		out.WriteString(value.String())
+	}
+	out.WriteString(" |")
+	return out.String()
+}
+func (vectorImpl) assoc(v Value, entries ...Value) Value {
+	return assocIndexed(v, entries, func(coll Value) int { return coll.VectorLen() }, VectorAssoc, VectorAppend)
+}
+func (vectorImpl) get(v Value, key Value, missing Value) Value {
+	if i, ok := associativeIndex(key); ok && i < v.VectorLen() {
+		return VectorGet(v, i)
+	}
+	return missing
+}
+func (vectorImpl) first(v Value) Value {
+	if v.VectorLen() == 0 {
+		return NilValue
+	}
+	return v.vectorItems()[0]
+}
+func (vectorImpl) rest(v Value) Value {
+	return VectorRest(v)
+}
+func (vectorImpl) next(v Value) Value {
+	rest := VectorRest(v)
+	return nextIfEmpty(rest, rest.VectorLen() == 0)
+}
+func (vectorImpl) last(v Value) Value {
+	n := v.VectorLen()
+	if n == 0 {
+		return NilValue
+	}
+	return v.vectorItems()[n-1]
+}
+func (vectorImpl) conj(v Value, entries ...Value) Value {
+	out := v
+	for _, item := range entries {
+		out = VectorAppend(out, item)
+	}
+	return out
+}
+func (vectorImpl) count(v Value) int      { return v.VectorLen() }
+func (vectorImpl) isEmpty(v Value) bool   { return v.VectorLen() == 0 }
+func (vectorImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.VectorLen() == 0) }
+func (vectorImpl) nth(v Value, i int, missing Value, hasMissing bool) Value {
+	return nthAt(v.VectorLen(), i, missing, hasMissing, func(idx int) Value { return VectorGet(v, idx) })
+}
+func (vectorImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value {
+	return slowNthWalk(v, i, missing, hasMissing)
+}
+func (vectorImpl) drop(v Value, n int) Value {
+	length := v.VectorLen()
+	if n >= length {
+		return NewVector()
+	}
+	items := v.vectorItems()
+	return newVectorValue(items[n:length], length-n)
+}
+func (vectorImpl) seqQ(Value) bool { return true }
+func (vectorImpl) seqCursor(v Value) seqCursor {
+	length := v.VectorLen()
+	return arraySeqCursor(v.vectorItems()[:length])
+}
+func (vectorImpl) toNative(v Value) any {
+	return nativeSeq(v.VectorValues())
+}
+func (vectorImpl) toJSON(v Value) (any, error) {
+	return arrayToJSONValue(v.VectorValues())
+}
+func (vectorImpl) goSeq(v Value) []Value {
+	return v.VectorValues()
 }

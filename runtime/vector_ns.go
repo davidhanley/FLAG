@@ -15,10 +15,10 @@ func VectorNSGet(coll Value, index Value, notFound ...Value) Value {
 	if len(notFound) == 1 {
 		missing = notFound[0]
 	}
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return missing
 	}
-	if coll.tag != TagVector {
+	if !isType[*vectorImpl](coll) {
 		panic("vector/get expects vector Value")
 	}
 	if i >= coll.VectorLen() {
@@ -98,10 +98,10 @@ func vectorNSIndex(op string, index Value, length int, allowEnd bool) int {
 }
 
 func vectorNSArrayOrNil(coll Value) []Value {
-	if coll.tag == TagNil {
+	if IsNil(coll) {
 		return nil
 	}
-	if coll.tag != TagVector {
+	if !isType[*vectorImpl](coll) {
 		panic("vector/* expects vector Value")
 	}
 	return coll.VectorValues()

@@ -42,20 +42,20 @@ func TestStringPackageFunctionsAreRegistered(t *testing.T) {
 		got := Call(fn, tc.args...)
 		switch tc.name {
 		case "long/parse":
-			if got.tag != TagLong || got.Long() != 42 {
+			if !isType[longImpl](got) || got.Long() != 42 {
 				t.Fatalf("unexpected parse result: %#v", got)
 			}
 		case "str/starts-with?", "str/ends-with?", "str/blank?":
-			if got.tag != TagBool || got.Bool() != (tc.want == "true") {
+			if !isType[boolImpl](got) || got.Bool() != (tc.want == "true") {
 				t.Fatalf("unexpected predicate result for %s: %#v", tc.name, got)
 			}
 		default:
-			if got.tag != TagString || got.StringValue() != tc.want {
+			if !isType[*stringImpl](got) || got.StringValue() != tc.want {
 				t.Fatalf("unexpected %s result: %#v", tc.name, got)
 			}
 		}
 	}
-	if got := Call(GoFunction("long/parse"), NewString("nope")); got.tag != TagNil {
+	if got := Call(GoFunction("long/parse"), NewString("nope")); !IsNil(got) {
 		t.Fatalf("expected nil for invalid parse, got %#v", got)
 	}
 }
@@ -71,12 +71,12 @@ func TestStringSplitFunctionsAreRegistered(t *testing.T) {
 		{name: "str/split-lines", args: []Value{NewString("a\nb\r\nc")}, want: []string{"a", "b", "c"}},
 	} {
 		got := Call(GoFunction(tc.name), tc.args...)
-		if got.tag != TagArray || got.ArrayLen() != len(tc.want) {
+		if !isType[*arrayImpl](got) || got.ArrayLen() != len(tc.want) {
 			t.Fatalf("unexpected split result shape for %s: %#v", tc.name, got)
 		}
 		for i, want := range tc.want {
 			item := ArrayGet(got, i)
-			if item.tag != TagString || item.StringValue() != want {
+			if !isType[*stringImpl](item) || item.StringValue() != want {
 				t.Fatalf("unexpected split result at %d for %s: %#v", i, tc.name, got)
 			}
 		}
@@ -84,29 +84,29 @@ func TestStringSplitFunctionsAreRegistered(t *testing.T) {
 }
 
 func TestStringIndexHelpersAreRegistered(t *testing.T) {
-	if got := Call(GoFunction("str/includes?"), NewString("hello"), NewString("ell")); got.tag != TagBool || !got.Bool() {
+	if got := Call(GoFunction("str/includes?"), NewString("hello"), NewString("ell")); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("unexpected includes? result: %#v", got)
 	}
-	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l")); got.tag != TagLong || got.Long() != 2 {
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l")); !isType[longImpl](got) || got.Long() != 2 {
 		t.Fatalf("unexpected index-of result: %#v", got)
 	}
-	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l"), NewLong(3)); got.tag != TagLong || got.Long() != 3 {
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("l"), NewLong(3)); !isType[longImpl](got) || got.Long() != 3 {
 		t.Fatalf("unexpected index-of-from result: %#v", got)
 	}
-	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("z")); got.tag != TagNil {
+	if got := Call(GoFunction("str/index-of"), NewString("hello"), NewString("z")); !IsNil(got) {
 		t.Fatalf("expected nil index-of, got %#v", got)
 	}
-	if got := Call(GoFunction("str/last-index-of"), NewString("hello"), NewString("l")); got.tag != TagLong || got.Long() != 3 {
+	if got := Call(GoFunction("str/last-index-of"), NewString("hello"), NewString("l")); !isType[longImpl](got) || got.Long() != 3 {
 		t.Fatalf("unexpected last-index-of result: %#v", got)
 	}
-	if got := Call(GoFunction("string/includes?"), NewString("hello"), NewString("xyz")); got.tag != TagBool || got.Bool() {
+	if got := Call(GoFunction("string/includes?"), NewString("hello"), NewString("xyz")); !isType[boolImpl](got) || got.Bool() {
 		t.Fatalf("unexpected string/includes? result: %#v", got)
 	}
 }
 
 func TestCharacterPackageFunctionIsRegistered(t *testing.T) {
 	fn := GoFunction("Character/toUpperCase")
-	if got := Call(fn, NewString("hello")); got.tag != TagString || got.StringValue() != "HELLO" {
+	if got := Call(fn, NewString("hello")); !isType[*stringImpl](got) || got.StringValue() != "HELLO" {
 		t.Fatalf("unexpected uppercase result: %#v", got)
 	}
 }
@@ -121,10 +121,10 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 	file := OpenFile(path)
 	defer func() { _ = file.Close() }()
 	got := Call(lineSeqFn, file)
-	if got.tag != TagLazyList {
+	if !isType[*lazyListImpl](got) {
 		t.Fatalf("expected lazy list from line-seq, got %#v", got)
 	}
-	if first := First(got); first.tag != TagString || first.StringValue() != "x" {
+	if first := First(got); !isType[*stringImpl](first) || first.StringValue() != "x" {
 		t.Fatalf("expected line-seq string %q, got %#v", "x", first)
 	}
 
@@ -139,7 +139,7 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 
 	scanFn := GoFunction("io/scan-directory")
 	scanned := Call(scanFn, NewString(dir))
-	if scanned.tag != TagArray {
+	if !isType[*arrayImpl](scanned) {
 		t.Fatalf("expected array from io/scan-directory, got %#v", scanned)
 	}
 	if scanned.ArrayLen() < 2 {
@@ -148,7 +148,7 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 
 	var foundNested bool
 	for _, item := range scanned.ArrayValues() {
-		if item.tag != TagMap {
+		if !isType[*mapImpl](item) {
 			t.Fatalf("expected file metadata map entries, got %#v", item)
 		}
 		filename := Get(item, NewKeyword("filename"))
@@ -156,7 +156,7 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 		size := Get(item, NewKeyword("size"))
 		created := Get(item, NewKeyword("created-date-time"))
 		updated := Get(item, NewKeyword("updated-date-time"))
-		if filename.tag != TagString || name.tag != TagString || size.tag != TagLong || created.tag != TagString || updated.tag != TagString {
+		if !isType[*stringImpl](filename) || !isType[*stringImpl](name) || !isType[longImpl](size) || !isType[*stringImpl](created) || !isType[*stringImpl](updated) {
 			t.Fatalf("unexpected metadata map: %#v", item)
 		}
 		if filename.StringValue() == nestedFile {

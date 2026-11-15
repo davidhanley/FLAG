@@ -1,28 +1,25 @@
 package runtime
 
-import "unsafe"
-
 type SymbolObject struct {
 	Name      string
 	IsKeyword bool
 }
 
+type symbolImpl struct {
+	defaultImpl
+	obj *SymbolObject
+}
+
 func NewSymbol(name string) Value {
-	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name}))
+	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name}}}
 }
 
 func NewKeyword(name string) Value {
-	return makeValue(TagSymbol, 0, unsafe.Pointer(&SymbolObject{Name: name, IsKeyword: true}))
+	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: true}}}
 }
 
 func (v Value) SymbolObject() *SymbolObject {
-	if v.tag != TagSymbol {
-		panic("SymbolObject called on non-symbol Value")
-	}
-	if v.p == nil {
-		panic("symbol Value does not contain symbol pointer")
-	}
-	return (*SymbolObject)(v.p)
+	return asImpl[*symbolImpl](v, "SymbolObject called on non-symbol Value").obj
 }
 
 func Symbol(arg any) Value {
@@ -30,14 +27,10 @@ func Symbol(arg any) Value {
 	case string:
 		return NewSymbol(value)
 	case Value:
-		switch value.tag {
-		case TagString:
-			return NewSymbol(value.StringValue())
-		case TagSymbol:
-			return NewSymbol(value.SymbolObject().Name)
-		default:
-			panic("symbol expects string or symbol")
+		if s, ok := value.impl.asIdent(value); ok {
+			return NewSymbol(s)
 		}
+		panic("symbol expects string or symbol")
 	default:
 		panic("symbol expects string or symbol")
 	}
@@ -48,14 +41,10 @@ func Keyword(arg any) Value {
 	case string:
 		return NewKeyword(value)
 	case Value:
-		switch value.tag {
-		case TagString:
-			return NewKeyword(value.StringValue())
-		case TagSymbol:
-			return NewKeyword(value.SymbolObject().Name)
-		default:
-			panic("keyword expects string, symbol, or keyword")
+		if s, ok := value.impl.asIdent(value); ok {
+			return NewKeyword(s)
 		}
+		panic("keyword expects string, symbol, or keyword")
 	default:
 		panic("keyword expects string, symbol, or keyword")
 	}
@@ -66,10 +55,7 @@ func Name(arg any) string {
 	case string:
 		return value
 	case Value:
-		if value.tag != TagSymbol {
-			panic("name expects symbol or keyword")
-		}
-		return value.SymbolObject().Name
+		return value.impl.name(value)
 	case *SymbolObject:
 		if value == nil {
 			panic("name expects symbol or keyword")
@@ -78,4 +64,56 @@ func Name(arg any) string {
 	default:
 		panic("name expects symbol or keyword")
 	}
+}
+
+func (symbolImpl) hash(v Value) string {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return "K:" + symbol.Name
+	}
+	return "Y:" + symbol.Name
+}
+func (symbolImpl) typ(v Value) Value {
+	if v.SymbolObject().IsKeyword {
+		return typeKeyword
+	}
+	return typeSymbol
+}
+func (symbolImpl) String(v Value) string {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return ":" + symbol.Name
+	}
+	return symbol.Name
+}
+func (symbolImpl) asString(v Value) string {
+	return v.SymbolObject().Name
+}
+func (symbolImpl) asIdent(v Value) (string, bool) {
+	return v.SymbolObject().Name, true
+}
+func (symbolImpl) name(v Value) string {
+	return v.SymbolObject().Name
+}
+func (symbolImpl) toNative(v Value) any {
+	symbol := v.SymbolObject()
+	if symbol.IsKeyword {
+		return ":" + symbol.Name
+	}
+	return symbol.Name
+}
+func (symbolImpl) toJSON(v Value) (any, error) {
+	return symbolImpl{}.toNative(v), nil
+}
+func (symbolImpl) apply(v Value, args ...Value) Value {
+	if !v.SymbolObject().IsKeyword {
+		panic("call expects function, map, set, or keyword Value")
+	}
+	if len(args) != 1 && len(args) != 2 {
+		panic("keyword invocation expects map and optional default")
+	}
+	if len(args) == 1 {
+		return Get(args[0], v)
+	}
+	return Get(args[0], v, args[1])
 }

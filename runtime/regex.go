@@ -29,7 +29,7 @@ func regexMatcherValue(matcher func(string) bool) Value {
 func regexPattern(pattern any) string {
 	switch compiled := pattern.(type) {
 	case Value:
-		if compiled.tag != TagString {
+		if !isType[*stringImpl](compiled) {
 			panic("regex/compile expects string pattern")
 		}
 		return compiled.StringValue()
@@ -61,7 +61,7 @@ func regexFlags(raw any) (int64, bool) {
 	case uint32:
 		return int64(v), true
 	case Value:
-		if v.tag != TagLong {
+		if !isType[longImpl](v) {
 			return 0, false
 		}
 		return v.Long(), true
@@ -84,7 +84,7 @@ func regexValue(raw any) string {
 func RegexMatches(pattern any, value string) bool {
 	switch compiled := pattern.(type) {
 	case Value:
-		if compiled.tag != TagFunction {
+		if !isType[*functionImpl](compiled) {
 			panic("re-matches expects a function or pattern")
 		}
 		return IsTruthy(Call(compiled, NewString(value)))
@@ -96,12 +96,5 @@ func RegexMatches(pattern any, value string) bool {
 }
 
 func valueAsString(v Value) string {
-	switch v.tag {
-	case TagString:
-		return v.StringValue()
-	case TagSymbol:
-		return v.SymbolObject().Name
-	default:
-		return v.String()
-	}
+	return v.impl.asString(v)
 }

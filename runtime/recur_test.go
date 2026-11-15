@@ -11,10 +11,10 @@ func TestUnwrapRecurRoundTrip(t *testing.T) {
 	if len(values) != 2 {
 		t.Fatalf("expected 2 recur values, got %d", len(values))
 	}
-	if values[0].tag != TagLong || values[0].Long() != 1 {
+	if !isType[longImpl](values[0]) || values[0].Long() != 1 {
 		t.Fatalf("unexpected first recur value: %#v", values[0])
 	}
-	if values[1].tag != TagString || values[1].StringValue() != "x" {
+	if !isType[*stringImpl](values[1]) || values[1].StringValue() != "x" {
 		t.Fatalf("unexpected second recur value: %#v", values[1])
 	}
 }

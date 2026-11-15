@@ -11,49 +11,32 @@ import (
 )
 
 func NewLong(v int64) Value {
-	return makeValue(TagLong, packLong(v), nil)
+	return Value{d: packLong(v), impl: longImpl{}}
 }
 
 func NewDouble(v float64) Value {
-	return makeValue(TagDouble, v, nil)
+	return Value{d: v, impl: doubleImpl{}}
 }
 
 func Double(v Value) Value {
-	if !isNumericTag(v.tag) {
-		panic("double expects numeric Value")
-	}
-	return NewDouble(numericToFloat64(v))
+	return v.impl.toDouble(v)
 }
 
 func Numerator(v Value) Value {
-	switch v.tag {
-	case TagLong, TagBigInt:
-		return v
-	case TagRatio:
-		return newIntegerValueFromBigInt(new(big.Int).Set(v.Ratio().Num()))
-	default:
-		panic("numerator expects an integer or ratio")
-	}
+	return v.impl.numerator(v)
 }
 
 func Denominator(v Value) Value {
-	switch v.tag {
-	case TagLong, TagBigInt:
-		return NewLong(1)
-	case TagRatio:
-		return newIntegerValueFromBigInt(new(big.Int).Set(v.Ratio().Denom()))
-	default:
-		panic("denominator expects an integer or ratio")
-	}
+	return v.impl.denominator(v)
 }
 
 func NewRatio(numerator, denominator int64) Value {
 	rat := big.NewRat(numerator, denominator)
-	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
+	return NewRatioFromRat(rat)
 }
 
 func NewRatioFromRat(rat *big.Rat) Value {
-	return makeValue(TagRatio, 0, unsafe.Pointer(rat))
+	return Value{impl: &ratioImpl{rat: rat}}
 }
 
 func NewBigInt(v int64) Value {
@@ -73,14 +56,14 @@ func NewBigIntFromBigInt(v *big.Int) Value {
 		panic("NewBigIntFromBigInt expects non-nil big.Int")
 	}
 	copied := new(big.Int).Set(v)
-	return makeValue(TagBigInt, 0, unsafe.Pointer(copied))
+	return Value{impl: &bigIntImpl{n: copied}}
 }
 
 func NewBool(v bool) Value {
 	if v {
-		return makeValue(TagBool, 1, nil)
+		return Value{d: 1, impl: boolImpl{}}
 	}
-	return makeValue(TagBool, 0, nil)
+	return Value{d: 0, impl: boolImpl{}}
 }
 
 func (v Value) Long() int64 {
@@ -92,102 +75,44 @@ func (v Value) Double() float64 {
 }
 
 func (v Value) Ratio() *big.Rat {
-	if v.tag != TagRatio {
+	if !isType[*ratioImpl](v) {
 		panic("Ratio called on non-ratio Value")
 	}
 	return v.ratioPointer()
 }
 
 func (v Value) BigInt() *big.Int {
-	if v.tag != TagBigInt {
+	if !isType[*bigIntImpl](v) {
 		panic("BigInt called on non-bigint Value")
 	}
 	return v.bigIntPointer()
 }
 
 func (v Value) Bool() bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic("Bool called on non-bool Value")
 	}
 	return v.d != 0
 }
 
 func Add(lhs, rhs Value) Value {
-	ensureNumericOperands("Add", lhs, rhs)
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return NewDouble(numericToFloat64(lhs) + numericToFloat64(rhs))
-	}
-	if lhs.tag == TagRatio || rhs.tag == TagRatio {
-		left := valueToRat(lhs)
-		left.Add(left, valueToRat(rhs))
-		return NewRatioFromRat(left)
-	}
-	return addIntegerValues(lhs, rhs)
+	return lhs.impl.add(lhs, rhs)
 }
 
 func Mul(lhs, rhs Value) Value {
-	ensureNumericOperands("Mul", lhs, rhs)
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return NewDouble(numericToFloat64(lhs) * numericToFloat64(rhs))
-	}
-	if lhs.tag == TagRatio || rhs.tag == TagRatio {
-		left := valueToRat(lhs)
-		left.Mul(left, valueToRat(rhs))
-		return NewRatioFromRat(left)
-	}
-	return mulIntegerValues(lhs, rhs)
+	return lhs.impl.mul(lhs, rhs)
 }
 
 func Sub(lhs, rhs Value) Value {
-	ensureNumericOperands("Sub", lhs, rhs)
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return NewDouble(numericToFloat64(lhs) - numericToFloat64(rhs))
-	}
-	if lhs.tag == TagRatio || rhs.tag == TagRatio {
-		left := valueToRat(lhs)
-		left.Sub(left, valueToRat(rhs))
-		return NewRatioFromRat(left)
-	}
-	return subIntegerValues(lhs, rhs)
+	return lhs.impl.sub(lhs, rhs)
 }
 
 func Div(lhs, rhs Value) Value {
-	ensureNumericOperands("Div", lhs, rhs)
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return NewDouble(numericToFloat64(lhs) / numericToFloat64(rhs))
-	}
-	left := valueToRat(lhs)
-	left.Quo(left, valueToRat(rhs))
-	return NewRatioFromRat(left)
+	return lhs.impl.div(lhs, rhs)
 }
 
 func Abs(value Value) Value {
-	if !isNumericTag(value.tag) {
-		panic("abs expects numeric Value argument")
-	}
-	switch value.tag {
-	case TagLong:
-		v := value.Long()
-		if v >= 0 {
-			return value
-		}
-		if v == minInt64 {
-			return NewBigIntFromBigInt(new(big.Int).Abs(big.NewInt(v)))
-		}
-		return NewLong(-v)
-	case TagDouble:
-		return NewDouble(math.Abs(value.Double()))
-	case TagRatio:
-		rat := new(big.Rat).Set(value.Ratio())
-		if rat.Sign() < 0 {
-			rat.Neg(rat)
-		}
-		return NewRatioFromRat(rat)
-	case TagBigInt:
-		return NewBigIntFromBigInt(new(big.Int).Abs(value.BigInt()))
-	default:
-		panic("abs expects numeric Value argument")
-	}
+	return value.impl.abs(value)
 }
 
 func Max(values ...Value) Value {
@@ -195,11 +120,11 @@ func Max(values ...Value) Value {
 		panic("max expects at least one argument")
 	}
 	best := values[0]
-	if !isNumericTag(best.tag) {
+	if !best.impl.isNumeric(best) {
 		panic("max expects numeric Value arguments")
 	}
 	for _, value := range values[1:] {
-		if !isNumericTag(value.tag) {
+		if !value.impl.isNumeric(value) {
 			panic("max expects numeric Value arguments")
 		}
 		if compareNumeric(best, value) <= 0 {
@@ -214,11 +139,11 @@ func Min(values ...Value) Value {
 		panic("min expects at least one argument")
 	}
 	best := values[0]
-	if !isNumericTag(best.tag) {
+	if !best.impl.isNumeric(best) {
 		panic("min expects numeric Value arguments")
 	}
 	for _, value := range values[1:] {
-		if !isNumericTag(value.tag) {
+		if !value.impl.isNumeric(value) {
 			panic("min expects numeric Value arguments")
 		}
 		if compareNumeric(best, value) >= 0 {
@@ -229,18 +154,7 @@ func Min(values ...Value) Value {
 }
 
 func Quot(lhs, rhs Value) Value {
-	ensureNumericOperands("quot", lhs, rhs)
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return NewDouble(math.Trunc(numericToFloat64(lhs) / numericToFloat64(rhs)))
-	}
-	if isNumericZero(rhs) {
-		panic("quot by zero")
-	}
-	left := valueToRat(lhs)
-	right := valueToRat(rhs)
-	n := new(big.Int).Mul(left.Num(), right.Denom())
-	d := new(big.Int).Mul(left.Denom(), right.Num())
-	return newIntegerValueFromBigInt(new(big.Int).Quo(n, d))
+	return lhs.impl.quot(lhs, rhs)
 }
 
 func Rem(lhs, rhs Value) Value {
@@ -263,27 +177,14 @@ func Mod(lhs, rhs Value) Value {
 }
 
 func Eq(lhs, rhs Value) bool {
-	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
+	if lhs.impl.isNumeric(lhs) && rhs.impl.isNumeric(rhs) {
 		return compareNumeric(lhs, rhs) == 0
 	}
-	if lhs.tag != rhs.tag {
-		return false
-	}
-	switch lhs.tag {
-	case TagNil:
-		return true
-	default:
-		return valueIdentity(lhs) == valueIdentity(rhs)
-	}
+	return lhs.impl.eq(lhs, rhs)
 }
 
-func isNumericTag(tag ValueTag) bool {
-	switch tag {
-	case TagLong, TagDouble, TagRatio, TagBigInt:
-		return true
-	default:
-		return false
-	}
+func isNumeric(v Value) bool {
+	return v.impl.isNumeric(v)
 }
 
 func Lt(lhs, rhs Value) bool {
@@ -303,30 +204,20 @@ func Ge(lhs, rhs Value) bool {
 }
 
 func Compare(lhs, rhs Value) Value {
-	if lhs.tag == TagNil || rhs.tag == TagNil {
-		switch {
-		case lhs.tag == TagNil && rhs.tag == TagNil:
-			return NewLong(0)
-		case lhs.tag == TagNil:
-			return NewLong(-1)
-		default:
-			return NewLong(1)
-		}
-	}
-	return NewLong(int64(compareOrdered(lhs, rhs)))
+	return lhs.impl.compare(lhs, rhs)
 }
 
 func NumericEq(values ...Value) bool {
 	if len(values) <= 1 {
 		for _, value := range values {
-			if !isNumericTag(value.tag) {
+			if !value.impl.isNumeric(value) {
 				panic("== expects numeric Value arguments")
 			}
 		}
 		return true
 	}
 	for _, value := range values {
-		if !isNumericTag(value.tag) {
+		if !value.impl.isNumeric(value) {
 			panic("== expects numeric Value arguments")
 		}
 	}
@@ -339,24 +230,17 @@ func NumericEq(values ...Value) bool {
 }
 
 func compareOrdered(lhs, rhs Value) int {
-	if isNumericTag(lhs.tag) && isNumericTag(rhs.tag) {
+	if lhs.impl.isNumeric(lhs) && rhs.impl.isNumeric(rhs) {
 		return compareNumeric(lhs, rhs)
 	}
-	if lhs.tag == TagString && rhs.tag == TagString {
+	if TypeOf(lhs) == typeString && TypeOf(rhs) == typeString {
 		return strings.Compare(lhs.StringValue(), rhs.StringValue())
 	}
 	panic("comparison expects numeric or string Value arguments")
 }
 
 func IsTruthy(v Value) bool {
-	switch v.tag {
-	case TagNil:
-		return false
-	case TagBool:
-		return v.Bool()
-	default:
-		return true
-	}
+	return v.impl.isTruthy(v)
 }
 
 func Str(args ...any) string {
@@ -375,7 +259,7 @@ func Println(args ...any) Value {
 func anyToString(arg any) string {
 	switch value := arg.(type) {
 	case Value:
-		if value.tag == TagString {
+		if isType[*stringImpl](value) {
 			return value.StringValue()
 		}
 		return value.String()
@@ -401,37 +285,15 @@ func anyToString(arg any) string {
 }
 
 func ValueToAny(v Value) any {
-	switch v.tag {
-	case TagLong:
-		return v.Long()
-	case TagDouble:
-		return v.Double()
-	case TagRatio:
-		return v.Ratio()
-	case TagBigInt:
-		return v.BigInt()
-	case TagBool:
-		return v.Bool()
-	case TagString:
-		return v.StringValue()
-	case TagDate:
-		return v.DateTime()
-	case TagSymbol, TagFile, TagFunction, TagMap, TagSet, TagLazyList, TagChannel, TagAtom, TagRecur, TagRecord, TagVector, TagList:
-		return v
-	case TagNil:
-		return nil
-	case TagArray:
-		return arrayValueToAny(v)
-	default:
-		panic("unknown Value tag")
-	}
+	return v.impl.toAny(v)
 }
 
 func (v Value) ratioPointer() *big.Rat {
-	if v.p == nil {
+	r := asImpl[*ratioImpl](v, "ratio Value does not contain rat pointer").rat
+	if r == nil {
 		panic("ratio Value does not contain rat pointer")
 	}
-	return (*big.Rat)(v.p)
+	return r
 }
 
 func ratToFloat64(r *big.Rat) float64 {
@@ -440,26 +302,7 @@ func ratToFloat64(r *big.Rat) float64 {
 }
 
 func compareNumeric(lhs, rhs Value) int {
-	ensureNumericOperands("compare", lhs, rhs)
-	if lhs.tag == TagLong && rhs.tag == TagLong {
-		return compareInt64(lhs.Long(), rhs.Long())
-	}
-	if lhs.tag == TagBigInt && rhs.tag == TagBigInt {
-		return lhs.BigInt().Cmp(rhs.BigInt())
-	}
-	if lhs.tag == TagLong && rhs.tag == TagBigInt {
-		return compareLongAndBigInt(lhs.Long(), rhs.BigInt())
-	}
-	if lhs.tag == TagBigInt && rhs.tag == TagLong {
-		return -compareLongAndBigInt(rhs.Long(), lhs.BigInt())
-	}
-	if lhs.tag == TagRatio && rhs.tag == TagRatio {
-		return lhs.Ratio().Cmp(rhs.Ratio())
-	}
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
-		return compareFloat64(numericToFloat64(lhs), numericToFloat64(rhs))
-	}
-	return valueToRat(lhs).Cmp(valueToRat(rhs))
+	return lhs.impl.cmpNum(lhs, rhs)
 }
 
 func compareInt64(lhs, rhs int64) int {
@@ -495,22 +338,25 @@ func compareFloat64(lhs, rhs float64) int {
 }
 
 func (v Value) bigIntPointer() *big.Int {
-	if v.p == nil {
+	n := asImpl[*bigIntImpl](v, "bigint Value does not contain big.Int pointer").n
+	if n == nil {
 		panic("bigint Value does not contain big.Int pointer")
 	}
-	return (*big.Int)(v.p)
+	return n
 }
 
-func isIntegerTag(tag ValueTag) bool {
-	return tag == TagLong || tag == TagBigInt
+func ensureNumericOperands(op string, lhs, rhs Value) {
+	if !lhs.impl.isNumeric(lhs) || !rhs.impl.isNumeric(rhs) {
+		panic(op + " expects numeric Value arguments")
+	}
 }
 
 func isNumericZero(v Value) bool {
-	return compareNumeric(v, NewLong(0)) == 0
+	return v.impl.cmpLong(v, 0) == 0
 }
 
 func panicIfExactZeroDivisor(op string, lhs, rhs Value) {
-	if lhs.tag == TagDouble || rhs.tag == TagDouble {
+	if TypeOf(lhs) == typeFloat || TypeOf(rhs) == typeFloat {
 		return
 	}
 	if isNumericZero(rhs) {
@@ -518,50 +364,16 @@ func panicIfExactZeroDivisor(op string, lhs, rhs Value) {
 	}
 }
 
-func ensureNumericOperands(op string, lhs, rhs Value) {
-	if !isNumericTag(lhs.tag) || !isNumericTag(rhs.tag) {
-		panic(op + " expects numeric Value arguments")
-	}
-}
-
 func numericToFloat64(v Value) float64 {
-	switch v.tag {
-	case TagLong:
-		return float64(v.Long())
-	case TagDouble:
-		return v.Double()
-	case TagRatio:
-		return ratToFloat64(v.Ratio())
-	case TagBigInt:
-		f, _ := new(big.Float).SetInt(v.BigInt()).Float64()
-		return f
-	default:
-		panic("numericToFloat64 called on non-numeric Value")
-	}
+	return v.impl.toFloat64(v)
 }
 
 func valueToRat(v Value) *big.Rat {
-	switch v.tag {
-	case TagLong:
-		return big.NewRat(v.Long(), 1)
-	case TagBigInt:
-		return new(big.Rat).SetInt(v.BigInt())
-	case TagRatio:
-		return new(big.Rat).Set(v.Ratio())
-	default:
-		panic("valueToRat expects integer or ratio Value")
-	}
+	return v.impl.toRat(v)
 }
 
 func valueToBigInt(v Value) *big.Int {
-	switch v.tag {
-	case TagLong:
-		return big.NewInt(v.Long())
-	case TagBigInt:
-		return new(big.Int).Set(v.BigInt())
-	default:
-		panic("valueToBigInt expects integer Value")
-	}
+	return v.impl.toBigInt(v)
 }
 
 func newIntegerValueFromBigInt(v *big.Int) Value {
@@ -571,56 +383,92 @@ func newIntegerValueFromBigInt(v *big.Int) Value {
 	return NewBigIntFromBigInt(v)
 }
 
-func addIntegerValues(lhs, rhs Value) Value {
-	if lhs.tag == TagLong && rhs.tag == TagLong {
-		left := lhs.Long()
-		right := rhs.Long()
-		sum := left + right
-		if (right > 0 && sum < left) || (right < 0 && sum > left) {
-			bigSum := new(big.Int).Add(big.NewInt(left), big.NewInt(right))
-			return NewBigIntFromBigInt(bigSum)
-		}
-		return NewLong(sum)
+func addLongs(left, right int64) Value {
+	sum := left + right
+	if (right > 0 && sum < left) || (right < 0 && sum > left) {
+		return NewBigIntFromBigInt(new(big.Int).Add(big.NewInt(left), big.NewInt(right)))
 	}
-	sum := new(big.Int).Add(valueToBigInt(lhs), valueToBigInt(rhs))
-	return newIntegerValueFromBigInt(sum)
+	return NewLong(sum)
 }
 
-func subIntegerValues(lhs, rhs Value) Value {
-	if lhs.tag == TagLong && rhs.tag == TagLong {
-		left := lhs.Long()
-		right := rhs.Long()
-		diff := left - right
-		if (right < 0 && diff < left) || (right > 0 && diff > left) {
-			bigDiff := new(big.Int).Sub(big.NewInt(left), big.NewInt(right))
-			return NewBigIntFromBigInt(bigDiff)
-		}
-		return NewLong(diff)
+func subLongs(left, right int64) Value {
+	diff := left - right
+	if (right < 0 && diff < left) || (right > 0 && diff > left) {
+		return NewBigIntFromBigInt(new(big.Int).Sub(big.NewInt(left), big.NewInt(right)))
 	}
-	diff := new(big.Int).Sub(valueToBigInt(lhs), valueToBigInt(rhs))
-	return newIntegerValueFromBigInt(diff)
+	return NewLong(diff)
 }
 
-func mulIntegerValues(lhs, rhs Value) Value {
-	if lhs.tag == TagLong && rhs.tag == TagLong {
-		left := lhs.Long()
-		right := rhs.Long()
-		if left == 0 || right == 0 {
-			return NewLong(0)
-		}
-		if (left == minInt64 && right == -1) || (left == -1 && right == minInt64) {
-			bigProd := new(big.Int).Mul(big.NewInt(left), big.NewInt(right))
-			return NewBigIntFromBigInt(bigProd)
-		}
-		product := left * right
-		if product/right != left {
-			bigProd := new(big.Int).Mul(big.NewInt(left), big.NewInt(right))
-			return NewBigIntFromBigInt(bigProd)
-		}
-		return NewLong(product)
+func mulLongs(left, right int64) Value {
+	if left == 0 || right == 0 {
+		return NewLong(0)
 	}
-	product := new(big.Int).Mul(valueToBigInt(lhs), valueToBigInt(rhs))
-	return newIntegerValueFromBigInt(product)
+	if (left == minInt64 && right == -1) || (left == -1 && right == minInt64) {
+		return NewBigIntFromBigInt(new(big.Int).Mul(big.NewInt(left), big.NewInt(right)))
+	}
+	product := left * right
+	if product/right != left {
+		return NewBigIntFromBigInt(new(big.Int).Mul(big.NewInt(left), big.NewInt(right)))
+	}
+	return NewLong(product)
+}
+
+func addInts(left, right *big.Int) Value {
+	return newIntegerValueFromBigInt(new(big.Int).Add(left, right))
+}
+
+func subInts(left, right *big.Int) Value {
+	return newIntegerValueFromBigInt(new(big.Int).Sub(left, right))
+}
+
+func mulInts(left, right *big.Int) Value {
+	return newIntegerValueFromBigInt(new(big.Int).Mul(left, right))
+}
+
+func addRats(left, right *big.Rat) Value {
+	return NewRatioFromRat(new(big.Rat).Add(left, right))
+}
+
+func subRats(left, right *big.Rat) Value {
+	return NewRatioFromRat(new(big.Rat).Sub(left, right))
+}
+
+func mulRats(left, right *big.Rat) Value {
+	return NewRatioFromRat(new(big.Rat).Mul(left, right))
+}
+
+func divRats(left, right *big.Rat) Value {
+	return NewRatioFromRat(new(big.Rat).Quo(left, right))
+}
+
+func longRat(n int64) *big.Rat {
+	return big.NewRat(n, 1)
+}
+
+func intRat(n *big.Int) *big.Rat {
+	return new(big.Rat).SetInt(n)
+}
+
+func copyRat(n *big.Rat) *big.Rat {
+	return new(big.Rat).Set(n)
+}
+
+func bigIntToFloat64(n *big.Int) float64 {
+	f, _ := new(big.Float).SetInt(n).Float64()
+	return f
+}
+
+func quotFloat(left, right float64) Value {
+	return NewDouble(math.Trunc(left / right))
+}
+
+func quotRats(left, right *big.Rat) Value {
+	if right.Sign() == 0 {
+		panic("quot by zero")
+	}
+	n := new(big.Int).Mul(left.Num(), right.Denom())
+	d := new(big.Int).Mul(left.Denom(), right.Num())
+	return newIntegerValueFromBigInt(new(big.Int).Quo(n, d))
 }
 
 const (

@@ -14,7 +14,7 @@ func TestCSVReadCSVThroughBridgeFromPath(t *testing.T) {
 	}
 
 	records := Call(GoBind_csv_ReadCSV, NewString(path))
-	if records.tag != TagArray || records.ArrayLen() != 2 {
+	if !isType[*arrayImpl](records) || records.ArrayLen() != 2 {
 		t.Fatalf("unexpected csv record shape: %#v", records)
 	}
 }
@@ -30,7 +30,7 @@ func TestCSVReadCSVThroughBridgeFromOpenFile(t *testing.T) {
 	defer func() { _ = file.Close() }()
 
 	records := Call(GoBind_csv_ReadCSV, file)
-	if records.tag != TagArray || records.ArrayLen() != 2 {
+	if !isType[*arrayImpl](records) || records.ArrayLen() != 2 {
 		t.Fatalf("unexpected csv record shape from open file: %#v", records)
 	}
 }
@@ -56,7 +56,7 @@ func TestCSVReadCSVPathWithOptions(t *testing.T) {
 	// Variable width still works.
 	okOpts := NewMap(NewKeyword("fields-per-record"), NewLong(-1), NewKeyword("lazy-quotes"), NewBool(true))
 	records := Call(GoBind_csv_ReadCSVPath, NewString(path), okOpts)
-	if records.tag != TagArray || records.ArrayLen() != 1 {
+	if !isType[*arrayImpl](records) || records.ArrayLen() != 1 {
 		t.Fatalf("unexpected records: %#v", records)
 	}
 }

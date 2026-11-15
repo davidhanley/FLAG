@@ -98,10 +98,10 @@ func csvSourceAndOptions(name string, args []Value) (Value, csvlib.Options) {
 
 func csvReadDispatch(source Value, opt csvlib.Options) ([][]string, error) {
 	// Path-like.
-	switch source.tag {
-	case TagString, TagSymbol:
+	if _, ok := source.impl.asIdent(source); ok {
 		return csvlib.ReadFile(goArgString("csv/read-csv", 0, source), opt)
-	case TagFile:
+	}
+	if TypeOf(source) == typeFile {
 		return csvlib.ReadAll(goArgReader("csv/read-csv", 0, source), opt)
 	}
 
@@ -120,17 +120,11 @@ func csvReadDispatch(source Value, opt csvlib.Options) ([][]string, error) {
 }
 
 func isSeqValue(v Value) bool {
-	switch v.tag {
-	case TagNil, TagList, TagArray, TagVector, TagLazyList, TagString:
-		// String already handled as path; not a line seq here.
-		return v.tag == TagList || v.tag == TagArray || v.tag == TagVector || v.tag == TagLazyList
-	default:
-		return false
-	}
+	return v.impl.seqQ(v)
 }
 
 func csvLinesFromValue(name string, v Value) []string {
-	if v.tag == TagNil {
+	if IsNil(v) {
 		return []string{}
 	}
 	cursor := newSeqCursor(v)
@@ -154,10 +148,10 @@ func csvLinesFromValue(name string, v Value) []string {
 //	:comment            char/string length 1
 func csvOptionsFromValue(name string, v Value) csvlib.Options {
 	opt := csvlib.DefaultOptions()
-	if v.tag == TagNil {
+	if IsNil(v) {
 		return opt
 	}
-	if v.tag != TagMap {
+	if TypeOf(v) != typeMap {
 		panic(fmt.Sprintf("%s options: expected map, got %s", name, v.String()))
 	}
 	for _, e := range v.MapEntries() {
@@ -181,37 +175,32 @@ func csvOptionsFromValue(name string, v Value) csvlib.Options {
 }
 
 func optionKeyName(k Value) string {
-	switch k.tag {
-	case TagSymbol:
-		return k.SymbolObject().Name
-	case TagString:
-		return k.StringValue()
-	default:
-		if s, ok := ValueToAny(k).(string); ok {
-			return s
-		}
-		panic(fmt.Sprintf("option key must be keyword/string, got %s", k.String()))
+	if s, ok := k.impl.asIdent(k); ok {
+		return s
 	}
+	if s, ok := ValueToAny(k).(string); ok {
+		return s
+	}
+	panic(fmt.Sprintf("option key must be keyword/string, got %s", k.String()))
 }
 
 func goArgBool(name string, idx int, v Value) bool {
-	if v.tag != TagBool {
+	if !isType[boolImpl](v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to bool", name, idx+1, v.String()))
 	}
 	return v.Bool()
 }
 
 func goArgRune(name string, idx int, v Value) rune {
-	switch v.tag {
-	case TagString:
+	if isType[*stringImpl](v) {
 		s := v.StringValue()
 		if len([]rune(s)) != 1 {
 			panic(fmt.Sprintf("%s argument %d: expected single character string, got %q", name, idx+1, s))
 		}
 		return []rune(s)[0]
-	case TagLong:
-		return rune(v.Long())
-	default:
-		panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
 	}
+	if isType[longImpl](v) {
+		return rune(v.Long())
+	}
+	panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
 }

@@ -429,7 +429,6 @@ func generatedRuntimeSymbols() map[string]reflect.Value {
 		"UnwrapRecur":                        reflect.ValueOf(flagrt.UnwrapRecur),
 		"Vals":                               reflect.ValueOf(flagrt.Vals),
 		"Value":                              reflect.ValueOf((*flagrt.Value)(nil)),
-		"ValueTag":                           reflect.ValueOf((*flagrt.ValueTag)(nil)),
 		"ValueToAny":                         reflect.ValueOf(flagrt.ValueToAny),
 		"Vec":                                reflect.ValueOf(flagrt.Vec),
 		"VectorAppend":                       reflect.ValueOf(flagrt.VectorAppend),

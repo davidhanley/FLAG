@@ -1,26 +1,28 @@
 package runtime
 
-import "unsafe"
+import (
+	"strconv"
+	"unsafe"
+)
 
 type FunctionObject struct {
 	Fn func(args ...Value) Value
+}
+
+type functionImpl struct {
+	defaultImpl
+	obj *FunctionObject
 }
 
 func NewFunction(fn func(args ...Value) Value) Value {
 	if fn == nil {
 		panic("NewFunction expects non-nil function")
 	}
-	return makeValue(TagFunction, 0, unsafe.Pointer(&FunctionObject{Fn: fn}))
+	return Value{impl: &functionImpl{obj: &FunctionObject{Fn: fn}}}
 }
 
 func (v Value) FunctionObject() *FunctionObject {
-	if v.tag != TagFunction {
-		panic("FunctionObject called on non-function Value")
-	}
-	if v.p == nil {
-		panic("function Value does not contain function pointer")
-	}
-	return (*FunctionObject)(v.p)
+	return asImpl[*functionImpl](v, "FunctionObject called on non-function Value").obj
 }
 
 // Fn invokes a function Value. Compiled FLAG uses this for `def`/`GoBind`
@@ -31,43 +33,29 @@ func (v Value) Fn(args ...Value) Value {
 }
 
 func Call(fn Value, args ...Value) Value {
-	switch fn.tag {
-	case TagFunction:
-		return fn.FunctionObject().Fn(args...)
-	case TagMap, TagDate, TagRecord:
-		if len(args) != 1 && len(args) != 2 {
-			panic("map invocation expects key and optional default")
-		}
-		if len(args) == 1 {
-			return Get(fn, args[0])
-		}
-		return Get(fn, args[0], args[1])
-	case TagSet:
-		if len(args) != 1 && len(args) != 2 {
-			panic("set invocation expects value and optional default")
-		}
-		if Contains(fn, args[0]) {
-			return args[0]
-		}
-		if len(args) == 2 {
-			return args[1]
-		}
-		return NilValue
-	case TagSymbol:
-		symbol := fn.SymbolObject()
-		if !symbol.IsKeyword {
-			break
-		}
-		if len(args) != 1 && len(args) != 2 {
-			panic("keyword invocation expects map and optional default")
-		}
-		key := NewKeyword(symbol.Name)
-		if len(args) == 1 {
-			return Get(args[0], key)
-		}
-		return Get(args[0], key, args[1])
-	default:
-		// fall through
+	return fn.impl.apply(fn, args...)
+}
+
+func lookupApply(coll Value, args []Value, kind string) Value {
+	if len(args) != 1 && len(args) != 2 {
+		panic(kind + " invocation expects key and optional default")
 	}
-	panic("call expects function, map, set, or keyword Value")
+	if len(args) == 1 {
+		return Get(coll, args[0])
+	}
+	return Get(coll, args[0], args[1])
+}
+
+func (functionImpl) hash(v Value) string {
+	return "F:" + strconv.FormatUint(uint64(uintptr(unsafe.Pointer(v.FunctionObject()))), 16)
+}
+func (functionImpl) typ(Value) Value { return typeFn }
+func (functionImpl) String(Value) string {
+	return "#<fn>"
+}
+func (functionImpl) toJSON(Value) (any, error) {
+	return "#<fn>", nil
+}
+func (functionImpl) apply(v Value, args ...Value) Value {
+	return v.FunctionObject().Fn(args...)
 }

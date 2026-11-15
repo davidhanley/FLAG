@@ -26,7 +26,7 @@ var httpServerRegistry = struct {
 func adaptHTTPListen(args ...Value) Value {
 	goArgArityExact("http/listen", args, 1)
 	opts := args[0]
-	if opts.tag != TagMap {
+	if TypeOf(opts) != typeMap {
 		panic(fmt.Sprintf("http/listen expects an options map, got %s", opts.String()))
 	}
 	addr := httpListenAddress(opts)
@@ -56,35 +56,35 @@ func adaptHTTPAddress(args ...Value) Value {
 }
 
 func httpListenAddress(opts Value) string {
-	if addr := Get(opts, NewKeyword("addr")); addr.tag != TagNil {
+	if addr := Get(opts, NewKeyword("addr")); !IsNil(addr) {
 		return goArgString("http/listen", 0, addr)
 	}
 	host := "127.0.0.1"
-	if v := Get(opts, NewKeyword("host")); v.tag != TagNil {
+	if v := Get(opts, NewKeyword("host")); !IsNil(v) {
 		host = goArgString("http/listen", 0, v)
 	}
 	port := int64(0)
-	if v := Get(opts, NewKeyword("port")); v.tag != TagNil {
+	if v := Get(opts, NewKeyword("port")); !IsNil(v) {
 		port = goArgInt64("http/listen", 0, v)
 	}
 	return fmt.Sprintf("%s:%d", host, port)
 }
 
 func httpListenHandler(opts Value) httplib.Handler {
-	if handler := Get(opts, NewKeyword("handler")); handler.tag != TagNil {
+	if handler := Get(opts, NewKeyword("handler")); !IsNil(handler) {
 		return httpHandlerFromValue("http/listen", handler)
 	}
-	if router := Get(opts, NewKeyword("router")); router.tag != TagNil {
+	if router := Get(opts, NewKeyword("router")); !IsNil(router) {
 		return httpRouterFromValue("http/listen", router)
 	}
-	if routes := Get(opts, NewKeyword("routes")); routes.tag != TagNil {
+	if routes := Get(opts, NewKeyword("routes")); !IsNil(routes) {
 		return httpRouterFromRoutesValue("http/listen", routes)
 	}
 	panic("http/listen expects :handler, :router, or :routes")
 }
 
 func httpHandlerFromValue(name string, handler Value) httplib.Handler {
-	if handler.tag != TagFunction {
+	if TypeOf(handler) != typeFn {
 		panic(fmt.Sprintf("%s handler: expected function, got %s", name, handler.String()))
 	}
 	return func(req httplib.ServerRequest) httplib.ServerResponse {
@@ -94,11 +94,11 @@ func httpHandlerFromValue(name string, handler Value) httplib.Handler {
 }
 
 func httpRouterFromValue(name string, router Value) httplib.Handler {
-	if router.tag != TagMap {
+	if TypeOf(router) != typeMap {
 		panic(fmt.Sprintf("%s router: expected map, got %s", name, router.String()))
 	}
 	routes := Get(router, NewKeyword("routes"))
-	if routes.tag == TagNil {
+	if IsNil(routes) {
 		panic(fmt.Sprintf("%s router: missing :routes", name))
 	}
 	return httpRouterFromRoutesValue(name, routes)
@@ -108,11 +108,11 @@ func httpRouterFromRoutesValue(name string, routes Value) httplib.Handler {
 	items := httpRouteValues(name, routes)
 	compiled := make([]httplib.Route, 0, len(items))
 	for i, route := range items {
-		if route.tag != TagMap {
+		if TypeOf(route) != typeMap {
 			panic(fmt.Sprintf("%s route %d: expected map, got %s", name, i+1, route.String()))
 		}
 		handler := Get(route, NewKeyword("handler"))
-		if handler.tag != TagFunction {
+		if TypeOf(handler) != typeFn {
 			panic(fmt.Sprintf("%s route %d: missing function :handler", name, i+1))
 		}
 		compiled = append(compiled, httplib.Route{
@@ -134,13 +134,14 @@ func httpRouterFromRoutesValue(name string, routes Value) httplib.Handler {
 }
 
 func httpRouteValues(name string, v Value) []Value {
-	switch v.tag {
-	case TagArray:
-		return v.ArrayValues()
-	case TagList:
-		return v.ListValues()
-	case TagNil:
+	if IsNil(v) {
 		return nil
+	}
+	switch TypeOf(v) {
+	case typeArray:
+		return v.ArrayValues()
+	case typeList:
+		return v.ListValues()
 	default:
 		panic(fmt.Sprintf("%s routes: expected array or list, got %s", name, v.String()))
 	}
@@ -165,25 +166,25 @@ func httpServerRequestValue(req httplib.ServerRequest) Value {
 }
 
 func httpServerResponseFromValue(name string, v Value) httplib.ServerResponse {
-	if v.tag == TagNil {
+	if IsNil(v) {
 		return httplib.ServerResponse{StatusCode: stdhttp.StatusOK}
 	}
-	if v.tag != TagMap {
+	if TypeOf(v) != typeMap {
 		return httplib.ServerResponse{
 			StatusCode: stdhttp.StatusOK,
 			Body:       httpBodyBytes(name, v),
 		}
 	}
 	status := int64(stdhttp.StatusOK)
-	if raw := Get(v, NewKeyword("status")); raw.tag != TagNil {
+	if raw := Get(v, NewKeyword("status")); !IsNil(raw) {
 		status = goArgInt64(name, 0, raw)
 	}
 	headers := stdhttp.Header{}
-	if raw := Get(v, NewKeyword("headers")); raw.tag != TagNil {
+	if raw := Get(v, NewKeyword("headers")); !IsNil(raw) {
 		headers = stdhttp.Header(requestHeadersFromValue(name, raw))
 	}
 	body := []byte(nil)
-	if raw := Get(v, NewKeyword("body")); raw.tag != TagNil {
+	if raw := Get(v, NewKeyword("body")); !IsNil(raw) {
 		body = httpBodyBytes(name, raw)
 	}
 	return httplib.ServerResponse{
@@ -234,11 +235,11 @@ func httpServerHandleValue(id int64, addr string) Value {
 }
 
 func httpServerID(name string, handle Value) int64 {
-	if handle.tag != TagMap {
+	if TypeOf(handle) != typeMap {
 		panic(fmt.Sprintf("%s expects a server handle map, got %s", name, handle.String()))
 	}
 	id := Get(handle, NewKeyword("server-id"))
-	if id.tag != TagLong {
+	if TypeOf(id) != typeInt {
 		panic(fmt.Sprintf("%s expects a server handle with :server-id, got %s", name, handle.String()))
 	}
 	return id.Long()

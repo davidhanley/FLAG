@@ -12,7 +12,7 @@ func TestGoFunctionCallByName(t *testing.T) {
 
 	fn := GoFunction("test.add")
 	got := Call(fn, NewLong(2), NewLong(5))
-	if got.tag != TagLong || got.Long() != 7 {
+	if !isType[longImpl](got) || got.Long() != 7 {
 		t.Fatalf("expected 7 from go function call, got %#v", got)
 	}
 }
@@ -21,12 +21,12 @@ func TestGoFunctionArgs(t *testing.T) {
 	RegisterGoFunction("test.meta", func(a int64, b ...int64) int64 { return a + int64(len(b)) })
 
 	meta := GoFunctionArgs("test.meta")
-	if meta.tag != TagMap {
-		t.Fatalf("expected map metadata, got %v", meta.tag)
+	if !isType[*mapImpl](meta) {
+		t.Fatalf("expected map metadata, got %v", TypeOf(meta))
 	}
 
 	params := Get(meta, NewKeyword("params"))
-	if params.tag != TagArray || params.ArrayLen() != 2 {
+	if !isType[*arrayImpl](params) || params.ArrayLen() != 2 {
 		t.Fatalf("expected 2 params, got %#v", params)
 	}
 	if got := (ArrayGet(params, 0)).String(); got != "int64" {
@@ -37,7 +37,7 @@ func TestGoFunctionArgs(t *testing.T) {
 	}
 
 	variadic := Get(meta, NewKeyword("variadic"))
-	if variadic.tag != TagBool || !variadic.Bool() {
+	if !isType[boolImpl](variadic) || !variadic.Bool() {
 		t.Fatalf("expected variadic=true, got %#v", variadic)
 	}
 }
@@ -49,7 +49,7 @@ func TestGoFunctionVariadicCall(t *testing.T) {
 
 	fn := GoFunction("test.format")
 	got := Call(fn, NewSymbol("david is %d years old"), NewLong(23))
-	if got.tag != TagString || got.StringValue() != "david is 23 years old" {
+	if !isType[*stringImpl](got) || got.StringValue() != "david is 23 years old" {
 		t.Fatalf("expected formatted string value, got %#v", got)
 	}
 }
@@ -59,7 +59,7 @@ func TestGoFunctionVariadicCallFromStdlibSymbols(t *testing.T) {
 
 	fn := GoFunction("fmt.Sprintf")
 	got := Call(fn, NewSymbol("david is %d years old"), NewLong(23))
-	if got.tag != TagString || got.StringValue() != "david is 23 years old" {
+	if !isType[*stringImpl](got) || got.StringValue() != "david is 23 years old" {
 		t.Fatalf("expected formatted string value, got %#v", got)
 	}
 }
@@ -78,7 +78,7 @@ func TestGoFunctionMapRecordConvertsToStruct(t *testing.T) {
 		NewKeyword("name"), NewString("Ada"),
 		NewKeyword("age"), NewLong(36),
 	))
-	if got.tag != TagLong || got.Long() != 36 {
+	if !isType[longImpl](got) || got.Long() != 36 {
 		t.Fatalf("expected age 36, got %#v", got)
 	}
 }
@@ -90,7 +90,7 @@ func TestGoFunctionMapRecordConvertsHyphenatedKeysToStructField(t *testing.T) {
 	got := Call(fn, NewMap(
 		NewKeyword("first-name"), NewString("Grace"),
 	))
-	if got.tag != TagString || got.StringValue() != "Grace" {
+	if !isType[*stringImpl](got) || got.StringValue() != "Grace" {
 		t.Fatalf("expected first name Grace, got %#v", got)
 	}
 }
