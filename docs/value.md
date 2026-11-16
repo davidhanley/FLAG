@@ -95,14 +95,14 @@ checks; map, set, array, vector, string, date, record, and nil override `get`.
 and nil override `find` (`nil` is `nil`). `Keys` / `Vals` are `v.impl.keys(v)` and
 `v.impl.vals(v)`; map, date, and nil override them (`nil` is `nil`). Other types
 inherit `defaultImpl`, which panics. `First` is `v.impl.first(v)`; nil, list, array,
-vector, lazy-list, set, and string override it. `Rest` is `v.impl.rest(v)` on the
+vector, lazy-list, range, set, and string override it. `Rest` is `v.impl.rest(v)` on the
 same types except nil (which panics; `SeqRest` wraps nil as `()`). `Next` is
 `v.impl.next(v)` (nil is `nil`; empty rest is `nil`). `Last` is `v.impl.last(v)`
-on list, array, vector, and lazy-list. `Conj` is `v.impl.conj(v, entries...)` after
+on list, array, vector, lazy-list, and range. `Conj` is `v.impl.conj(v, entries...)` after
 the arity check; list, array, vector, set, and map override it. `Count` /
 `IsEmpty` / `NotEmpty` / `Seq` dispatch the same way. Nil counts as 0 and is
 empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
-`seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list).
+`seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list, range).
 `newSeqCursor` is `v.impl.seqCursor(v)`. `Eq` /
 `IsTruthy` / `IsNil` / `Compare` dispatch through `impl`. Numeric `=` uses
 `isNumeric` then `cmpNum`. FFI conversion is the same: `ValueToAny` is
@@ -113,7 +113,11 @@ Array `toAny` is `[]any`; file `toNative` is the host `*os.File`.
 literal compiles to `flagrt.KeywordGet(coll, kw)` (`KeywordGetDefault` with a
 default): `(:name person)` is `(get person :name)` without `Call`. Keywords and
 symbols are interned in `NewKeyword` / `NewSymbol` (same name is the same
-`Value`, hash precomputed). Map lookup has a `*mapImpl` fast path. Maps, dates,
+`Value`, hash precomputed). Map lookup has an `*arrayMapImpl` then `*mapImpl`
+fast path. Maps of at most 8 unique keys are array-maps (linear scan, compact
+heap); the 9th unique key promotes to HAMT. `type-of` is `:map` for both, and
+`=` / `hash` match across representations. Dissoc does not demote HAMT back to
+array-map. Maps, dates,
 and records used as functions still `Call` and look up the argument in themselves
 (`({:a 1} :a)`). Sets return the member or the optional default. Functions run
 `Fn`. `asIndex` / `asCount` unbox non-negative integers without a type switch.

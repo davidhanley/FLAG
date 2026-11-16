@@ -148,7 +148,7 @@ func TestIOFunctionsAreRegistered(t *testing.T) {
 
 	var foundNested bool
 	for _, item := range scanned.ArrayValues() {
-		if !isType[*mapImpl](item) {
+		if !isMap(item) {
 			t.Fatalf("expected file metadata map entries, got %#v", item)
 		}
 		filename := Get(item, NewKeyword("filename"))

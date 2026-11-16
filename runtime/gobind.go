@@ -81,7 +81,7 @@ func goArgMapAnyAny(name string, idx int, v Value) map[any]any {
 	if IsNil(v) {
 		return nil
 	}
-	if !isType[*mapImpl](v) {
+	if !isMap(v) {
 		panic(fmt.Sprintf("%s argument %d: cannot convert %s to map", name, idx+1, v.String()))
 	}
 	return nativeMap(v.MapEntries())

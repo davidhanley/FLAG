@@ -24,6 +24,7 @@ const (
 	hashSeedChannel uint64 = 0xf1f1f1f1f1f1f1f1
 	hashSeedFile    uint64 = 0xf2f2f2f2f2f2f2f2
 	hashSeedLazy    uint64 = 0xf3f3f3f3f3f3f3f3
+	hashSeedRange   uint64 = 0xf6f6f6f6f6f6f6f6
 	hashSeedRecord  uint64 = 0xf4f4f4f4f4f4f4f4
 	hashSeedRecur   uint64 = 0xf5f5f5f5f5f5f5f5
 	hashMixConst    uint64 = 0x9e3779b97f4a7c15

@@ -18,7 +18,7 @@ func TestMapAndSetStringRendering(t *testing.T) {
 }
 
 func TestNewMapSupportsHashMapSemantics(t *testing.T) {
-	if got := NewMap(); !isType[*mapImpl](got) || got.MapLen() != 0 {
+	if got := NewMap(); !isMap(got) || got.MapLen() != 0 {
 		t.Fatalf("expected empty map from zero-arg NewMap, got %#v", got)
 	}
 
@@ -30,6 +30,59 @@ func TestNewMapSupportsHashMapSemantics(t *testing.T) {
 	assertPanics(t, func() {
 		NewMap(NewKeyword("a"))
 	})
+}
+
+func nKeywordMap(n int) Value {
+	entries := make([]Value, 0, n*2)
+	for i := 0; i < n; i++ {
+		entries = append(entries, NewKeyword(string(rune('a'+i))), NewLong(int64(i)))
+	}
+	return NewMap(entries...)
+}
+
+func TestArrayMapPromotesAtNine(t *testing.T) {
+	empty := NewMap()
+	if !isType[*arrayMapImpl](empty) {
+		t.Fatalf("expected empty array-map, got %T", empty.impl)
+	}
+
+	eight := nKeywordMap(8)
+	if !isType[*arrayMapImpl](eight) || eight.MapLen() != 8 {
+		t.Fatalf("expected 8-key array-map, got %T len=%d", eight.impl, eight.MapLen())
+	}
+
+	nine := nKeywordMap(9)
+	if !isType[*mapImpl](nine) || nine.MapLen() != 9 {
+		t.Fatalf("expected 9-key HAMT, got %T len=%d", nine.impl, nine.MapLen())
+	}
+
+	promoted := Assoc(eight, NewKeyword("i"), NewLong(8))
+	if !isType[*mapImpl](promoted) {
+		t.Fatalf("expected assoc of 9th key to promote, got %T", promoted.impl)
+	}
+	if !Eq(promoted, nine) {
+		t.Fatalf("promoted map should equal 9-key NewMap: %s vs %s", promoted, nine)
+	}
+	if Hash(promoted) != Hash(nine) {
+		t.Fatalf("promoted hash %d != nine hash %d", Hash(promoted), Hash(nine))
+	}
+
+	dup := NewMap(NewKeyword("a"), NewLong(1), NewKeyword("a"), NewLong(2))
+	if !isType[*arrayMapImpl](dup) || dup.MapLen() != 1 {
+		t.Fatalf("expected last-wins compact array-map, got %T len=%d", dup.impl, dup.MapLen())
+	}
+	if got := Get(dup, NewKeyword("a")); got.Long() != 2 {
+		t.Fatalf("expected last-wins value 2, got %s", got)
+	}
+
+	hamt := nKeywordMap(9)
+	shrank := Dissoc(hamt, NewKeyword("i"))
+	if !isType[*mapImpl](shrank) {
+		t.Fatalf("dissoc must not demote HAMT, got %T", shrank.impl)
+	}
+	if !Eq(shrank, nKeywordMap(8)) {
+		t.Fatalf("8-key HAMT should equal 8-key array-map: %s vs %s", shrank, nKeywordMap(8))
+	}
 }
 
 func TestAssocAndDissocMap(t *testing.T) {

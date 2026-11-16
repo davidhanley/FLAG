@@ -528,7 +528,7 @@ func TestNotEmptyAcrossContainerTypes(t *testing.T) {
 	if got := NotEmpty(NewMap()); !IsNil(got) {
 		t.Fatalf("expected nil for empty map, got %#v", got)
 	}
-	if got := NotEmpty(NewMap(NewKeyword("a"), NewLong(1))); !isType[*mapImpl](got) {
+	if got := NotEmpty(NewMap(NewKeyword("a"), NewLong(1))); !isMap(got) {
 		t.Fatalf("expected map for non-empty map, got %#v", got)
 	}
 	if got := NotEmpty(NewSet()); !IsNil(got) {
@@ -648,22 +648,32 @@ func TestCountAcrossContainerTypes(t *testing.T) {
 	}
 }
 
-func TestMapConsumesLazyList(t *testing.T) {
-	lazy := Range(NewLong(1), NewLong(2000))
-
+func TestMapOverFiniteRangeIsEager(t *testing.T) {
+	src := Range(NewLong(1), NewLong(4))
 	double := NewFunction(func(args ...Value) Value { return Add(args[0], args[0]) })
-	mapped := Map(double, lazy)
+	mapped := Map(double, src)
+	if !isType[*arrayImpl](mapped) {
+		t.Fatalf("expected mapped finite range array, got %v", TypeOf(mapped))
+	}
+	if mapped.String() != "[2 4 6]" {
+		t.Fatalf("unexpected mapped finite range: %s", mapped.String())
+	}
+	if got := First(src); got.Long() != 1 {
+		t.Fatalf("expected source range unchanged after map, got %v", ValueToAny(got))
+	}
+}
+
+func TestMapOverInfiniteRangeStaysLazy(t *testing.T) {
+	double := NewFunction(func(args ...Value) Value { return Add(args[0], args[0]) })
+	mapped := Map(double, Range())
 	if !isType[*lazyListImpl](mapped) {
-		t.Fatalf("expected mapped lazy sequence, got %v", TypeOf(mapped))
+		t.Fatalf("expected mapped infinite range to stay lazy, got %v", TypeOf(mapped))
 	}
-	if got := First(mapped); got.Long() != 2 {
-		t.Fatalf("expected first mapped value 2, got %v", ValueToAny(got))
+	if got := First(mapped); got.Long() != 0 {
+		t.Fatalf("expected first mapped value 0, got %v", ValueToAny(got))
 	}
-	if got := First(Rest(mapped)); got.Long() != 4 {
-		t.Fatalf("expected second mapped value 4, got %v", ValueToAny(got))
-	}
-	if got := First(lazy); got.Long() != 1 {
-		t.Fatalf("expected source lazy list unchanged after map, got %v", ValueToAny(got))
+	if got := First(Rest(mapped)); got.Long() != 2 {
+		t.Fatalf("expected second mapped value 2, got %v", ValueToAny(got))
 	}
 }
 
@@ -687,7 +697,7 @@ func TestConcatReturnsLazySequenceAcrossInputs(t *testing.T) {
 
 func TestIntoFoldsSequenceIntoCollection(t *testing.T) {
 	got := Into(NewMap(), NewArray(NewArray(NewKeyword("a"), NewLong(1))))
-	if !isType[*mapImpl](got) || got.String() != "{:a 1}" {
+	if !isMap(got) || got.String() != "{:a 1}" {
 		t.Fatalf("unexpected into result: %#v", got)
 	}
 }
@@ -854,7 +864,7 @@ func TestReduceWithInitialOnNilCollection(t *testing.T) {
 
 func TestDoAllIsNoOpForNonSequences(t *testing.T) {
 	m := NewMap(NewKeyword("a"), NewLong(1))
-	if got := DoAll(m); !isType[*mapImpl](got) || got.String() != "{:a 1}" {
+	if got := DoAll(m); !isMap(got) || got.String() != "{:a 1}" {
 		t.Fatalf("expected doall map no-op, got %#v", got)
 	}
 	if got := DoAll(NewString("abc")); !isType[*stringImpl](got) || got.StringValue() != "abc" {
@@ -862,10 +872,10 @@ func TestDoAllIsNoOpForNonSequences(t *testing.T) {
 	}
 }
 
-func TestRangeTwoArgsShortReturnsLazyList(t *testing.T) {
+func TestRangeTwoArgsShortReturnsRange(t *testing.T) {
 	r := Range(NewLong(3), NewLong(7))
-	if !isType[*lazyListImpl](r) {
-		t.Fatalf("expected lazy list for short range, got %v", TypeOf(r))
+	if !isType[*rangeImpl](r) {
+		t.Fatalf("expected range for short range, got %v", TypeOf(r))
 	}
 	got := DoAll(r)
 	if got.String() != "[3 4 5 6]" {
@@ -875,8 +885,8 @@ func TestRangeTwoArgsShortReturnsLazyList(t *testing.T) {
 
 func TestRangeOneArgIsExclusiveEndFromZero(t *testing.T) {
 	r := Range(NewLong(4))
-	if !isType[*lazyListImpl](r) {
-		t.Fatalf("expected lazy list for (range 4), got %v", TypeOf(r))
+	if !isType[*rangeImpl](r) {
+		t.Fatalf("expected range for (range 4), got %v", TypeOf(r))
 	}
 	if got := DoAll(r).String(); got != "[0 1 2 3]" {
 		t.Fatalf("expected (range 4) to be 0..3, got %q", got)
@@ -891,10 +901,10 @@ func TestRangeOneArgIsExclusiveEndFromZero(t *testing.T) {
 	}
 }
 
-func TestRangeNoArgsReturnsInfiniteLazyListFromZero(t *testing.T) {
+func TestRangeNoArgsReturnsInfiniteRangeFromZero(t *testing.T) {
 	r := Range()
-	if !isType[*lazyListImpl](r) {
-		t.Fatalf("expected lazy list for zero-arg range, got %v", TypeOf(r))
+	if !isType[*rangeImpl](r) {
+		t.Fatalf("expected range for zero-arg range, got %v", TypeOf(r))
 	}
 	for i := int64(0); i < 5; i++ {
 		got := First(r)
@@ -905,10 +915,10 @@ func TestRangeNoArgsReturnsInfiniteLazyListFromZero(t *testing.T) {
 	}
 }
 
-func TestRangeLargeReturnsTerminatingLazyList(t *testing.T) {
+func TestRangeLargeReturnsTerminatingRange(t *testing.T) {
 	r := Range(NewLong(1), NewLong(1002))
-	if !isType[*lazyListImpl](r) {
-		t.Fatalf("expected lazy list for large range, got %v", TypeOf(r))
+	if !isType[*rangeImpl](r) {
+		t.Fatalf("expected range for large range, got %v", TypeOf(r))
 	}
 	for i := int64(1); i < 1002; i++ {
 		got := First(r)
@@ -1055,16 +1065,16 @@ func TestDropOnArrayListLazy(t *testing.T) {
 		t.Fatalf("unexpected drop list values: %#v", got)
 	}
 
-	lazy := Range(NewLong(20), NewLong(2000))
-	lazyDropped := Drop(NewLong(3), lazy)
-	if !isType[*lazyListImpl](lazyDropped) {
-		t.Fatalf("expected lazy list from drop lazy, got %v", TypeOf(lazyDropped))
+	src := Range(NewLong(20), NewLong(2000))
+	dropped := Drop(NewLong(3), src)
+	if !isType[*rangeImpl](dropped) {
+		t.Fatalf("expected range from drop range, got %v", TypeOf(dropped))
 	}
-	if got := First(lazyDropped); got.Long() != 23 {
-		t.Fatalf("expected dropped lazy head 23, got %v", ValueToAny(got))
+	if got := First(dropped); got.Long() != 23 {
+		t.Fatalf("expected dropped range head 23, got %v", ValueToAny(got))
 	}
-	if got := First(lazy); got.Long() != 20 {
-		t.Fatalf("expected original lazy unchanged after drop, got %v", ValueToAny(got))
+	if got := First(src); got.Long() != 20 {
+		t.Fatalf("expected original range unchanged after drop, got %v", ValueToAny(got))
 	}
 }
 

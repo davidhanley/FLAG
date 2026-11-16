@@ -319,7 +319,8 @@
   (or (= (type-of x) :list)
       (= (type-of x) :array)
       (= (type-of x) :vector)
-      (= (type-of x) :lazy-list)))
+      (= (type-of x) :lazy-list)
+      (= (type-of x) :range)))
 
 (defn coll? [x]
   (or (sequential? x)
@@ -334,6 +335,7 @@
     :map {}
     :set #{}
     :lazy-list (list)
+    :range []
     :record {}
     nil))
 

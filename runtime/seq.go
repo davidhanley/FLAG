@@ -176,9 +176,13 @@ func lazyMap(fn Value, seqs ...Value) Value {
 
 func allLazySeqs(seqs []Value) bool {
 	for _, seq := range seqs {
-		if !isType[*lazyListImpl](seq) {
-			return false
+		if isType[*lazyListImpl](seq) {
+			continue
 		}
+		if isType[*rangeImpl](seq) && !asImpl[*rangeImpl](seq, "allLazySeqs").finite {
+			continue
+		}
+		return false
 	}
 	return true
 }
@@ -711,7 +715,7 @@ func SeqRest(coll Value) Value {
 func Range(args ...Value) Value {
 	switch len(args) {
 	case 0:
-		return newLazyRange(0, 0, 1, false)
+		return newRangeValue(0, 0, 1, false)
 	case 1:
 		end := rangeArgLong("range", args[0])
 		return finiteRange(0, end, 1)
@@ -740,7 +744,7 @@ func finiteRange(start, end, step int64) Value {
 	if count <= 0 {
 		return NewArray()
 	}
-	return newLazyRange(start, end, step, true)
+	return newRangeValue(start, end, step, true)
 }
 
 func rangeCount(start, end, step int64) int64 {
@@ -766,30 +770,6 @@ func Repeat(args ...Value) Value {
 	default:
 		panic("repeat expects one or two arguments")
 	}
-}
-
-func newLazyRange(start, end, step int64, finite bool) Value {
-	current := start
-	state := &lazyListState{
-		next: func() (Value, bool) {
-			if finite {
-				if step > 0 && current >= end {
-					return Value{}, false
-				}
-				if step < 0 && current <= end {
-					return Value{}, false
-				}
-			}
-			value := NewLong(current)
-			current += step
-			return value, true
-		},
-	}
-	remaining := int64(-1)
-	if finite {
-		remaining = rangeCount(start, end, step)
-	}
-	return newLazyListValue(state, remaining, 0)
 }
 
 func newLazyRepeat(value Value, remaining int64, finite bool) Value {
@@ -829,18 +809,21 @@ const (
 	seqKindList
 	seqKindLazy
 	seqKindString
+	seqKindRange
 )
 
 type seqCursor struct {
-	kind      seqCursorKind
-	listNode  *listNode
-	lazyList  Value
-	arrayVals []Value
-	strValue  string
-	strIndex  int
-	arrayIdx  int
-	length    int
-	hasLength bool
+	kind       seqCursorKind
+	listNode   *listNode
+	lazyList   Value
+	arrayVals  []Value
+	strValue   string
+	strIndex   int
+	arrayIdx   int
+	length     int
+	hasLength  bool
+	rangeStart int64
+	rangeStep  int64
 }
 
 func newSeqCursor(coll Value) seqCursor {
@@ -886,6 +869,16 @@ func stringSeqCursor(s string) seqCursor {
 	}
 }
 
+func rangeSeqCursor(start, step int64, length int, hasLength bool) seqCursor {
+	return seqCursor{
+		kind:       seqKindRange,
+		rangeStart: start,
+		rangeStep:  step,
+		length:     length,
+		hasLength:  hasLength,
+	}
+}
+
 func mapEntriesSeqCursor(entries []MapEntry) seqCursor {
 	pairs := make([]Value, 0, len(entries))
 	for _, entry := range entries {
@@ -904,6 +897,8 @@ func (c *seqCursor) remainingKnown() (int, bool) {
 	case seqKindArray:
 		return c.length - c.arrayIdx, true
 	case seqKindLazy:
+		return c.length, true
+	case seqKindRange:
 		return c.length, true
 	default:
 		panic("unknown cursor kind")
@@ -948,6 +943,16 @@ func (c *seqCursor) nextOrDone() (Value, bool) {
 		start := c.strIndex
 		c.strIndex += size
 		return NewString(c.strValue[start:c.strIndex]), true
+	case seqKindRange:
+		if c.hasLength {
+			if c.length == 0 {
+				return Value{}, false
+			}
+			c.length--
+		}
+		value := NewLong(c.rangeStart)
+		c.rangeStart += c.rangeStep
+		return value, true
 	default:
 		panic("unknown cursor kind")
 	}

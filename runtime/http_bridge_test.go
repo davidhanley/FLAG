@@ -32,7 +32,7 @@ func TestHTTPBridgeSend(t *testing.T) {
 	req = Call(GoBind_http_Body, req, NewString("hello"))
 
 	resp := Call(GoBind_http_Send, req)
-	if !isType[*mapImpl](resp) {
+	if !isMap(resp) {
 		t.Fatalf("expected response map, got %s", resp.String())
 	}
 	if got := Get(resp, NewKeyword("status")); !isType[longImpl](got) || got.Long() != http.StatusCreated {
