@@ -414,7 +414,7 @@
                                     {:kind :int :value 1}]})))))
 
 (deftest lower-call-ast-to-ir
-  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewLong(1))"
+  (is (= "flagrt.KeywordGet(flagrt.NewLong(1), flagrt.NewKeyword(\"a\"))"
          (ir/render-ir (lower/call-ast-to-ir
                          {:kind :list
                           :elements [{:kind :keyword :name "a"}
@@ -427,26 +427,26 @@
          (ir/render-ir (lower/call-to-ir
                          (ir/ir-ident "f")
                          [(ir/ir-call (ir/ir-selector "flagrt" "NewLong") [(ir/ir-int 1)])]))))
-  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.Call(flagrt.NewKeyword(\"b\"), flagrt.NewLong(1)))"
+  (is (= "flagrt.KeywordGet(flagrt.KeywordGet(flagrt.NewLong(1), flagrt.NewKeyword(\"b\")), flagrt.NewKeyword(\"a\"))"
          (ir/render-ir (lower/call-ast-to-ir
                          {:kind :list
                           :elements [{:kind :keyword :name "a"}
                                      {:kind :list
                                       :elements [{:kind :keyword :name "b"}
                                                  {:kind :int :value 1}]}]}))))
-  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewArray(flagrt.NewLong(1)))"
+  (is (= "flagrt.KeywordGet(flagrt.NewArray(flagrt.NewLong(1)), flagrt.NewKeyword(\"a\"))"
          (ir/render-ir (lower/call-ast-to-ir
                          {:kind :list
                           :elements [{:kind :keyword :name "a"}
                                      {:kind :vector
                                       :elements [{:kind :int :value 1}]}]}))))
-  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewList(flagrt.NewLong(1)))"
+  (is (= "flagrt.KeywordGet(flagrt.NewList(flagrt.NewLong(1)), flagrt.NewKeyword(\"a\"))"
          (ir/render-ir (lower/call-ast-to-ir
                          {:kind :list
                           :elements [{:kind :keyword :name "a"}
                                      {:kind :quoted-list
                                       :elements [{:kind :int :value 1}]}]}))))
-  (is (= "flagrt.Call(flagrt.NewKeyword(\"a\"), flagrt.NewBool(true))"
+  (is (= "flagrt.KeywordGet(flagrt.NewBool(true), flagrt.NewKeyword(\"a\"))"
          (ir/render-ir (lower/call-ast-to-ir
                          {:kind :list
                           :elements [{:kind :keyword :name "a"}
@@ -1259,9 +1259,9 @@
                                  []
                                  (ir/ir-ident "n")))]
     (is (not (nil? (str/index-of loop-src "var n = flagrt.NewLong(1)"))))
-    (is (not (nil? (str/index-of loop-src "UnwrapRecur(__loopResult)"))))
-    (is (not (nil? (str/index-of loop-src "n = __recurValues[0]"))))
-    (is (not (nil? (str/index-of loop-src "continue")))))
+    (is (not (nil? (str/index-of loop-src "for {"))))
+    (is (not (nil? (str/index-of loop-src "return n"))))
+    (is (nil? (str/index-of loop-src "UnwrapRecur"))))
   (is (= "\tdefer flagrt.Call(f)\n"
          (ir/render-ir-stmt (lower/defer-to-ir (ir/ir-ident "f")) "\t")))
   (is (= "func() flagrt.Value {\n\tflagrt.Throw(err)\n\treturn flagrt.NilValue\n}()"
@@ -1355,6 +1355,22 @@
   (is (lower/const-form? {:kind :int :value 1}))
   (is (lower/const-form? {:kind :vector :elements [{:kind :string :value "Ada"}]}))
   (is (not (lower/const-form? {:kind :symbol :name "x"})))
+  (let [out (lower/compile-form-to-ir {:kind :int :value 0}
+                                      {:constants {:by-code {} :used {} :order []}})]
+    (is (= :ident (:kind (:expr out))))
+    (is (= "flagLong_0" (:name (:expr out)))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "inc"}
+                         {:kind :symbol :name "x"}]}
+             {:locals {"x" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.Inc(x)")))))
+  (let [out (lower/compile-form-to-ir
+             {:kind :list
+              :elements [{:kind :symbol :name "dec"}
+                         {:kind :symbol :name "x"}]}
+             {:locals {"x" :value}})]
+    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.Dec(x)")))))
   (let [out (lower/compile-form-to-ir {:kind :keyword :name "foo"}
                                       {:constants {:by-code {} :used {} :order []}})]
     (is (= :ident (:kind (:expr out))))
@@ -1730,7 +1746,9 @@
                                                              {:kind :symbol :name "i"}
                                                              {:kind :int :value 1}]}]}]}]}
              {})]
-    (is (not (nil? (str/index-of (ir/render-ir (:expr out)) "flagrt.NewRecur")))))
+    (let [src (ir/render-ir (:expr out))]
+      (is (not (nil? (str/index-of src "continue"))))
+      (is (nil? (str/index-of src "NewRecur")))))
   (let [out (lower/compile-form-to-ir
               {:kind :map
                :entries [{:kind :keyword :name "a"}

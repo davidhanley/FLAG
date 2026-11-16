@@ -123,11 +123,21 @@ func valuesEq(a, b []Value) bool {
 type valueHasher struct{}
 
 func (valueHasher) Hash(key Value) uint32 {
+	if s, ok := key.impl.(*symbolImpl); ok {
+		h := s.hashCache
+		if h == 0 {
+			h = Hash(key)
+		}
+		return uint32(h) ^ uint32(h>>32)
+	}
 	h := Hash(key)
 	return uint32(h) ^ uint32(h>>32)
 }
 
 func (valueHasher) Equal(a, b Value) bool {
+	if a.impl == b.impl {
+		return math.Float64bits(a.d) == math.Float64bits(b.d)
+	}
 	return Eq(a, b)
 }
 

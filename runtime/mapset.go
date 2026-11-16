@@ -348,6 +348,16 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 	if len(notFound) == 1 {
 		missing = notFound[0]
 	}
+	return fastGet(coll, key, missing)
+}
+
+func fastGet(coll, key, missing Value) Value {
+	if m, ok := coll.impl.(*mapImpl); ok {
+		if value, found := m.data.items.Get(key); found {
+			return value
+		}
+		return missing
+	}
 	return coll.impl.get(coll, key, missing)
 }
 

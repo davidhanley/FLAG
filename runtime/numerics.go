@@ -99,6 +99,14 @@ func Add(lhs, rhs Value) Value {
 	return lhs.impl.add(lhs, rhs)
 }
 
+func Inc(v Value) Value {
+	return v.impl.addLong(v, 1)
+}
+
+func Dec(v Value) Value {
+	return v.impl.addLong(v, -1)
+}
+
 func Mul(lhs, rhs Value) Value {
 	return lhs.impl.mul(lhs, rhs)
 }

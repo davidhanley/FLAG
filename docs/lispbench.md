@@ -47,11 +47,14 @@ No-arg; not a date. Prefer this over `t/now` for benchmarks.
 | `lazy-range-sum`, `lazy-map-inc` | `(def fractions (map #(/ 5 …) (range)))` | `(range)` is a lazy list with O(1) `first`/`rest`. Clojure still **chunks 32**. |
 | `ratio-scores`, `frs-score-shape` | `get-scores-list` | Boxed `Value` + ratio objects vs Clojure ratios after JIT. |
 | `eager-range-sum`, `apply-max` | `reduce +`, `(apply max …)` | Every long is a tagged `Value`; `+` type-switches. Clojure `LongRange` + primitive combine. |
-| `keyword-gets`, `nested-keyword` | `(:name athlete)`, `(:race-name (:header r))` | Persistent map lookup through `Value` keys. |
+| `keyword-gets`, `nested-keyword` | `(:name athlete)`, `(:race-name (:header r))` | Compiled `KeywordGet` into interned keyword keys; HAMT still boxed `Value`. |
 | `assoc-scores` | `add-scores-and-rank` | `assoc` of several keys per athlete. |
 | `group-by-name`, `juxt-keys` | `group-by :name`, `(juxt :name :age)` | HAMT `assoc` in a FLAG `reduce`. |
 | `mapcat-filter`, `sort-by-points` | `compute-sex-results` | Extra seq copies; no chunking. |
 | `string-pipeline` | CSV `trim` / `upper-case` | Usually closer to Clojure; not the FRS 4× by itself. |
+
+Compiled `loop`/`recur` is a Go `for` with binding assigns and `continue`.
+`(inc x)` is `flagrt.Inc`. Int literals intern like keywords.
 
 If `keyword-gets` / `nested-keyword` / `group-by-*` lead, boxed maps (not
 `range`) are the next place to optimize.

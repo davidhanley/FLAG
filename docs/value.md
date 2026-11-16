@@ -109,16 +109,20 @@ empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 `toAny`, Go/native unbox is `toNative`, JSON is `toJSON`, `name` is `name`,
 `ex-message` is `exMessage`, and string/symbol names use `asIdent`/`asString`.
 Array `toAny` is `[]any`; file `toNative` is the host `*os.File`.
-`Call` is `fn.impl.apply(fn, args...)`. Keywords look up themselves in the
-argument (`(:name person)` is `(get person :name)`). Maps, dates, and records
-look up the argument in themselves (`({:a 1} :a)`). Sets return the member or
-the optional default. Functions run `Fn`. `asIndex` / `asCount` unbox non-negative
-integers without a type switch.
+`Call` is `fn.impl.apply(fn, args...)` for unknown callees. A keyword
+literal compiles to `flagrt.KeywordGet(coll, kw)` (`KeywordGetDefault` with a
+default): `(:name person)` is `(get person :name)` without `Call`. Keywords and
+symbols are interned in `NewKeyword` / `NewSymbol` (same name is the same
+`Value`, hash precomputed). Map lookup has a `*mapImpl` fast path. Maps, dates,
+and records used as functions still `Call` and look up the argument in themselves
+(`({:a 1} :a)`). Sets return the member or the optional default. Functions run
+`Fn`. `asIndex` / `asCount` unbox non-negative integers without a type switch.
 
 Binary math is double-dispatch, not a tag switch. `(+ a b)` is `flagrt.Add(a, b)`
 → `a.impl.add(a, b)`. If `a` is a long it unboxes and calls
 `b.impl.addLong(b, a.Long())` (same pattern for double/ratio/bigint and for
-`-` `*` `/` `quot` `cmpNum`). Variadic `(+ 1 2 3)` and `(apply + xs)` fold that
+`-` `*` `/` `quot` `cmpNum`). `(inc x)` / `(dec x)` are `flagrt.Inc` / `Dec`:
+`x.impl.addLong(x, 1)` / `addLong(x, -1)`. Variadic `(+ 1 2 3)` and `(apply + xs)` fold that
 binary `Add`; the two-arg path is not itself variadic. `(< a b c d)` is chained
 binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
 those calls panic.

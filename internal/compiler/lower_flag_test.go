@@ -69,10 +69,50 @@ func TestLiteralExprToGoInternsKeywords(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormKeywordGet(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, constants: newConstantInterner()}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		KeywordExpr{Name: "name"},
+		SymbolExpr{Name: "person"},
+	}}, ctx, map[string]exprKind{"person": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagrt.KeywordGet(person, flagKw_name)" {
+		t.Fatalf("keyword get %q", got.code)
+	}
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		KeywordExpr{Name: "name"},
+		SymbolExpr{Name: "person"},
+		KeywordExpr{Name: "missing"},
+	}}, ctx, map[string]exprKind{"person": exprKindValue})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagrt.KeywordGetDefault(person, flagKw_name, flagKw_missing)" {
+		t.Fatalf("keyword get default %q", got.code)
+	}
+}
+
 func TestFLAGCompileFormInternsLiterals(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, constants: newConstantInterner()}
-	got, err := flagCompileForm(KeywordExpr{Name: "foo"}, ctx, nil)
+	got, err := flagCompileForm(IntExpr{Value: 0}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagLong_0" {
+		t.Fatalf("int %q", got.code)
+	}
+	got, err = flagCompileForm(IntExpr{Value: -1}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.code != "flagLong__1" {
+		t.Fatalf("neg int %q", got.code)
+	}
+	got, err = flagCompileForm(KeywordExpr{Name: "foo"}, ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +134,7 @@ func TestFLAGCompileFormInternsLiterals(t *testing.T) {
 		t.Fatalf("quoted list %q", got.code)
 	}
 	decls := ctx.constants.decls()
-	if len(decls) != 3 {
+	if len(decls) != 5 {
 		t.Fatalf("decls %d %+v", len(decls), decls)
 	}
 }
@@ -202,7 +242,7 @@ func TestFLAGCallAstToIR(t *testing.T) {
 		{
 			"keyword-call",
 			ListExpr{Elements: []Expr{KeywordExpr{Name: "a"}, IntExpr{Value: 1}}},
-			`flagrt.Call(flagrt.NewKeyword("a"), flagrt.NewLong(1))`,
+			`flagrt.KeywordGet(flagrt.NewLong(1), flagrt.NewKeyword("a"))`,
 		},
 		{
 			"no-args",
@@ -215,7 +255,7 @@ func TestFLAGCallAstToIR(t *testing.T) {
 				KeywordExpr{Name: "a"},
 				ListExpr{Elements: []Expr{KeywordExpr{Name: "b"}, IntExpr{Value: 1}}},
 			}},
-			`flagrt.Call(flagrt.NewKeyword("a"), flagrt.Call(flagrt.NewKeyword("b"), flagrt.NewLong(1)))`,
+			`flagrt.KeywordGet(flagrt.KeywordGet(flagrt.NewLong(1), flagrt.NewKeyword("b")), flagrt.NewKeyword("a"))`,
 		},
 		{
 			"vector-arg",
@@ -223,7 +263,7 @@ func TestFLAGCallAstToIR(t *testing.T) {
 				KeywordExpr{Name: "a"},
 				VectorExpr{Elements: []Expr{IntExpr{Value: 1}}},
 			}},
-			`flagrt.Call(flagrt.NewKeyword("a"), flagrt.NewArray(flagrt.NewLong(1)))`,
+			`flagrt.KeywordGet(flagrt.NewArray(flagrt.NewLong(1)), flagrt.NewKeyword("a"))`,
 		},
 		{
 			"quoted-list-arg",
@@ -231,12 +271,17 @@ func TestFLAGCallAstToIR(t *testing.T) {
 				KeywordExpr{Name: "a"},
 				QuotedListExpr{Elements: []Expr{IntExpr{Value: 1}}},
 			}},
-			`flagrt.Call(flagrt.NewKeyword("a"), flagrt.NewList(flagrt.NewLong(1)))`,
+			`flagrt.KeywordGet(flagrt.NewList(flagrt.NewLong(1)), flagrt.NewKeyword("a"))`,
 		},
 		{
 			"true-arg",
 			ListExpr{Elements: []Expr{KeywordExpr{Name: "a"}, SymbolExpr{Name: "true"}}},
-			`flagrt.Call(flagrt.NewKeyword("a"), flagrt.NewBool(true))`,
+			`flagrt.KeywordGet(flagrt.NewBool(true), flagrt.NewKeyword("a"))`,
+		},
+		{
+			"keyword-call-default",
+			ListExpr{Elements: []Expr{KeywordExpr{Name: "a"}, IntExpr{Value: 1}, KeywordExpr{Name: "missing"}}},
+			`flagrt.KeywordGetDefault(flagrt.NewLong(1), flagrt.NewKeyword("a"), flagrt.NewKeyword("missing"))`,
 		},
 	}
 	for _, tc := range cases {
@@ -628,14 +673,15 @@ func TestFLAGLoopToIR(t *testing.T) {
 		"func() flagrt.Value",
 		"var n = flagrt.NewLong(1)",
 		"for {",
-		"__loopResult := n",
-		"UnwrapRecur(__loopResult)",
-		"n = __recurValues[0]",
-		"continue",
-		"return __loopResult",
+		"return n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+	for _, reject := range []string{"UnwrapRecur", "NewRecur", "__loopResult"} {
+		if strings.Contains(got, reject) {
+			t.Fatalf("unexpected %q in:\n%s", reject, got)
 		}
 	}
 }
@@ -655,11 +701,14 @@ func TestLoopExprToGoUsesFLAG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got.code, "UnwrapRecur") {
-		t.Fatalf("loop IIFE missing unwrap:\n%s", got.code)
+	if !strings.Contains(got.code, "for {") {
+		t.Fatalf("loop IIFE missing for:\n%s", got.code)
 	}
-	if !strings.Contains(got.code, "flagrt.NewRecur") {
-		t.Fatalf("missing recur:\n%s", got.code)
+	if !strings.Contains(got.code, "continue") {
+		t.Fatalf("missing continue:\n%s", got.code)
+	}
+	if strings.Contains(got.code, "UnwrapRecur") || strings.Contains(got.code, "NewRecur") {
+		t.Fatalf("compiled loop still boxes recur:\n%s", got.code)
 	}
 }
 
@@ -2349,6 +2398,36 @@ func TestFLAGCompileFormThrow(t *testing.T) {
 	}
 }
 
+func TestFLAGCompileFormIncDec(t *testing.T) {
+	n := 0
+	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
+	vals := map[string]exprKind{"x": exprKindValue}
+	got, err := flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "inc"}, SymbolExpr{Name: "x"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Inc(x)" {
+		t.Fatalf("inc %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "dec"}, SymbolExpr{Name: "x"},
+	}}, ctx, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Dec(x)" {
+		t.Fatalf("dec %q", renderIRExpr(irFromGoExpr(got)))
+	}
+	_, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "inc"}, SymbolExpr{Name: "x"}, SymbolExpr{Name: "x"},
+	}}, ctx, vals)
+	if err == nil {
+		t.Fatal("expected inc arity error")
+	}
+}
+
 func TestFLAGCompileFormLoopRecur(t *testing.T) {
 	n := 0
 	ctx := compileContext{ifTemps: &n, globals: map[string]exprKind{}, functions: map[string]functionDef{}, moduleSymbols: map[string]string{}}
@@ -2361,7 +2440,7 @@ func TestFLAGCompileFormLoopRecur(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered := renderIRExpr(irFromGoExpr(got))
-	for _, want := range []string{"UnwrapRecur", "return __loopResult", "flagrt.NewLong(1)"} {
+	for _, want := range []string{"for {", "return flagrt.NewLong(1)"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
@@ -2386,13 +2465,16 @@ func TestFLAGCompileFormLoopRecur(t *testing.T) {
 	rendered = renderIRExpr(irFromGoExpr(got))
 	for _, want := range []string{
 		"var n = flagrt.NewLong(0)",
-		"flagrt.NewRecur",
-		"UnwrapRecur",
-		"n = __recurValues[0]",
+		"var recur_",
+		"n = recur_",
+		"continue",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("missing %q in:\n%s", want, rendered)
 		}
+	}
+	if strings.Contains(rendered, "NewRecur") || strings.Contains(rendered, "UnwrapRecur") {
+		t.Fatalf("compiled loop still boxes recur:\n%s", rendered)
 	}
 
 	_, err = flagCompileForm(ListExpr{Elements: []Expr{
@@ -2450,8 +2532,11 @@ func TestFLAGCompileFormLoopRecur(t *testing.T) {
 		t.Fatal(err)
 	}
 	rendered = renderIRExpr(irFromGoExpr(got))
-	if !strings.Contains(rendered, "flagrt.NewRecur") {
+	if !strings.Contains(rendered, "continue") {
 		t.Fatalf("fn must not drop loop bindings for sibling recur:\n%s", rendered)
+	}
+	if strings.Contains(rendered, "NewRecur") {
+		t.Fatalf("sibling recur still boxes:\n%s", rendered)
 	}
 }
 
@@ -3277,7 +3362,7 @@ func TestFLAGCompileModuleBodyPrintlnPrint(t *testing.T) {
 	if result.stmts[0].code != `fmt.Println(flagrt.Str("Hello"))` {
 		t.Fatalf("println %q", result.stmts[0].code)
 	}
-	if result.stmts[1].code != "fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))" {
+	if result.stmts[1].code != "fmt.Print(flagrt.ValueToAny(flagLong_42))" {
 		t.Fatalf("print %q", result.stmts[1].code)
 	}
 	_, _, err = flagCompileModuleBody(ast.Forms, &ctx, false)

@@ -182,6 +182,16 @@
       (literal-rt-call "Call" out)
       (recur (rest remaining) (conj out (first remaining))))))
 
+(defn keyword-invoke-to-ir [kw args]
+  (if (or (nil? args) (empty? args))
+    (call-to-ir kw args)
+    (let [more (rest args)]
+      (if (or (nil? more) (empty? more))
+        (literal-rt-call "KeywordGet" [(first args) kw])
+        (if (or (nil? (rest more)) (empty? (rest more)))
+          (literal-rt-call "KeywordGetDefault" [(first args) kw (first more)])
+          (call-to-ir kw args))))))
+
 (defn call-ast-to-ir-node [mode node]
   (cond
     (= mode :seq)
@@ -226,10 +236,17 @@
       (if (or (nil? elements) (empty? elements))
         (throw (ex-info "unsupported form" {:node node}))
         (let [head (first elements)]
-          (if (and (= :symbol (:kind head))
-                   (contains? special-form-names (:name head)))
+          (cond
+            (= :keyword (:kind head))
+            (keyword-invoke-to-ir (call-ast-to-ir-node :eval head)
+                                  (call-ast-to-ir-node :seq (rest elements)))
+
+            (and (= :symbol (:kind head))
+                 (contains? special-form-names (:name head)))
             (throw (ex-info "special form not handled by call lowering"
                             {:node node}))
+
+            :else
             (call-to-ir (call-ast-to-ir-node :eval head)
                         (call-ast-to-ir-node :seq (rest elements)))))))
 
@@ -504,7 +521,8 @@
 
 (def unary-runtime-ops
   {"first" "First" "fist" "First" "rest" "Rest" "next" "Next" "last" "Last"
-   "reverse" "Reverse" "seq?" "SeqPredicate" "double" "Double" "bit-not" "BitNot"})
+   "reverse" "Reverse" "seq?" "SeqPredicate" "double" "Double" "bit-not" "BitNot"
+   "inc" "Inc" "dec" "Dec"})
 
 (def fold-runtime-ops
   {"+" "Add" "*" "Mul" "-" "Sub" "/" "Div"})
@@ -674,8 +692,11 @@
                 :else
                 (call-to-ir (eval-ast-to-ir-node :eval head ctx)
                             (eval-ast-to-ir-node :seq args ctx))))
-            (call-to-ir (eval-ast-to-ir-node :eval head ctx)
-                        (eval-ast-to-ir-node :seq args ctx))))))
+            (if (= :keyword (:kind head))
+              (keyword-invoke-to-ir (eval-ast-to-ir-node :eval head ctx)
+                                    (eval-ast-to-ir-node :seq args ctx))
+              (call-to-ir (eval-ast-to-ir-node :eval head ctx)
+                          (eval-ast-to-ir-node :seq args ctx)))))))
 
     :else (throw (ex-info "unsupported eval lowering mode" {:mode mode}))))
 
@@ -760,61 +781,23 @@
                           with-var)]
         (recur (rest remaining) with-unused)))))
 
-(defn loop-recur-then [names]
-  (let [n (count names)
-        arity-check {:kind :if
-                     :init ""
-                     :cond {:kind :binary
-                            :op "!="
-                            :left {:kind :call
-                                   :fun {:kind :ident :name "len"}
-                                   :args [{:kind :ident :name "__recurValues"}]}
-                            :right {:kind :int :value n}}
-                     :then [{:kind :expr-stmt
-                             :expr {:kind :call
-                                    :fun {:kind :ident :name "panic"}
-                                    :args [{:kind :string :value "internal error: recur arity mismatch"}]}
-                             :discard false}]
-                     :else []}]
-    (loop [remaining (stmt-list names) i 0 out [arity-check]]
-      (if (or (nil? remaining) (empty? remaining))
-        (append-stmt out {:kind :expr-stmt
-                          :expr {:kind :ident :name "continue"}
-                          :discard false})
-        (recur (rest remaining)
-               (inc i)
-               (conj out {:kind :assign
-                          :name (first remaining)
-                          :expr {:kind :index
-                                 :x {:kind :ident :name "__recurValues"}
-                                 :index {:kind :int :value i}}}))))))
+(defn continue-stmt []
+  {:kind :expr-stmt :expr {:kind :ident :name "continue"} :discard false})
 
-(defn loop-iter-body [binding-names body-stmts body-expr]
-  (concat-stmts
-    body-stmts
-    [{:kind :define :names ["__loopResult"] :expr body-expr}
-     {:kind :if
-      :init "__recurValues, __isRecur := flagrt.UnwrapRecur(__loopResult)"
-      :cond {:kind :ident :name "__isRecur"}
-      :then (loop-recur-then binding-names)
-      :else []}
-     {:kind :return :expr {:kind :ident :name "__loopResult"}}]))
+(defn loop-iter-body [body-stmts body-expr]
+  (append-stmt body-stmts {:kind :return :expr body-expr}))
 
 (defn loop-to-ir [init-stmts bindings body-stmts body-expr]
-  (let [names (loop [remaining (stmt-list bindings) out []]
-                (if (or (nil? remaining) (empty? remaining))
-                  out
-                  (recur (rest remaining) (conj out (:name (first remaining))))))]
-    {:kind :call
-     :fun {:kind :func-lit
-           :params ""
-           :result "flagrt.Value"
-           :body (concat-stmts
-                   init-stmts
-                   (concat-stmts
-                     (loop-binding-stmts bindings)
-                     [{:kind :for :body (loop-iter-body names body-stmts body-expr)}]))}
-     :args []}))
+  {:kind :call
+   :fun {:kind :func-lit
+         :params ""
+         :result "flagrt.Value"
+         :body (concat-stmts
+                 init-stmts
+                 (concat-stmts
+                   (loop-binding-stmts bindings)
+                   [{:kind :for :body (loop-iter-body body-stmts body-expr)}]))}
+   :args []})
 
 (defn recur-to-ir [values]
   (literal-rt-call "NewRecur" (stmt-list values)))
@@ -1776,6 +1759,24 @@
     {:name (str prefix "_" n)
      :ctx (assoc ctx :if-temps n)}))
 
+(defn recur-update-stmts [names values ctx]
+  (loop [ns (stmt-list names) vs (stmt-list values) stmts [] tmps [] ctx ctx]
+    (if (or (nil? ns) (empty? ns))
+      (loop [ns (stmt-list names) ts tmps out stmts]
+        (if (or (nil? ns) (empty? ns))
+          {:stmts (append-stmt out (continue-stmt)) :ctx ctx}
+          (recur (rest ns)
+                 (rest ts)
+                 (append-stmt out {:kind :assign
+                                   :name (first ns)
+                                   :expr {:kind :ident :name (first ts)}}))))
+      (let [tmp (next-form-temp ctx "recur")]
+        (recur (rest ns)
+               (rest vs)
+               (append-stmt stmts {:kind :var :name (:name tmp) :type "" :expr (first vs)})
+               (conj tmps (:name tmp))
+               (:ctx tmp))))))
+
 (defn coerce-form-value [part]
   (let [k (:expr-kind part)]
     (cond
@@ -2456,8 +2457,9 @@
         ir (ast-node-to-ir form)]
     (cond
       (= kind :char) (intern-form-ir ctx "Char" ir)
+      (= kind :int) (intern-form-ir ctx (str "Long_" (sanitize-keyword-ident (str (:value form)))) ir)
       (= kind :bigint) (intern-form-ir ctx (str "Big_" (sanitize-keyword-ident (:value form))) ir)
-      (= kind :ratio) (intern-form-ir ctx (str "Ratio_" (:numerator form) "_" (:denominator form)) ir)
+      (= kind :ratio) (intern-form-ir ctx (str "Ratio_" (sanitize-keyword-ident (str (:numerator form))) "_" (sanitize-keyword-ident (str (:denominator form)))) ir)
       (= kind :keyword) (intern-form-ir ctx (str "Kw_" (sanitize-keyword-ident (:name form))) ir)
       (= kind :quoted-symbol) (intern-form-ir ctx (str "Sym_" (sanitize-keyword-ident (:name form))) ir)
       :else {:ir ir :ctx ctx})))
@@ -2819,11 +2821,12 @@
         (throw (ex-info "recur can only be used within loop" {}))
         (if (not (= (count (stmt-list node)) (count names)))
           (throw (ex-info (str "recur expects " (count names) " arguments") {}))
-          (let [compiled (compile-form-node :seq node ctx)]
-            (form-result (:stmts compiled)
-                        (recur-to-ir (:irs compiled))
+          (let [compiled (compile-form-node :seq node ctx)
+                updated (recur-update-stmts names (:irs compiled) (:ctx compiled))]
+            (form-result (concat-stmts (:stmts compiled) (:stmts updated))
+                        (rt-nil)
                         :value
-                        (:ctx compiled))))))
+                        (:ctx updated))))))
 
     (= mode :loop)
     (let [args node
@@ -3534,7 +3537,9 @@
             (let [callee (compile-form-node :form head ctx)
                   compiled (compile-form-node :seq args (:ctx callee))]
               (form-result (concat-stmts (:stmts callee) (:stmts compiled))
-                           (call-to-ir (form-value-ir callee) (:irs compiled))
+                           (if (= :keyword (:kind head))
+                             (keyword-invoke-to-ir (form-value-ir callee) (:irs compiled))
+                             (call-to-ir (form-value-ir callee) (:irs compiled)))
                            :value
                            (:ctx compiled))))))))
 
@@ -3547,7 +3552,9 @@
         (= kind :char)
         (let [interned (intern-literal-form form ctx)]
           (form-result [] (:ir interned) :value (:ctx interned)))
-        (= kind :int) (form-result [] (ast-node-to-ir form) :value ctx)
+        (= kind :int)
+        (let [interned (intern-literal-form form ctx)]
+          (form-result [] (:ir interned) :value (:ctx interned)))
         (= kind :bigint)
         (let [interned (intern-literal-form form ctx)]
           (form-result [] (:ir interned) :value (:ctx interned)))

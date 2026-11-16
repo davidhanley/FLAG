@@ -1,5 +1,7 @@
 package runtime
 
+import "sync"
+
 type SymbolObject struct {
 	Name      string
 	IsKeyword bool
@@ -10,12 +12,39 @@ type symbolImpl struct {
 	obj *SymbolObject
 }
 
+var (
+	internedKeywords sync.Map // string -> Value
+	internedSymbols  sync.Map
+)
+
+func internIdent(table *sync.Map, name string, keyword bool) Value {
+	if existing, ok := table.Load(name); ok {
+		return existing.(Value)
+	}
+	impl := &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: keyword}}
+	v := Value{impl: impl}
+	impl.hashCache = impl.hashImpl(v) | 1
+	actual, _ := table.LoadOrStore(name, v)
+	return actual.(Value)
+}
+
 func NewSymbol(name string) Value {
-	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name}}}
+	return internIdent(&internedSymbols, name, false)
 }
 
 func NewKeyword(name string) Value {
-	return Value{impl: &symbolImpl{obj: &SymbolObject{Name: name, IsKeyword: true}}}
+	return internIdent(&internedKeywords, name, true)
+}
+
+// KeywordGet is (:kw coll). Direct, non-variadic map lookup for compiled
+// keyword invokes.
+func KeywordGet(coll, kw Value) Value {
+	return fastGet(coll, kw, NilValue)
+}
+
+// KeywordGetDefault is (:kw coll missing).
+func KeywordGetDefault(coll, kw, missing Value) Value {
+	return fastGet(coll, kw, missing)
 }
 
 func (v Value) SymbolObject() *SymbolObject {
@@ -75,6 +104,9 @@ func (symbolImpl) hashImpl(v Value) uint64 {
 	return mix(seed, hashBytes([]byte(symbol.Name)))
 }
 func (symbolImpl) eq(v Value, other Value) bool {
+	if v.impl == other.impl {
+		return true
+	}
 	if !isType[*symbolImpl](other) {
 		return false
 	}
@@ -122,7 +154,7 @@ func (symbolImpl) apply(v Value, args ...Value) Value {
 		panic("keyword invocation expects map and optional default")
 	}
 	if len(args) == 1 {
-		return Get(args[0], v)
+		return KeywordGet(args[0], v)
 	}
-	return Get(args[0], v, args[1])
+	return KeywordGetDefault(args[0], v, args[1])
 }
