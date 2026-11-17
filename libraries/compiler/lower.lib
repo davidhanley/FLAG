@@ -10,7 +10,7 @@
              compare-to-ir numeric-eq-to-ir comparison-to-ir
              symbol-ctor-to-ir name-to-ir keyword-ctor-to-ir format-to-ir
              map-to-ir sort-by-to-ir apply-to-ir apply-fn-to-ir pmap-to-ir filter-to-ir
-             reduce-to-ir doall-to-ir some-to-ir set-to-ir
+             reduce-to-ir group-by-to-ir doall-to-ir some-to-ir set-to-ir
              line-seq-to-ir repeat-to-ir range-to-ir rand-int-to-ir
              to-json-to-ir from-json-to-ir
              open-file-to-ir file-to-strings-to-ir file-to-strings-path-to-ir
@@ -422,6 +422,9 @@
 (defn reduce-to-ir [args]
   (literal-rt-call "Reduce" args))
 
+(defn group-by-to-ir [args]
+  (literal-rt-call "GroupBy" args))
+
 (defn doall-to-ir [arg]
   (literal-rt-call "DoAll" [arg]))
 
@@ -490,7 +493,7 @@
    "concat" "FnConcat" "into" "FnInto"
    "sort-by" "FnSortBy" "apply" "FnApply"
    "pmap" "FnPmap" "filter" "FnFilter"
-   "reduce" "FnReduce" "not-empty" "FnNotEmpty"
+   "reduce" "FnReduce" "group-by" "FnGroupBy" "juxt" "FnJuxt" "not-empty" "FnNotEmpty"
    "seq" "FnSeq" "empty?" "FnEmptyQ"
    "nil?" "FnNilQ" "type-of" "FnTypeOf"
    "set" "FnSet" "vec" "FnVec"
@@ -3267,6 +3270,12 @@
         (throw (ex-info "reduce expects function and collection, or function, initial value, and collection" {}))
         (let [compiled (compile-form-node :value-args [args false "reduce arguments must evaluate to Value"] ctx)]
           (form-result (:stmts compiled) (reduce-to-ir (:irs compiled)) :value (:ctx compiled)))))
+
+    (= op "group-by")
+    (if (not (= 2 (count (stmt-list args))))
+      (throw (ex-info "group-by expects function and collection" {}))
+      (let [compiled (compile-form-node :value-args [args false "group-by arguments must evaluate to Value"] ctx)]
+        (form-result (:stmts compiled) (group-by-to-ir (:irs compiled)) :value (:ctx compiled))))
 
     (= op "doall")
     (if (not (= 1 (count (stmt-list args))))

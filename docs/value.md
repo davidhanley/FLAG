@@ -87,7 +87,13 @@ Equal numbers share a hash (`1`, `1.0`, `1N`, `2/2`). Ordered collections mix
 element hashes; maps/sets mix keys and values commutatively. Printing is
 `v.String()` → `v.impl.String(v)` (`fmt.Stringer`). There
 is no `ValueToString`. `Assoc` is `v.impl.assoc(v, entries...)`. Map, array, and
-vector override `assoc`. `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`;
+vector override `assoc`. Array-maps store up to 8 pairs in `arrayMapImpl.kvs [16]Value` (one heap object,
+no backing slice). `assoc` of any number of pairs copies that array once
+(last-wins if a key repeats), then promotes to HAMT if the result has more than
+8 unique keys. A no-op (same keys and `=` values) returns the original map.
+Keyword and symbol keys are interned, so assoc/get identity-scan `impl` pointers
+(Clojure `PersistentArrayMap.indexOf` for `Keyword`); other keys still use
+`valueSlotEq` then `Eq` (so `{1 :a}` assoc/get with `1.0` matches). `Dissoc` and `MapDissoc` are `v.impl.dissoc(v, keys...)`;
 map and nil override `dissoc`. `Get` is `v.impl.get(v, key, missing)` after arity
 checks; map, set, array, vector, string, date, record, and nil override `get`.
 `Contains` is `v.impl.contains(v, key)`; map, set, date, record, and nil override
@@ -111,7 +117,9 @@ empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
 Array `toAny` is `[]any`; file `toNative` is the host `*os.File`.
 `Call` is `fn.impl.apply(fn, args...)` for unknown callees. A keyword
 literal compiles to `flagrt.KeywordGet(coll, kw)` (`KeywordGetDefault` with a
-default): `(:name person)` is `(get person :name)` without `Call`. Keywords and
+default): `(:name person)` is `(get person :name)` without `Call`. On an
+array-map this identity-scans interned keyword `impl` pointers (no `Eq`), like
+Clojure `PersistentArrayMap.valAt` for `Keyword`. Keywords and
 symbols are interned in `NewKeyword` / `NewSymbol` (same name is the same
 `Value`, hash precomputed). Map lookup has an `*arrayMapImpl` then `*mapImpl`
 fast path. Maps of at most 8 unique keys are array-maps (linear scan, compact
@@ -122,11 +130,16 @@ and records used as functions still `Call` and look up the argument in themselve
 (`({:a 1} :a)`). Sets return the member or the optional default. Functions run
 `Fn`. `asIndex` / `asCount` unbox non-negative integers without a type switch.
 
-Binary math is double-dispatch, not a tag switch. `(+ a b)` is `flagrt.Add(a, b)`
-→ `a.impl.add(a, b)`. If `a` is a long it unboxes and calls
-`b.impl.addLong(b, a.Long())` (same pattern for double/ratio/bigint and for
+Longs, doubles, and bools reuse one `impl` iface each (`longType` / `doubleType` /
+`boolType`), so `NewLong` / `NewDouble` / `NewBool` do not allocate. `true` /
+`false` are interned `TrueValue` / `FalseValue`.
+
+Binary math is double-dispatch, not a tag switch. `(+ a b)` is `flagrt.Add(a, b)`.
+Two longs take `addLongs` directly (no vtable). Otherwise if `a` is a long it
+unboxes and calls `b.impl.addLong(b, a.Long())` (same pattern for double/ratio/bigint and for
 `-` `*` `/` `quot` `cmpNum`). `(inc x)` / `(dec x)` are `flagrt.Inc` / `Dec`:
-`x.impl.addLong(x, 1)` / `addLong(x, -1)`. Variadic `(+ 1 2 3)` and `(apply + xs)` fold that
+longs use `addLongs`; other types `x.impl.addLong(x, 1)` / `addLong(x, -1)`. Long-long
+`<` / `>=` in `compareOrdered` also skip the numeric vtable. Variadic `(+ 1 2 3)` and `(apply + xs)` fold that
 binary `Add`; the two-arg path is not itself variadic. `(< a b c d)` is chained
 binary compares, like Clojure. A `Value` with a nil `impl` is uninitialized and
 those calls panic.

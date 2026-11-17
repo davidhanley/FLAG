@@ -7,6 +7,54 @@ import (
 	"time"
 )
 
+func TestJuxtKeywordsAndFns(t *testing.T) {
+	m := NewMap(NewKeyword("name"), NewString("ADA"), NewKeyword("age"), NewLong(40))
+	got := Call(Juxt(NewKeyword("name"), NewKeyword("age")), m)
+	if !isType[*arrayImpl](got) || got.ArrayLen() != 2 {
+		t.Fatalf("expected 2-array, got %s", got)
+	}
+	if ArrayGet(got, 0).StringValue() != "ADA" || ArrayGet(got, 1).Long() != 40 {
+		t.Fatalf("juxt keyword result: %s", got)
+	}
+	sum := Call(Juxt(BuiltinFunction("+")), NewLong(1), NewLong(2), NewLong(3))
+	if sum.ArrayLen() != 1 || ArrayGet(sum, 0).Long() != 6 {
+		t.Fatalf("juxt + : %s", sum)
+	}
+	empty := Call(Juxt(), NewLong(1))
+	if empty.ArrayLen() != 0 {
+		t.Fatalf("empty juxt: %s", empty)
+	}
+}
+
+func TestGroupByIdentityAndKeyword(t *testing.T) {
+	ident := NewFunction(func(args ...Value) Value { return args[0] })
+	got := GroupBy(ident, NewArray(NewLong(1), NewLong(2), NewLong(2)))
+	if !isMap(got) || got.MapLen() != 2 {
+		t.Fatalf("expected 2 groups, got %s", got)
+	}
+	ones := Get(got, NewLong(1))
+	twos := Get(got, NewLong(2))
+	if !isType[*arrayImpl](ones) || ones.ArrayLen() != 1 || ArrayGet(ones, 0).Long() != 1 {
+		t.Fatalf("group 1: %s", ones)
+	}
+	if !isType[*arrayImpl](twos) || twos.ArrayLen() != 2 {
+		t.Fatalf("group 2: %s", twos)
+	}
+
+	rows := NewArray(
+		NewMap(NewKeyword("k"), NewKeyword("a"), NewKeyword("v"), NewLong(1)),
+		NewMap(NewKeyword("k"), NewKeyword("b"), NewKeyword("v"), NewLong(2)),
+		NewMap(NewKeyword("k"), NewKeyword("b"), NewKeyword("v"), NewLong(3)),
+	)
+	byK := GroupBy(NewKeyword("k"), rows)
+	if Get(byK, NewKeyword("a")).ArrayLen() != 1 || Get(byK, NewKeyword("b")).ArrayLen() != 2 {
+		t.Fatalf("keyword group-by: %s", byK)
+	}
+	if empty := GroupBy(ident, NilValue); !isMap(empty) || empty.MapLen() != 0 {
+		t.Fatalf("expected empty map for nil coll, got %s", empty)
+	}
+}
+
 func TestMapSingleSequence(t *testing.T) {
 	double := NewFunction(func(args ...Value) Value {
 		return Add(args[0], args[0])

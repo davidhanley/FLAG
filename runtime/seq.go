@@ -511,6 +511,67 @@ func DoRun(coll Value) Value {
 	return NilValue
 }
 
+func Juxt(fns ...Value) Value {
+	copied := make([]Value, len(fns))
+	copy(copied, fns)
+	return NewFunction(func(args ...Value) Value {
+		out := make([]Value, len(copied))
+		for i, f := range copied {
+			if s, ok := f.impl.(*symbolImpl); ok && s.obj.IsKeyword && len(args) == 1 {
+				out[i] = KeywordGet(args[0], f)
+				continue
+			}
+			out[i] = Call(f, args...)
+		}
+		return NewArray(out...)
+	})
+}
+
+func GroupBy(fn, coll Value) Value {
+	type groupBucket struct {
+		key Value
+		xs  []Value
+	}
+	byHash := map[uint64][]int{}
+	groups := []groupBucket{}
+	keyword := false
+	if s, ok := fn.impl.(*symbolImpl); ok && s.obj.IsKeyword {
+		keyword = true
+	}
+	cursor := newSeqCursor(coll)
+	for {
+		item, ok := cursor.nextOrDone()
+		if !ok {
+			break
+		}
+		var key Value
+		if keyword {
+			key = KeywordGet(item, fn)
+		} else {
+			key = Call(fn, item)
+		}
+		h := Hash(key)
+		found := -1
+		for _, gi := range byHash[h] {
+			if Eq(groups[gi].key, key) {
+				found = gi
+				break
+			}
+		}
+		if found < 0 {
+			found = len(groups)
+			groups = append(groups, groupBucket{key: key})
+			byHash[h] = append(byHash[h], found)
+		}
+		groups[found].xs = append(groups[found].xs, item)
+	}
+	entries := make([]Value, 0, len(groups)*2)
+	for _, g := range groups {
+		entries = append(entries, g.key, newArrayValue(g.xs, len(g.xs)))
+	}
+	return NewMap(entries...)
+}
+
 func Reduce(fn Value, args ...Value) Value {
 	if len(args) != 1 && len(args) != 2 {
 		panic("reduce expects function, optional initial value, and one sequence")

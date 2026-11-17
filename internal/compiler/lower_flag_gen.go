@@ -379,40 +379,51 @@ func prologue__set_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__sequential_q_arity_1(x flagrt.Value) flagrt.Value {
-	var let_result_20 bool
+	var let_result_22 bool
 	{
 		var or_tmp = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_list)
-		var if_result_19 bool
+		var if_result_21 bool
 		if or_tmp {
-			if_result_19 = or_tmp
+			if_result_21 = or_tmp
 		} else {
-			var let_result_18 bool
+			var let_result_20 bool
 			{
 				var or_tmp = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_array)
-				var if_result_17 bool
+				var if_result_19 bool
 				if or_tmp {
-					if_result_17 = or_tmp
+					if_result_19 = or_tmp
 				} else {
-					var let_result_16 bool
+					var let_result_18 bool
 					{
 						var or_tmp = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_vector)
-						var if_result_15 bool
+						var if_result_17 bool
 						if or_tmp {
-							if_result_15 = or_tmp
+							if_result_17 = or_tmp
 						} else {
-							if_result_15 = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_lazy_list)
+							var let_result_16 bool
+							{
+								var or_tmp = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_lazy_list)
+								var if_result_15 bool
+								if or_tmp {
+									if_result_15 = or_tmp
+								} else {
+									if_result_15 = flagrt.Eq(flagrt.TypeOf(x), lowflagKw_range)
+								}
+								let_result_16 = if_result_15
+							}
+							if_result_17 = let_result_16
 						}
-						let_result_16 = if_result_15
+						let_result_18 = if_result_17
 					}
-					if_result_17 = let_result_16
+					if_result_19 = let_result_18
 				}
-				let_result_18 = if_result_17
+				let_result_20 = if_result_19
 			}
-			if_result_19 = let_result_18
+			if_result_21 = let_result_20
 		}
-		let_result_20 = if_result_19
+		let_result_22 = if_result_21
 	}
-	return flagrt.NewBool(let_result_20)
+	return flagrt.NewBool(let_result_22)
 }
 func prologue__sequential_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -422,29 +433,29 @@ func prologue__sequential_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__coll_q_arity_1(x flagrt.Value) flagrt.Value {
-	var let_result_24 flagrt.Value
+	var let_result_26 flagrt.Value
 	{
 		var or_tmp = prologue__sequential_q_arity_1(x)
-		var if_result_23 flagrt.Value
+		var if_result_25 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_23 = or_tmp
+			if_result_25 = or_tmp
 		} else {
-			var let_result_22 flagrt.Value
+			var let_result_24 flagrt.Value
 			{
 				var or_tmp = prologue__map_q_arity_1(x)
-				var if_result_21 flagrt.Value
+				var if_result_23 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_21 = or_tmp
+					if_result_23 = or_tmp
 				} else {
-					if_result_21 = prologue__set_q_arity_1(x)
+					if_result_23 = prologue__set_q_arity_1(x)
 				}
-				let_result_22 = if_result_21
+				let_result_24 = if_result_23
 			}
-			if_result_23 = let_result_22
+			if_result_25 = let_result_24
 		}
-		let_result_24 = if_result_23
+		let_result_26 = if_result_25
 	}
-	return let_result_24
+	return let_result_26
 }
 func prologue__coll_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -454,49 +465,55 @@ func prologue__coll_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__empty_arity_1(coll flagrt.Value) flagrt.Value {
-	var if_result_31 flagrt.Value
+	var if_result_34 flagrt.Value
 	if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_list) {
-		if_result_31 = flagrt.NewList()
+		if_result_34 = flagrt.NewList()
 	} else {
-		var if_result_30 flagrt.Value
+		var if_result_33 flagrt.Value
 		if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_array) {
-			if_result_30 = lowflagVec
+			if_result_33 = lowflagVec
 		} else {
-			var if_result_29 flagrt.Value
+			var if_result_32 flagrt.Value
 			if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_vector) {
-				if_result_29 = lowflagPipeVec
+				if_result_32 = lowflagPipeVec
 			} else {
-				var if_result_28 flagrt.Value
+				var if_result_31 flagrt.Value
 				if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_map) {
-					if_result_28 = lowflagMap
+					if_result_31 = lowflagMap
 				} else {
-					var if_result_27 flagrt.Value
+					var if_result_30 flagrt.Value
 					if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_set) {
-						if_result_27 = lowflagSet
+						if_result_30 = lowflagSet
 					} else {
-						var if_result_26 flagrt.Value
+						var if_result_29 flagrt.Value
 						if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_lazy_list) {
-							if_result_26 = flagrt.NewList()
+							if_result_29 = flagrt.NewList()
 						} else {
-							var if_result_25 flagrt.Value
-							if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_record) {
-								if_result_25 = lowflagMap
+							var if_result_28 flagrt.Value
+							if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_range) {
+								if_result_28 = lowflagVec
 							} else {
-								if_result_25 = flagrt.NilValue
+								var if_result_27 flagrt.Value
+								if flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_record) {
+									if_result_27 = lowflagMap
+								} else {
+									if_result_27 = flagrt.NilValue
+								}
+								if_result_28 = if_result_27
 							}
-							if_result_26 = if_result_25
+							if_result_29 = if_result_28
 						}
-						if_result_27 = if_result_26
+						if_result_30 = if_result_29
 					}
-					if_result_28 = if_result_27
+					if_result_31 = if_result_30
 				}
-				if_result_29 = if_result_28
+				if_result_32 = if_result_31
 			}
-			if_result_30 = if_result_29
+			if_result_33 = if_result_32
 		}
-		if_result_31 = if_result_30
+		if_result_34 = if_result_33
 	}
-	return if_result_31
+	return if_result_34
 }
 func prologue__empty_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -506,16 +523,16 @@ func prologue__empty_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__zero_q_arity_1(x flagrt.Value) flagrt.Value {
-	var if_result_32 flagrt.Value
+	var if_result_35 flagrt.Value
 	if flagrt.IsTruthy(prologue__number_q_arity_1(x)) {
-		if_result_32 = flagrt.NewBool(flagrt.Eq(x, lowflagLong_0))
+		if_result_35 = flagrt.NewBool(flagrt.Eq(x, lowflagLong_0))
 	} else {
-		if_result_32 = func() flagrt.Value {
+		if_result_35 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("zero? expects a number"))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_32
+	return if_result_35
 }
 func prologue__zero_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -525,16 +542,16 @@ func prologue__zero_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__pos_q_arity_1(x flagrt.Value) flagrt.Value {
-	var if_result_33 flagrt.Value
+	var if_result_36 flagrt.Value
 	if flagrt.IsTruthy(prologue__number_q_arity_1(x)) {
-		if_result_33 = flagrt.NewBool(flagrt.Gt(x, lowflagLong_0))
+		if_result_36 = flagrt.NewBool(flagrt.Gt(x, lowflagLong_0))
 	} else {
-		if_result_33 = func() flagrt.Value {
+		if_result_36 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("pos? expects a number"))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_33
+	return if_result_36
 }
 func prologue__pos_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -544,16 +561,16 @@ func prologue__pos_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__neg_q_arity_1(x flagrt.Value) flagrt.Value {
-	var if_result_34 flagrt.Value
+	var if_result_37 flagrt.Value
 	if flagrt.IsTruthy(prologue__number_q_arity_1(x)) {
-		if_result_34 = flagrt.NewBool(flagrt.Lt(x, lowflagLong_0))
+		if_result_37 = flagrt.NewBool(flagrt.Lt(x, lowflagLong_0))
 	} else {
-		if_result_34 = func() flagrt.Value {
+		if_result_37 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("neg? expects a number"))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_34
+	return if_result_37
 }
 func prologue__neg_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -563,16 +580,16 @@ func prologue__neg_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__even_q_arity_1(n flagrt.Value) flagrt.Value {
-	var if_result_35 flagrt.Value
+	var if_result_38 flagrt.Value
 	if flagrt.IsTruthy(prologue__int_q_arity_1(n)) {
-		if_result_35 = prologue__zero_q_arity_1(flagrt.Mod(n, lowflagLong_2))
+		if_result_38 = prologue__zero_q_arity_1(flagrt.Mod(n, lowflagLong_2))
 	} else {
-		if_result_35 = func() flagrt.Value {
+		if_result_38 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("even? expects an integer"))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_35
+	return if_result_38
 }
 func prologue__even_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -582,22 +599,22 @@ func prologue__even_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__odd_q_arity_1(n flagrt.Value) flagrt.Value {
-	var if_result_37 flagrt.Value
+	var if_result_40 flagrt.Value
 	if flagrt.IsTruthy(prologue__int_q_arity_1(n)) {
-		var if_result_36 bool
+		var if_result_39 bool
 		if flagrt.IsTruthy(prologue__even_q_arity_1(n)) {
-			if_result_36 = false
+			if_result_39 = false
 		} else {
-			if_result_36 = true
+			if_result_39 = true
 		}
-		if_result_37 = flagrt.NewBool(if_result_36)
+		if_result_40 = flagrt.NewBool(if_result_39)
 	} else {
-		if_result_37 = func() flagrt.Value {
+		if_result_40 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewString("odd? expects an integer"))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_37
+	return if_result_40
 }
 func prologue__odd_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -607,13 +624,13 @@ func prologue__odd_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__not_empty_q_arity_1(coll flagrt.Value) flagrt.Value {
-	var if_result_38 bool
+	var if_result_41 bool
 	if flagrt.IsEmpty(coll) {
-		if_result_38 = false
+		if_result_41 = false
 	} else {
-		if_result_38 = true
+		if_result_41 = true
 	}
-	return flagrt.NewBool(if_result_38)
+	return flagrt.NewBool(if_result_41)
 }
 func prologue__not_empty_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -623,13 +640,13 @@ func prologue__not_empty_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__not_any_q_arity_2(pred flagrt.Value, coll flagrt.Value) flagrt.Value {
-	var if_result_39 bool
+	var if_result_42 bool
 	if flagrt.IsTruthy(flagrt.Some(pred, coll)) {
-		if_result_39 = false
+		if_result_42 = false
 	} else {
-		if_result_39 = true
+		if_result_42 = true
 	}
-	return flagrt.NewBool(if_result_39)
+	return flagrt.NewBool(if_result_42)
 }
 func prologue__not_any_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -644,13 +661,13 @@ func prologue__remove_arity_2(pred flagrt.Value, coll flagrt.Value) flagrt.Value
 			panic("fn expects exactly 1 arguments")
 		}
 		x := args[0]
-		var if_result_40 bool
+		var if_result_43 bool
 		if flagrt.IsTruthy(flagrt.Call(pred, x)) {
-			if_result_40 = false
+			if_result_43 = false
 		} else {
-			if_result_40 = true
+			if_result_43 = true
 		}
-		return flagrt.NewBool(if_result_40)
+		return flagrt.NewBool(if_result_43)
 	}), coll)
 }
 func prologue__remove_variadic(args ...flagrt.Value) flagrt.Value {
@@ -693,61 +710,61 @@ func prologue__update_in_variadic(args ...flagrt.Value) flagrt.Value {
 	var __rest0 = flagrt.NewArray(args[3:]...)
 	_ = __rest0
 	var extra = __rest0
-	var if_result_44 flagrt.Value
+	var if_result_47 flagrt.Value
 	if flagrt.IsTruthy(flagrt.Seq(ks)) {
-		var let_result_43 flagrt.Value
+		var let_result_46 flagrt.Value
 		{
 			var k = flagrt.First(ks)
 			var rest_ks = flagrt.Rest(ks)
-			var if_result_41 flagrt.Value
+			var if_result_44 flagrt.Value
 			if flagrt.IsNil(m) {
-				if_result_41 = lowflagMap
+				if_result_44 = lowflagMap
 			} else {
-				if_result_41 = m
+				if_result_44 = m
 			}
-			var base = if_result_41
-			var if_result_42 flagrt.Value
+			var base = if_result_44
+			var if_result_45 flagrt.Value
 			if flagrt.IsTruthy(flagrt.Seq(rest_ks)) {
-				if_result_42 = flagrt.Assoc(base, k, flagrt.Apply(flagrt.NewFunction(prologue__update_in_variadic), flagrt.Get(base, k), rest_ks, f, extra))
+				if_result_45 = flagrt.Assoc(base, k, flagrt.Apply(flagrt.NewFunction(prologue__update_in_variadic), flagrt.Get(base, k), rest_ks, f, extra))
 			} else {
-				if_result_42 = flagrt.Assoc(base, k, flagrt.Apply(f, flagrt.Get(base, k), extra))
+				if_result_45 = flagrt.Assoc(base, k, flagrt.Apply(f, flagrt.Get(base, k), extra))
 			}
-			let_result_43 = if_result_42
+			let_result_46 = if_result_45
 		}
-		if_result_44 = let_result_43
+		if_result_47 = let_result_46
 	} else {
-		if_result_44 = flagrt.Apply(f, m, extra)
+		if_result_47 = flagrt.Apply(f, m, extra)
 	}
-	return if_result_44
+	return if_result_47
 }
 
 func prologue__assoc_in_arity_3(m flagrt.Value, ks flagrt.Value, v flagrt.Value) flagrt.Value {
-	var if_result_48 flagrt.Value
+	var if_result_51 flagrt.Value
 	if flagrt.IsTruthy(flagrt.Seq(ks)) {
-		var let_result_47 flagrt.Value
+		var let_result_50 flagrt.Value
 		{
 			var k = flagrt.First(ks)
 			var rest_ks = flagrt.Rest(ks)
-			var if_result_45 flagrt.Value
+			var if_result_48 flagrt.Value
 			if flagrt.IsNil(m) {
-				if_result_45 = lowflagMap
+				if_result_48 = lowflagMap
 			} else {
-				if_result_45 = m
+				if_result_48 = m
 			}
-			var base = if_result_45
-			var if_result_46 flagrt.Value
+			var base = if_result_48
+			var if_result_49 flagrt.Value
 			if flagrt.IsTruthy(flagrt.Seq(rest_ks)) {
-				if_result_46 = flagrt.Assoc(base, k, prologue__assoc_in_arity_3(flagrt.Get(base, k), rest_ks, v))
+				if_result_49 = flagrt.Assoc(base, k, prologue__assoc_in_arity_3(flagrt.Get(base, k), rest_ks, v))
 			} else {
-				if_result_46 = flagrt.Assoc(base, k, v)
+				if_result_49 = flagrt.Assoc(base, k, v)
 			}
-			let_result_47 = if_result_46
+			let_result_50 = if_result_49
 		}
-		if_result_48 = let_result_47
+		if_result_51 = let_result_50
 	} else {
-		if_result_48 = m
+		if_result_51 = m
 	}
-	return if_result_48
+	return if_result_51
 }
 func prologue__assoc_in_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -757,83 +774,59 @@ func prologue__assoc_in_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__dissoc_in_arity_2(m flagrt.Value, ks flagrt.Value) flagrt.Value {
-	var if_result_56 flagrt.Value
+	var if_result_59 flagrt.Value
 	if flagrt.IsNil(m) {
-		if_result_56 = flagrt.NilValue
+		if_result_59 = flagrt.NilValue
 	} else {
-		var if_result_55 flagrt.Value
+		var if_result_58 flagrt.Value
 		if flagrt.IsTruthy(flagrt.Seq(ks)) {
-			var let_result_54 flagrt.Value
+			var let_result_57 flagrt.Value
 			{
 				var k = flagrt.First(ks)
 				var rest_ks = flagrt.Rest(ks)
-				var if_result_53 flagrt.Value
+				var if_result_56 flagrt.Value
 				if flagrt.IsTruthy(flagrt.Seq(rest_ks)) {
-					var let_result_52 flagrt.Value
+					var let_result_55 flagrt.Value
 					{
 						var next = prologue__dissoc_in_arity_2(flagrt.Get(m, k), rest_ks)
-						var let_result_50 bool
+						var let_result_53 bool
 						{
 							var or_tmp = flagrt.IsNil(next)
-							var if_result_49 bool
+							var if_result_52 bool
 							if or_tmp {
-								if_result_49 = or_tmp
+								if_result_52 = or_tmp
 							} else {
-								if_result_49 = flagrt.IsEmpty(next)
+								if_result_52 = flagrt.IsEmpty(next)
 							}
-							let_result_50 = if_result_49
+							let_result_53 = if_result_52
 						}
-						var if_result_51 flagrt.Value
-						if let_result_50 {
-							if_result_51 = flagrt.MapDissoc(m, k)
+						var if_result_54 flagrt.Value
+						if let_result_53 {
+							if_result_54 = flagrt.MapDissoc(m, k)
 						} else {
-							if_result_51 = flagrt.Assoc(m, k, next)
+							if_result_54 = flagrt.Assoc(m, k, next)
 						}
-						let_result_52 = if_result_51
+						let_result_55 = if_result_54
 					}
-					if_result_53 = let_result_52
+					if_result_56 = let_result_55
 				} else {
-					if_result_53 = flagrt.MapDissoc(m, k)
+					if_result_56 = flagrt.MapDissoc(m, k)
 				}
-				let_result_54 = if_result_53
+				let_result_57 = if_result_56
 			}
-			if_result_55 = let_result_54
+			if_result_58 = let_result_57
 		} else {
-			if_result_55 = m
+			if_result_58 = m
 		}
-		if_result_56 = if_result_55
+		if_result_59 = if_result_58
 	}
-	return if_result_56
+	return if_result_59
 }
 func prologue__dissoc_in_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
 		panic("prologue__dissoc_in expects exactly 2 arguments")
 	}
 	return prologue__dissoc_in_arity_2(args[0], args[1])
-}
-
-func prologue__juxt_variadic(args ...flagrt.Value) flagrt.Value {
-	if len(args) < 0 {
-		panic("prologue__juxt expects at least 0 arguments")
-	}
-	var __rest0 = flagrt.NewArray(args[0:]...)
-	_ = __rest0
-	var fns = __rest0
-	return flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-		if len(args) < 0 {
-			panic("fn expects at least 0 arguments")
-		}
-		var __rest0 = flagrt.NewArray(args[0:]...)
-		_ = __rest0
-		var xs = __rest0
-		return flagrt.Vec(flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-			if len(args) != 1 {
-				panic("fn expects exactly 1 arguments")
-			}
-			f := args[0]
-			return flagrt.Apply(f, xs)
-		}), fns))
-	})
 }
 
 func prologue__partial_variadic(args ...flagrt.Value) flagrt.Value {
@@ -863,13 +856,13 @@ func prologue__complement_arity_1(f flagrt.Value) flagrt.Value {
 		var __rest0 = flagrt.NewArray(args[0:]...)
 		_ = __rest0
 		var xs = __rest0
-		var if_result_57 bool
+		var if_result_60 bool
 		if flagrt.IsTruthy(flagrt.Apply(f, xs)) {
-			if_result_57 = false
+			if_result_60 = false
 		} else {
-			if_result_57 = true
+			if_result_60 = true
 		}
-		return flagrt.NewBool(if_result_57)
+		return flagrt.NewBool(if_result_60)
 	})
 }
 func prologue__complement_variadic(args ...flagrt.Value) flagrt.Value {
@@ -887,19 +880,19 @@ func prologue__fnil_arity_2(f flagrt.Value, x flagrt.Value) flagrt.Value {
 		var __rest0 = flagrt.NewArray(args[0:]...)
 		_ = __rest0
 		var xs = __rest0
-		var if_result_59 flagrt.Value
+		var if_result_62 flagrt.Value
 		if flagrt.IsEmpty(xs) {
-			if_result_59 = flagrt.Call(f)
+			if_result_62 = flagrt.Call(f)
 		} else {
-			var if_result_58 flagrt.Value
+			var if_result_61 flagrt.Value
 			if flagrt.IsNil(flagrt.First(xs)) {
-				if_result_58 = x
+				if_result_61 = x
 			} else {
-				if_result_58 = flagrt.First(xs)
+				if_result_61 = flagrt.First(xs)
 			}
-			if_result_59 = flagrt.Apply(f, if_result_58, flagrt.Rest(xs))
+			if_result_62 = flagrt.Apply(f, if_result_61, flagrt.Rest(xs))
 		}
-		return if_result_59
+		return if_result_62
 	})
 }
 func prologue__fnil_arity_3(f flagrt.Value, x flagrt.Value, y flagrt.Value) flagrt.Value {
@@ -910,42 +903,42 @@ func prologue__fnil_arity_3(f flagrt.Value, x flagrt.Value, y flagrt.Value) flag
 		var __rest0 = flagrt.NewArray(args[0:]...)
 		_ = __rest0
 		var xs = __rest0
-		var let_result_65 flagrt.Value
+		var let_result_68 flagrt.Value
 		{
 			var n = flagrt.NewLong(int64(flagrt.Count(xs)))
-			var if_result_64 flagrt.Value
+			var if_result_67 flagrt.Value
 			if flagrt.Eq(n, lowflagLong_0) {
-				if_result_64 = flagrt.Call(f)
+				if_result_67 = flagrt.Call(f)
 			} else {
-				var if_result_63 flagrt.Value
+				var if_result_66 flagrt.Value
 				if flagrt.Eq(n, lowflagLong_1) {
-					var if_result_60 flagrt.Value
+					var if_result_63 flagrt.Value
 					if flagrt.IsNil(flagrt.First(xs)) {
-						if_result_60 = x
+						if_result_63 = x
 					} else {
-						if_result_60 = flagrt.First(xs)
+						if_result_63 = flagrt.First(xs)
 					}
-					if_result_63 = flagrt.Call(f, if_result_60)
+					if_result_66 = flagrt.Call(f, if_result_63)
 				} else {
-					var if_result_61 flagrt.Value
+					var if_result_64 flagrt.Value
 					if flagrt.IsNil(flagrt.First(xs)) {
-						if_result_61 = x
+						if_result_64 = x
 					} else {
-						if_result_61 = flagrt.First(xs)
+						if_result_64 = flagrt.First(xs)
 					}
-					var if_result_62 flagrt.Value
+					var if_result_65 flagrt.Value
 					if flagrt.IsNil(prologue__second_arity_1(xs)) {
-						if_result_62 = y
+						if_result_65 = y
 					} else {
-						if_result_62 = prologue__second_arity_1(xs)
+						if_result_65 = prologue__second_arity_1(xs)
 					}
-					if_result_63 = flagrt.Apply(f, if_result_61, if_result_62, flagrt.Drop(lowflagLong_2, xs))
+					if_result_66 = flagrt.Apply(f, if_result_64, if_result_65, flagrt.Drop(lowflagLong_2, xs))
 				}
-				if_result_64 = if_result_63
+				if_result_67 = if_result_66
 			}
-			let_result_65 = if_result_64
+			let_result_68 = if_result_67
 		}
-		return let_result_65
+		return let_result_68
 	})
 }
 func prologue__fnil_arity_4(f flagrt.Value, x flagrt.Value, y flagrt.Value, z flagrt.Value) flagrt.Value {
@@ -956,66 +949,66 @@ func prologue__fnil_arity_4(f flagrt.Value, x flagrt.Value, y flagrt.Value, z fl
 		var __rest0 = flagrt.NewArray(args[0:]...)
 		_ = __rest0
 		var xs = __rest0
-		var let_result_75 flagrt.Value
+		var let_result_78 flagrt.Value
 		{
 			var n = flagrt.NewLong(int64(flagrt.Count(xs)))
-			var if_result_74 flagrt.Value
+			var if_result_77 flagrt.Value
 			if flagrt.Eq(n, lowflagLong_0) {
-				if_result_74 = flagrt.Call(f)
+				if_result_77 = flagrt.Call(f)
 			} else {
-				var if_result_73 flagrt.Value
+				var if_result_76 flagrt.Value
 				if flagrt.Eq(n, lowflagLong_1) {
-					var if_result_66 flagrt.Value
+					var if_result_69 flagrt.Value
 					if flagrt.IsNil(flagrt.First(xs)) {
-						if_result_66 = x
+						if_result_69 = x
 					} else {
-						if_result_66 = flagrt.First(xs)
+						if_result_69 = flagrt.First(xs)
 					}
-					if_result_73 = flagrt.Call(f, if_result_66)
+					if_result_76 = flagrt.Call(f, if_result_69)
 				} else {
-					var if_result_72 flagrt.Value
+					var if_result_75 flagrt.Value
 					if flagrt.Eq(n, lowflagLong_2) {
-						var if_result_67 flagrt.Value
-						if flagrt.IsNil(flagrt.First(xs)) {
-							if_result_67 = x
-						} else {
-							if_result_67 = flagrt.First(xs)
-						}
-						var if_result_68 flagrt.Value
-						if flagrt.IsNil(prologue__second_arity_1(xs)) {
-							if_result_68 = y
-						} else {
-							if_result_68 = prologue__second_arity_1(xs)
-						}
-						if_result_72 = flagrt.Call(f, if_result_67, if_result_68)
-					} else {
-						var if_result_69 flagrt.Value
-						if flagrt.IsNil(flagrt.First(xs)) {
-							if_result_69 = x
-						} else {
-							if_result_69 = flagrt.First(xs)
-						}
 						var if_result_70 flagrt.Value
-						if flagrt.IsNil(prologue__second_arity_1(xs)) {
-							if_result_70 = y
+						if flagrt.IsNil(flagrt.First(xs)) {
+							if_result_70 = x
 						} else {
-							if_result_70 = prologue__second_arity_1(xs)
+							if_result_70 = flagrt.First(xs)
 						}
 						var if_result_71 flagrt.Value
-						if flagrt.IsNil(flagrt.Nth(xs, lowflagLong_2)) {
-							if_result_71 = z
+						if flagrt.IsNil(prologue__second_arity_1(xs)) {
+							if_result_71 = y
 						} else {
-							if_result_71 = flagrt.Nth(xs, lowflagLong_2)
+							if_result_71 = prologue__second_arity_1(xs)
 						}
-						if_result_72 = flagrt.Apply(f, if_result_69, if_result_70, if_result_71, flagrt.Drop(lowflagLong_3, xs))
+						if_result_75 = flagrt.Call(f, if_result_70, if_result_71)
+					} else {
+						var if_result_72 flagrt.Value
+						if flagrt.IsNil(flagrt.First(xs)) {
+							if_result_72 = x
+						} else {
+							if_result_72 = flagrt.First(xs)
+						}
+						var if_result_73 flagrt.Value
+						if flagrt.IsNil(prologue__second_arity_1(xs)) {
+							if_result_73 = y
+						} else {
+							if_result_73 = prologue__second_arity_1(xs)
+						}
+						var if_result_74 flagrt.Value
+						if flagrt.IsNil(flagrt.Nth(xs, lowflagLong_2)) {
+							if_result_74 = z
+						} else {
+							if_result_74 = flagrt.Nth(xs, lowflagLong_2)
+						}
+						if_result_75 = flagrt.Apply(f, if_result_72, if_result_73, if_result_74, flagrt.Drop(lowflagLong_3, xs))
 					}
-					if_result_73 = if_result_72
+					if_result_76 = if_result_75
 				}
-				if_result_74 = if_result_73
+				if_result_77 = if_result_76
 			}
-			let_result_75 = if_result_74
+			let_result_78 = if_result_77
 		}
-		return let_result_75
+		return let_result_78
 	})
 }
 func prologue__fnil_variadic(args ...flagrt.Value) flagrt.Value {
@@ -1038,15 +1031,15 @@ func prologue__comp_variadic(args ...flagrt.Value) flagrt.Value {
 	var __rest0 = flagrt.NewArray(args[0:]...)
 	_ = __rest0
 	var fs = __rest0
-	var if_result_77 flagrt.Value
+	var if_result_80 flagrt.Value
 	if flagrt.IsEmpty(fs) {
-		if_result_77 = prologue__identity
+		if_result_80 = prologue__identity
 	} else {
-		var if_result_76 flagrt.Value
+		var if_result_79 flagrt.Value
 		if flagrt.IsEmpty(flagrt.Rest(fs)) {
-			if_result_76 = flagrt.First(fs)
+			if_result_79 = flagrt.First(fs)
 		} else {
-			if_result_76 = flagrt.Reduce(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if_result_79 = flagrt.Reduce(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 				if len(args) != 2 {
 					panic("fn expects exactly 2 arguments")
 				}
@@ -1063,35 +1056,35 @@ func prologue__comp_variadic(args ...flagrt.Value) flagrt.Value {
 				})
 			}), fs)
 		}
-		if_result_77 = if_result_76
+		if_result_80 = if_result_79
 	}
-	return if_result_77
+	return if_result_80
 }
 
 func prologue__iterate_arity_2(f flagrt.Value, x flagrt.Value) flagrt.Value {
-	var let_result_79 flagrt.Value
+	var let_result_82 flagrt.Value
 	{
 		var __bind0 = x
 		var v = __bind0
-		let_result_79 = flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+		let_result_82 = flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 			if len(args) != 1 {
 				panic("fn expects exactly 1 arguments")
 			}
 			_n := args[0]
 			_ = _n
-			var let_result_78 flagrt.Value
+			var let_result_81 flagrt.Value
 			{
 				var cur = v
 				_ = func() flagrt.Value {
 					v = flagrt.Call(f, cur)
 					return v
 				}()
-				let_result_78 = cur
+				let_result_81 = cur
 			}
-			return let_result_78
+			return let_result_81
 		}), flagrt.Repeat(lowflagLong_0))
 	}
-	return let_result_79
+	return let_result_82
 }
 func prologue__iterate_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -1128,40 +1121,40 @@ func prologue__take_while_arity_2(pred flagrt.Value, coll flagrt.Value) flagrt.V
 		var xs = coll
 		var acc = lowflagVec
 		for {
-			var let_result_81 bool
+			var let_result_84 bool
 			{
 				var or_tmp = flagrt.IsNil(xs)
-				var if_result_80 bool
+				var if_result_83 bool
 				if or_tmp {
-					if_result_80 = or_tmp
+					if_result_83 = or_tmp
 				} else {
-					if_result_80 = flagrt.IsEmpty(xs)
+					if_result_83 = flagrt.IsEmpty(xs)
 				}
-				let_result_81 = if_result_80
+				let_result_84 = if_result_83
 			}
-			var if_result_86 flagrt.Value
-			if let_result_81 {
-				if_result_86 = acc
+			var if_result_89 flagrt.Value
+			if let_result_84 {
+				if_result_89 = acc
 			} else {
-				var let_result_85 flagrt.Value
+				var let_result_88 flagrt.Value
 				{
 					var x = flagrt.First(xs)
-					var if_result_84 flagrt.Value
+					var if_result_87 flagrt.Value
 					if flagrt.IsTruthy(flagrt.Call(pred, x)) {
-						var recur_82 = flagrt.Rest(xs)
-						var recur_83 = flagrt.Conj(acc, x)
-						xs = recur_82
-						acc = recur_83
+						var recur_85 = flagrt.Rest(xs)
+						var recur_86 = flagrt.Conj(acc, x)
+						xs = recur_85
+						acc = recur_86
 						continue
-						if_result_84 = flagrt.NilValue
+						if_result_87 = flagrt.NilValue
 					} else {
-						if_result_84 = acc
+						if_result_87 = acc
 					}
-					let_result_85 = if_result_84
+					let_result_88 = if_result_87
 				}
-				if_result_86 = let_result_85
+				if_result_89 = let_result_88
 			}
-			return if_result_86
+			return if_result_89
 		}
 	}()
 }
@@ -1176,33 +1169,33 @@ func prologue__drop_while_arity_2(pred flagrt.Value, coll flagrt.Value) flagrt.V
 	return func() flagrt.Value {
 		var xs = coll
 		for {
-			var let_result_88 bool
+			var let_result_91 bool
 			{
 				var or_tmp = flagrt.IsNil(xs)
-				var if_result_87 bool
+				var if_result_90 bool
 				if or_tmp {
-					if_result_87 = or_tmp
+					if_result_90 = or_tmp
 				} else {
-					if_result_87 = flagrt.IsEmpty(xs)
+					if_result_90 = flagrt.IsEmpty(xs)
 				}
-				let_result_88 = if_result_87
+				let_result_91 = if_result_90
 			}
-			var if_result_91 flagrt.Value
-			if let_result_88 {
-				if_result_91 = xs
+			var if_result_94 flagrt.Value
+			if let_result_91 {
+				if_result_94 = xs
 			} else {
-				var if_result_90 flagrt.Value
+				var if_result_93 flagrt.Value
 				if flagrt.IsTruthy(flagrt.Call(pred, flagrt.First(xs))) {
-					var recur_89 = flagrt.Rest(xs)
-					xs = recur_89
+					var recur_92 = flagrt.Rest(xs)
+					xs = recur_92
 					continue
-					if_result_90 = flagrt.NilValue
+					if_result_93 = flagrt.NilValue
 				} else {
-					if_result_90 = xs
+					if_result_93 = xs
 				}
-				if_result_91 = if_result_90
+				if_result_94 = if_result_93
 			}
-			return if_result_91
+			return if_result_94
 		}
 	}()
 }
@@ -1214,69 +1207,69 @@ func prologue__drop_while_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__take_last_arity_2(n flagrt.Value, coll flagrt.Value) flagrt.Value {
-	var let_result_96 bool
+	var let_result_99 bool
 	{
 		var or_tmp = flagrt.IsNil(coll)
-		var if_result_95 bool
+		var if_result_98 bool
 		if or_tmp {
-			if_result_95 = or_tmp
+			if_result_98 = or_tmp
 		} else {
-			var let_result_94 bool
+			var let_result_97 bool
 			{
 				var or_tmp = flagrt.IsEmpty(coll)
-				var if_result_93 bool
+				var if_result_96 bool
 				if or_tmp {
-					if_result_93 = or_tmp
+					if_result_96 = or_tmp
 				} else {
-					var if_result_92 bool
+					var if_result_95 bool
 					if flagrt.IsTruthy(prologue__pos_q_arity_1(n)) {
-						if_result_92 = false
+						if_result_95 = false
 					} else {
-						if_result_92 = true
+						if_result_95 = true
 					}
-					if_result_93 = if_result_92
+					if_result_96 = if_result_95
 				}
-				let_result_94 = if_result_93
+				let_result_97 = if_result_96
 			}
-			if_result_95 = let_result_94
+			if_result_98 = let_result_97
 		}
-		let_result_96 = if_result_95
+		let_result_99 = if_result_98
 	}
-	var if_result_102 flagrt.Value
-	if let_result_96 {
-		if_result_102 = flagrt.NilValue
+	var if_result_105 flagrt.Value
+	if let_result_99 {
+		if_result_105 = flagrt.NilValue
 	} else {
-		if_result_102 = func() flagrt.Value {
+		if_result_105 = func() flagrt.Value {
 			var s = coll
 			var lead = flagrt.Drop(n, coll)
 			for {
-				var let_result_98 bool
+				var let_result_101 bool
 				{
 					var or_tmp = flagrt.IsNil(lead)
-					var if_result_97 bool
+					var if_result_100 bool
 					if or_tmp {
-						if_result_97 = or_tmp
+						if_result_100 = or_tmp
 					} else {
-						if_result_97 = flagrt.IsEmpty(lead)
+						if_result_100 = flagrt.IsEmpty(lead)
 					}
-					let_result_98 = if_result_97
+					let_result_101 = if_result_100
 				}
-				var if_result_101 flagrt.Value
-				if let_result_98 {
-					if_result_101 = s
+				var if_result_104 flagrt.Value
+				if let_result_101 {
+					if_result_104 = s
 				} else {
-					var recur_99 = flagrt.Next(s)
-					var recur_100 = flagrt.Next(lead)
-					s = recur_99
-					lead = recur_100
+					var recur_102 = flagrt.Next(s)
+					var recur_103 = flagrt.Next(lead)
+					s = recur_102
+					lead = recur_103
 					continue
-					if_result_101 = flagrt.NilValue
+					if_result_104 = flagrt.NilValue
 				}
-				return if_result_101
+				return if_result_104
 			}
 		}()
 	}
-	return if_result_102
+	return if_result_105
 }
 func prologue__take_last_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -1289,21 +1282,21 @@ func prologue__drop_last_arity_1(coll flagrt.Value) flagrt.Value {
 	return prologue__drop_last_arity_2(lowflagLong_1, coll)
 }
 func prologue__drop_last_arity_2(n flagrt.Value, coll flagrt.Value) flagrt.Value {
-	var if_result_105 flagrt.Value
+	var if_result_108 flagrt.Value
 	if flagrt.IsNil(coll) {
-		if_result_105 = lowflagVec
+		if_result_108 = lowflagVec
 	} else {
-		var if_result_103 bool
+		var if_result_106 bool
 		if flagrt.IsTruthy(prologue__pos_q_arity_1(n)) {
-			if_result_103 = false
+			if_result_106 = false
 		} else {
-			if_result_103 = true
+			if_result_106 = true
 		}
-		var if_result_104 flagrt.Value
-		if if_result_103 {
-			if_result_104 = coll
+		var if_result_107 flagrt.Value
+		if if_result_106 {
+			if_result_107 = coll
 		} else {
-			if_result_104 = flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if_result_107 = flagrt.Map(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 				if len(args) != 2 {
 					panic("fn expects exactly 2 arguments")
 				}
@@ -1312,9 +1305,9 @@ func prologue__drop_last_arity_2(n flagrt.Value, coll flagrt.Value) flagrt.Value
 				return x
 			}), coll, flagrt.Drop(n, coll))
 		}
-		if_result_105 = if_result_104
+		if_result_108 = if_result_107
 	}
-	return if_result_105
+	return if_result_108
 }
 func prologue__drop_last_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) == 1 {
@@ -1327,64 +1320,64 @@ func prologue__drop_last_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__take_nth_arity_2(n flagrt.Value, coll flagrt.Value) flagrt.Value {
-	var let_result_107 bool
+	var let_result_110 bool
 	{
 		var or_tmp = flagrt.IsNil(coll)
-		var if_result_106 bool
+		var if_result_109 bool
 		if or_tmp {
-			if_result_106 = or_tmp
+			if_result_109 = or_tmp
 		} else {
-			if_result_106 = flagrt.IsEmpty(coll)
+			if_result_109 = flagrt.IsEmpty(coll)
 		}
-		let_result_107 = if_result_106
+		let_result_110 = if_result_109
 	}
-	var if_result_115 flagrt.Value
-	if let_result_107 {
-		if_result_115 = lowflagVec
+	var if_result_118 flagrt.Value
+	if let_result_110 {
+		if_result_118 = lowflagVec
 	} else {
-		var if_result_108 bool
+		var if_result_111 bool
 		if flagrt.IsTruthy(prologue__pos_q_arity_1(n)) {
-			if_result_108 = false
+			if_result_111 = false
 		} else {
-			if_result_108 = true
+			if_result_111 = true
 		}
-		var if_result_114 flagrt.Value
-		if if_result_108 {
-			if_result_114 = flagrt.Repeat(flagrt.First(coll))
+		var if_result_117 flagrt.Value
+		if if_result_111 {
+			if_result_117 = flagrt.Repeat(flagrt.First(coll))
 		} else {
-			if_result_114 = func() flagrt.Value {
+			if_result_117 = func() flagrt.Value {
 				var xs = coll
 				var acc = lowflagVec
 				for {
-					var let_result_110 bool
+					var let_result_113 bool
 					{
 						var or_tmp = flagrt.IsNil(xs)
-						var if_result_109 bool
+						var if_result_112 bool
 						if or_tmp {
-							if_result_109 = or_tmp
+							if_result_112 = or_tmp
 						} else {
-							if_result_109 = flagrt.IsEmpty(xs)
+							if_result_112 = flagrt.IsEmpty(xs)
 						}
-						let_result_110 = if_result_109
+						let_result_113 = if_result_112
 					}
-					var if_result_113 flagrt.Value
-					if let_result_110 {
-						if_result_113 = acc
+					var if_result_116 flagrt.Value
+					if let_result_113 {
+						if_result_116 = acc
 					} else {
-						var recur_111 = flagrt.Drop(n, xs)
-						var recur_112 = flagrt.Conj(acc, flagrt.First(xs))
-						xs = recur_111
-						acc = recur_112
+						var recur_114 = flagrt.Drop(n, xs)
+						var recur_115 = flagrt.Conj(acc, flagrt.First(xs))
+						xs = recur_114
+						acc = recur_115
 						continue
-						if_result_113 = flagrt.NilValue
+						if_result_116 = flagrt.NilValue
 					}
-					return if_result_113
+					return if_result_116
 				}
 			}()
 		}
-		if_result_115 = if_result_114
+		if_result_118 = if_result_117
 	}
-	return if_result_115
+	return if_result_118
 }
 func prologue__take_nth_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -1424,13 +1417,13 @@ func prologue__keep_indexed_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func prologue__reduce_kv_arity_3(f flagrt.Value, init flagrt.Value, coll flagrt.Value) flagrt.Value {
-	var if_result_123 flagrt.Value
+	var if_result_126 flagrt.Value
 	if flagrt.IsNil(coll) {
-		if_result_123 = init
+		if_result_126 = init
 	} else {
-		var if_result_122 flagrt.Value
+		var if_result_125 flagrt.Value
 		if flagrt.IsTruthy(prologue__map_q_arity_1(coll)) {
-			if_result_122 = flagrt.Reduce(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+			if_result_125 = flagrt.Reduce(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 				if len(args) != 2 {
 					panic("fn expects exactly 2 arguments")
 				}
@@ -1439,48 +1432,48 @@ func prologue__reduce_kv_arity_3(f flagrt.Value, init flagrt.Value, coll flagrt.
 				return flagrt.Call(f, acc, flagrt.First(pair), prologue__val_arity_1(pair))
 			}), init, coll)
 		} else {
-			var let_result_117 flagrt.Value
+			var let_result_120 flagrt.Value
 			{
 				var or_tmp = flagrt.Eq(flagrt.TypeOf(coll), lowflagKw_array)
-				var if_result_116 flagrt.Value
+				var if_result_119 flagrt.Value
 				if or_tmp {
-					if_result_116 = flagrt.NewBool(or_tmp)
+					if_result_119 = flagrt.NewBool(or_tmp)
 				} else {
-					if_result_116 = prologue__vector_q_arity_1(coll)
+					if_result_119 = prologue__vector_q_arity_1(coll)
 				}
-				let_result_117 = if_result_116
+				let_result_120 = if_result_119
 			}
-			var if_result_121 flagrt.Value
-			if flagrt.IsTruthy(let_result_117) {
-				if_result_121 = func() flagrt.Value {
+			var if_result_124 flagrt.Value
+			if flagrt.IsTruthy(let_result_120) {
+				if_result_124 = func() flagrt.Value {
 					var i = lowflagLong_0
 					var acc = init
 					for {
-						var if_result_120 flagrt.Value
+						var if_result_123 flagrt.Value
 						if flagrt.Eq(i, flagrt.NewLong(int64(flagrt.Count(coll)))) {
-							if_result_120 = acc
+							if_result_123 = acc
 						} else {
-							var recur_118 = flagrt.Inc(i)
-							var recur_119 = flagrt.Call(f, acc, i, flagrt.Nth(coll, i))
-							i = recur_118
-							acc = recur_119
+							var recur_121 = flagrt.Inc(i)
+							var recur_122 = flagrt.Call(f, acc, i, flagrt.Nth(coll, i))
+							i = recur_121
+							acc = recur_122
 							continue
-							if_result_120 = flagrt.NilValue
+							if_result_123 = flagrt.NilValue
 						}
-						return if_result_120
+						return if_result_123
 					}
 				}()
 			} else {
-				if_result_121 = func() flagrt.Value {
+				if_result_124 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewString("reduce-kv expects a map, array, or vector"))
 					return flagrt.NilValue
 				}()
 			}
-			if_result_122 = if_result_121
+			if_result_125 = if_result_124
 		}
-		if_result_123 = if_result_122
+		if_result_126 = if_result_125
 	}
-	return if_result_123
+	return if_result_126
 }
 func prologue__reduce_kv_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -1493,22 +1486,22 @@ func prologue__every_q_arity_2(pred flagrt.Value, coll flagrt.Value) flagrt.Valu
 	return func() flagrt.Value {
 		var xs = coll
 		for {
-			var if_result_126 flagrt.Value
+			var if_result_129 flagrt.Value
 			if flagrt.IsTruthy(flagrt.Seq(xs)) {
-				var if_result_125 flagrt.Value
+				var if_result_128 flagrt.Value
 				if flagrt.IsTruthy(flagrt.Call(pred, flagrt.First(xs))) {
-					var recur_124 = flagrt.Rest(xs)
-					xs = recur_124
+					var recur_127 = flagrt.Rest(xs)
+					xs = recur_127
 					continue
-					if_result_125 = flagrt.NilValue
+					if_result_128 = flagrt.NilValue
 				} else {
-					if_result_125 = flagrt.NewBool(false)
+					if_result_128 = flagrt.NewBool(false)
 				}
-				if_result_126 = if_result_125
+				if_result_129 = if_result_128
 			} else {
-				if_result_126 = flagrt.NewBool(true)
+				if_result_129 = flagrt.NewBool(true)
 			}
-			return if_result_126
+			return if_result_129
 		}
 	}()
 }
@@ -1537,22 +1530,22 @@ func prologue__every_pred_variadic(args ...flagrt.Value) flagrt.Value {
 		return func() flagrt.Value {
 			var ps = flagrt.Cons(p, more)
 			for {
-				var if_result_129 flagrt.Value
+				var if_result_132 flagrt.Value
 				if flagrt.IsEmpty(ps) {
-					if_result_129 = flagrt.NewBool(true)
+					if_result_132 = flagrt.NewBool(true)
 				} else {
-					var if_result_128 flagrt.Value
+					var if_result_131 flagrt.Value
 					if flagrt.IsTruthy(prologue__every_q_arity_2(flagrt.First(ps), xs)) {
-						var recur_127 = flagrt.Rest(ps)
-						ps = recur_127
+						var recur_130 = flagrt.Rest(ps)
+						ps = recur_130
 						continue
-						if_result_128 = flagrt.NilValue
+						if_result_131 = flagrt.NilValue
 					} else {
-						if_result_128 = flagrt.NewBool(false)
+						if_result_131 = flagrt.NewBool(false)
 					}
-					if_result_129 = if_result_128
+					if_result_132 = if_result_131
 				}
-				return if_result_129
+				return if_result_132
 			}
 		}()
 	})
@@ -1576,27 +1569,27 @@ func prologue__some_fn_variadic(args ...flagrt.Value) flagrt.Value {
 		return func() flagrt.Value {
 			var ps = flagrt.Cons(p, more)
 			for {
-				var if_result_133 flagrt.Value
+				var if_result_136 flagrt.Value
 				if flagrt.IsEmpty(ps) {
-					if_result_133 = flagrt.NilValue
+					if_result_136 = flagrt.NilValue
 				} else {
-					var let_result_132 flagrt.Value
+					var let_result_135 flagrt.Value
 					{
 						var r = flagrt.Some(flagrt.First(ps), xs)
-						var if_result_131 flagrt.Value
+						var if_result_134 flagrt.Value
 						if flagrt.IsTruthy(r) {
-							if_result_131 = r
+							if_result_134 = r
 						} else {
-							var recur_130 = flagrt.Rest(ps)
-							ps = recur_130
+							var recur_133 = flagrt.Rest(ps)
+							ps = recur_133
 							continue
-							if_result_131 = flagrt.NilValue
+							if_result_134 = flagrt.NilValue
 						}
-						let_result_132 = if_result_131
+						let_result_135 = if_result_134
 					}
-					if_result_133 = let_result_132
+					if_result_136 = let_result_135
 				}
-				return if_result_133
+				return if_result_136
 			}
 		}()
 	})
@@ -1617,13 +1610,13 @@ func prologue__max_key_variadic(args ...flagrt.Value) flagrt.Value {
 		}
 		best := args[0]
 		cand := args[1]
-		var if_result_134 flagrt.Value
+		var if_result_137 flagrt.Value
 		if flagrt.Gt(flagrt.Call(kfn, cand), flagrt.Call(kfn, best)) {
-			if_result_134 = cand
+			if_result_137 = cand
 		} else {
-			if_result_134 = best
+			if_result_137 = best
 		}
-		return if_result_134
+		return if_result_137
 	}), x, more)
 }
 
@@ -1633,31 +1626,31 @@ func prologue__zipmap_arity_2(ks flagrt.Value, vs flagrt.Value) flagrt.Value {
 		var vs = vs
 		var out = lowflagMap
 		for {
-			var let_result_136 flagrt.Value
+			var let_result_139 flagrt.Value
 			{
 				var and_tmp = flagrt.Seq(ks)
-				var if_result_135 flagrt.Value
+				var if_result_138 flagrt.Value
 				if flagrt.IsTruthy(and_tmp) {
-					if_result_135 = flagrt.Seq(vs)
+					if_result_138 = flagrt.Seq(vs)
 				} else {
-					if_result_135 = and_tmp
+					if_result_138 = and_tmp
 				}
-				let_result_136 = if_result_135
+				let_result_139 = if_result_138
 			}
-			var if_result_140 flagrt.Value
-			if flagrt.IsTruthy(let_result_136) {
-				var recur_137 = flagrt.Rest(ks)
-				var recur_138 = flagrt.Rest(vs)
-				var recur_139 = flagrt.Assoc(out, flagrt.First(ks), flagrt.First(vs))
-				ks = recur_137
-				vs = recur_138
-				out = recur_139
+			var if_result_143 flagrt.Value
+			if flagrt.IsTruthy(let_result_139) {
+				var recur_140 = flagrt.Rest(ks)
+				var recur_141 = flagrt.Rest(vs)
+				var recur_142 = flagrt.Assoc(out, flagrt.First(ks), flagrt.First(vs))
+				ks = recur_140
+				vs = recur_141
+				out = recur_142
 				continue
-				if_result_140 = flagrt.NilValue
+				if_result_143 = flagrt.NilValue
 			} else {
-				if_result_140 = out
+				if_result_143 = out
 			}
-			return if_result_140
+			return if_result_143
 		}
 	}()
 }
@@ -1666,39 +1659,6 @@ func prologue__zipmap_variadic(args ...flagrt.Value) flagrt.Value {
 		panic("prologue__zipmap expects exactly 2 arguments")
 	}
 	return prologue__zipmap_arity_2(args[0], args[1])
-}
-
-func prologue__group_by_arity_2(f flagrt.Value, coll flagrt.Value) flagrt.Value {
-	return flagrt.Reduce(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
-		if len(args) != 2 {
-			panic("fn expects exactly 2 arguments")
-		}
-		acc := args[0]
-		x := args[1]
-		var let_result_143 flagrt.Value
-		{
-			var k = flagrt.Call(f, x)
-			var let_result_142 flagrt.Value
-			{
-				var or_tmp = flagrt.Get(acc, k)
-				var if_result_141 flagrt.Value
-				if flagrt.IsTruthy(or_tmp) {
-					if_result_141 = or_tmp
-				} else {
-					if_result_141 = lowflagVec
-				}
-				let_result_142 = if_result_141
-			}
-			let_result_143 = flagrt.Assoc(acc, k, flagrt.Conj(let_result_142, x))
-		}
-		return let_result_143
-	}), lowflagMap, coll)
-}
-func prologue__group_by_variadic(args ...flagrt.Value) flagrt.Value {
-	if len(args) != 2 {
-		panic("prologue__group_by expects exactly 2 arguments")
-	}
-	return prologue__group_by_arity_2(args[0], args[1])
 }
 
 func prologue__select_keys_arity_2(m flagrt.Value, ks flagrt.Value) flagrt.Value {
@@ -3641,6 +3601,16 @@ func compiler__reduce_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
 		panic("compiler__reduce_to_ir expects exactly 1 arguments")
 	}
 	return compiler__reduce_to_ir_arity_1(args[0])
+}
+
+func compiler__group_by_to_ir_arity_1(args flagrt.Value) flagrt.Value {
+	return compiler__literal_rt_call_arity_2(lowflagStr_GroupBy, args)
+}
+func compiler__group_by_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 1 {
+		panic("compiler__group_by_to_ir expects exactly 1 arguments")
+	}
+	return compiler__group_by_to_ir_arity_1(args[0])
 }
 
 func compiler__doall_to_ir_arity_1(arg flagrt.Value) flagrt.Value {
@@ -12285,9 +12255,9 @@ func compiler__hash_fn_param_vector_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var if_result_2418 flagrt.Value
+	var if_result_2422 flagrt.Value
 	if flagrt.Eq(mode, lowflagKw_seq) {
-		if_result_2418 = func() flagrt.Value {
+		if_result_2422 = func() flagrt.Value {
 			var remaining = node
 			var ctx = ctx
 			var stmts = lowflagVec
@@ -12328,7 +12298,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 			}
 		}()
 	} else {
-		var if_result_2417 flagrt.Value
+		var if_result_2421 flagrt.Value
 		if flagrt.Eq(mode, lowflagKw_ctor_seq) {
 			var let_result_1579 flagrt.Value
 			{
@@ -12428,9 +12398,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 					}
 				}()
 			}
-			if_result_2417 = let_result_1579
+			if_result_2421 = let_result_1579
 		} else {
-			var if_result_2416 flagrt.Value
+			var if_result_2420 flagrt.Value
 			if flagrt.Eq(mode, lowflagKw_if) {
 				var let_result_1596 flagrt.Value
 				{
@@ -12540,9 +12510,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 					}
 					let_result_1596 = if_result_1595
 				}
-				if_result_2416 = let_result_1596
+				if_result_2420 = let_result_1596
 			} else {
-				var if_result_2415 flagrt.Value
+				var if_result_2419 flagrt.Value
 				if flagrt.Eq(mode, lowflagKw_let) {
 					var let_result_1652 flagrt.Value
 					{
@@ -12871,9 +12841,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 						}
 						let_result_1652 = if_result_1651
 					}
-					if_result_2415 = let_result_1652
+					if_result_2419 = let_result_1652
 				} else {
-					var if_result_2414 flagrt.Value
+					var if_result_2418 flagrt.Value
 					if flagrt.Eq(mode, lowflagKw_fn) {
 						var let_result_1661 flagrt.Value
 						{
@@ -12944,9 +12914,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 							}
 							let_result_1661 = if_result_1660
 						}
-						if_result_2414 = let_result_1661
+						if_result_2418 = let_result_1661
 					} else {
-						var if_result_2413 flagrt.Value
+						var if_result_2417 flagrt.Value
 						if flagrt.Eq(mode, lowflagKw_update) {
 							var let_result_1671 flagrt.Value
 							{
@@ -13016,9 +12986,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 								}
 								let_result_1671 = if_result_1670
 							}
-							if_result_2413 = let_result_1671
+							if_result_2417 = let_result_1671
 						} else {
-							var if_result_2412 flagrt.Value
+							var if_result_2416 flagrt.Value
 							if flagrt.Eq(mode, lowflagKw_nil_) {
 								var if_result_1672 bool
 								if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13040,9 +13010,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 									}
 									if_result_1674 = let_result_1673
 								}
-								if_result_2412 = if_result_1674
+								if_result_2416 = if_result_1674
 							} else {
-								var if_result_2411 flagrt.Value
+								var if_result_2415 flagrt.Value
 								if flagrt.Eq(mode, lowflagKw_empty_) {
 									var if_result_1675 bool
 									if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13064,9 +13034,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 										}
 										if_result_1677 = let_result_1676
 									}
-									if_result_2411 = if_result_1677
+									if_result_2415 = if_result_1677
 								} else {
-									var if_result_2410 flagrt.Value
+									var if_result_2414 flagrt.Value
 									if flagrt.Eq(mode, lowflagKw_count) {
 										var if_result_1678 bool
 										if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13088,9 +13058,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 											}
 											if_result_1680 = let_result_1679
 										}
-										if_result_2410 = if_result_1680
+										if_result_2414 = if_result_1680
 									} else {
-										var if_result_2409 flagrt.Value
+										var if_result_2413 flagrt.Value
 										if flagrt.Eq(mode, lowflagKw_throw) {
 											var if_result_1681 bool
 											if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13112,9 +13082,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 												}
 												if_result_1683 = let_result_1682
 											}
-											if_result_2409 = if_result_1683
+											if_result_2413 = if_result_1683
 										} else {
-											var if_result_2408 flagrt.Value
+											var if_result_2412 flagrt.Value
 											if flagrt.Eq(mode, lowflagKw_recur) {
 												var let_result_1690 flagrt.Value
 												{
@@ -13162,9 +13132,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 													}
 													let_result_1690 = if_result_1689
 												}
-												if_result_2408 = let_result_1690
+												if_result_2412 = let_result_1690
 											} else {
-												var if_result_2407 flagrt.Value
+												var if_result_2411 flagrt.Value
 												if flagrt.Eq(mode, lowflagKw_loop) {
 													var let_result_1727 flagrt.Value
 													{
@@ -13389,11 +13359,11 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 														}
 														let_result_1727 = if_result_1726
 													}
-													if_result_2407 = let_result_1727
+													if_result_2411 = let_result_1727
 												} else {
-													var if_result_2406 flagrt.Value
+													var if_result_2410 flagrt.Value
 													if flagrt.Eq(mode, lowflagKw_str) {
-														if_result_2406 = func() flagrt.Value {
+														if_result_2410 = func() flagrt.Value {
 															var remaining = compiler__stmt_list_arity_1(node)
 															var ctx = ctx
 															var stmts = lowflagVec
@@ -13441,7 +13411,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 															}
 														}()
 													} else {
-														var if_result_2405 flagrt.Value
+														var if_result_2409 flagrt.Value
 														if flagrt.Eq(mode, lowflagKw_ex_info) {
 															var let_result_1748 flagrt.Value
 															{
@@ -13516,9 +13486,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																}
 																let_result_1748 = if_result_1747
 															}
-															if_result_2405 = let_result_1748
+															if_result_2409 = let_result_1748
 														} else {
-															var if_result_2404 flagrt.Value
+															var if_result_2408 flagrt.Value
 															if flagrt.Eq(mode, lowflagKw_assoc) {
 																var let_result_1766 flagrt.Value
 																{
@@ -13618,9 +13588,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																	}
 																	let_result_1766 = if_result_1765
 																}
-																if_result_2404 = let_result_1766
+																if_result_2408 = let_result_1766
 															} else {
-																var if_result_2403 flagrt.Value
+																var if_result_2407 flagrt.Value
 																if flagrt.Eq(mode, lowflagKw_conj) {
 																	var let_result_1770 bool
 																	{
@@ -13692,9 +13662,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																			}
 																		}()
 																	}
-																	if_result_2403 = if_result_1779
+																	if_result_2407 = if_result_1779
 																} else {
-																	var if_result_2402 flagrt.Value
+																	var if_result_2406 flagrt.Value
 																	if flagrt.Eq(mode, lowflagKw_seq_op) {
 																		var if_result_1780 bool
 																		if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13716,9 +13686,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																			}
 																			if_result_1782 = let_result_1781
 																		}
-																		if_result_2402 = if_result_1782
+																		if_result_2406 = if_result_1782
 																	} else {
-																		var if_result_2401 flagrt.Value
+																		var if_result_2405 flagrt.Value
 																		if flagrt.Eq(mode, lowflagKw_drop) {
 																			var if_result_1783 bool
 																			if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13774,9 +13744,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																					}
 																				}()
 																			}
-																			if_result_2401 = if_result_1792
+																			if_result_2405 = if_result_1792
 																		} else {
-																			var if_result_2400 flagrt.Value
+																			var if_result_2404 flagrt.Value
 																			if flagrt.Eq(mode, lowflagKw_take) {
 																				var if_result_1793 bool
 																				if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13832,9 +13802,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																						}
 																					}()
 																				}
-																				if_result_2400 = if_result_1802
+																				if_result_2404 = if_result_1802
 																			} else {
-																				var if_result_2399 flagrt.Value
+																				var if_result_2403 flagrt.Value
 																				if flagrt.Eq(mode, lowflagKw_cons) {
 																					var if_result_1803 bool
 																					if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -13890,9 +13860,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																							}
 																						}()
 																					}
-																					if_result_2399 = if_result_1812
+																					if_result_2403 = if_result_1812
 																				} else {
-																					var if_result_2398 flagrt.Value
+																					var if_result_2402 flagrt.Value
 																					if flagrt.Eq(mode, lowflagKw_get) {
 																						var let_result_1826 flagrt.Value
 																						{
@@ -13970,9 +13940,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																							}
 																							let_result_1826 = if_result_1825
 																						}
-																						if_result_2398 = let_result_1826
+																						if_result_2402 = let_result_1826
 																					} else {
-																						var if_result_2397 flagrt.Value
+																						var if_result_2401 flagrt.Value
 																						if flagrt.Eq(mode, lowflagKw_nth) {
 																							var let_result_1840 flagrt.Value
 																							{
@@ -14050,9 +14020,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																								}
 																								let_result_1840 = if_result_1839
 																							}
-																							if_result_2397 = let_result_1840
+																							if_result_2401 = let_result_1840
 																						} else {
-																							var if_result_2396 flagrt.Value
+																							var if_result_2400 flagrt.Value
 																							if flagrt.Eq(mode, lowflagKw_not_empty) {
 																								var if_result_1841 bool
 																								if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14074,9 +14044,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																									}
 																									if_result_1843 = let_result_1842
 																								}
-																								if_result_2396 = if_result_1843
+																								if_result_2400 = if_result_1843
 																							} else {
-																								var if_result_2395 flagrt.Value
+																								var if_result_2399 flagrt.Value
 																								if flagrt.Eq(mode, lowflagKw_type_of) {
 																									var if_result_1844 bool
 																									if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14098,9 +14068,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																										}
 																										if_result_1846 = let_result_1845
 																									}
-																									if_result_2395 = if_result_1846
+																									if_result_2399 = if_result_1846
 																								} else {
-																									var if_result_2394 flagrt.Value
+																									var if_result_2398 flagrt.Value
 																									if flagrt.Eq(mode, lowflagKw_vec) {
 																										var if_result_1847 bool
 																										if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14122,9 +14092,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																											}
 																											if_result_1849 = let_result_1848
 																										}
-																										if_result_2394 = if_result_1849
+																										if_result_2398 = if_result_1849
 																									} else {
-																										var if_result_2393 flagrt.Value
+																										var if_result_2397 flagrt.Value
 																										if flagrt.Eq(mode, lowflagKw_dissoc) {
 																											var let_result_1851 bool
 																											{
@@ -14185,9 +14155,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																													}
 																												}()
 																											}
-																											if_result_2393 = if_result_1860
+																											if_result_2397 = if_result_1860
 																										} else {
-																											var if_result_2392 flagrt.Value
+																											var if_result_2396 flagrt.Value
 																											if flagrt.Eq(mode, lowflagKw_contains_) {
 																												var if_result_1861 bool
 																												if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14243,11 +14213,11 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																														}
 																													}()
 																												}
-																												if_result_2392 = if_result_1870
+																												if_result_2396 = if_result_1870
 																											} else {
-																												var if_result_2391 flagrt.Value
+																												var if_result_2395 flagrt.Value
 																												if flagrt.Eq(mode, lowflagKw_list_ctor) {
-																													if_result_2391 = func() flagrt.Value {
+																													if_result_2395 = func() flagrt.Value {
 																														var remaining = compiler__stmt_list_arity_1(node)
 																														var ctx = ctx
 																														var stmts = lowflagVec
@@ -14288,9 +14258,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																														}
 																													}()
 																												} else {
-																													var if_result_2390 flagrt.Value
+																													var if_result_2394 flagrt.Value
 																													if flagrt.Eq(mode, lowflagKw_array_ctor) {
-																														if_result_2390 = func() flagrt.Value {
+																														if_result_2394 = func() flagrt.Value {
 																															var remaining = compiler__stmt_list_arity_1(node)
 																															var ctx = ctx
 																															var stmts = lowflagVec
@@ -14331,7 +14301,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																															}
 																														}()
 																													} else {
-																														var if_result_2389 flagrt.Value
+																														var if_result_2393 flagrt.Value
 																														if flagrt.Eq(mode, lowflagKw_hash_map) {
 																															var let_result_1897 flagrt.Value
 																															{
@@ -14392,9 +14362,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																}
 																																let_result_1897 = if_result_1896
 																															}
-																															if_result_2389 = let_result_1897
+																															if_result_2393 = let_result_1897
 																														} else {
-																															var if_result_2388 flagrt.Value
+																															var if_result_2392 flagrt.Value
 																															if flagrt.Eq(mode, lowflagKw_into) {
 																																var if_result_1898 bool
 																																if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14451,11 +14421,11 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																	}
 																																	if_result_1905 = let_result_1904
 																																}
-																																if_result_2388 = if_result_1905
+																																if_result_2392 = if_result_1905
 																															} else {
-																																var if_result_2387 flagrt.Value
+																																var if_result_2391 flagrt.Value
 																																if flagrt.Eq(mode, lowflagKw_concat) {
-																																	if_result_2387 = func() flagrt.Value {
+																																	if_result_2391 = func() flagrt.Value {
 																																		var remaining = compiler__stmt_list_arity_1(node)
 																																		var ctx = ctx
 																																		var stmts = lowflagVec
@@ -14496,7 +14466,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																		}
 																																	}()
 																																} else {
-																																	var if_result_2386 flagrt.Value
+																																	var if_result_2390 flagrt.Value
 																																	if flagrt.Eq(mode, lowflagKw_ex_message) {
 																																		var if_result_1914 bool
 																																		if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14518,9 +14488,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																			}
 																																			if_result_1916 = let_result_1915
 																																		}
-																																		if_result_2386 = if_result_1916
+																																		if_result_2390 = if_result_1916
 																																	} else {
-																																		var if_result_2385 flagrt.Value
+																																		var if_result_2389 flagrt.Value
 																																		if flagrt.Eq(mode, lowflagKw_ex_data) {
 																																			var if_result_1917 bool
 																																			if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14542,9 +14512,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																				}
 																																				if_result_1919 = let_result_1918
 																																			}
-																																			if_result_2385 = if_result_1919
+																																			if_result_2389 = if_result_1919
 																																		} else {
-																																			var if_result_2384 flagrt.Value
+																																			var if_result_2388 flagrt.Value
 																																			if flagrt.Eq(mode, lowflagKw_ex_cause) {
 																																				var if_result_1920 bool
 																																				if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(node))))) {
@@ -14566,11 +14536,11 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																					}
 																																					if_result_1922 = let_result_1921
 																																				}
-																																				if_result_2384 = if_result_1922
+																																				if_result_2388 = if_result_1922
 																																			} else {
-																																				var if_result_2383 flagrt.Value
+																																				var if_result_2387 flagrt.Value
 																																				if flagrt.Eq(mode, lowflagKw_println) {
-																																					if_result_2383 = func() flagrt.Value {
+																																					if_result_2387 = func() flagrt.Value {
 																																						var remaining = compiler__stmt_list_arity_1(node)
 																																						var ctx = ctx
 																																						var stmts = lowflagVec
@@ -14618,7 +14588,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																						}
 																																					}()
 																																				} else {
-																																					var if_result_2382 flagrt.Value
+																																					var if_result_2386 flagrt.Value
 																																					if flagrt.Eq(mode, lowflagKw_value_args) {
 																																						var let_result_1941 flagrt.Value
 																																						{
@@ -14673,15 +14643,15 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																								}
 																																							}()
 																																						}
-																																						if_result_2382 = let_result_1941
+																																						if_result_2386 = let_result_1941
 																																					} else {
-																																						var if_result_2381 flagrt.Value
+																																						var if_result_2385 flagrt.Value
 																																						if flagrt.Eq(mode, lowflagKw_runtime_op) {
-																																							var let_result_2092 flagrt.Value
+																																							var let_result_2096 flagrt.Value
 																																							{
 																																								var op = flagrt.First(node)
 																																								var args = flagrt.First(flagrt.Rest(node))
-																																								var if_result_2091 flagrt.Value
+																																								var if_result_2095 flagrt.Value
 																																								if flagrt.Eq(op, flagrt.NewString("compare")) {
 																																									var if_result_1942 bool
 																																									if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
@@ -14703,16 +14673,16 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																										}
 																																										if_result_1944 = let_result_1943
 																																									}
-																																									if_result_2091 = if_result_1944
+																																									if_result_2095 = if_result_1944
 																																								} else {
-																																									var if_result_2090 flagrt.Value
+																																									var if_result_2094 flagrt.Value
 																																									if flagrt.Eq(op, flagrt.NewString("==")) {
 																																										var let_result_1945 flagrt.Value
 																																										{
 																																											var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(false), lowflagStr____arguments_must_evalua), ctx)
 																																											let_result_1945 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__numeric_eq_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_bool, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																										}
-																																										if_result_2090 = let_result_1945
+																																										if_result_2094 = let_result_1945
 																																									} else {
 																																										var let_result_1951 bool
 																																										{
@@ -14747,7 +14717,7 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																											}
 																																											let_result_1951 = if_result_1950
 																																										}
-																																										var if_result_2089 flagrt.Value
+																																										var if_result_2093 flagrt.Value
 																																										if let_result_1951 {
 																																											var let_result_1955 bool
 																																											{
@@ -14786,9 +14756,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																												}
 																																												if_result_1957 = let_result_1956
 																																											}
-																																											if_result_2089 = if_result_1957
+																																											if_result_2093 = if_result_1957
 																																										} else {
-																																											var if_result_2088 flagrt.Value
+																																											var if_result_2092 flagrt.Value
 																																											if flagrt.Eq(op, flagrt.NewString("symbol")) {
 																																												var if_result_1958 bool
 																																												if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
@@ -14810,9 +14780,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																													}
 																																													if_result_1960 = let_result_1959
 																																												}
-																																												if_result_2088 = if_result_1960
+																																												if_result_2092 = if_result_1960
 																																											} else {
-																																												var if_result_2087 flagrt.Value
+																																												var if_result_2091 flagrt.Value
 																																												if flagrt.Eq(op, flagrt.NewString("name")) {
 																																													var if_result_1961 bool
 																																													if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
@@ -14834,9 +14804,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																														}
 																																														if_result_1963 = let_result_1962
 																																													}
-																																													if_result_2087 = if_result_1963
+																																													if_result_2091 = if_result_1963
 																																												} else {
-																																													var if_result_2086 flagrt.Value
+																																													var if_result_2090 flagrt.Value
 																																													if flagrt.Eq(op, flagrt.NewString("keyword")) {
 																																														var if_result_1964 bool
 																																														if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
@@ -14858,9 +14828,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																															}
 																																															if_result_1966 = let_result_1965
 																																														}
-																																														if_result_2086 = if_result_1966
+																																														if_result_2090 = if_result_1966
 																																													} else {
-																																														var if_result_2085 flagrt.Value
+																																														var if_result_2089 flagrt.Value
 																																														if flagrt.Eq(op, flagrt.NewString("format")) {
 																																															var let_result_1968 bool
 																																															{
@@ -14907,9 +14877,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																}
 																																																if_result_1973 = let_result_1972
 																																															}
-																																															if_result_2085 = if_result_1973
+																																															if_result_2089 = if_result_1973
 																																														} else {
-																																															var if_result_2084 flagrt.Value
+																																															var if_result_2088 flagrt.Value
 																																															if flagrt.Eq(op, flagrt.NewString("map")) {
 																																																var let_result_1977 bool
 																																																{
@@ -14947,9 +14917,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																	}
 																																																	if_result_1979 = let_result_1978
 																																																}
-																																																if_result_2084 = if_result_1979
+																																																if_result_2088 = if_result_1979
 																																															} else {
-																																																var if_result_2083 flagrt.Value
+																																																var if_result_2087 flagrt.Value
 																																																if flagrt.Eq(op, flagrt.NewString("sort-by")) {
 																																																	var let_result_1986 flagrt.Value
 																																																	{
@@ -14993,9 +14963,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																		}
 																																																		let_result_1986 = if_result_1985
 																																																	}
-																																																	if_result_2083 = let_result_1986
+																																																	if_result_2087 = let_result_1986
 																																																} else {
-																																																	var if_result_2082 flagrt.Value
+																																																	var if_result_2086 flagrt.Value
 																																																	if flagrt.Eq(op, flagrt.NewString("apply")) {
 																																																		var let_result_1990 bool
 																																																		{
@@ -15056,9 +15026,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																			}
 																																																			if_result_1996 = let_result_1995
 																																																		}
-																																																		if_result_2082 = if_result_1996
+																																																		if_result_2086 = if_result_1996
 																																																	} else {
-																																																		var if_result_2081 flagrt.Value
+																																																		var if_result_2085 flagrt.Value
 																																																		if flagrt.Eq(op, flagrt.NewString("pmap")) {
 																																																			var let_result_2000 bool
 																																																			{
@@ -15096,9 +15066,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																				}
 																																																				if_result_2002 = let_result_2001
 																																																			}
-																																																			if_result_2081 = if_result_2002
+																																																			if_result_2085 = if_result_2002
 																																																		} else {
-																																																			var if_result_2080 flagrt.Value
+																																																			var if_result_2084 flagrt.Value
 																																																			if flagrt.Eq(op, flagrt.NewString("filter")) {
 																																																				var if_result_2003 bool
 																																																				if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
@@ -15120,9 +15090,9 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																					}
 																																																					if_result_2005 = let_result_2004
 																																																				}
-																																																				if_result_2080 = if_result_2005
+																																																				if_result_2084 = if_result_2005
 																																																			} else {
-																																																				var if_result_2079 flagrt.Value
+																																																				var if_result_2083 flagrt.Value
 																																																				if flagrt.Eq(op, flagrt.NewString("reduce")) {
 																																																					var let_result_2012 flagrt.Value
 																																																					{
@@ -15166,12 +15136,12 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																						}
 																																																						let_result_2012 = if_result_2011
 																																																					}
-																																																					if_result_2079 = let_result_2012
+																																																					if_result_2083 = let_result_2012
 																																																				} else {
-																																																					var if_result_2078 flagrt.Value
-																																																					if flagrt.Eq(op, flagrt.NewString("doall")) {
+																																																					var if_result_2082 flagrt.Value
+																																																					if flagrt.Eq(op, flagrt.NewString("group-by")) {
 																																																						var if_result_2013 bool
-																																																						if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
+																																																						if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																							if_result_2013 = false
 																																																						} else {
 																																																							if_result_2013 = true
@@ -15179,23 +15149,23 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																						var if_result_2015 flagrt.Value
 																																																						if if_result_2013 {
 																																																							if_result_2015 = func() flagrt.Value {
-																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doall expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("group-by expects function and collection"), flagrt.NewKeyword("data"), lowflagMap))
 																																																								return flagrt.NilValue
 																																																							}()
 																																																						} else {
 																																																							var let_result_2014 flagrt.Value
 																																																							{
-																																																								var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																								let_result_2014 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__doall_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_doall_expects_an_argumen)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																								var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(false), lowflagStr_group_by_arguments_must_), ctx)
+																																																								let_result_2014 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__group_by_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																							}
 																																																							if_result_2015 = let_result_2014
 																																																						}
-																																																						if_result_2078 = if_result_2015
+																																																						if_result_2082 = if_result_2015
 																																																					} else {
-																																																						var if_result_2077 flagrt.Value
-																																																						if flagrt.Eq(op, flagrt.NewString("some")) {
+																																																						var if_result_2081 flagrt.Value
+																																																						if flagrt.Eq(op, flagrt.NewString("doall")) {
 																																																							var if_result_2016 bool
-																																																							if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
+																																																							if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																								if_result_2016 = false
 																																																							} else {
 																																																								if_result_2016 = true
@@ -15203,23 +15173,23 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																							var if_result_2018 flagrt.Value
 																																																							if if_result_2016 {
 																																																								if_result_2018 = func() flagrt.Value {
-																																																									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("some expects predicate and collection"), flagrt.NewKeyword("data"), lowflagMap))
+																																																									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doall expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																									return flagrt.NilValue
 																																																								}()
 																																																							} else {
 																																																								var let_result_2017 flagrt.Value
 																																																								{
-																																																									var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(false), lowflagStr_some_arguments_must_eval), ctx)
-																																																									let_result_2017 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__some_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																									var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
+																																																									let_result_2017 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__doall_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_doall_expects_an_argumen)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																								}
 																																																								if_result_2018 = let_result_2017
 																																																							}
-																																																							if_result_2077 = if_result_2018
+																																																							if_result_2081 = if_result_2018
 																																																						} else {
-																																																							var if_result_2076 flagrt.Value
-																																																							if flagrt.Eq(op, flagrt.NewString("set")) {
+																																																							var if_result_2080 flagrt.Value
+																																																							if flagrt.Eq(op, flagrt.NewString("some")) {
 																																																								var if_result_2019 bool
-																																																								if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
+																																																								if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																									if_result_2019 = false
 																																																								} else {
 																																																									if_result_2019 = true
@@ -15227,21 +15197,21 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																								var if_result_2021 flagrt.Value
 																																																								if if_result_2019 {
 																																																									if_result_2021 = func() flagrt.Value {
-																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("set expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("some expects predicate and collection"), flagrt.NewKeyword("data"), lowflagMap))
 																																																										return flagrt.NilValue
 																																																									}()
 																																																								} else {
 																																																									var let_result_2020 flagrt.Value
 																																																									{
-																																																										var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																										let_result_2020 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__set_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_set_expects_an_argument_)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																										var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(false), lowflagStr_some_arguments_must_eval), ctx)
+																																																										let_result_2020 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__some_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																									}
 																																																									if_result_2021 = let_result_2020
 																																																								}
-																																																								if_result_2076 = if_result_2021
+																																																								if_result_2080 = if_result_2021
 																																																							} else {
-																																																								var if_result_2075 flagrt.Value
-																																																								if flagrt.Eq(op, flagrt.NewString("line-seq")) {
+																																																								var if_result_2079 flagrt.Value
+																																																								if flagrt.Eq(op, flagrt.NewString("set")) {
 																																																									var if_result_2022 bool
 																																																									if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																										if_result_2022 = false
@@ -15251,114 +15221,114 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																									var if_result_2024 flagrt.Value
 																																																									if if_result_2022 {
 																																																										if_result_2024 = func() flagrt.Value {
-																																																											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("line-seq expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("set expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																											return flagrt.NilValue
 																																																										}()
 																																																									} else {
 																																																										var let_result_2023 flagrt.Value
 																																																										{
 																																																											var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																											let_result_2023 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__line_seq_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_line_seq_expects_an_argu)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																											let_result_2023 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__set_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_set_expects_an_argument_)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																										}
 																																																										if_result_2024 = let_result_2023
 																																																									}
-																																																									if_result_2075 = if_result_2024
+																																																									if_result_2079 = if_result_2024
 																																																								} else {
-																																																									var if_result_2074 flagrt.Value
-																																																									if flagrt.Eq(op, flagrt.NewString("repeat")) {
-																																																										var let_result_2031 flagrt.Value
-																																																										{
-																																																											var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))
-																																																											var let_result_2028 bool
-																																																											{
-																																																												var if_result_2025 bool
-																																																												if flagrt.Eq(n, lowflagLong_1) {
-																																																													if_result_2025 = false
-																																																												} else {
-																																																													if_result_2025 = true
-																																																												}
-																																																												var and_tmp = if_result_2025
-																																																												var if_result_2027 bool
-																																																												if and_tmp {
-																																																													var if_result_2026 bool
-																																																													if flagrt.Eq(n, lowflagLong_2) {
-																																																														if_result_2026 = false
-																																																													} else {
-																																																														if_result_2026 = true
-																																																													}
-																																																													if_result_2027 = if_result_2026
-																																																												} else {
-																																																													if_result_2027 = and_tmp
-																																																												}
-																																																												let_result_2028 = if_result_2027
-																																																											}
-																																																											var if_result_2030 flagrt.Value
-																																																											if let_result_2028 {
-																																																												if_result_2030 = func() flagrt.Value {
-																																																													flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("repeat expects one or two arguments"), flagrt.NewKeyword("data"), lowflagMap))
-																																																													return flagrt.NilValue
-																																																												}()
-																																																											} else {
-																																																												var let_result_2029 flagrt.Value
-																																																												{
-																																																													var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(true), lowflagStr_repeat_arguments_must_ev), ctx)
-																																																													let_result_2029 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__repeat_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
-																																																												}
-																																																												if_result_2030 = let_result_2029
-																																																											}
-																																																											let_result_2031 = if_result_2030
+																																																									var if_result_2078 flagrt.Value
+																																																									if flagrt.Eq(op, flagrt.NewString("line-seq")) {
+																																																										var if_result_2025 bool
+																																																										if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
+																																																											if_result_2025 = false
+																																																										} else {
+																																																											if_result_2025 = true
 																																																										}
-																																																										if_result_2074 = let_result_2031
+																																																										var if_result_2027 flagrt.Value
+																																																										if if_result_2025 {
+																																																											if_result_2027 = func() flagrt.Value {
+																																																												flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("line-seq expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																												return flagrt.NilValue
+																																																											}()
+																																																										} else {
+																																																											var let_result_2026 flagrt.Value
+																																																											{
+																																																												var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
+																																																												let_result_2026 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__line_seq_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_line_seq_expects_an_argu)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																											}
+																																																											if_result_2027 = let_result_2026
+																																																										}
+																																																										if_result_2078 = if_result_2027
 																																																									} else {
-																																																										var if_result_2073 flagrt.Value
-																																																										if flagrt.Eq(op, flagrt.NewString("range")) {
+																																																										var if_result_2077 flagrt.Value
+																																																										if flagrt.Eq(op, flagrt.NewString("repeat")) {
 																																																											var let_result_2034 flagrt.Value
 																																																											{
 																																																												var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))
+																																																												var let_result_2031 bool
+																																																												{
+																																																													var if_result_2028 bool
+																																																													if flagrt.Eq(n, lowflagLong_1) {
+																																																														if_result_2028 = false
+																																																													} else {
+																																																														if_result_2028 = true
+																																																													}
+																																																													var and_tmp = if_result_2028
+																																																													var if_result_2030 bool
+																																																													if and_tmp {
+																																																														var if_result_2029 bool
+																																																														if flagrt.Eq(n, lowflagLong_2) {
+																																																															if_result_2029 = false
+																																																														} else {
+																																																															if_result_2029 = true
+																																																														}
+																																																														if_result_2030 = if_result_2029
+																																																													} else {
+																																																														if_result_2030 = and_tmp
+																																																													}
+																																																													let_result_2031 = if_result_2030
+																																																												}
 																																																												var if_result_2033 flagrt.Value
-																																																												if flagrt.Gt(n, lowflagLong_3) {
+																																																												if let_result_2031 {
 																																																													if_result_2033 = func() flagrt.Value {
-																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("range expects zero to three integer arguments"), flagrt.NewKeyword("data"), lowflagMap))
+																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("repeat expects one or two arguments"), flagrt.NewKeyword("data"), lowflagMap))
 																																																														return flagrt.NilValue
 																																																													}()
 																																																												} else {
 																																																													var let_result_2032 flagrt.Value
 																																																													{
-																																																														var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(true), lowflagStr_range_arguments_must_eva), ctx)
-																																																														let_result_2032 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__range_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																														var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(true), lowflagStr_repeat_arguments_must_ev), ctx)
+																																																														let_result_2032 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__repeat_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																													}
 																																																													if_result_2033 = let_result_2032
 																																																												}
 																																																												let_result_2034 = if_result_2033
 																																																											}
-																																																											if_result_2073 = let_result_2034
+																																																											if_result_2077 = let_result_2034
 																																																										} else {
-																																																											var if_result_2072 flagrt.Value
-																																																											if flagrt.Eq(op, flagrt.NewString("rand-int")) {
-																																																												var if_result_2035 bool
-																																																												if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																													if_result_2035 = false
-																																																												} else {
-																																																													if_result_2035 = true
-																																																												}
-																																																												var if_result_2037 flagrt.Value
-																																																												if if_result_2035 {
-																																																													if_result_2037 = func() flagrt.Value {
-																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("rand-int expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
-																																																														return flagrt.NilValue
-																																																													}()
-																																																												} else {
-																																																													var let_result_2036 flagrt.Value
-																																																													{
-																																																														var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																														let_result_2036 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__rand_int_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_rand_int_expects_an_argu)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																											var if_result_2076 flagrt.Value
+																																																											if flagrt.Eq(op, flagrt.NewString("range")) {
+																																																												var let_result_2037 flagrt.Value
+																																																												{
+																																																													var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))
+																																																													var if_result_2036 flagrt.Value
+																																																													if flagrt.Gt(n, lowflagLong_3) {
+																																																														if_result_2036 = func() flagrt.Value {
+																																																															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("range expects zero to three integer arguments"), flagrt.NewKeyword("data"), lowflagMap))
+																																																															return flagrt.NilValue
+																																																														}()
+																																																													} else {
+																																																														var let_result_2035 flagrt.Value
+																																																														{
+																																																															var compiled = compiler__compile_form_node_arity_3(lowflagKw_value_args, flagrt.NewArray(args, flagrt.NewBool(true), lowflagStr_range_arguments_must_eva), ctx)
+																																																															let_result_2035 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__range_to_ir_arity_1(flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																														}
+																																																														if_result_2036 = let_result_2035
 																																																													}
-																																																													if_result_2037 = let_result_2036
+																																																													let_result_2037 = if_result_2036
 																																																												}
-																																																												if_result_2072 = if_result_2037
+																																																												if_result_2076 = let_result_2037
 																																																											} else {
-																																																												var if_result_2071 flagrt.Value
-																																																												if flagrt.Eq(op, flagrt.NewString("to-json")) {
+																																																												var if_result_2075 flagrt.Value
+																																																												if flagrt.Eq(op, flagrt.NewString("rand-int")) {
 																																																													var if_result_2038 bool
 																																																													if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																														if_result_2038 = false
@@ -15368,883 +15338,909 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																													var if_result_2040 flagrt.Value
 																																																													if if_result_2038 {
 																																																														if_result_2040 = func() flagrt.Value {
-																																																															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("to-json expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("rand-int expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																															return flagrt.NilValue
 																																																														}()
 																																																													} else {
 																																																														var let_result_2039 flagrt.Value
 																																																														{
 																																																															var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																															let_result_2039 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__to_json_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_to_json_expects_an_argum)), lowflagKw_string, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																															let_result_2039 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__rand_int_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_rand_int_expects_an_argu)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																														}
 																																																														if_result_2040 = let_result_2039
 																																																													}
-																																																													if_result_2071 = if_result_2040
+																																																													if_result_2075 = if_result_2040
 																																																												} else {
-																																																													var if_result_2070 flagrt.Value
-																																																													if flagrt.Eq(op, flagrt.NewString("from-json")) {
+																																																													var if_result_2074 flagrt.Value
+																																																													if flagrt.Eq(op, flagrt.NewString("to-json")) {
 																																																														var if_result_2041 bool
 																																																														if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
 																																																															if_result_2041 = false
 																																																														} else {
 																																																															if_result_2041 = true
 																																																														}
-																																																														var if_result_2045 flagrt.Value
+																																																														var if_result_2043 flagrt.Value
 																																																														if if_result_2041 {
-																																																															if_result_2045 = func() flagrt.Value {
-																																																																flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("from-json expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																															if_result_2043 = func() flagrt.Value {
+																																																																flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("to-json expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																return flagrt.NilValue
 																																																															}()
 																																																														} else {
-																																																															var let_result_2044 flagrt.Value
+																																																															var let_result_2042 flagrt.Value
 																																																															{
 																																																																var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																																var if_result_2042 bool
-																																																																if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(part, lowflagKw_expr_kind)) {
-																																																																	if_result_2042 = false
-																																																																} else {
-																																																																	if_result_2042 = true
-																																																																}
-																																																																var if_result_2043 flagrt.Value
-																																																																if if_result_2042 {
-																																																																	if_result_2043 = func() flagrt.Value {
-																																																																		flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("from-json expects a string argument"), flagrt.NewKeyword("data"), lowflagMap))
-																																																																		return flagrt.NilValue
-																																																																	}()
-																																																																} else {
-																																																																	if_result_2043 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__from_json_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
-																																																																}
-																																																																let_result_2044 = if_result_2043
+																																																																let_result_2042 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__to_json_to_ir_arity_1(compiler__wrap_value_arg_ir_arity_3(part, flagrt.NewBool(false), lowflagStr_to_json_expects_an_argum)), lowflagKw_string, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																															}
-																																																															if_result_2045 = let_result_2044
+																																																															if_result_2043 = let_result_2042
 																																																														}
-																																																														if_result_2070 = if_result_2045
+																																																														if_result_2074 = if_result_2043
 																																																													} else {
-																																																														var if_result_2069 flagrt.Value
-																																																														if flagrt.Eq(op, flagrt.NewString("open-file")) {
-																																																															var if_result_2046 bool
+																																																														var if_result_2073 flagrt.Value
+																																																														if flagrt.Eq(op, flagrt.NewString("from-json")) {
+																																																															var if_result_2044 bool
 																																																															if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																																if_result_2046 = false
+																																																																if_result_2044 = false
 																																																															} else {
-																																																																if_result_2046 = true
+																																																																if_result_2044 = true
 																																																															}
-																																																															var if_result_2050 flagrt.Value
-																																																															if if_result_2046 {
-																																																																if_result_2050 = func() flagrt.Value {
-																																																																	flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("open-file expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																															var if_result_2048 flagrt.Value
+																																																															if if_result_2044 {
+																																																																if_result_2048 = func() flagrt.Value {
+																																																																	flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("from-json expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																	return flagrt.NilValue
 																																																																}()
 																																																															} else {
-																																																																var let_result_2049 flagrt.Value
+																																																																var let_result_2047 flagrt.Value
 																																																																{
 																																																																	var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																																	var k = flagrt.KeywordGet(part, lowflagKw_expr_kind)
-																																																																	var if_result_2048 flagrt.Value
-																																																																	if flagrt.Eq(k, lowflagKw_string) {
-																																																																		if_result_2048 = flagrt.KeywordGet(part, lowflagKw_expr)
+																																																																	var if_result_2045 bool
+																																																																	if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(part, lowflagKw_expr_kind)) {
+																																																																		if_result_2045 = false
 																																																																	} else {
-																																																																		var if_result_2047 flagrt.Value
-																																																																		if flagrt.Eq(k, lowflagKw_value) {
-																																																																			if_result_2047 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
-																																																																		} else {
-																																																																			if_result_2047 = func() flagrt.Value {
-																																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("open-file expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
-																																																																				return flagrt.NilValue
-																																																																			}()
-																																																																		}
-																																																																		if_result_2048 = if_result_2047
+																																																																		if_result_2045 = true
 																																																																	}
-																																																																	var arg = if_result_2048
-																																																																	let_result_2049 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__open_file_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																	var if_result_2046 flagrt.Value
+																																																																	if if_result_2045 {
+																																																																		if_result_2046 = func() flagrt.Value {
+																																																																			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("from-json expects a string argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																			return flagrt.NilValue
+																																																																		}()
+																																																																	} else {
+																																																																		if_result_2046 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__from_json_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																	}
+																																																																	let_result_2047 = if_result_2046
 																																																																}
-																																																																if_result_2050 = let_result_2049
+																																																																if_result_2048 = let_result_2047
 																																																															}
-																																																															if_result_2069 = if_result_2050
+																																																															if_result_2073 = if_result_2048
 																																																														} else {
-																																																															var if_result_2068 flagrt.Value
-																																																															if flagrt.Eq(op, flagrt.NewString("file-to-strings")) {
-																																																																var if_result_2051 bool
+																																																															var if_result_2072 flagrt.Value
+																																																															if flagrt.Eq(op, flagrt.NewString("open-file")) {
+																																																																var if_result_2049 bool
 																																																																if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																																	if_result_2051 = false
+																																																																	if_result_2049 = false
 																																																																} else {
-																																																																	if_result_2051 = true
+																																																																	if_result_2049 = true
 																																																																}
-																																																																var if_result_2055 flagrt.Value
-																																																																if if_result_2051 {
-																																																																	if_result_2055 = func() flagrt.Value {
-																																																																		flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("file-to-strings expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																var if_result_2053 flagrt.Value
+																																																																if if_result_2049 {
+																																																																	if_result_2053 = func() flagrt.Value {
+																																																																		flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("open-file expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																		return flagrt.NilValue
 																																																																	}()
 																																																																} else {
-																																																																	var let_result_2054 flagrt.Value
+																																																																	var let_result_2052 flagrt.Value
 																																																																	{
 																																																																		var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
 																																																																		var k = flagrt.KeywordGet(part, lowflagKw_expr_kind)
-																																																																		var if_result_2053 flagrt.Value
+																																																																		var if_result_2051 flagrt.Value
 																																																																		if flagrt.Eq(k, lowflagKw_string) {
-																																																																			if_result_2053 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__file_to_strings_path_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																			if_result_2051 = flagrt.KeywordGet(part, lowflagKw_expr)
 																																																																		} else {
-																																																																			var if_result_2052 flagrt.Value
+																																																																			var if_result_2050 flagrt.Value
 																																																																			if flagrt.Eq(k, lowflagKw_value) {
-																																																																				if_result_2052 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__file_to_strings_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																				if_result_2050 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
 																																																																			} else {
-																																																																				if_result_2052 = func() flagrt.Value {
-																																																																					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("file-to-strings expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																				if_result_2050 = func() flagrt.Value {
+																																																																					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("open-file expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																					return flagrt.NilValue
 																																																																				}()
 																																																																			}
-																																																																			if_result_2053 = if_result_2052
+																																																																			if_result_2051 = if_result_2050
 																																																																		}
-																																																																		let_result_2054 = if_result_2053
+																																																																		var arg = if_result_2051
+																																																																		let_result_2052 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__open_file_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																																	}
-																																																																	if_result_2055 = let_result_2054
+																																																																	if_result_2053 = let_result_2052
 																																																																}
-																																																																if_result_2068 = if_result_2055
+																																																																if_result_2072 = if_result_2053
 																																																															} else {
-																																																																var if_result_2067 flagrt.Value
-																																																																if flagrt.Eq(op, flagrt.NewString("go-fn")) {
-																																																																	var if_result_2056 bool
+																																																																var if_result_2071 flagrt.Value
+																																																																if flagrt.Eq(op, flagrt.NewString("file-to-strings")) {
+																																																																	var if_result_2054 bool
 																																																																	if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																																		if_result_2056 = false
+																																																																		if_result_2054 = false
 																																																																	} else {
-																																																																		if_result_2056 = true
+																																																																		if_result_2054 = true
 																																																																	}
-																																																																	var if_result_2060 flagrt.Value
-																																																																	if if_result_2056 {
-																																																																		if_result_2060 = func() flagrt.Value {
-																																																																			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																	var if_result_2058 flagrt.Value
+																																																																	if if_result_2054 {
+																																																																		if_result_2058 = func() flagrt.Value {
+																																																																			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("file-to-strings expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																			return flagrt.NilValue
 																																																																		}()
 																																																																	} else {
-																																																																		var let_result_2059 flagrt.Value
+																																																																		var let_result_2057 flagrt.Value
 																																																																		{
 																																																																			var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
 																																																																			var k = flagrt.KeywordGet(part, lowflagKw_expr_kind)
-																																																																			var if_result_2058 flagrt.Value
+																																																																			var if_result_2056 flagrt.Value
 																																																																			if flagrt.Eq(k, lowflagKw_string) {
-																																																																				if_result_2058 = flagrt.KeywordGet(part, lowflagKw_expr)
+																																																																				if_result_2056 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__file_to_strings_path_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																																			} else {
-																																																																				var if_result_2057 flagrt.Value
+																																																																				var if_result_2055 flagrt.Value
 																																																																				if flagrt.Eq(k, lowflagKw_value) {
-																																																																					if_result_2057 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
+																																																																					if_result_2055 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__file_to_strings_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																																				} else {
-																																																																					if_result_2057 = func() flagrt.Value {
-																																																																						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																					if_result_2055 = func() flagrt.Value {
+																																																																						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("file-to-strings expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																						return flagrt.NilValue
 																																																																					}()
 																																																																				}
-																																																																				if_result_2058 = if_result_2057
+																																																																				if_result_2056 = if_result_2055
 																																																																			}
-																																																																			var arg = if_result_2058
-																																																																			let_result_2059 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__go_fn_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																			let_result_2057 = if_result_2056
 																																																																		}
-																																																																		if_result_2060 = let_result_2059
+																																																																		if_result_2058 = let_result_2057
 																																																																	}
-																																																																	if_result_2067 = if_result_2060
+																																																																	if_result_2071 = if_result_2058
 																																																																} else {
-																																																																	var if_result_2066 flagrt.Value
-																																																																	if flagrt.Eq(op, flagrt.NewString("go-fn-args")) {
-																																																																		var if_result_2061 bool
+																																																																	var if_result_2070 flagrt.Value
+																																																																	if flagrt.Eq(op, flagrt.NewString("go-fn")) {
+																																																																		var if_result_2059 bool
 																																																																		if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																																			if_result_2061 = false
+																																																																			if_result_2059 = false
 																																																																		} else {
-																																																																			if_result_2061 = true
+																																																																			if_result_2059 = true
 																																																																		}
-																																																																		var if_result_2065 flagrt.Value
-																																																																		if if_result_2061 {
-																																																																			if_result_2065 = func() flagrt.Value {
-																																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn-args expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																		var if_result_2063 flagrt.Value
+																																																																		if if_result_2059 {
+																																																																			if_result_2063 = func() flagrt.Value {
+																																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																				return flagrt.NilValue
 																																																																			}()
 																																																																		} else {
-																																																																			var let_result_2064 flagrt.Value
+																																																																			var let_result_2062 flagrt.Value
 																																																																			{
 																																																																				var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
 																																																																				var k = flagrt.KeywordGet(part, lowflagKw_expr_kind)
-																																																																				var if_result_2063 flagrt.Value
+																																																																				var if_result_2061 flagrt.Value
 																																																																				if flagrt.Eq(k, lowflagKw_string) {
-																																																																					if_result_2063 = flagrt.KeywordGet(part, lowflagKw_expr)
+																																																																					if_result_2061 = flagrt.KeywordGet(part, lowflagKw_expr)
 																																																																				} else {
-																																																																					var if_result_2062 flagrt.Value
+																																																																					var if_result_2060 flagrt.Value
 																																																																					if flagrt.Eq(k, lowflagKw_value) {
-																																																																						if_result_2062 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
+																																																																						if_result_2060 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
 																																																																					} else {
-																																																																						if_result_2062 = func() flagrt.Value {
-																																																																							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn-args expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																						if_result_2060 = func() flagrt.Value {
+																																																																							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																							return flagrt.NilValue
 																																																																						}()
 																																																																					}
-																																																																					if_result_2063 = if_result_2062
+																																																																					if_result_2061 = if_result_2060
 																																																																				}
-																																																																				var arg = if_result_2063
-																																																																				let_result_2064 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__go_fn_args_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																				var arg = if_result_2061
+																																																																				let_result_2062 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__go_fn_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																																			}
-																																																																			if_result_2065 = let_result_2064
+																																																																			if_result_2063 = let_result_2062
 																																																																		}
-																																																																		if_result_2066 = if_result_2065
+																																																																		if_result_2070 = if_result_2063
 																																																																	} else {
-																																																																		if_result_2066 = func() flagrt.Value {
-																																																																			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("unsupported remaining runtime op"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_op, op)))
-																																																																			return flagrt.NilValue
-																																																																		}()
+																																																																		var if_result_2069 flagrt.Value
+																																																																		if flagrt.Eq(op, flagrt.NewString("go-fn-args")) {
+																																																																			var if_result_2064 bool
+																																																																			if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
+																																																																				if_result_2064 = false
+																																																																			} else {
+																																																																				if_result_2064 = true
+																																																																			}
+																																																																			var if_result_2068 flagrt.Value
+																																																																			if if_result_2064 {
+																																																																				if_result_2068 = func() flagrt.Value {
+																																																																					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn-args expects exactly one argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																					return flagrt.NilValue
+																																																																				}()
+																																																																			} else {
+																																																																				var let_result_2067 flagrt.Value
+																																																																				{
+																																																																					var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
+																																																																					var k = flagrt.KeywordGet(part, lowflagKw_expr_kind)
+																																																																					var if_result_2066 flagrt.Value
+																																																																					if flagrt.Eq(k, lowflagKw_string) {
+																																																																						if_result_2066 = flagrt.KeywordGet(part, lowflagKw_expr)
+																																																																					} else {
+																																																																						var if_result_2065 flagrt.Value
+																																																																						if flagrt.Eq(k, lowflagKw_value) {
+																																																																							if_result_2065 = compiler__name_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr))
+																																																																						} else {
+																																																																							if_result_2065 = func() flagrt.Value {
+																																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-fn-args expects a string, symbol, or keyword argument"), flagrt.NewKeyword("data"), lowflagMap))
+																																																																								return flagrt.NilValue
+																																																																							}()
+																																																																						}
+																																																																						if_result_2066 = if_result_2065
+																																																																					}
+																																																																					var arg = if_result_2066
+																																																																					let_result_2067 = compiler__form_result_arity_4(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__go_fn_args_to_ir_arity_1(arg), lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																																				}
+																																																																				if_result_2068 = let_result_2067
+																																																																			}
+																																																																			if_result_2069 = if_result_2068
+																																																																		} else {
+																																																																			if_result_2069 = func() flagrt.Value {
+																																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("unsupported remaining runtime op"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_op, op)))
+																																																																				return flagrt.NilValue
+																																																																			}()
+																																																																		}
+																																																																		if_result_2070 = if_result_2069
 																																																																	}
-																																																																	if_result_2067 = if_result_2066
+																																																																	if_result_2071 = if_result_2070
 																																																																}
-																																																																if_result_2068 = if_result_2067
+																																																																if_result_2072 = if_result_2071
 																																																															}
-																																																															if_result_2069 = if_result_2068
+																																																															if_result_2073 = if_result_2072
 																																																														}
-																																																														if_result_2070 = if_result_2069
+																																																														if_result_2074 = if_result_2073
 																																																													}
-																																																													if_result_2071 = if_result_2070
+																																																													if_result_2075 = if_result_2074
 																																																												}
-																																																												if_result_2072 = if_result_2071
+																																																												if_result_2076 = if_result_2075
 																																																											}
-																																																											if_result_2073 = if_result_2072
+																																																											if_result_2077 = if_result_2076
 																																																										}
-																																																										if_result_2074 = if_result_2073
+																																																										if_result_2078 = if_result_2077
 																																																									}
-																																																									if_result_2075 = if_result_2074
+																																																									if_result_2079 = if_result_2078
 																																																								}
-																																																								if_result_2076 = if_result_2075
+																																																								if_result_2080 = if_result_2079
 																																																							}
-																																																							if_result_2077 = if_result_2076
+																																																							if_result_2081 = if_result_2080
 																																																						}
-																																																						if_result_2078 = if_result_2077
+																																																						if_result_2082 = if_result_2081
 																																																					}
-																																																					if_result_2079 = if_result_2078
+																																																					if_result_2083 = if_result_2082
 																																																				}
-																																																				if_result_2080 = if_result_2079
+																																																				if_result_2084 = if_result_2083
 																																																			}
-																																																			if_result_2081 = if_result_2080
+																																																			if_result_2085 = if_result_2084
 																																																		}
-																																																		if_result_2082 = if_result_2081
+																																																		if_result_2086 = if_result_2085
 																																																	}
-																																																	if_result_2083 = if_result_2082
+																																																	if_result_2087 = if_result_2086
 																																																}
-																																																if_result_2084 = if_result_2083
+																																																if_result_2088 = if_result_2087
 																																															}
-																																															if_result_2085 = if_result_2084
+																																															if_result_2089 = if_result_2088
 																																														}
-																																														if_result_2086 = if_result_2085
+																																														if_result_2090 = if_result_2089
 																																													}
-																																													if_result_2087 = if_result_2086
+																																													if_result_2091 = if_result_2090
 																																												}
-																																												if_result_2088 = if_result_2087
+																																												if_result_2092 = if_result_2091
 																																											}
-																																											if_result_2089 = if_result_2088
+																																											if_result_2093 = if_result_2092
 																																										}
-																																										if_result_2090 = if_result_2089
+																																										if_result_2094 = if_result_2093
 																																									}
-																																									if_result_2091 = if_result_2090
+																																									if_result_2095 = if_result_2094
 																																								}
-																																								let_result_2092 = if_result_2091
+																																								let_result_2096 = if_result_2095
 																																							}
-																																							if_result_2381 = let_result_2092
+																																							if_result_2385 = let_result_2096
 																																						} else {
-																																							var if_result_2380 flagrt.Value
+																																							var if_result_2384 flagrt.Value
 																																							if flagrt.Eq(mode, lowflagKw_dot) {
-																																								var let_result_2104 flagrt.Value
+																																								var let_result_2108 flagrt.Value
 																																								{
 																																									var name = flagrt.First(node)
 																																									var args = flagrt.First(flagrt.Rest(node))
-																																									var if_result_2103 flagrt.Value
+																																									var if_result_2107 flagrt.Value
 																																									if flagrt.Eq(name, flagrt.NewString(".write")) {
-																																										var if_result_2093 bool
+																																										var if_result_2097 bool
 																																										if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																											if_result_2093 = false
+																																											if_result_2097 = false
 																																										} else {
-																																											if_result_2093 = true
+																																											if_result_2097 = true
 																																										}
-																																										var if_result_2098 flagrt.Value
-																																										if if_result_2093 {
-																																											if_result_2098 = func() flagrt.Value {
+																																										var if_result_2102 flagrt.Value
+																																										if if_result_2097 {
+																																											if_result_2102 = func() flagrt.Value {
 																																												flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(".write expects file and content"), flagrt.NewKeyword("data"), lowflagMap))
 																																												return flagrt.NilValue
 																																											}()
 																																										} else {
-																																											var let_result_2097 flagrt.Value
+																																											var let_result_2101 flagrt.Value
 																																											{
 																																												var file_part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																												var if_result_2094 bool
+																																												var if_result_2098 bool
 																																												if flagrt.Eq(lowflagKw_value, flagrt.KeywordGet(file_part, lowflagKw_expr_kind)) {
-																																													if_result_2094 = false
+																																													if_result_2098 = false
 																																												} else {
-																																													if_result_2094 = true
+																																													if_result_2098 = true
 																																												}
-																																												var if_result_2096 flagrt.Value
-																																												if if_result_2094 {
-																																													if_result_2096 = func() flagrt.Value {
+																																												var if_result_2100 flagrt.Value
+																																												if if_result_2098 {
+																																													if_result_2100 = func() flagrt.Value {
 																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(".write expects a file Value"), flagrt.NewKeyword("data"), lowflagMap))
 																																														return flagrt.NilValue
 																																													}()
 																																												} else {
-																																													var let_result_2095 flagrt.Value
+																																													var let_result_2099 flagrt.Value
 																																													{
 																																														var content_part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(flagrt.Rest(args)), flagrt.KeywordGet(file_part, lowflagKw_ctx))
-																																														let_result_2095 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(file_part, lowflagKw_stmts), flagrt.KeywordGet(content_part, lowflagKw_stmts)), compiler__write_to_ir_arity_2(flagrt.KeywordGet(file_part, lowflagKw_expr), compiler__stringish_ir_arity_2(content_part, lowflagStr__write_content_must_be_s)), lowflagKw_value, flagrt.KeywordGet(content_part, lowflagKw_ctx))
+																																														let_result_2099 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(file_part, lowflagKw_stmts), flagrt.KeywordGet(content_part, lowflagKw_stmts)), compiler__write_to_ir_arity_2(flagrt.KeywordGet(file_part, lowflagKw_expr), compiler__stringish_ir_arity_2(content_part, lowflagStr__write_content_must_be_s)), lowflagKw_value, flagrt.KeywordGet(content_part, lowflagKw_ctx))
 																																													}
-																																													if_result_2096 = let_result_2095
+																																													if_result_2100 = let_result_2099
 																																												}
-																																												let_result_2097 = if_result_2096
+																																												let_result_2101 = if_result_2100
 																																											}
-																																											if_result_2098 = let_result_2097
+																																											if_result_2102 = let_result_2101
 																																										}
-																																										if_result_2103 = if_result_2098
+																																										if_result_2107 = if_result_2102
 																																									} else {
-																																										var if_result_2102 flagrt.Value
+																																										var if_result_2106 flagrt.Value
 																																										if flagrt.Eq(name, flagrt.NewString(".endsWith")) {
-																																											var if_result_2099 bool
+																																											var if_result_2103 bool
 																																											if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																												if_result_2099 = false
+																																												if_result_2103 = false
 																																											} else {
-																																												if_result_2099 = true
+																																												if_result_2103 = true
 																																											}
-																																											var if_result_2101 flagrt.Value
-																																											if if_result_2099 {
-																																												if_result_2101 = func() flagrt.Value {
+																																											var if_result_2105 flagrt.Value
+																																											if if_result_2103 {
+																																												if_result_2105 = func() flagrt.Value {
 																																													flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(".endsWith expects string and suffix"), flagrt.NewKeyword("data"), lowflagMap))
 																																													return flagrt.NilValue
 																																												}()
 																																											} else {
-																																												var let_result_2100 flagrt.Value
+																																												var let_result_2104 flagrt.Value
 																																												{
 																																													var left = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
 																																													var right = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(flagrt.Rest(args)), flagrt.KeywordGet(left, lowflagKw_ctx))
-																																													let_result_2100 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(left, lowflagKw_stmts), flagrt.KeywordGet(right, lowflagKw_stmts)), compiler__ends_with_to_ir_arity_2(compiler__stringish_ir_arity_2(left, lowflagStr__endsWith_expects_a_stri), compiler__stringish_ir_arity_2(right, lowflagStr__endsWith_expects_a_stri)), lowflagKw_bool, flagrt.KeywordGet(right, lowflagKw_ctx))
+																																													let_result_2104 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(left, lowflagKw_stmts), flagrt.KeywordGet(right, lowflagKw_stmts)), compiler__ends_with_to_ir_arity_2(compiler__stringish_ir_arity_2(left, lowflagStr__endsWith_expects_a_stri), compiler__stringish_ir_arity_2(right, lowflagStr__endsWith_expects_a_stri)), lowflagKw_bool, flagrt.KeywordGet(right, lowflagKw_ctx))
 																																												}
-																																												if_result_2101 = let_result_2100
+																																												if_result_2105 = let_result_2104
 																																											}
-																																											if_result_2102 = if_result_2101
+																																											if_result_2106 = if_result_2105
 																																										} else {
-																																											if_result_2102 = func() flagrt.Value {
+																																											if_result_2106 = func() flagrt.Value {
 																																												flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("unsupported symbol \"", name, "\"")), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_name, name)))
 																																												return flagrt.NilValue
 																																											}()
 																																										}
-																																										if_result_2103 = if_result_2102
+																																										if_result_2107 = if_result_2106
 																																									}
-																																									let_result_2104 = if_result_2103
+																																									let_result_2108 = if_result_2107
 																																								}
-																																								if_result_2380 = let_result_2104
+																																								if_result_2384 = let_result_2108
 																																							} else {
-																																								var if_result_2379 flagrt.Value
+																																								var if_result_2383 flagrt.Value
 																																								if flagrt.Eq(mode, lowflagKw_call) {
-																																									var let_result_2189 flagrt.Value
+																																									var let_result_2193 flagrt.Value
 																																									{
 																																										var elements = flagrt.KeywordGet(node, lowflagKw_elements)
-																																										var let_result_2106 bool
+																																										var let_result_2110 bool
 																																										{
 																																											var or_tmp = flagrt.IsNil(elements)
-																																											var if_result_2105 bool
+																																											var if_result_2109 bool
 																																											if or_tmp {
-																																												if_result_2105 = or_tmp
+																																												if_result_2109 = or_tmp
 																																											} else {
-																																												if_result_2105 = flagrt.IsEmpty(elements)
+																																												if_result_2109 = flagrt.IsEmpty(elements)
 																																											}
-																																											let_result_2106 = if_result_2105
+																																											let_result_2110 = if_result_2109
 																																										}
-																																										var if_result_2188 flagrt.Value
-																																										if let_result_2106 {
-																																											if_result_2188 = func() flagrt.Value {
+																																										var if_result_2192 flagrt.Value
+																																										if let_result_2110 {
+																																											if_result_2192 = func() flagrt.Value {
 																																												flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("unsupported form"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, node)))
 																																												return flagrt.NilValue
 																																											}()
 																																										} else {
-																																											var let_result_2187 flagrt.Value
+																																											var let_result_2191 flagrt.Value
 																																											{
 																																												var head = flagrt.First(elements)
 																																												var args = flagrt.Rest(elements)
-																																												var let_result_2111 bool
+																																												var let_result_2115 bool
 																																												{
 																																													var and_tmp = flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(head, lowflagKw_kind))
-																																													var if_result_2110 bool
+																																													var if_result_2114 bool
 																																													if and_tmp {
-																																														var let_result_2109 bool
+																																														var let_result_2113 bool
 																																														{
-																																															var if_result_2107 bool
+																																															var if_result_2111 bool
 																																															if flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(flagrt.KeywordGet(head, lowflagKw_name))))) {
-																																																if_result_2107 = false
+																																																if_result_2111 = false
 																																															} else {
-																																																if_result_2107 = true
+																																																if_result_2111 = true
 																																															}
-																																															var and_tmp = if_result_2107
-																																															var if_result_2108 bool
+																																															var and_tmp = if_result_2111
+																																															var if_result_2112 bool
 																																															if and_tmp {
-																																																if_result_2108 = flagrt.Eq(flagrt.NewString("."), flagrt.FnSubs(flagrt.KeywordGet(head, lowflagKw_name), lowflagLong_0, lowflagLong_1))
+																																																if_result_2112 = flagrt.Eq(flagrt.NewString("."), flagrt.FnSubs(flagrt.KeywordGet(head, lowflagKw_name), lowflagLong_0, lowflagLong_1))
 																																															} else {
-																																																if_result_2108 = and_tmp
+																																																if_result_2112 = and_tmp
 																																															}
-																																															let_result_2109 = if_result_2108
+																																															let_result_2113 = if_result_2112
 																																														}
-																																														if_result_2110 = let_result_2109
+																																														if_result_2114 = let_result_2113
 																																													} else {
-																																														if_result_2110 = and_tmp
+																																														if_result_2114 = and_tmp
 																																													}
-																																													let_result_2111 = if_result_2110
+																																													let_result_2115 = if_result_2114
 																																												}
-																																												var if_result_2186 flagrt.Value
-																																												if let_result_2111 {
-																																													if_result_2186 = compiler__compile_form_node_arity_3(lowflagKw_dot, flagrt.NewArray(flagrt.KeywordGet(head, lowflagKw_name), args), ctx)
+																																												var if_result_2190 flagrt.Value
+																																												if let_result_2115 {
+																																													if_result_2190 = compiler__compile_form_node_arity_3(lowflagKw_dot, flagrt.NewArray(flagrt.KeywordGet(head, lowflagKw_name), args), ctx)
 																																												} else {
-																																													var if_result_2185 flagrt.Value
+																																													var if_result_2189 flagrt.Value
 																																													if flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(head, lowflagKw_kind)) {
-																																														var let_result_2182 flagrt.Value
+																																														var let_result_2186 flagrt.Value
 																																														{
 																																															var op = flagrt.KeywordGet(head, lowflagKw_name)
 																																															var unary = flagrt.Get(compiler__unary_runtime_ops, op)
 																																															var fold = flagrt.Get(compiler__fold_runtime_ops, op)
 																																															var binary = flagrt.Get(compiler__binary_runtime_ops, op)
 																																															var variadic = flagrt.Get(compiler__variadic_runtime_ops, op)
-																																															var if_result_2181 flagrt.Value
+																																															var if_result_2185 flagrt.Value
 																																															if flagrt.Eq(op, flagrt.NewString("if")) {
-																																																if_result_2181 = compiler__compile_form_node_arity_3(lowflagKw_if, args, ctx)
+																																																if_result_2185 = compiler__compile_form_node_arity_3(lowflagKw_if, args, ctx)
 																																															} else {
-																																																var if_result_2180 flagrt.Value
+																																																var if_result_2184 flagrt.Value
 																																																if flagrt.Eq(op, flagrt.NewString("do")) {
-																																																	if_result_2180 = compiler__compile_form_node_arity_3(lowflagKw_forms, args, ctx)
+																																																	if_result_2184 = compiler__compile_form_node_arity_3(lowflagKw_forms, args, ctx)
 																																																} else {
-																																																	var if_result_2179 flagrt.Value
+																																																	var if_result_2183 flagrt.Value
 																																																	if flagrt.Eq(op, flagrt.NewString("let")) {
-																																																		if_result_2179 = compiler__compile_form_node_arity_3(lowflagKw_let, args, ctx)
+																																																		if_result_2183 = compiler__compile_form_node_arity_3(lowflagKw_let, args, ctx)
 																																																	} else {
-																																																		var if_result_2178 flagrt.Value
+																																																		var if_result_2182 flagrt.Value
 																																																		if flagrt.Eq(op, flagrt.NewString("fn")) {
-																																																			if_result_2178 = compiler__compile_form_node_arity_3(lowflagKw_fn, args, ctx)
+																																																			if_result_2182 = compiler__compile_form_node_arity_3(lowflagKw_fn, args, ctx)
 																																																		} else {
-																																																			var if_result_2177 flagrt.Value
+																																																			var if_result_2181 flagrt.Value
 																																																			if flagrt.Eq(op, flagrt.NewString("update!")) {
-																																																				if_result_2177 = compiler__compile_form_node_arity_3(lowflagKw_update, args, ctx)
+																																																				if_result_2181 = compiler__compile_form_node_arity_3(lowflagKw_update, args, ctx)
 																																																			} else {
-																																																				var if_result_2176 flagrt.Value
+																																																				var if_result_2180 flagrt.Value
 																																																				if flagrt.Eq(op, flagrt.NewString("nil?")) {
-																																																					if_result_2176 = compiler__compile_form_node_arity_3(lowflagKw_nil_, args, ctx)
+																																																					if_result_2180 = compiler__compile_form_node_arity_3(lowflagKw_nil_, args, ctx)
 																																																				} else {
-																																																					var if_result_2175 flagrt.Value
+																																																					var if_result_2179 flagrt.Value
 																																																					if flagrt.Eq(op, flagrt.NewString("empty?")) {
-																																																						if_result_2175 = compiler__compile_form_node_arity_3(lowflagKw_empty_, args, ctx)
+																																																						if_result_2179 = compiler__compile_form_node_arity_3(lowflagKw_empty_, args, ctx)
 																																																					} else {
-																																																						var if_result_2174 flagrt.Value
+																																																						var if_result_2178 flagrt.Value
 																																																						if flagrt.Eq(op, flagrt.NewString("count")) {
-																																																							if_result_2174 = compiler__compile_form_node_arity_3(lowflagKw_count, args, ctx)
+																																																							if_result_2178 = compiler__compile_form_node_arity_3(lowflagKw_count, args, ctx)
 																																																						} else {
-																																																							var if_result_2173 flagrt.Value
+																																																							var if_result_2177 flagrt.Value
 																																																							if flagrt.Eq(op, flagrt.NewString("throw")) {
-																																																								if_result_2173 = compiler__compile_form_node_arity_3(lowflagKw_throw, args, ctx)
+																																																								if_result_2177 = compiler__compile_form_node_arity_3(lowflagKw_throw, args, ctx)
 																																																							} else {
-																																																								var if_result_2172 flagrt.Value
+																																																								var if_result_2176 flagrt.Value
 																																																								if flagrt.Eq(op, flagrt.NewString("loop")) {
-																																																									if_result_2172 = compiler__compile_form_node_arity_3(lowflagKw_loop, args, ctx)
+																																																									if_result_2176 = compiler__compile_form_node_arity_3(lowflagKw_loop, args, ctx)
 																																																								} else {
-																																																									var if_result_2171 flagrt.Value
+																																																									var if_result_2175 flagrt.Value
 																																																									if flagrt.Eq(op, flagrt.NewString("recur")) {
-																																																										if_result_2171 = compiler__compile_form_node_arity_3(lowflagKw_recur, args, ctx)
+																																																										if_result_2175 = compiler__compile_form_node_arity_3(lowflagKw_recur, args, ctx)
 																																																									} else {
-																																																										var if_result_2170 flagrt.Value
+																																																										var if_result_2174 flagrt.Value
 																																																										if flagrt.Eq(op, flagrt.NewString("str")) {
-																																																											if_result_2170 = compiler__compile_form_node_arity_3(lowflagKw_str, args, ctx)
+																																																											if_result_2174 = compiler__compile_form_node_arity_3(lowflagKw_str, args, ctx)
 																																																										} else {
-																																																											var if_result_2169 flagrt.Value
+																																																											var if_result_2173 flagrt.Value
 																																																											if flagrt.Eq(op, flagrt.NewString("ex-info")) {
-																																																												if_result_2169 = compiler__compile_form_node_arity_3(lowflagKw_ex_info, args, ctx)
+																																																												if_result_2173 = compiler__compile_form_node_arity_3(lowflagKw_ex_info, args, ctx)
 																																																											} else {
-																																																												var if_result_2168 flagrt.Value
+																																																												var if_result_2172 flagrt.Value
 																																																												if flagrt.Eq(op, flagrt.NewString("assoc")) {
-																																																													if_result_2168 = compiler__compile_form_node_arity_3(lowflagKw_assoc, args, ctx)
+																																																													if_result_2172 = compiler__compile_form_node_arity_3(lowflagKw_assoc, args, ctx)
 																																																												} else {
-																																																													var if_result_2167 flagrt.Value
+																																																													var if_result_2171 flagrt.Value
 																																																													if flagrt.Eq(op, flagrt.NewString("conj")) {
-																																																														if_result_2167 = compiler__compile_form_node_arity_3(lowflagKw_conj, args, ctx)
+																																																														if_result_2171 = compiler__compile_form_node_arity_3(lowflagKw_conj, args, ctx)
 																																																													} else {
-																																																														var if_result_2166 flagrt.Value
+																																																														var if_result_2170 flagrt.Value
 																																																														if flagrt.Eq(op, flagrt.NewString("seq")) {
-																																																															if_result_2166 = compiler__compile_form_node_arity_3(lowflagKw_seq_op, args, ctx)
+																																																															if_result_2170 = compiler__compile_form_node_arity_3(lowflagKw_seq_op, args, ctx)
 																																																														} else {
-																																																															var if_result_2165 flagrt.Value
+																																																															var if_result_2169 flagrt.Value
 																																																															if flagrt.Eq(op, flagrt.NewString("drop")) {
-																																																																if_result_2165 = compiler__compile_form_node_arity_3(lowflagKw_drop, args, ctx)
+																																																																if_result_2169 = compiler__compile_form_node_arity_3(lowflagKw_drop, args, ctx)
 																																																															} else {
-																																																																var if_result_2164 flagrt.Value
+																																																																var if_result_2168 flagrt.Value
 																																																																if flagrt.Eq(op, flagrt.NewString("take")) {
-																																																																	if_result_2164 = compiler__compile_form_node_arity_3(lowflagKw_take, args, ctx)
+																																																																	if_result_2168 = compiler__compile_form_node_arity_3(lowflagKw_take, args, ctx)
 																																																																} else {
-																																																																	var if_result_2163 flagrt.Value
+																																																																	var if_result_2167 flagrt.Value
 																																																																	if flagrt.Eq(op, flagrt.NewString("cons")) {
-																																																																		if_result_2163 = compiler__compile_form_node_arity_3(lowflagKw_cons, args, ctx)
+																																																																		if_result_2167 = compiler__compile_form_node_arity_3(lowflagKw_cons, args, ctx)
 																																																																	} else {
-																																																																		var if_result_2162 flagrt.Value
+																																																																		var if_result_2166 flagrt.Value
 																																																																		if flagrt.Eq(op, flagrt.NewString("get")) {
-																																																																			if_result_2162 = compiler__compile_form_node_arity_3(lowflagKw_get, args, ctx)
+																																																																			if_result_2166 = compiler__compile_form_node_arity_3(lowflagKw_get, args, ctx)
 																																																																		} else {
-																																																																			var if_result_2161 flagrt.Value
+																																																																			var if_result_2165 flagrt.Value
 																																																																			if flagrt.Eq(op, flagrt.NewString("nth")) {
-																																																																				if_result_2161 = compiler__compile_form_node_arity_3(lowflagKw_nth, args, ctx)
+																																																																				if_result_2165 = compiler__compile_form_node_arity_3(lowflagKw_nth, args, ctx)
 																																																																			} else {
-																																																																				var if_result_2160 flagrt.Value
+																																																																				var if_result_2164 flagrt.Value
 																																																																				if flagrt.Eq(op, flagrt.NewString("not-empty")) {
-																																																																					if_result_2160 = compiler__compile_form_node_arity_3(lowflagKw_not_empty, args, ctx)
+																																																																					if_result_2164 = compiler__compile_form_node_arity_3(lowflagKw_not_empty, args, ctx)
 																																																																				} else {
-																																																																					var if_result_2159 flagrt.Value
+																																																																					var if_result_2163 flagrt.Value
 																																																																					if flagrt.Eq(op, flagrt.NewString("type-of")) {
-																																																																						if_result_2159 = compiler__compile_form_node_arity_3(lowflagKw_type_of, args, ctx)
+																																																																						if_result_2163 = compiler__compile_form_node_arity_3(lowflagKw_type_of, args, ctx)
 																																																																					} else {
-																																																																						var if_result_2158 flagrt.Value
+																																																																						var if_result_2162 flagrt.Value
 																																																																						if flagrt.Eq(op, flagrt.NewString("vec")) {
-																																																																							if_result_2158 = compiler__compile_form_node_arity_3(lowflagKw_vec, args, ctx)
+																																																																							if_result_2162 = compiler__compile_form_node_arity_3(lowflagKw_vec, args, ctx)
 																																																																						} else {
-																																																																							var if_result_2157 flagrt.Value
+																																																																							var if_result_2161 flagrt.Value
 																																																																							if flagrt.Eq(op, flagrt.NewString("dissoc")) {
-																																																																								if_result_2157 = compiler__compile_form_node_arity_3(lowflagKw_dissoc, args, ctx)
+																																																																								if_result_2161 = compiler__compile_form_node_arity_3(lowflagKw_dissoc, args, ctx)
 																																																																							} else {
-																																																																								var if_result_2156 flagrt.Value
+																																																																								var if_result_2160 flagrt.Value
 																																																																								if flagrt.Eq(op, flagrt.NewString("contains?")) {
-																																																																									if_result_2156 = compiler__compile_form_node_arity_3(lowflagKw_contains_, args, ctx)
+																																																																									if_result_2160 = compiler__compile_form_node_arity_3(lowflagKw_contains_, args, ctx)
 																																																																								} else {
-																																																																									var if_result_2155 flagrt.Value
+																																																																									var if_result_2159 flagrt.Value
 																																																																									if flagrt.Eq(op, flagrt.NewString("list")) {
-																																																																										if_result_2155 = compiler__compile_form_node_arity_3(lowflagKw_list_ctor, args, ctx)
+																																																																										if_result_2159 = compiler__compile_form_node_arity_3(lowflagKw_list_ctor, args, ctx)
 																																																																									} else {
-																																																																										var if_result_2154 flagrt.Value
+																																																																										var if_result_2158 flagrt.Value
 																																																																										if flagrt.Eq(op, flagrt.NewString("array")) {
-																																																																											if_result_2154 = compiler__compile_form_node_arity_3(lowflagKw_array_ctor, args, ctx)
+																																																																											if_result_2158 = compiler__compile_form_node_arity_3(lowflagKw_array_ctor, args, ctx)
 																																																																										} else {
-																																																																											var if_result_2153 flagrt.Value
+																																																																											var if_result_2157 flagrt.Value
 																																																																											if flagrt.Eq(op, flagrt.NewString("hash-map")) {
-																																																																												if_result_2153 = compiler__compile_form_node_arity_3(lowflagKw_hash_map, args, ctx)
+																																																																												if_result_2157 = compiler__compile_form_node_arity_3(lowflagKw_hash_map, args, ctx)
 																																																																											} else {
-																																																																												var if_result_2152 flagrt.Value
+																																																																												var if_result_2156 flagrt.Value
 																																																																												if flagrt.Eq(op, flagrt.NewString("into")) {
-																																																																													if_result_2152 = compiler__compile_form_node_arity_3(lowflagKw_into, args, ctx)
+																																																																													if_result_2156 = compiler__compile_form_node_arity_3(lowflagKw_into, args, ctx)
 																																																																												} else {
-																																																																													var if_result_2151 flagrt.Value
+																																																																													var if_result_2155 flagrt.Value
 																																																																													if flagrt.Eq(op, flagrt.NewString("concat")) {
-																																																																														if_result_2151 = compiler__compile_form_node_arity_3(lowflagKw_concat, args, ctx)
+																																																																														if_result_2155 = compiler__compile_form_node_arity_3(lowflagKw_concat, args, ctx)
 																																																																													} else {
-																																																																														var if_result_2150 flagrt.Value
+																																																																														var if_result_2154 flagrt.Value
 																																																																														if flagrt.Eq(op, flagrt.NewString("ex-message")) {
-																																																																															if_result_2150 = compiler__compile_form_node_arity_3(lowflagKw_ex_message, args, ctx)
+																																																																															if_result_2154 = compiler__compile_form_node_arity_3(lowflagKw_ex_message, args, ctx)
 																																																																														} else {
-																																																																															var if_result_2149 flagrt.Value
+																																																																															var if_result_2153 flagrt.Value
 																																																																															if flagrt.Eq(op, flagrt.NewString("ex-data")) {
-																																																																																if_result_2149 = compiler__compile_form_node_arity_3(lowflagKw_ex_data, args, ctx)
+																																																																																if_result_2153 = compiler__compile_form_node_arity_3(lowflagKw_ex_data, args, ctx)
 																																																																															} else {
-																																																																																var if_result_2148 flagrt.Value
+																																																																																var if_result_2152 flagrt.Value
 																																																																																if flagrt.Eq(op, flagrt.NewString("ex-cause")) {
-																																																																																	if_result_2148 = compiler__compile_form_node_arity_3(lowflagKw_ex_cause, args, ctx)
+																																																																																	if_result_2152 = compiler__compile_form_node_arity_3(lowflagKw_ex_cause, args, ctx)
 																																																																																} else {
-																																																																																	var if_result_2147 flagrt.Value
+																																																																																	var if_result_2151 flagrt.Value
 																																																																																	if flagrt.Eq(op, flagrt.NewString("println")) {
-																																																																																		if_result_2147 = compiler__compile_form_node_arity_3(lowflagKw_println, args, ctx)
+																																																																																		if_result_2151 = compiler__compile_form_node_arity_3(lowflagKw_println, args, ctx)
 																																																																																	} else {
-																																																																																		var if_result_2146 flagrt.Value
+																																																																																		var if_result_2150 flagrt.Value
 																																																																																		if flagrt.Contains(compiler__control_forms, op) {
-																																																																																			if_result_2146 = compiler__compile_form_node_arity_3(lowflagKw_control, flagrt.NewArray(op, args, node), ctx)
+																																																																																			if_result_2150 = compiler__compile_form_node_arity_3(lowflagKw_control, flagrt.NewArray(op, args, node), ctx)
 																																																																																		} else {
-																																																																																			var if_result_2145 flagrt.Value
+																																																																																			var if_result_2149 flagrt.Value
 																																																																																			if flagrt.Contains(compiler__remaining_runtime_ops, op) {
-																																																																																				if_result_2145 = compiler__compile_form_node_arity_3(lowflagKw_runtime_op, flagrt.NewArray(op, args), ctx)
+																																																																																				if_result_2149 = compiler__compile_form_node_arity_3(lowflagKw_runtime_op, flagrt.NewArray(op, args), ctx)
 																																																																																			} else {
-																																																																																				var if_result_2144 flagrt.Value
+																																																																																				var if_result_2148 flagrt.Value
 																																																																																				if flagrt.Eq(op, flagrt.NewString("=")) {
-																																																																																					var let_result_2115 bool
+																																																																																					var let_result_2119 bool
 																																																																																					{
 																																																																																						var or_tmp = flagrt.IsNil(args)
-																																																																																						var if_result_2114 bool
+																																																																																						var if_result_2118 bool
 																																																																																						if or_tmp {
-																																																																																							if_result_2114 = or_tmp
+																																																																																							if_result_2118 = or_tmp
 																																																																																						} else {
-																																																																																							var let_result_2113 bool
+																																																																																							var let_result_2117 bool
 																																																																																							{
 																																																																																								var or_tmp = flagrt.IsEmpty(args)
-																																																																																								var if_result_2112 bool
+																																																																																								var if_result_2116 bool
 																																																																																								if or_tmp {
-																																																																																									if_result_2112 = or_tmp
+																																																																																									if_result_2116 = or_tmp
 																																																																																								} else {
-																																																																																									if_result_2112 = flagrt.IsEmpty(flagrt.Rest(args))
+																																																																																									if_result_2116 = flagrt.IsEmpty(flagrt.Rest(args))
 																																																																																								}
-																																																																																								let_result_2113 = if_result_2112
+																																																																																								let_result_2117 = if_result_2116
 																																																																																							}
-																																																																																							if_result_2114 = let_result_2113
+																																																																																							if_result_2118 = let_result_2117
 																																																																																						}
-																																																																																						let_result_2115 = if_result_2114
+																																																																																						let_result_2119 = if_result_2118
 																																																																																					}
-																																																																																					var if_result_2124 flagrt.Value
-																																																																																					if let_result_2115 {
-																																																																																						if_result_2124 = func() flagrt.Value {
+																																																																																					var if_result_2128 flagrt.Value
+																																																																																					if let_result_2119 {
+																																																																																						if_result_2128 = func() flagrt.Value {
 																																																																																							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("= expects at least two arguments"), flagrt.NewKeyword("data"), lowflagMap))
 																																																																																							return flagrt.NilValue
 																																																																																						}()
 																																																																																					} else {
-																																																																																						if_result_2124 = func() flagrt.Value {
+																																																																																						if_result_2128 = func() flagrt.Value {
 																																																																																							var remaining = args
 																																																																																							var ctx = ctx
 																																																																																							var stmts = lowflagVec
 																																																																																							var irs = lowflagVec
 																																																																																							for {
-																																																																																								var let_result_2117 bool
+																																																																																								var let_result_2121 bool
 																																																																																								{
 																																																																																									var or_tmp = flagrt.IsNil(remaining)
-																																																																																									var if_result_2116 bool
+																																																																																									var if_result_2120 bool
 																																																																																									if or_tmp {
-																																																																																										if_result_2116 = or_tmp
+																																																																																										if_result_2120 = or_tmp
 																																																																																									} else {
-																																																																																										if_result_2116 = flagrt.IsEmpty(remaining)
+																																																																																										if_result_2120 = flagrt.IsEmpty(remaining)
 																																																																																									}
-																																																																																									let_result_2117 = if_result_2116
+																																																																																									let_result_2121 = if_result_2120
 																																																																																								}
-																																																																																								var if_result_2123 flagrt.Value
-																																																																																								if let_result_2117 {
-																																																																																									if_result_2123 = compiler__form_result_arity_4(stmts, compiler__eq_to_ir_arity_1(irs), lowflagKw_bool, ctx)
+																																																																																								var if_result_2127 flagrt.Value
+																																																																																								if let_result_2121 {
+																																																																																									if_result_2127 = compiler__form_result_arity_4(stmts, compiler__eq_to_ir_arity_1(irs), lowflagKw_bool, ctx)
 																																																																																								} else {
-																																																																																									var let_result_2122 flagrt.Value
+																																																																																									var let_result_2126 flagrt.Value
 																																																																																									{
 																																																																																										var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(remaining), ctx)
-																																																																																										var recur_2118 = flagrt.Rest(remaining)
-																																																																																										var recur_2119 = flagrt.KeywordGet(part, lowflagKw_ctx)
-																																																																																										var recur_2120 = compiler__concat_stmts_arity_2(stmts, flagrt.KeywordGet(part, lowflagKw_stmts))
-																																																																																										var recur_2121 = flagrt.Conj(irs, compiler__eq_arg_ir_arity_1(part))
-																																																																																										remaining = recur_2118
-																																																																																										ctx = recur_2119
-																																																																																										stmts = recur_2120
-																																																																																										irs = recur_2121
+																																																																																										var recur_2122 = flagrt.Rest(remaining)
+																																																																																										var recur_2123 = flagrt.KeywordGet(part, lowflagKw_ctx)
+																																																																																										var recur_2124 = compiler__concat_stmts_arity_2(stmts, flagrt.KeywordGet(part, lowflagKw_stmts))
+																																																																																										var recur_2125 = flagrt.Conj(irs, compiler__eq_arg_ir_arity_1(part))
+																																																																																										remaining = recur_2122
+																																																																																										ctx = recur_2123
+																																																																																										stmts = recur_2124
+																																																																																										irs = recur_2125
 																																																																																										continue
-																																																																																										let_result_2122 = flagrt.NilValue
+																																																																																										let_result_2126 = flagrt.NilValue
 																																																																																									}
-																																																																																									if_result_2123 = let_result_2122
+																																																																																									if_result_2127 = let_result_2126
 																																																																																								}
-																																																																																								return if_result_2123
+																																																																																								return if_result_2127
 																																																																																							}
 																																																																																						}()
 																																																																																					}
-																																																																																					if_result_2144 = if_result_2124
+																																																																																					if_result_2148 = if_result_2128
 																																																																																				} else {
-																																																																																					var if_result_2143 flagrt.Value
+																																																																																					var if_result_2147 flagrt.Value
 																																																																																					if flagrt.IsTruthy(unary) {
-																																																																																						var if_result_2125 bool
+																																																																																						var if_result_2129 bool
 																																																																																						if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(args)))) {
-																																																																																							if_result_2125 = false
+																																																																																							if_result_2129 = false
 																																																																																						} else {
-																																																																																							if_result_2125 = true
+																																																																																							if_result_2129 = true
 																																																																																						}
-																																																																																						var if_result_2127 flagrt.Value
-																																																																																						if if_result_2125 {
-																																																																																							if_result_2127 = func() flagrt.Value {
+																																																																																						var if_result_2131 flagrt.Value
+																																																																																						if if_result_2129 {
+																																																																																							if_result_2131 = func() flagrt.Value {
 																																																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(op, " expects exactly one argument")), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, node)))
 																																																																																								return flagrt.NilValue
 																																																																																							}()
 																																																																																						} else {
-																																																																																							var let_result_2126 flagrt.Value
+																																																																																							var let_result_2130 flagrt.Value
 																																																																																							{
 																																																																																								var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, ctx)
-																																																																																								let_result_2126 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(unary, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																								let_result_2130 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(unary, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																							}
-																																																																																							if_result_2127 = let_result_2126
+																																																																																							if_result_2131 = let_result_2130
 																																																																																						}
-																																																																																						if_result_2143 = if_result_2127
+																																																																																						if_result_2147 = if_result_2131
 																																																																																					} else {
-																																																																																						var if_result_2142 flagrt.Value
+																																																																																						var if_result_2146 flagrt.Value
 																																																																																						if flagrt.IsTruthy(fold) {
-																																																																																							var let_result_2128 flagrt.Value
+																																																																																							var let_result_2132 flagrt.Value
 																																																																																							{
 																																																																																								var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, ctx)
-																																																																																								let_result_2128 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__fold_call_to_ir_arity_2(fold, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																								let_result_2132 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__fold_call_to_ir_arity_2(fold, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																							}
-																																																																																							if_result_2142 = let_result_2128
+																																																																																							if_result_2146 = let_result_2132
 																																																																																						} else {
-																																																																																							var if_result_2141 flagrt.Value
+																																																																																							var if_result_2145 flagrt.Value
 																																																																																							if flagrt.IsTruthy(binary) {
-																																																																																								var if_result_2129 bool
+																																																																																								var if_result_2133 bool
 																																																																																								if flagrt.Eq(lowflagLong_2, flagrt.NewLong(int64(flagrt.Count(args)))) {
-																																																																																									if_result_2129 = false
+																																																																																									if_result_2133 = false
 																																																																																								} else {
-																																																																																									if_result_2129 = true
+																																																																																									if_result_2133 = true
 																																																																																								}
-																																																																																								var if_result_2131 flagrt.Value
-																																																																																								if if_result_2129 {
-																																																																																									if_result_2131 = func() flagrt.Value {
+																																																																																								var if_result_2135 flagrt.Value
+																																																																																								if if_result_2133 {
+																																																																																									if_result_2135 = func() flagrt.Value {
 																																																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(op, " expects exactly two arguments")), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, node)))
 																																																																																										return flagrt.NilValue
 																																																																																									}()
 																																																																																								} else {
-																																																																																									var let_result_2130 flagrt.Value
+																																																																																									var let_result_2134 flagrt.Value
 																																																																																									{
 																																																																																										var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, ctx)
-																																																																																										let_result_2130 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(binary, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																										let_result_2134 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(binary, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																									}
-																																																																																									if_result_2131 = let_result_2130
+																																																																																									if_result_2135 = let_result_2134
 																																																																																								}
-																																																																																								if_result_2141 = if_result_2131
+																																																																																								if_result_2145 = if_result_2135
 																																																																																							} else {
-																																																																																								var if_result_2140 flagrt.Value
+																																																																																								var if_result_2144 flagrt.Value
 																																																																																								if flagrt.IsTruthy(variadic) {
-																																																																																									var let_result_2132 flagrt.Value
+																																																																																									var let_result_2136 flagrt.Value
 																																																																																									{
 																																																																																										var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, ctx)
-																																																																																										let_result_2132 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(variadic, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																										let_result_2136 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__runtime_call_to_ir_arity_2(variadic, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																									}
-																																																																																									if_result_2140 = let_result_2132
+																																																																																									if_result_2144 = let_result_2136
 																																																																																								} else {
-																																																																																									var if_result_2139 flagrt.Value
+																																																																																									var if_result_2143 flagrt.Value
 																																																																																									if flagrt.Contains(compiler__special_form_names, op) {
-																																																																																										if_result_2139 = func() flagrt.Value {
+																																																																																										if_result_2143 = func() flagrt.Value {
 																																																																																											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("not handled by FLAG form lowering"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, node)))
 																																																																																											return flagrt.NilValue
 																																																																																										}()
 																																																																																									} else {
-																																																																																										var let_result_2138 flagrt.Value
+																																																																																										var let_result_2142 flagrt.Value
 																																																																																										{
-																																																																																											var let_result_2134 flagrt.Value
+																																																																																											var let_result_2138 flagrt.Value
 																																																																																											{
 																																																																																												var or_tmp = compiler__known_call_fun_arity_3(op, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args)))), ctx)
-																																																																																												var if_result_2133 flagrt.Value
+																																																																																												var if_result_2137 flagrt.Value
 																																																																																												if flagrt.IsTruthy(or_tmp) {
-																																																																																													if_result_2133 = or_tmp
+																																																																																													if_result_2137 = or_tmp
 																																																																																												} else {
-																																																																																													if_result_2133 = compiler__builtin_call_fun_arity_2(op, ctx)
+																																																																																													if_result_2137 = compiler__builtin_call_fun_arity_2(op, ctx)
 																																																																																												}
-																																																																																												let_result_2134 = if_result_2133
+																																																																																												let_result_2138 = if_result_2137
 																																																																																											}
-																																																																																											var fun = let_result_2134
-																																																																																											var if_result_2137 flagrt.Value
+																																																																																											var fun = let_result_2138
+																																																																																											var if_result_2141 flagrt.Value
 																																																																																											if flagrt.IsTruthy(fun) {
-																																																																																												var let_result_2135 flagrt.Value
+																																																																																												var let_result_2139 flagrt.Value
 																																																																																												{
 																																																																																													var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, ctx)
-																																																																																													let_result_2135 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, fun, lowflagKw_args, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																													let_result_2139 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_call, lowflagKw_fun, fun, lowflagKw_args, flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																												}
-																																																																																												if_result_2137 = let_result_2135
+																																																																																												if_result_2141 = let_result_2139
 																																																																																											} else {
-																																																																																												var let_result_2136 flagrt.Value
+																																																																																												var let_result_2140 flagrt.Value
 																																																																																												{
 																																																																																													var callee = compiler__compile_form_node_arity_3(lowflagKw_form, head, ctx)
 																																																																																													var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, flagrt.KeywordGet(callee, lowflagKw_ctx))
-																																																																																													let_result_2136 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(callee, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts)), compiler__call_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																																																													let_result_2140 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(callee, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts)), compiler__call_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																																																												}
-																																																																																												if_result_2137 = let_result_2136
+																																																																																												if_result_2141 = let_result_2140
 																																																																																											}
-																																																																																											let_result_2138 = if_result_2137
+																																																																																											let_result_2142 = if_result_2141
 																																																																																										}
-																																																																																										if_result_2139 = let_result_2138
+																																																																																										if_result_2143 = let_result_2142
 																																																																																									}
-																																																																																									if_result_2140 = if_result_2139
+																																																																																									if_result_2144 = if_result_2143
 																																																																																								}
-																																																																																								if_result_2141 = if_result_2140
+																																																																																								if_result_2145 = if_result_2144
 																																																																																							}
-																																																																																							if_result_2142 = if_result_2141
+																																																																																							if_result_2146 = if_result_2145
 																																																																																						}
-																																																																																						if_result_2143 = if_result_2142
+																																																																																						if_result_2147 = if_result_2146
 																																																																																					}
-																																																																																					if_result_2144 = if_result_2143
+																																																																																					if_result_2148 = if_result_2147
 																																																																																				}
-																																																																																				if_result_2145 = if_result_2144
+																																																																																				if_result_2149 = if_result_2148
 																																																																																			}
-																																																																																			if_result_2146 = if_result_2145
+																																																																																			if_result_2150 = if_result_2149
 																																																																																		}
-																																																																																		if_result_2147 = if_result_2146
+																																																																																		if_result_2151 = if_result_2150
 																																																																																	}
-																																																																																	if_result_2148 = if_result_2147
+																																																																																	if_result_2152 = if_result_2151
 																																																																																}
-																																																																																if_result_2149 = if_result_2148
+																																																																																if_result_2153 = if_result_2152
 																																																																															}
-																																																																															if_result_2150 = if_result_2149
+																																																																															if_result_2154 = if_result_2153
 																																																																														}
-																																																																														if_result_2151 = if_result_2150
+																																																																														if_result_2155 = if_result_2154
 																																																																													}
-																																																																													if_result_2152 = if_result_2151
+																																																																													if_result_2156 = if_result_2155
 																																																																												}
-																																																																												if_result_2153 = if_result_2152
+																																																																												if_result_2157 = if_result_2156
 																																																																											}
-																																																																											if_result_2154 = if_result_2153
+																																																																											if_result_2158 = if_result_2157
 																																																																										}
-																																																																										if_result_2155 = if_result_2154
+																																																																										if_result_2159 = if_result_2158
 																																																																									}
-																																																																									if_result_2156 = if_result_2155
+																																																																									if_result_2160 = if_result_2159
 																																																																								}
-																																																																								if_result_2157 = if_result_2156
+																																																																								if_result_2161 = if_result_2160
 																																																																							}
-																																																																							if_result_2158 = if_result_2157
+																																																																							if_result_2162 = if_result_2161
 																																																																						}
-																																																																						if_result_2159 = if_result_2158
+																																																																						if_result_2163 = if_result_2162
 																																																																					}
-																																																																					if_result_2160 = if_result_2159
+																																																																					if_result_2164 = if_result_2163
 																																																																				}
-																																																																				if_result_2161 = if_result_2160
+																																																																				if_result_2165 = if_result_2164
 																																																																			}
-																																																																			if_result_2162 = if_result_2161
+																																																																			if_result_2166 = if_result_2165
 																																																																		}
-																																																																		if_result_2163 = if_result_2162
+																																																																		if_result_2167 = if_result_2166
 																																																																	}
-																																																																	if_result_2164 = if_result_2163
+																																																																	if_result_2168 = if_result_2167
 																																																																}
-																																																																if_result_2165 = if_result_2164
+																																																																if_result_2169 = if_result_2168
 																																																															}
-																																																															if_result_2166 = if_result_2165
+																																																															if_result_2170 = if_result_2169
 																																																														}
-																																																														if_result_2167 = if_result_2166
+																																																														if_result_2171 = if_result_2170
 																																																													}
-																																																													if_result_2168 = if_result_2167
+																																																													if_result_2172 = if_result_2171
 																																																												}
-																																																												if_result_2169 = if_result_2168
+																																																												if_result_2173 = if_result_2172
 																																																											}
-																																																											if_result_2170 = if_result_2169
+																																																											if_result_2174 = if_result_2173
 																																																										}
-																																																										if_result_2171 = if_result_2170
+																																																										if_result_2175 = if_result_2174
 																																																									}
-																																																									if_result_2172 = if_result_2171
+																																																									if_result_2176 = if_result_2175
 																																																								}
-																																																								if_result_2173 = if_result_2172
+																																																								if_result_2177 = if_result_2176
 																																																							}
-																																																							if_result_2174 = if_result_2173
+																																																							if_result_2178 = if_result_2177
 																																																						}
-																																																						if_result_2175 = if_result_2174
+																																																						if_result_2179 = if_result_2178
 																																																					}
-																																																					if_result_2176 = if_result_2175
+																																																					if_result_2180 = if_result_2179
 																																																				}
-																																																				if_result_2177 = if_result_2176
+																																																				if_result_2181 = if_result_2180
 																																																			}
-																																																			if_result_2178 = if_result_2177
+																																																			if_result_2182 = if_result_2181
 																																																		}
-																																																		if_result_2179 = if_result_2178
+																																																		if_result_2183 = if_result_2182
 																																																	}
-																																																	if_result_2180 = if_result_2179
+																																																	if_result_2184 = if_result_2183
 																																																}
-																																																if_result_2181 = if_result_2180
+																																																if_result_2185 = if_result_2184
 																																															}
-																																															let_result_2182 = if_result_2181
+																																															let_result_2186 = if_result_2185
 																																														}
-																																														if_result_2185 = let_result_2182
+																																														if_result_2189 = let_result_2186
 																																													} else {
-																																														var let_result_2184 flagrt.Value
+																																														var let_result_2188 flagrt.Value
 																																														{
 																																															var callee = compiler__compile_form_node_arity_3(lowflagKw_form, head, ctx)
 																																															var compiled = compiler__compile_form_node_arity_3(lowflagKw_seq, args, flagrt.KeywordGet(callee, lowflagKw_ctx))
-																																															var if_result_2183 flagrt.Value
+																																															var if_result_2187 flagrt.Value
 																																															if flagrt.Eq(lowflagKw_keyword, flagrt.KeywordGet(head, lowflagKw_kind)) {
-																																																if_result_2183 = compiler__keyword_invoke_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs))
+																																																if_result_2187 = compiler__keyword_invoke_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs))
 																																															} else {
-																																																if_result_2183 = compiler__call_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs))
+																																																if_result_2187 = compiler__call_to_ir_arity_2(compiler__form_value_ir_arity_1(callee), flagrt.KeywordGet(compiled, lowflagKw_irs))
 																																															}
-																																															let_result_2184 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(callee, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts)), if_result_2183, lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																															let_result_2188 = compiler__form_result_arity_4(compiler__concat_stmts_arity_2(flagrt.KeywordGet(callee, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts)), if_result_2187, lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																														}
-																																														if_result_2185 = let_result_2184
+																																														if_result_2189 = let_result_2188
 																																													}
-																																													if_result_2186 = if_result_2185
+																																													if_result_2190 = if_result_2189
 																																												}
-																																												let_result_2187 = if_result_2186
+																																												let_result_2191 = if_result_2190
 																																											}
-																																											if_result_2188 = let_result_2187
+																																											if_result_2192 = let_result_2191
 																																										}
-																																										let_result_2189 = if_result_2188
+																																										let_result_2193 = if_result_2192
 																																									}
-																																									if_result_2379 = let_result_2189
+																																									if_result_2383 = let_result_2193
 																																								} else {
-																																									var if_result_2378 flagrt.Value
+																																									var if_result_2382 flagrt.Value
 																																									if flagrt.Eq(mode, lowflagKw_form) {
-																																										var let_result_2229 flagrt.Value
+																																										var let_result_2233 flagrt.Value
 																																										{
 																																											var form = compiler__unwrap_ast_arity_1(node)
 																																											var kind = flagrt.KeywordGet(form, lowflagKw_kind)
-																																											let_result_2229 = func() flagrt.Value {
+																																											let_result_2233 = func() flagrt.Value {
 																																												var __flag_try_result flagrt.Value
 																																												func() {
 																																													defer func() {
@@ -16266,184 +16262,184 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																														}
 																																														panic(r)
 																																													}()
-																																													var if_result_2228 flagrt.Value
+																																													var if_result_2232 flagrt.Value
 																																													if flagrt.Eq(kind, lowflagKw_string) {
-																																														if_result_2228 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_string, ctx)
+																																														if_result_2232 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_string, ctx)
 																																													} else {
-																																														var if_result_2227 flagrt.Value
+																																														var if_result_2231 flagrt.Value
 																																														if flagrt.Eq(kind, lowflagKw_char) {
-																																															var let_result_2190 flagrt.Value
+																																															var let_result_2194 flagrt.Value
 																																															{
 																																																var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																let_result_2190 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																let_result_2194 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																															}
-																																															if_result_2227 = let_result_2190
+																																															if_result_2231 = let_result_2194
 																																														} else {
-																																															var if_result_2226 flagrt.Value
+																																															var if_result_2230 flagrt.Value
 																																															if flagrt.Eq(kind, lowflagKw_int) {
-																																																var let_result_2191 flagrt.Value
+																																																var let_result_2195 flagrt.Value
 																																																{
 																																																	var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																	let_result_2191 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																	let_result_2195 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																}
-																																																if_result_2226 = let_result_2191
+																																																if_result_2230 = let_result_2195
 																																															} else {
-																																																var if_result_2225 flagrt.Value
+																																																var if_result_2229 flagrt.Value
 																																																if flagrt.Eq(kind, lowflagKw_bigint) {
-																																																	var let_result_2192 flagrt.Value
+																																																	var let_result_2196 flagrt.Value
 																																																	{
 																																																		var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																		let_result_2192 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																		let_result_2196 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																	}
-																																																	if_result_2225 = let_result_2192
+																																																	if_result_2229 = let_result_2196
 																																																} else {
-																																																	var if_result_2224 flagrt.Value
+																																																	var if_result_2228 flagrt.Value
 																																																	if flagrt.Eq(kind, lowflagKw_ratio) {
-																																																		var let_result_2193 flagrt.Value
+																																																		var let_result_2197 flagrt.Value
 																																																		{
 																																																			var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																			let_result_2193 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																			let_result_2197 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																		}
-																																																		if_result_2224 = let_result_2193
+																																																		if_result_2228 = let_result_2197
 																																																	} else {
-																																																		var if_result_2223 flagrt.Value
+																																																		var if_result_2227 flagrt.Value
 																																																		if flagrt.Eq(kind, lowflagKw_float) {
-																																																			if_result_2223 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_value, ctx)
+																																																			if_result_2227 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_value, ctx)
 																																																		} else {
-																																																			var if_result_2222 flagrt.Value
+																																																			var if_result_2226 flagrt.Value
 																																																			if flagrt.Eq(kind, lowflagKw_keyword) {
-																																																				var let_result_2194 flagrt.Value
+																																																				var let_result_2198 flagrt.Value
 																																																				{
 																																																					var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																					let_result_2194 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																					let_result_2198 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																				}
-																																																				if_result_2222 = let_result_2194
+																																																				if_result_2226 = let_result_2198
 																																																			} else {
-																																																				var if_result_2221 flagrt.Value
+																																																				var if_result_2225 flagrt.Value
 																																																				if flagrt.Eq(kind, lowflagKw_quoted_symbol) {
-																																																					var let_result_2195 flagrt.Value
+																																																					var let_result_2199 flagrt.Value
 																																																					{
 																																																						var interned = compiler__intern_literal_form_arity_2(form, ctx)
-																																																						let_result_2195 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																						let_result_2199 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																					}
-																																																					if_result_2221 = let_result_2195
+																																																					if_result_2225 = let_result_2199
 																																																				} else {
-																																																					var if_result_2220 flagrt.Value
+																																																					var if_result_2224 flagrt.Value
 																																																					if flagrt.Eq(kind, lowflagKw_symbol) {
-																																																						var let_result_2200 flagrt.Value
+																																																						var let_result_2204 flagrt.Value
 																																																						{
 																																																							var name = flagrt.KeywordGet(form, lowflagKw_name)
-																																																							var if_result_2199 flagrt.Value
+																																																							var if_result_2203 flagrt.Value
 																																																							if flagrt.Eq(name, flagrt.NewString("true")) {
-																																																								if_result_2199 = compiler__form_result_arity_4(lowflagVec, lowflagMap_2, lowflagKw_bool, ctx)
+																																																								if_result_2203 = compiler__form_result_arity_4(lowflagVec, lowflagMap_2, lowflagKw_bool, ctx)
 																																																							} else {
-																																																								var if_result_2198 flagrt.Value
+																																																								var if_result_2202 flagrt.Value
 																																																								if flagrt.Eq(name, flagrt.NewString("false")) {
-																																																									if_result_2198 = compiler__form_result_arity_4(lowflagVec, lowflagMap_3, lowflagKw_bool, ctx)
+																																																									if_result_2202 = compiler__form_result_arity_4(lowflagVec, lowflagMap_3, lowflagKw_bool, ctx)
 																																																								} else {
-																																																									var if_result_2197 flagrt.Value
+																																																									var if_result_2201 flagrt.Value
 																																																									if flagrt.Eq(name, flagrt.NewString("nil")) {
-																																																										if_result_2197 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_value, ctx)
+																																																										if_result_2201 = compiler__form_result_arity_4(lowflagVec, compiler__ast_node_to_ir_arity_1(form), lowflagKw_value, ctx)
 																																																									} else {
-																																																										var let_result_2196 flagrt.Value
+																																																										var let_result_2200 flagrt.Value
 																																																										{
 																																																											var ident = compiler__go_ident_or_empty_arity_1(name)
 																																																											var resolved = compiler__symbol_to_ir_arity_3(name, ident, ctx)
-																																																											let_result_2196 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(resolved, lowflagKw_ir), flagrt.KeywordGet(resolved, lowflagKw_expr_kind), ctx)
+																																																											let_result_2200 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(resolved, lowflagKw_ir), flagrt.KeywordGet(resolved, lowflagKw_expr_kind), ctx)
 																																																										}
-																																																										if_result_2197 = let_result_2196
+																																																										if_result_2201 = let_result_2200
 																																																									}
-																																																									if_result_2198 = if_result_2197
+																																																									if_result_2202 = if_result_2201
 																																																								}
-																																																								if_result_2199 = if_result_2198
+																																																								if_result_2203 = if_result_2202
 																																																							}
-																																																							let_result_2200 = if_result_2199
+																																																							let_result_2204 = if_result_2203
 																																																						}
-																																																						if_result_2220 = let_result_2200
+																																																						if_result_2224 = let_result_2204
 																																																					} else {
-																																																						var if_result_2219 flagrt.Value
+																																																						var if_result_2223 flagrt.Value
 																																																						if flagrt.Eq(kind, lowflagKw_quoted_list) {
-																																																							var let_result_2201 flagrt.Value
+																																																							var let_result_2205 flagrt.Value
 																																																							{
 																																																								var interned = compiler__intern_form_ir_arity_3(ctx, lowflagStr_List, compiler__quoted_ast_to_ir_arity_1(form))
-																																																								let_result_2201 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																								let_result_2205 = compiler__form_result_arity_4(lowflagVec, flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																							}
-																																																							if_result_2219 = let_result_2201
+																																																							if_result_2223 = let_result_2205
 																																																						} else {
-																																																							var if_result_2218 flagrt.Value
+																																																							var if_result_2222 flagrt.Value
 																																																							if flagrt.Eq(kind, lowflagKw_vector) {
-																																																								var let_result_2202 flagrt.Value
+																																																								var let_result_2206 flagrt.Value
 																																																								{
 																																																									var compiled = compiler__compile_form_node_arity_3(lowflagKw_ctor_seq, flagrt.NewArray(flagrt.KeywordGet(form, lowflagKw_elements), lowflagStr_vector_literal_entries_m), ctx)
 																																																									var interned = compiler__intern_const_ctor_arity_4(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagStr_Vec, compiler__ctor_to_ir_arity_2(lowflagStr_NewArray, flagrt.KeywordGet(compiled, lowflagKw_irs)), compiler__const_form_q_arity_1(form))
-																																																									let_result_2202 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																									let_result_2206 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																								}
-																																																								if_result_2218 = let_result_2202
+																																																								if_result_2222 = let_result_2206
 																																																							} else {
-																																																								var if_result_2217 flagrt.Value
+																																																								var if_result_2221 flagrt.Value
 																																																								if flagrt.Eq(kind, lowflagKw_pipe_vector) {
-																																																									var let_result_2203 flagrt.Value
+																																																									var let_result_2207 flagrt.Value
 																																																									{
 																																																										var compiled = compiler__compile_form_node_arity_3(lowflagKw_ctor_seq, flagrt.NewArray(flagrt.KeywordGet(form, lowflagKw_elements), lowflagStr_vector_literal_entries_m), ctx)
 																																																										var interned = compiler__intern_const_ctor_arity_4(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagStr_PipeVec, compiler__ctor_to_ir_arity_2(lowflagStr_NewVector, flagrt.KeywordGet(compiled, lowflagKw_irs)), compiler__const_form_q_arity_1(form))
-																																																										let_result_2203 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																										let_result_2207 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																									}
-																																																									if_result_2217 = let_result_2203
+																																																									if_result_2221 = let_result_2207
 																																																								} else {
-																																																									var if_result_2216 flagrt.Value
+																																																									var if_result_2220 flagrt.Value
 																																																									if flagrt.Eq(kind, lowflagKw_set) {
-																																																										var let_result_2204 flagrt.Value
+																																																										var let_result_2208 flagrt.Value
 																																																										{
 																																																											var compiled = compiler__compile_form_node_arity_3(lowflagKw_ctor_seq, flagrt.NewArray(flagrt.KeywordGet(form, lowflagKw_elements), lowflagStr_set_literal_entries_must), ctx)
 																																																											var interned = compiler__intern_const_ctor_arity_4(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagStr_Set, compiler__ctor_to_ir_arity_2(lowflagStr_NewSet, flagrt.KeywordGet(compiled, lowflagKw_irs)), compiler__const_form_q_arity_1(form))
-																																																											let_result_2204 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																											let_result_2208 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																										}
-																																																										if_result_2216 = let_result_2204
+																																																										if_result_2220 = let_result_2208
 																																																									} else {
-																																																										var if_result_2215 flagrt.Value
+																																																										var if_result_2219 flagrt.Value
 																																																										if flagrt.Eq(kind, lowflagKw_map) {
-																																																											var let_result_2209 flagrt.Value
+																																																											var let_result_2213 flagrt.Value
 																																																											{
 																																																												var entries = flagrt.KeywordGet(form, lowflagKw_entries)
-																																																												var if_result_2205 flagrt.Value
+																																																												var if_result_2209 flagrt.Value
 																																																												if flagrt.IsNil(entries) {
-																																																													if_result_2205 = lowflagLong_0
+																																																													if_result_2209 = lowflagLong_0
 																																																												} else {
-																																																													if_result_2205 = flagrt.NewLong(int64(flagrt.Count(entries)))
+																																																													if_result_2209 = flagrt.NewLong(int64(flagrt.Count(entries)))
 																																																												}
-																																																												var n = if_result_2205
-																																																												var if_result_2206 bool
+																																																												var n = if_result_2209
+																																																												var if_result_2210 bool
 																																																												if flagrt.Eq(lowflagLong_0, flagrt.Mod(n, lowflagLong_2)) {
-																																																													if_result_2206 = false
+																																																													if_result_2210 = false
 																																																												} else {
-																																																													if_result_2206 = true
+																																																													if_result_2210 = true
 																																																												}
-																																																												var if_result_2208 flagrt.Value
-																																																												if if_result_2206 {
-																																																													if_result_2208 = func() flagrt.Value {
+																																																												var if_result_2212 flagrt.Value
+																																																												if if_result_2210 {
+																																																													if_result_2212 = func() flagrt.Value {
 																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("map literal expects key/value pairs"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, form)))
 																																																														return flagrt.NilValue
 																																																													}()
 																																																												} else {
-																																																													var let_result_2207 flagrt.Value
+																																																													var let_result_2211 flagrt.Value
 																																																													{
 																																																														var compiled = compiler__compile_form_node_arity_3(lowflagKw_ctor_seq, flagrt.NewArray(entries, lowflagStr_map_literal_entries_must), ctx)
 																																																														var interned = compiler__intern_const_ctor_arity_4(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagStr_Map, compiler__ctor_to_ir_arity_2(lowflagStr_NewMap, flagrt.KeywordGet(compiled, lowflagKw_irs)), compiler__const_form_q_arity_1(form))
-																																																														let_result_2207 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
+																																																														let_result_2211 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(interned, lowflagKw_ir), lowflagKw_value, flagrt.KeywordGet(interned, lowflagKw_ctx))
 																																																													}
-																																																													if_result_2208 = let_result_2207
+																																																													if_result_2212 = let_result_2211
 																																																												}
-																																																												let_result_2209 = if_result_2208
+																																																												let_result_2213 = if_result_2212
 																																																											}
-																																																											if_result_2215 = let_result_2209
+																																																											if_result_2219 = let_result_2213
 																																																										} else {
-																																																											var if_result_2214 flagrt.Value
+																																																											var if_result_2218 flagrt.Value
 																																																											if flagrt.Eq(kind, lowflagKw_list) {
-																																																												if_result_2214 = compiler__compile_form_node_arity_3(lowflagKw_call, form, ctx)
+																																																												if_result_2218 = compiler__compile_form_node_arity_3(lowflagKw_call, form, ctx)
 																																																											} else {
-																																																												var if_result_2213 flagrt.Value
+																																																												var if_result_2217 flagrt.Value
 																																																												if flagrt.Eq(kind, lowflagKw_hash_fn) {
-																																																													var let_result_2212 flagrt.Value
+																																																													var let_result_2216 flagrt.Value
 																																																													{
 																																																														var body = flagrt.KeywordGet(form, lowflagKw_body)
 																																																														var n = compiler__hash_fn_node_arity_3(lowflagKw_max, body, lowflagLong_0)
@@ -16457,1078 +16453,1078 @@ func compiler__compile_form_node_arity_3(mode flagrt.Value, node flagrt.Value, c
 																																																															c := args[1]
 																																																															return compiler__compile_form_node_arity_3(lowflagKw_form, n, c)
 																																																														}))
-																																																														var if_result_2210 flagrt.Value
+																																																														var if_result_2214 flagrt.Value
 																																																														if flagrt.IsNil(flagrt.KeywordGet(bound, lowflagKw_ctx)) {
-																																																															if_result_2210 = ctx
+																																																															if_result_2214 = ctx
 																																																														} else {
-																																																															if_result_2210 = flagrt.KeywordGet(bound, lowflagKw_ctx)
+																																																															if_result_2214 = flagrt.KeywordGet(bound, lowflagKw_ctx)
 																																																														}
-																																																														var inner = flagrt.Assoc(flagrt.Assoc(if_result_2210, lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals)), lowflagKw_loop_binding_names, lowflagVec)
+																																																														var inner = flagrt.Assoc(flagrt.Assoc(if_result_2214, lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals)), lowflagKw_loop_binding_names, lowflagVec)
 																																																														var compiled0 = compiler__compile_form_node_arity_3(lowflagKw_form, rewritten, inner)
-																																																														var if_result_2211 flagrt.Value
+																																																														var if_result_2215 flagrt.Value
 																																																														if flagrt.IsTruthy(flagrt.KeywordGet(compiled0, lowflagKw_defer_)) {
-																																																															if_result_2211 = compiler__form_result_arity_4(lowflagVec, compiler__do_defer_to_ir_arity_2(lowflagStr_flagrt_Value, flagrt.NewArray(compiled0)), lowflagKw_value, flagrt.KeywordGet(compiled0, lowflagKw_ctx))
+																																																															if_result_2215 = compiler__form_result_arity_4(lowflagVec, compiler__do_defer_to_ir_arity_2(lowflagStr_flagrt_Value, flagrt.NewArray(compiled0)), lowflagKw_value, flagrt.KeywordGet(compiled0, lowflagKw_ctx))
 																																																														} else {
-																																																															if_result_2211 = compiler__coerce_form_value_arity_1(compiled0)
+																																																															if_result_2215 = compiler__coerce_form_value_arity_1(compiled0)
 																																																														}
-																																																														var compiled = if_result_2211
+																																																														var compiled = if_result_2215
 																																																														var ir = compiler__fn_to_ir_arity_6(lowflagStr____, flagrt.KeywordGet(bound, lowflagKw_params), flagrt.KeywordGet(bound, lowflagKw_has_rest), flagrt.KeywordGet(bound, lowflagKw_init_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr))
-																																																														let_result_2212 = compiler__form_result_arity_4(lowflagVec, ir, lowflagKw_value, compiler__restore_outer_scope_arity_2(flagrt.KeywordGet(compiled, lowflagKw_ctx), ctx))
+																																																														let_result_2216 = compiler__form_result_arity_4(lowflagVec, ir, lowflagKw_value, compiler__restore_outer_scope_arity_2(flagrt.KeywordGet(compiled, lowflagKw_ctx), ctx))
 																																																													}
-																																																													if_result_2213 = let_result_2212
+																																																													if_result_2217 = let_result_2216
 																																																												} else {
-																																																													if_result_2213 = func() flagrt.Value {
+																																																													if_result_2217 = func() flagrt.Value {
 																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("not handled by FLAG form lowering"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, form)))
 																																																														return flagrt.NilValue
 																																																													}()
 																																																												}
-																																																												if_result_2214 = if_result_2213
+																																																												if_result_2218 = if_result_2217
 																																																											}
-																																																											if_result_2215 = if_result_2214
+																																																											if_result_2219 = if_result_2218
 																																																										}
-																																																										if_result_2216 = if_result_2215
+																																																										if_result_2220 = if_result_2219
 																																																									}
-																																																									if_result_2217 = if_result_2216
+																																																									if_result_2221 = if_result_2220
 																																																								}
-																																																								if_result_2218 = if_result_2217
+																																																								if_result_2222 = if_result_2221
 																																																							}
-																																																							if_result_2219 = if_result_2218
+																																																							if_result_2223 = if_result_2222
 																																																						}
-																																																						if_result_2220 = if_result_2219
+																																																						if_result_2224 = if_result_2223
 																																																					}
-																																																					if_result_2221 = if_result_2220
+																																																					if_result_2225 = if_result_2224
 																																																				}
-																																																				if_result_2222 = if_result_2221
+																																																				if_result_2226 = if_result_2225
 																																																			}
-																																																			if_result_2223 = if_result_2222
+																																																			if_result_2227 = if_result_2226
 																																																		}
-																																																		if_result_2224 = if_result_2223
+																																																		if_result_2228 = if_result_2227
 																																																	}
-																																																	if_result_2225 = if_result_2224
+																																																	if_result_2229 = if_result_2228
 																																																}
-																																																if_result_2226 = if_result_2225
+																																																if_result_2230 = if_result_2229
 																																															}
-																																															if_result_2227 = if_result_2226
+																																															if_result_2231 = if_result_2230
 																																														}
-																																														if_result_2228 = if_result_2227
+																																														if_result_2232 = if_result_2231
 																																													}
-																																													__flag_try_result = if_result_2228
+																																													__flag_try_result = if_result_2232
 																																												}()
 																																												return __flag_try_result
 																																											}()
 																																										}
-																																										if_result_2378 = let_result_2229
+																																										if_result_2382 = let_result_2233
 																																									} else {
-																																										var if_result_2377 flagrt.Value
+																																										var if_result_2381 flagrt.Value
 																																										if flagrt.Eq(mode, lowflagKw_forms) {
-																																											var let_result_2231 bool
+																																											var let_result_2235 bool
 																																											{
 																																												var or_tmp = flagrt.IsNil(node)
-																																												var if_result_2230 bool
+																																												var if_result_2234 bool
 																																												if or_tmp {
-																																													if_result_2230 = or_tmp
+																																													if_result_2234 = or_tmp
 																																												} else {
-																																													if_result_2230 = flagrt.IsEmpty(node)
+																																													if_result_2234 = flagrt.IsEmpty(node)
 																																												}
-																																												let_result_2231 = if_result_2230
+																																												let_result_2235 = if_result_2234
 																																											}
-																																											var if_result_2242 flagrt.Value
-																																											if let_result_2231 {
-																																												if_result_2242 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, ctx)
+																																											var if_result_2246 flagrt.Value
+																																											if let_result_2235 {
+																																												if_result_2246 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, ctx)
 																																											} else {
-																																												if_result_2242 = func() flagrt.Value {
+																																												if_result_2246 = func() flagrt.Value {
 																																													var remaining = compiler__stmt_list_arity_1(node)
 																																													var ctx = ctx
 																																													var compiled = lowflagVec
 																																													for {
-																																														var let_result_2241 flagrt.Value
+																																														var let_result_2245 flagrt.Value
 																																														{
 																																															var part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(remaining), ctx)
 																																															var more = flagrt.Rest(remaining)
 																																															var next_compiled = flagrt.Conj(compiled, part)
-																																															var let_result_2233 bool
+																																															var let_result_2237 bool
 																																															{
 																																																var or_tmp = flagrt.IsNil(more)
-																																																var if_result_2232 bool
+																																																var if_result_2236 bool
 																																																if or_tmp {
-																																																	if_result_2232 = or_tmp
+																																																	if_result_2236 = or_tmp
 																																																} else {
-																																																	if_result_2232 = flagrt.IsEmpty(more)
+																																																	if_result_2236 = flagrt.IsEmpty(more)
 																																																}
-																																																let_result_2233 = if_result_2232
+																																																let_result_2237 = if_result_2236
 																																															}
-																																															var if_result_2240 flagrt.Value
-																																															if let_result_2233 {
-																																																var if_result_2236 flagrt.Value
+																																															var if_result_2244 flagrt.Value
+																																															if let_result_2237 {
+																																																var if_result_2240 flagrt.Value
 																																																if flagrt.IsTruthy(compiler__forms_have_defer_q_arity_1(next_compiled)) {
-																																																	var let_result_2235 flagrt.Value
+																																																	var let_result_2239 flagrt.Value
 																																																	{
-																																																		var if_result_2234 flagrt.Value
+																																																		var if_result_2238 flagrt.Value
 																																																		if flagrt.IsTruthy(flagrt.KeywordGet(part, lowflagKw_defer_)) {
-																																																			if_result_2234 = lowflagKw_value
+																																																			if_result_2238 = lowflagKw_value
 																																																		} else {
-																																																			if_result_2234 = flagrt.KeywordGet(part, lowflagKw_expr_kind)
+																																																			if_result_2238 = flagrt.KeywordGet(part, lowflagKw_expr_kind)
 																																																		}
-																																																		var result_kind = if_result_2234
-																																																		let_result_2235 = compiler__form_result_arity_4(lowflagVec, compiler__do_defer_to_ir_arity_2(compiler__go_type_for_kind_arity_1(result_kind), next_compiled), result_kind, flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																		var result_kind = if_result_2238
+																																																		let_result_2239 = compiler__form_result_arity_4(lowflagVec, compiler__do_defer_to_ir_arity_2(compiler__go_type_for_kind_arity_1(result_kind), next_compiled), result_kind, flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																	}
-																																																	if_result_2236 = let_result_2235
+																																																	if_result_2240 = let_result_2239
 																																																} else {
-																																																	if_result_2236 = compiler__form_result_arity_4(compiler__do_prelude_stmts_arity_1(next_compiled), flagrt.KeywordGet(part, lowflagKw_expr), flagrt.KeywordGet(part, lowflagKw_expr_kind), flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																	if_result_2240 = compiler__form_result_arity_4(compiler__do_prelude_stmts_arity_1(next_compiled), flagrt.KeywordGet(part, lowflagKw_expr), flagrt.KeywordGet(part, lowflagKw_expr_kind), flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																}
-																																																if_result_2240 = if_result_2236
+																																																if_result_2244 = if_result_2240
 																																															} else {
-																																																var recur_2237 = more
-																																																var recur_2238 = flagrt.KeywordGet(part, lowflagKw_ctx)
-																																																var recur_2239 = next_compiled
-																																																remaining = recur_2237
-																																																ctx = recur_2238
-																																																compiled = recur_2239
+																																																var recur_2241 = more
+																																																var recur_2242 = flagrt.KeywordGet(part, lowflagKw_ctx)
+																																																var recur_2243 = next_compiled
+																																																remaining = recur_2241
+																																																ctx = recur_2242
+																																																compiled = recur_2243
 																																																continue
-																																																if_result_2240 = flagrt.NilValue
+																																																if_result_2244 = flagrt.NilValue
 																																															}
-																																															let_result_2241 = if_result_2240
+																																															let_result_2245 = if_result_2244
 																																														}
-																																														return let_result_2241
+																																														return let_result_2245
 																																													}
 																																												}()
 																																											}
-																																											if_result_2377 = if_result_2242
+																																											if_result_2381 = if_result_2246
 																																										} else {
-																																											var if_result_2376 flagrt.Value
+																																											var if_result_2380 flagrt.Value
 																																											if flagrt.Eq(mode, lowflagKw_control) {
-																																												var let_result_2322 flagrt.Value
+																																												var let_result_2326 flagrt.Value
 																																												{
 																																													var op = flagrt.First(node)
 																																													var args = flagrt.First(flagrt.Rest(node))
 																																													var form = flagrt.First(flagrt.Rest(flagrt.Rest(node)))
-																																													var if_result_2321 flagrt.Value
+																																													var if_result_2325 flagrt.Value
 																																													if flagrt.Eq(op, flagrt.NewString("catch")) {
-																																														if_result_2321 = func() flagrt.Value {
+																																														if_result_2325 = func() flagrt.Value {
 																																															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("catch used outside try"), flagrt.NewKeyword("data"), lowflagMap))
 																																															return flagrt.NilValue
 																																														}()
 																																													} else {
-																																														var if_result_2320 flagrt.Value
+																																														var if_result_2324 flagrt.Value
 																																														if flagrt.Eq(op, flagrt.NewString("finally")) {
-																																															if_result_2320 = func() flagrt.Value {
+																																															if_result_2324 = func() flagrt.Value {
 																																																flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("finally used outside try"), flagrt.NewKeyword("data"), lowflagMap))
 																																																return flagrt.NilValue
 																																															}()
 																																														} else {
-																																															var if_result_2319 flagrt.Value
+																																															var if_result_2323 flagrt.Value
 																																															if flagrt.Eq(op, flagrt.NewString("defer")) {
-																																																var if_result_2243 bool
+																																																var if_result_2247 bool
 																																																if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-																																																	if_result_2243 = false
+																																																	if_result_2247 = false
 																																																} else {
-																																																	if_result_2243 = true
+																																																	if_result_2247 = true
 																																																}
-																																																var if_result_2245 flagrt.Value
-																																																if if_result_2243 {
-																																																	if_result_2245 = func() flagrt.Value {
+																																																var if_result_2249 flagrt.Value
+																																																if if_result_2247 {
+																																																	if_result_2249 = func() flagrt.Value {
 																																																		flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defer expects a zero-argument function"), flagrt.NewKeyword("data"), lowflagMap))
 																																																		return flagrt.NilValue
 																																																	}()
 																																																} else {
-																																																	var let_result_2244 flagrt.Value
+																																																	var let_result_2248 flagrt.Value
 																																																	{
 																																																		var part = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx))
-																																																		let_result_2244 = compiler__form_defer_result_arity_3(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__defer_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), flagrt.KeywordGet(part, lowflagKw_ctx))
+																																																		let_result_2248 = compiler__form_defer_result_arity_3(flagrt.KeywordGet(part, lowflagKw_stmts), compiler__defer_to_ir_arity_1(flagrt.KeywordGet(part, lowflagKw_expr)), flagrt.KeywordGet(part, lowflagKw_ctx))
 																																																	}
-																																																	if_result_2245 = let_result_2244
+																																																	if_result_2249 = let_result_2248
 																																																}
-																																																if_result_2319 = if_result_2245
+																																																if_result_2323 = if_result_2249
 																																															} else {
-																																																var if_result_2318 flagrt.Value
+																																																var if_result_2322 flagrt.Value
 																																																if flagrt.Eq(op, flagrt.NewString("doto")) {
-																																																	var let_result_2247 bool
+																																																	var let_result_2251 bool
 																																																	{
 																																																		var or_tmp = flagrt.IsNil(args)
-																																																		var if_result_2246 bool
+																																																		var if_result_2250 bool
 																																																		if or_tmp {
-																																																			if_result_2246 = or_tmp
+																																																			if_result_2250 = or_tmp
 																																																		} else {
-																																																			if_result_2246 = flagrt.IsEmpty(args)
+																																																			if_result_2250 = flagrt.IsEmpty(args)
 																																																		}
-																																																		let_result_2247 = if_result_2246
+																																																		let_result_2251 = if_result_2250
 																																																	}
-																																																	var if_result_2256 flagrt.Value
-																																																	if let_result_2247 {
-																																																		if_result_2256 = func() flagrt.Value {
+																																																	var if_result_2260 flagrt.Value
+																																																	if let_result_2251 {
+																																																		if_result_2260 = func() flagrt.Value {
 																																																			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doto expects a target and at least one form"), flagrt.NewKeyword("data"), lowflagMap))
 																																																			return flagrt.NilValue
 																																																		}()
 																																																	} else {
-																																																		var let_result_2255 flagrt.Value
+																																																		var let_result_2259 flagrt.Value
 																																																		{
 																																																			var target = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx))
-																																																			let_result_2255 = func() flagrt.Value {
+																																																			let_result_2259 = func() flagrt.Value {
 																																																				var remaining = flagrt.Rest(args)
 																																																				var ctx = flagrt.KeywordGet(target, lowflagKw_ctx)
 																																																				var steps = lowflagVec
 																																																				for {
-																																																					var let_result_2249 bool
+																																																					var let_result_2253 bool
 																																																					{
 																																																						var or_tmp = flagrt.IsNil(remaining)
-																																																						var if_result_2248 bool
+																																																						var if_result_2252 bool
 																																																						if or_tmp {
-																																																							if_result_2248 = or_tmp
+																																																							if_result_2252 = or_tmp
 																																																						} else {
-																																																							if_result_2248 = flagrt.IsEmpty(remaining)
+																																																							if_result_2252 = flagrt.IsEmpty(remaining)
 																																																						}
-																																																						let_result_2249 = if_result_2248
+																																																						let_result_2253 = if_result_2252
 																																																					}
-																																																					var if_result_2254 flagrt.Value
-																																																					if let_result_2249 {
-																																																						if_result_2254 = compiler__form_result_arity_4(lowflagVec, compiler__doto_to_ir_arity_3(flagrt.KeywordGet(target, lowflagKw_stmts), flagrt.KeywordGet(target, lowflagKw_expr), steps), lowflagKw_value, ctx)
+																																																					var if_result_2258 flagrt.Value
+																																																					if let_result_2253 {
+																																																						if_result_2258 = compiler__form_result_arity_4(lowflagVec, compiler__doto_to_ir_arity_3(flagrt.KeywordGet(target, lowflagKw_stmts), flagrt.KeywordGet(target, lowflagKw_expr), steps), lowflagKw_value, ctx)
 																																																					} else {
-																																																						var let_result_2253 flagrt.Value
+																																																						var let_result_2257 flagrt.Value
 																																																						{
 																																																							var step = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(remaining), ctx))
-																																																							var recur_2250 = flagrt.Rest(remaining)
-																																																							var recur_2251 = flagrt.KeywordGet(step, lowflagKw_ctx)
-																																																							var recur_2252 = flagrt.Conj(steps, flagrt.NewMap(lowflagKw_stmts, flagrt.KeywordGet(step, lowflagKw_stmts), lowflagKw_expr, flagrt.KeywordGet(step, lowflagKw_expr)))
-																																																							remaining = recur_2250
-																																																							ctx = recur_2251
-																																																							steps = recur_2252
+																																																							var recur_2254 = flagrt.Rest(remaining)
+																																																							var recur_2255 = flagrt.KeywordGet(step, lowflagKw_ctx)
+																																																							var recur_2256 = flagrt.Conj(steps, flagrt.NewMap(lowflagKw_stmts, flagrt.KeywordGet(step, lowflagKw_stmts), lowflagKw_expr, flagrt.KeywordGet(step, lowflagKw_expr)))
+																																																							remaining = recur_2254
+																																																							ctx = recur_2255
+																																																							steps = recur_2256
 																																																							continue
-																																																							let_result_2253 = flagrt.NilValue
+																																																							let_result_2257 = flagrt.NilValue
 																																																						}
-																																																						if_result_2254 = let_result_2253
+																																																						if_result_2258 = let_result_2257
 																																																					}
-																																																					return if_result_2254
+																																																					return if_result_2258
 																																																				}
 																																																			}()
 																																																		}
-																																																		if_result_2256 = let_result_2255
+																																																		if_result_2260 = let_result_2259
 																																																	}
-																																																	if_result_2318 = if_result_2256
+																																																	if_result_2322 = if_result_2260
 																																																} else {
-																																																	var if_result_2317 flagrt.Value
+																																																	var if_result_2321 flagrt.Value
 																																																	if flagrt.Eq(op, flagrt.NewString("try")) {
-																																																		if_result_2317 = compiler__compile_form_node_arity_3(lowflagKw_try, args, ctx)
+																																																		if_result_2321 = compiler__compile_form_node_arity_3(lowflagKw_try, args, ctx)
 																																																	} else {
-																																																		var if_result_2316 flagrt.Value
+																																																		var if_result_2320 flagrt.Value
 																																																		if flagrt.Eq(op, flagrt.NewString("doseq")) {
-																																																			var let_result_2260 bool
+																																																			var let_result_2264 bool
 																																																			{
 																																																				var or_tmp = flagrt.IsNil(args)
-																																																				var if_result_2259 bool
+																																																				var if_result_2263 bool
 																																																				if or_tmp {
-																																																					if_result_2259 = or_tmp
+																																																					if_result_2263 = or_tmp
 																																																				} else {
-																																																					var let_result_2258 bool
+																																																					var let_result_2262 bool
 																																																					{
 																																																						var or_tmp = flagrt.IsEmpty(args)
-																																																						var if_result_2257 bool
+																																																						var if_result_2261 bool
 																																																						if or_tmp {
-																																																							if_result_2257 = or_tmp
+																																																							if_result_2261 = or_tmp
 																																																						} else {
-																																																							if_result_2257 = flagrt.IsEmpty(flagrt.Rest(args))
+																																																							if_result_2261 = flagrt.IsEmpty(flagrt.Rest(args))
 																																																						}
-																																																						let_result_2258 = if_result_2257
+																																																						let_result_2262 = if_result_2261
 																																																					}
-																																																					if_result_2259 = let_result_2258
+																																																					if_result_2263 = let_result_2262
 																																																				}
-																																																				let_result_2260 = if_result_2259
+																																																				let_result_2264 = if_result_2263
 																																																			}
-																																																			var if_result_2268 flagrt.Value
-																																																			if let_result_2260 {
-																																																				if_result_2268 = func() flagrt.Value {
+																																																			var if_result_2272 flagrt.Value
+																																																			if let_result_2264 {
+																																																				if_result_2272 = func() flagrt.Value {
 																																																					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doseq expects a binding vector and body"), flagrt.NewKeyword("data"), lowflagMap))
 																																																					return flagrt.NilValue
 																																																				}()
 																																																			} else {
-																																																				var let_result_2267 flagrt.Value
+																																																				var let_result_2271 flagrt.Value
 																																																				{
 																																																					var bindings_node = compiler__unwrap_ast_arity_1(flagrt.First(args))
-																																																					var if_result_2261 bool
+																																																					var if_result_2265 bool
 																																																					if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(bindings_node, lowflagKw_kind)) {
-																																																						if_result_2261 = false
+																																																						if_result_2265 = false
 																																																					} else {
-																																																						if_result_2261 = true
+																																																						if_result_2265 = true
 																																																					}
-																																																					var if_result_2266 flagrt.Value
-																																																					if if_result_2261 {
-																																																						if_result_2266 = func() flagrt.Value {
+																																																					var if_result_2270 flagrt.Value
+																																																					if if_result_2265 {
+																																																						if_result_2270 = func() flagrt.Value {
 																																																							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doseq expects a binding vector"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, bindings_node)))
 																																																							return flagrt.NilValue
 																																																						}()
 																																																					} else {
-																																																						var let_result_2265 flagrt.Value
+																																																						var let_result_2269 flagrt.Value
 																																																						{
 																																																							var entries = compiler__ast_seq_arity_1(bindings_node)
-																																																							var if_result_2262 bool
+																																																							var if_result_2266 bool
 																																																							if flagrt.Eq(lowflagLong_0, flagrt.Mod(flagrt.NewLong(int64(flagrt.Count(entries))), lowflagLong_2)) {
-																																																								if_result_2262 = false
+																																																								if_result_2266 = false
 																																																							} else {
-																																																								if_result_2262 = true
+																																																								if_result_2266 = true
 																																																							}
-																																																							var if_result_2264 flagrt.Value
-																																																							if if_result_2262 {
-																																																								if_result_2264 = func() flagrt.Value {
+																																																							var if_result_2268 flagrt.Value
+																																																							if if_result_2266 {
+																																																								if_result_2268 = func() flagrt.Value {
 																																																									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doseq binding vector expects name/value pairs"), flagrt.NewKeyword("data"), lowflagMap))
 																																																									return flagrt.NilValue
 																																																								}()
 																																																							} else {
-																																																								var let_result_2263 flagrt.Value
+																																																								var let_result_2267 flagrt.Value
 																																																								{
 																																																									var loop_part = compiler__compile_form_node_arity_3(lowflagKw_seq_bindings, flagrt.NewArray(lowflagStr_doseq, entries, flagrt.Rest(args)), ctx)
-																																																									let_result_2263 = compiler__form_result_arity_4(flagrt.KeywordGet(loop_part, lowflagKw_stmts), compiler__doseq_to_ir_arity_1(flagrt.KeywordGet(loop_part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(loop_part, lowflagKw_ctx))
+																																																									let_result_2267 = compiler__form_result_arity_4(flagrt.KeywordGet(loop_part, lowflagKw_stmts), compiler__doseq_to_ir_arity_1(flagrt.KeywordGet(loop_part, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(loop_part, lowflagKw_ctx))
 																																																								}
-																																																								if_result_2264 = let_result_2263
+																																																								if_result_2268 = let_result_2267
 																																																							}
-																																																							let_result_2265 = if_result_2264
+																																																							let_result_2269 = if_result_2268
 																																																						}
-																																																						if_result_2266 = let_result_2265
+																																																						if_result_2270 = let_result_2269
 																																																					}
-																																																					let_result_2267 = if_result_2266
+																																																					let_result_2271 = if_result_2270
 																																																				}
-																																																				if_result_2268 = let_result_2267
+																																																				if_result_2272 = let_result_2271
 																																																			}
-																																																			if_result_2316 = if_result_2268
+																																																			if_result_2320 = if_result_2272
 																																																		} else {
-																																																			var if_result_2315 flagrt.Value
+																																																			var if_result_2319 flagrt.Value
 																																																			if flagrt.Eq(op, flagrt.NewString("for")) {
-																																																				var let_result_2272 bool
+																																																				var let_result_2276 bool
 																																																				{
 																																																					var or_tmp = flagrt.IsNil(args)
-																																																					var if_result_2271 bool
+																																																					var if_result_2275 bool
 																																																					if or_tmp {
-																																																						if_result_2271 = or_tmp
+																																																						if_result_2275 = or_tmp
 																																																					} else {
-																																																						var let_result_2270 bool
+																																																						var let_result_2274 bool
 																																																						{
 																																																							var or_tmp = flagrt.IsEmpty(args)
-																																																							var if_result_2269 bool
+																																																							var if_result_2273 bool
 																																																							if or_tmp {
-																																																								if_result_2269 = or_tmp
+																																																								if_result_2273 = or_tmp
 																																																							} else {
-																																																								if_result_2269 = flagrt.IsEmpty(flagrt.Rest(args))
+																																																								if_result_2273 = flagrt.IsEmpty(flagrt.Rest(args))
 																																																							}
-																																																							let_result_2270 = if_result_2269
+																																																							let_result_2274 = if_result_2273
 																																																						}
-																																																						if_result_2271 = let_result_2270
+																																																						if_result_2275 = let_result_2274
 																																																					}
-																																																					let_result_2272 = if_result_2271
+																																																					let_result_2276 = if_result_2275
 																																																				}
-																																																				var if_result_2279 flagrt.Value
-																																																				if let_result_2272 {
-																																																					if_result_2279 = func() flagrt.Value {
+																																																				var if_result_2283 flagrt.Value
+																																																				if let_result_2276 {
+																																																					if_result_2283 = func() flagrt.Value {
 																																																						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("for expects a binding vector and body"), flagrt.NewKeyword("data"), lowflagMap))
 																																																						return flagrt.NilValue
 																																																					}()
 																																																				} else {
-																																																					var let_result_2278 flagrt.Value
+																																																					var let_result_2282 flagrt.Value
 																																																					{
 																																																						var bindings_node = compiler__unwrap_ast_arity_1(flagrt.First(args))
-																																																						var if_result_2273 bool
+																																																						var if_result_2277 bool
 																																																						if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(bindings_node, lowflagKw_kind)) {
-																																																							if_result_2273 = false
+																																																							if_result_2277 = false
 																																																						} else {
-																																																							if_result_2273 = true
+																																																							if_result_2277 = true
 																																																						}
-																																																						var if_result_2277 flagrt.Value
-																																																						if if_result_2273 {
-																																																							if_result_2277 = func() flagrt.Value {
+																																																						var if_result_2281 flagrt.Value
+																																																						if if_result_2277 {
+																																																							if_result_2281 = func() flagrt.Value {
 																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("for expects a binding vector"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, bindings_node)))
 																																																								return flagrt.NilValue
 																																																							}()
 																																																						} else {
-																																																							var let_result_2276 flagrt.Value
+																																																							var let_result_2280 flagrt.Value
 																																																							{
 																																																								var entries = compiler__ast_seq_arity_1(bindings_node)
-																																																								var if_result_2274 bool
+																																																								var if_result_2278 bool
 																																																								if flagrt.Eq(lowflagLong_0, flagrt.Mod(flagrt.NewLong(int64(flagrt.Count(entries))), lowflagLong_2)) {
-																																																									if_result_2274 = false
+																																																									if_result_2278 = false
 																																																								} else {
-																																																									if_result_2274 = true
+																																																									if_result_2278 = true
 																																																								}
-																																																								var if_result_2275 flagrt.Value
-																																																								if if_result_2274 {
-																																																									if_result_2275 = func() flagrt.Value {
+																																																								var if_result_2279 flagrt.Value
+																																																								if if_result_2278 {
+																																																									if_result_2279 = func() flagrt.Value {
 																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("for binding vector expects name/value pairs"), flagrt.NewKeyword("data"), lowflagMap))
 																																																										return flagrt.NilValue
 																																																									}()
 																																																								} else {
-																																																									if_result_2275 = compiler__compile_form_node_arity_3(lowflagKw_seq_bindings, flagrt.NewArray(lowflagStr_for, entries, flagrt.Rest(args)), ctx)
+																																																									if_result_2279 = compiler__compile_form_node_arity_3(lowflagKw_seq_bindings, flagrt.NewArray(lowflagStr_for, entries, flagrt.Rest(args)), ctx)
 																																																								}
-																																																								let_result_2276 = if_result_2275
+																																																								let_result_2280 = if_result_2279
 																																																							}
-																																																							if_result_2277 = let_result_2276
+																																																							if_result_2281 = let_result_2280
 																																																						}
-																																																						let_result_2278 = if_result_2277
+																																																						let_result_2282 = if_result_2281
 																																																					}
-																																																					if_result_2279 = let_result_2278
+																																																					if_result_2283 = let_result_2282
 																																																				}
-																																																				if_result_2315 = if_result_2279
+																																																				if_result_2319 = if_result_2283
 																																																			} else {
-																																																				var if_result_2314 flagrt.Value
+																																																				var if_result_2318 flagrt.Value
 																																																				if flagrt.Eq(op, flagrt.NewString("testing")) {
-																																																					var let_result_2283 bool
+																																																					var let_result_2287 bool
 																																																					{
 																																																						var or_tmp = flagrt.IsNil(args)
-																																																						var if_result_2282 bool
+																																																						var if_result_2286 bool
 																																																						if or_tmp {
-																																																							if_result_2282 = or_tmp
+																																																							if_result_2286 = or_tmp
 																																																						} else {
-																																																							var let_result_2281 bool
+																																																							var let_result_2285 bool
 																																																							{
 																																																								var or_tmp = flagrt.IsEmpty(args)
-																																																								var if_result_2280 bool
+																																																								var if_result_2284 bool
 																																																								if or_tmp {
-																																																									if_result_2280 = or_tmp
+																																																									if_result_2284 = or_tmp
 																																																								} else {
-																																																									if_result_2280 = flagrt.IsEmpty(flagrt.Rest(args))
+																																																									if_result_2284 = flagrt.IsEmpty(flagrt.Rest(args))
 																																																								}
-																																																								let_result_2281 = if_result_2280
+																																																								let_result_2285 = if_result_2284
 																																																							}
-																																																							if_result_2282 = let_result_2281
+																																																							if_result_2286 = let_result_2285
 																																																						}
-																																																						let_result_2283 = if_result_2282
+																																																						let_result_2287 = if_result_2286
 																																																					}
-																																																					var if_result_2289 flagrt.Value
-																																																					if let_result_2283 {
-																																																						if_result_2289 = func() flagrt.Value {
+																																																					var if_result_2293 flagrt.Value
+																																																					if let_result_2287 {
+																																																						if_result_2293 = func() flagrt.Value {
 																																																							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("testing expects a label and body"), flagrt.NewKeyword("data"), lowflagMap))
 																																																							return flagrt.NilValue
 																																																						}()
 																																																					} else {
-																																																						var let_result_2288 flagrt.Value
+																																																						var let_result_2292 flagrt.Value
 																																																						{
 																																																							var label = compiler__unwrap_ast_arity_1(flagrt.First(args))
-																																																							var if_result_2284 bool
+																																																							var if_result_2288 bool
 																																																							if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(label, lowflagKw_kind)) {
-																																																								if_result_2284 = false
+																																																								if_result_2288 = false
 																																																							} else {
-																																																								if_result_2284 = true
+																																																								if_result_2288 = true
 																																																							}
-																																																							var if_result_2287 flagrt.Value
-																																																							if if_result_2284 {
-																																																								if_result_2287 = func() flagrt.Value {
+																																																							var if_result_2291 flagrt.Value
+																																																							if if_result_2288 {
+																																																								if_result_2291 = func() flagrt.Value {
 																																																									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("testing expects a string label"), flagrt.NewKeyword("data"), lowflagMap))
 																																																									return flagrt.NilValue
 																																																								}()
 																																																							} else {
-																																																								var if_result_2286 flagrt.Value
+																																																								var if_result_2290 flagrt.Value
 																																																								if flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(label, lowflagKw_value)) {
-																																																									if_result_2286 = func() flagrt.Value {
+																																																									if_result_2290 = func() flagrt.Value {
 																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("testing label cannot be empty"), flagrt.NewKeyword("data"), lowflagMap))
 																																																										return flagrt.NilValue
 																																																									}()
 																																																								} else {
-																																																									var let_result_2285 flagrt.Value
+																																																									var let_result_2289 flagrt.Value
 																																																									{
 																																																										var compiled = compiler__compile_form_node_arity_3(lowflagKw_forms, flagrt.Rest(args), ctx)
-																																																										let_result_2285 = compiler__form_result_arity_4(lowflagVec, compiler__testing_to_ir_arity_2(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																										let_result_2289 = compiler__form_result_arity_4(lowflagVec, compiler__testing_to_ir_arity_2(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																									}
-																																																									if_result_2286 = let_result_2285
+																																																									if_result_2290 = let_result_2289
 																																																								}
-																																																								if_result_2287 = if_result_2286
+																																																								if_result_2291 = if_result_2290
 																																																							}
-																																																							let_result_2288 = if_result_2287
+																																																							let_result_2292 = if_result_2291
 																																																						}
-																																																						if_result_2289 = let_result_2288
+																																																						if_result_2293 = let_result_2292
 																																																					}
-																																																					if_result_2314 = if_result_2289
+																																																					if_result_2318 = if_result_2293
 																																																				} else {
-																																																					var if_result_2313 flagrt.Value
+																																																					var if_result_2317 flagrt.Value
 																																																					if flagrt.Eq(op, flagrt.NewString("is")) {
-																																																						var let_result_2300 flagrt.Value
+																																																						var let_result_2304 flagrt.Value
 																																																						{
 																																																							var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))
-																																																							var let_result_2293 bool
+																																																							var let_result_2297 bool
 																																																							{
-																																																								var if_result_2290 bool
+																																																								var if_result_2294 bool
 																																																								if flagrt.Eq(n, lowflagLong_1) {
-																																																									if_result_2290 = false
+																																																									if_result_2294 = false
 																																																								} else {
-																																																									if_result_2290 = true
+																																																									if_result_2294 = true
 																																																								}
-																																																								var and_tmp = if_result_2290
-																																																								var if_result_2292 bool
+																																																								var and_tmp = if_result_2294
+																																																								var if_result_2296 bool
 																																																								if and_tmp {
-																																																									var if_result_2291 bool
+																																																									var if_result_2295 bool
 																																																									if flagrt.Eq(n, lowflagLong_2) {
-																																																										if_result_2291 = false
+																																																										if_result_2295 = false
 																																																									} else {
-																																																										if_result_2291 = true
+																																																										if_result_2295 = true
 																																																									}
-																																																									if_result_2292 = if_result_2291
+																																																									if_result_2296 = if_result_2295
 																																																								} else {
-																																																									if_result_2292 = and_tmp
+																																																									if_result_2296 = and_tmp
 																																																								}
-																																																								let_result_2293 = if_result_2292
+																																																								let_result_2297 = if_result_2296
 																																																							}
-																																																							var if_result_2299 flagrt.Value
-																																																							if let_result_2293 {
-																																																								if_result_2299 = func() flagrt.Value {
+																																																							var if_result_2303 flagrt.Value
+																																																							if let_result_2297 {
+																																																								if_result_2303 = func() flagrt.Value {
 																																																									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("is expects an expression and optional message"), flagrt.NewKeyword("data"), lowflagMap))
 																																																									return flagrt.NilValue
 																																																								}()
 																																																							} else {
-																																																								var let_result_2298 flagrt.Value
+																																																								var let_result_2302 flagrt.Value
 																																																								{
 																																																									var test_part = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																									var if_result_2297 flagrt.Value
+																																																									var if_result_2301 flagrt.Value
 																																																									if flagrt.Eq(n, lowflagLong_2) {
-																																																										var let_result_2296 flagrt.Value
+																																																										var let_result_2300 flagrt.Value
 																																																										{
 																																																											var msg = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(args)))
-																																																											var if_result_2294 bool
+																																																											var if_result_2298 bool
 																																																											if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(msg, lowflagKw_kind)) {
-																																																												if_result_2294 = false
+																																																												if_result_2298 = false
 																																																											} else {
-																																																												if_result_2294 = true
+																																																												if_result_2298 = true
 																																																											}
-																																																											var if_result_2295 flagrt.Value
-																																																											if if_result_2294 {
-																																																												if_result_2295 = func() flagrt.Value {
+																																																											var if_result_2299 flagrt.Value
+																																																											if if_result_2298 {
+																																																												if_result_2299 = func() flagrt.Value {
 																																																													flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("is message must be a string"), flagrt.NewKeyword("data"), lowflagMap))
 																																																													return flagrt.NilValue
 																																																												}()
 																																																											} else {
-																																																												if_result_2295 = flagrt.KeywordGet(msg, lowflagKw_value)
+																																																												if_result_2299 = flagrt.KeywordGet(msg, lowflagKw_value)
 																																																											}
-																																																											let_result_2296 = if_result_2295
+																																																											let_result_2300 = if_result_2299
 																																																										}
-																																																										if_result_2297 = let_result_2296
+																																																										if_result_2301 = let_result_2300
 																																																									} else {
-																																																										if_result_2297 = compiler__ast_form_source_arity_1(flagrt.First(args))
+																																																										if_result_2301 = compiler__ast_form_source_arity_1(flagrt.First(args))
 																																																									}
-																																																									var message = if_result_2297
+																																																									var message = if_result_2301
 																																																									var prefixed = flagrt.Str(compiler__form_pos_prefix_arity_1(form), message)
-																																																									let_result_2298 = compiler__form_result_arity_4(lowflagVec, compiler__is_to_ir_arity_3(flagrt.KeywordGet(test_part, lowflagKw_stmts), compiler__truthy_form_ir_arity_1(test_part), flagrt.NewString(prefixed)), lowflagKw_value, flagrt.KeywordGet(test_part, lowflagKw_ctx))
+																																																									let_result_2302 = compiler__form_result_arity_4(lowflagVec, compiler__is_to_ir_arity_3(flagrt.KeywordGet(test_part, lowflagKw_stmts), compiler__truthy_form_ir_arity_1(test_part), flagrt.NewString(prefixed)), lowflagKw_value, flagrt.KeywordGet(test_part, lowflagKw_ctx))
 																																																								}
-																																																								if_result_2299 = let_result_2298
+																																																								if_result_2303 = let_result_2302
 																																																							}
-																																																							let_result_2300 = if_result_2299
+																																																							let_result_2304 = if_result_2303
 																																																						}
-																																																						if_result_2313 = let_result_2300
+																																																						if_result_2317 = let_result_2304
 																																																					} else {
-																																																						var if_result_2312 flagrt.Value
+																																																						var if_result_2316 flagrt.Value
 																																																						if flagrt.Eq(op, flagrt.NewString("expect-exception")) {
-																																																							var let_result_2311 flagrt.Value
+																																																							var let_result_2315 flagrt.Value
 																																																							{
 																																																								var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))
-																																																								var let_result_2304 bool
+																																																								var let_result_2308 bool
 																																																								{
-																																																									var if_result_2301 bool
+																																																									var if_result_2305 bool
 																																																									if flagrt.Eq(n, lowflagLong_1) {
-																																																										if_result_2301 = false
+																																																										if_result_2305 = false
 																																																									} else {
-																																																										if_result_2301 = true
+																																																										if_result_2305 = true
 																																																									}
-																																																									var and_tmp = if_result_2301
-																																																									var if_result_2303 bool
+																																																									var and_tmp = if_result_2305
+																																																									var if_result_2307 bool
 																																																									if and_tmp {
-																																																										var if_result_2302 bool
+																																																										var if_result_2306 bool
 																																																										if flagrt.Eq(n, lowflagLong_2) {
-																																																											if_result_2302 = false
+																																																											if_result_2306 = false
 																																																										} else {
-																																																											if_result_2302 = true
+																																																											if_result_2306 = true
 																																																										}
-																																																										if_result_2303 = if_result_2302
+																																																										if_result_2307 = if_result_2306
 																																																									} else {
-																																																										if_result_2303 = and_tmp
+																																																										if_result_2307 = and_tmp
 																																																									}
-																																																									let_result_2304 = if_result_2303
+																																																									let_result_2308 = if_result_2307
 																																																								}
-																																																								var if_result_2310 flagrt.Value
-																																																								if let_result_2304 {
-																																																									if_result_2310 = func() flagrt.Value {
+																																																								var if_result_2314 flagrt.Value
+																																																								if let_result_2308 {
+																																																									if_result_2314 = func() flagrt.Value {
 																																																										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("expect-exception expects an expression and optional message"), flagrt.NewKeyword("data"), lowflagMap))
 																																																										return flagrt.NilValue
 																																																									}()
 																																																								} else {
-																																																									var let_result_2309 flagrt.Value
+																																																									var let_result_2313 flagrt.Value
 																																																									{
 																																																										var body = compiler__compile_form_node_arity_3(lowflagKw_form, flagrt.First(args), ctx)
-																																																										var if_result_2308 flagrt.Value
+																																																										var if_result_2312 flagrt.Value
 																																																										if flagrt.Eq(n, lowflagLong_2) {
-																																																											var let_result_2307 flagrt.Value
+																																																											var let_result_2311 flagrt.Value
 																																																											{
 																																																												var msg = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(args)))
-																																																												var if_result_2305 bool
+																																																												var if_result_2309 bool
 																																																												if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(msg, lowflagKw_kind)) {
-																																																													if_result_2305 = false
+																																																													if_result_2309 = false
 																																																												} else {
-																																																													if_result_2305 = true
+																																																													if_result_2309 = true
 																																																												}
-																																																												var if_result_2306 flagrt.Value
-																																																												if if_result_2305 {
-																																																													if_result_2306 = func() flagrt.Value {
+																																																												var if_result_2310 flagrt.Value
+																																																												if if_result_2309 {
+																																																													if_result_2310 = func() flagrt.Value {
 																																																														flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("expect-exception message must be a string"), flagrt.NewKeyword("data"), lowflagMap))
 																																																														return flagrt.NilValue
 																																																													}()
 																																																												} else {
-																																																													if_result_2306 = flagrt.KeywordGet(msg, lowflagKw_value)
+																																																													if_result_2310 = flagrt.KeywordGet(msg, lowflagKw_value)
 																																																												}
-																																																												let_result_2307 = if_result_2306
+																																																												let_result_2311 = if_result_2310
 																																																											}
-																																																											if_result_2308 = let_result_2307
+																																																											if_result_2312 = let_result_2311
 																																																										} else {
-																																																											if_result_2308 = flagrt.NewString("")
+																																																											if_result_2312 = flagrt.NewString("")
 																																																										}
-																																																										var expected = if_result_2308
+																																																										var expected = if_result_2312
 																																																										var prefix = compiler__form_pos_prefix_arity_1(form)
 																																																										var source = compiler__ast_form_source_arity_1(flagrt.First(args))
 																																																										var no_panic = flagrt.Str(prefix, "expected exception from ", source)
-																																																										let_result_2309 = compiler__form_result_arity_4(lowflagVec, compiler__expect_exception_to_ir_arity_5(flagrt.KeywordGet(body, lowflagKw_stmts), flagrt.KeywordGet(body, lowflagKw_expr), flagrt.NewString(no_panic), expected, prefix), lowflagKw_value, flagrt.KeywordGet(body, lowflagKw_ctx))
+																																																										let_result_2313 = compiler__form_result_arity_4(lowflagVec, compiler__expect_exception_to_ir_arity_5(flagrt.KeywordGet(body, lowflagKw_stmts), flagrt.KeywordGet(body, lowflagKw_expr), flagrt.NewString(no_panic), expected, prefix), lowflagKw_value, flagrt.KeywordGet(body, lowflagKw_ctx))
 																																																									}
-																																																									if_result_2310 = let_result_2309
+																																																									if_result_2314 = let_result_2313
 																																																								}
-																																																								let_result_2311 = if_result_2310
+																																																								let_result_2315 = if_result_2314
 																																																							}
-																																																							if_result_2312 = let_result_2311
+																																																							if_result_2316 = let_result_2315
 																																																						} else {
-																																																							if_result_2312 = func() flagrt.Value {
+																																																							if_result_2316 = func() flagrt.Value {
 																																																								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("unsupported control form"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_op, op)))
 																																																								return flagrt.NilValue
 																																																							}()
 																																																						}
-																																																						if_result_2313 = if_result_2312
+																																																						if_result_2317 = if_result_2316
 																																																					}
-																																																					if_result_2314 = if_result_2313
+																																																					if_result_2318 = if_result_2317
 																																																				}
-																																																				if_result_2315 = if_result_2314
+																																																				if_result_2319 = if_result_2318
 																																																			}
-																																																			if_result_2316 = if_result_2315
+																																																			if_result_2320 = if_result_2319
 																																																		}
-																																																		if_result_2317 = if_result_2316
+																																																		if_result_2321 = if_result_2320
 																																																	}
-																																																	if_result_2318 = if_result_2317
+																																																	if_result_2322 = if_result_2321
 																																																}
-																																																if_result_2319 = if_result_2318
+																																																if_result_2323 = if_result_2322
 																																															}
-																																															if_result_2320 = if_result_2319
+																																															if_result_2324 = if_result_2323
 																																														}
-																																														if_result_2321 = if_result_2320
+																																														if_result_2325 = if_result_2324
 																																													}
-																																													let_result_2322 = if_result_2321
+																																													let_result_2326 = if_result_2325
 																																												}
-																																												if_result_2376 = let_result_2322
+																																												if_result_2380 = let_result_2326
 																																											} else {
-																																												var if_result_2375 flagrt.Value
+																																												var if_result_2379 flagrt.Value
 																																												if flagrt.Eq(mode, lowflagKw_seq_bindings) {
-																																													var let_result_2349 flagrt.Value
+																																													var let_result_2353 flagrt.Value
 																																													{
 																																														var kind = flagrt.First(node)
 																																														var bindings = flagrt.First(flagrt.Rest(node))
 																																														var body = flagrt.First(flagrt.Rest(flagrt.Rest(node)))
-																																														var let_result_2324 bool
+																																														var let_result_2328 bool
 																																														{
 																																															var or_tmp = flagrt.IsNil(body)
-																																															var if_result_2323 bool
+																																															var if_result_2327 bool
 																																															if or_tmp {
-																																																if_result_2323 = or_tmp
+																																																if_result_2327 = or_tmp
 																																															} else {
-																																																if_result_2323 = flagrt.IsEmpty(body)
+																																																if_result_2327 = flagrt.IsEmpty(body)
 																																															}
-																																															let_result_2324 = if_result_2323
+																																															let_result_2328 = if_result_2327
 																																														}
-																																														var if_result_2348 flagrt.Value
-																																														if let_result_2324 {
-																																															if_result_2348 = func() flagrt.Value {
+																																														var if_result_2352 flagrt.Value
+																																														if let_result_2328 {
+																																															if_result_2352 = func() flagrt.Value {
 																																																flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(kind, " expects at least one body form")), flagrt.NewKeyword("data"), lowflagMap))
 																																																return flagrt.NilValue
 																																															}()
 																																														} else {
-																																															var let_result_2326 bool
+																																															var let_result_2330 bool
 																																															{
 																																																var or_tmp = flagrt.IsNil(bindings)
-																																																var if_result_2325 bool
+																																																var if_result_2329 bool
 																																																if or_tmp {
-																																																	if_result_2325 = or_tmp
+																																																	if_result_2329 = or_tmp
 																																																} else {
-																																																	if_result_2325 = flagrt.IsEmpty(bindings)
+																																																	if_result_2329 = flagrt.IsEmpty(bindings)
 																																																}
-																																																let_result_2326 = if_result_2325
+																																																let_result_2330 = if_result_2329
 																																															}
-																																															var if_result_2347 flagrt.Value
-																																															if let_result_2326 {
-																																																var if_result_2334 flagrt.Value
+																																															var if_result_2351 flagrt.Value
+																																															if let_result_2330 {
+																																																var if_result_2338 flagrt.Value
 																																																if flagrt.Eq(kind, flagrt.NewString("doseq")) {
-																																																	var let_result_2332 flagrt.Value
+																																																	var let_result_2336 flagrt.Value
 																																																	{
 																																																		var compiled = compiler__compile_form_node_arity_3(lowflagKw_forms, body, ctx)
 																																																		var k = flagrt.KeywordGet(compiled, lowflagKw_expr_kind)
-																																																		var let_result_2330 bool
+																																																		var let_result_2334 bool
 																																																		{
 																																																			var or_tmp = flagrt.Eq(k, lowflagKw_value)
-																																																			var if_result_2329 bool
+																																																			var if_result_2333 bool
 																																																			if or_tmp {
-																																																				if_result_2329 = or_tmp
+																																																				if_result_2333 = or_tmp
 																																																			} else {
-																																																				var let_result_2328 bool
+																																																				var let_result_2332 bool
 																																																				{
 																																																					var or_tmp = flagrt.Eq(k, lowflagKw_string)
-																																																					var if_result_2327 bool
+																																																					var if_result_2331 bool
 																																																					if or_tmp {
-																																																						if_result_2327 = or_tmp
+																																																						if_result_2331 = or_tmp
 																																																					} else {
-																																																						if_result_2327 = flagrt.Eq(k, lowflagKw_bool)
+																																																						if_result_2331 = flagrt.Eq(k, lowflagKw_bool)
 																																																					}
-																																																					let_result_2328 = if_result_2327
+																																																					let_result_2332 = if_result_2331
 																																																				}
-																																																				if_result_2329 = let_result_2328
+																																																				if_result_2333 = let_result_2332
 																																																			}
-																																																			let_result_2330 = if_result_2329
+																																																			let_result_2334 = if_result_2333
 																																																		}
-																																																		var if_result_2331 flagrt.Value
-																																																		if let_result_2330 {
-																																																			if_result_2331 = compiler__form_result_arity_4(lowflagVec, compiler__doseq_body_to_ir_arity_2(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																		var if_result_2335 flagrt.Value
+																																																		if let_result_2334 {
+																																																			if_result_2335 = compiler__form_result_arity_4(lowflagVec, compiler__doseq_body_to_ir_arity_2(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr)), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																		} else {
-																																																			if_result_2331 = func() flagrt.Value {
+																																																			if_result_2335 = func() flagrt.Value {
 																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("doseq body must evaluate to Value"), flagrt.NewKeyword("data"), lowflagMap))
 																																																				return flagrt.NilValue
 																																																			}()
 																																																		}
-																																																		let_result_2332 = if_result_2331
+																																																		let_result_2336 = if_result_2335
 																																																	}
-																																																	if_result_2334 = let_result_2332
+																																																	if_result_2338 = let_result_2336
 																																																} else {
-																																																	var let_result_2333 flagrt.Value
+																																																	var let_result_2337 flagrt.Value
 																																																	{
 																																																		var compiled = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_forms, body, ctx))
-																																																		let_result_2333 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__ctor_to_ir_arity_2(lowflagStr_NewArray, flagrt.NewArray(flagrt.KeywordGet(compiled, lowflagKw_expr))), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
+																																																		let_result_2337 = compiler__form_result_arity_4(flagrt.KeywordGet(compiled, lowflagKw_stmts), compiler__ctor_to_ir_arity_2(lowflagStr_NewArray, flagrt.NewArray(flagrt.KeywordGet(compiled, lowflagKw_expr))), lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_ctx))
 																																																	}
-																																																	if_result_2334 = let_result_2333
+																																																	if_result_2338 = let_result_2337
 																																																}
-																																																if_result_2347 = if_result_2334
+																																																if_result_2351 = if_result_2338
 																																															} else {
-																																																var let_result_2336 bool
+																																																var let_result_2340 bool
 																																																{
 																																																	var or_tmp = flagrt.IsNil(flagrt.Rest(bindings))
-																																																	var if_result_2335 bool
+																																																	var if_result_2339 bool
 																																																	if or_tmp {
-																																																		if_result_2335 = or_tmp
+																																																		if_result_2339 = or_tmp
 																																																	} else {
-																																																		if_result_2335 = flagrt.IsEmpty(flagrt.Rest(bindings))
+																																																		if_result_2339 = flagrt.IsEmpty(flagrt.Rest(bindings))
 																																																	}
-																																																	let_result_2336 = if_result_2335
+																																																	let_result_2340 = if_result_2339
 																																																}
-																																																var if_result_2346 flagrt.Value
-																																																if let_result_2336 {
-																																																	if_result_2346 = func() flagrt.Value {
+																																																var if_result_2350 flagrt.Value
+																																																if let_result_2340 {
+																																																	if_result_2350 = func() flagrt.Value {
 																																																		flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(kind, " binding vector expects name/value pairs")), flagrt.NewKeyword("data"), lowflagMap))
 																																																		return flagrt.NilValue
 																																																	}()
 																																																} else {
-																																																	var let_result_2345 flagrt.Value
+																																																	var let_result_2349 flagrt.Value
 																																																	{
 																																																		var name_node = compiler__unwrap_ast_arity_1(flagrt.First(bindings))
 																																																		var coll_node = flagrt.First(flagrt.Rest(bindings))
-																																																		var if_result_2337 bool
+																																																		var if_result_2341 bool
 																																																		if flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(name_node, lowflagKw_kind)) {
-																																																			if_result_2337 = false
+																																																			if_result_2341 = false
 																																																		} else {
-																																																			if_result_2337 = true
+																																																			if_result_2341 = true
 																																																		}
-																																																		var if_result_2344 flagrt.Value
-																																																		if if_result_2337 {
-																																																			if_result_2344 = func() flagrt.Value {
+																																																		var if_result_2348 flagrt.Value
+																																																		if if_result_2341 {
+																																																			if_result_2348 = func() flagrt.Value {
 																																																				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(kind, " binding name must be a symbol")), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, name_node)))
 																																																				return flagrt.NilValue
 																																																			}()
 																																																		} else {
-																																																			var let_result_2343 flagrt.Value
+																																																			var let_result_2347 flagrt.Value
 																																																			{
 																																																				var ident = compiler__go_ident_arity_1(flagrt.KeywordGet(name_node, lowflagKw_name))
 																																																				var coll = compiler__compile_form_node_arity_3(lowflagKw_form, coll_node, ctx)
 																																																				var coll_ir = compiler__wrap_value_arg_ir_arity_3(coll, flagrt.NewBool(true), flagrt.NewString(flagrt.Str(kind, " binding collection must evaluate to Value")))
 																																																				var locals = flagrt.KeywordGet(flagrt.KeywordGet(coll, lowflagKw_ctx), lowflagKw_locals)
-																																																				var if_result_2339 flagrt.Value
+																																																				var if_result_2343 flagrt.Value
 																																																				if flagrt.Eq(ident, flagrt.NewString("_")) {
-																																																					if_result_2339 = locals
+																																																					if_result_2343 = locals
 																																																				} else {
-																																																					var if_result_2338 flagrt.Value
+																																																					var if_result_2342 flagrt.Value
 																																																					if flagrt.IsNil(locals) {
-																																																						if_result_2338 = lowflagMap
+																																																						if_result_2342 = lowflagMap
 																																																					} else {
-																																																						if_result_2338 = locals
+																																																						if_result_2342 = locals
 																																																					}
-																																																					if_result_2339 = flagrt.Assoc(if_result_2338, ident, lowflagKw_value)
+																																																					if_result_2343 = flagrt.Assoc(if_result_2342, ident, lowflagKw_value)
 																																																				}
-																																																				var next_locals = if_result_2339
+																																																				var next_locals = if_result_2343
 																																																				var next_ctx = flagrt.Assoc(flagrt.KeywordGet(coll, lowflagKw_ctx), lowflagKw_locals, next_locals)
 																																																				var rest_part = compiler__compile_form_node_arity_3(lowflagKw_seq_bindings, flagrt.NewArray(kind, flagrt.Rest(flagrt.Rest(bindings)), body), next_ctx)
-																																																				var let_result_2342 flagrt.Value
+																																																				var let_result_2346 flagrt.Value
 																																																				{
 																																																					var and_tmp = compiler__unused_binding_q_arity_1(flagrt.KeywordGet(name_node, lowflagKw_name))
-																																																					var if_result_2341 flagrt.Value
+																																																					var if_result_2345 flagrt.Value
 																																																					if flagrt.IsTruthy(and_tmp) {
-																																																						var if_result_2340 bool
+																																																						var if_result_2344 bool
 																																																						if flagrt.Eq(ident, flagrt.NewString("_")) {
-																																																							if_result_2340 = false
+																																																							if_result_2344 = false
 																																																						} else {
-																																																							if_result_2340 = true
+																																																							if_result_2344 = true
 																																																						}
-																																																						if_result_2341 = flagrt.NewBool(if_result_2340)
+																																																						if_result_2345 = flagrt.NewBool(if_result_2344)
 																																																					} else {
-																																																						if_result_2341 = and_tmp
+																																																						if_result_2345 = and_tmp
 																																																					}
-																																																					let_result_2342 = if_result_2341
+																																																					let_result_2346 = if_result_2345
 																																																				}
-																																																				var unused = let_result_2342
+																																																				var unused = let_result_2346
 																																																				var ir = compiler__mapcat_binding_to_ir_arity_6(ident, unused, flagrt.NewString(flagrt.Str(kind, " binding expects exactly one value")), flagrt.KeywordGet(rest_part, lowflagKw_expr), flagrt.KeywordGet(rest_part, lowflagKw_stmts), coll_ir)
-																																																				let_result_2343 = compiler__form_result_arity_4(flagrt.KeywordGet(coll, lowflagKw_stmts), ir, lowflagKw_value, flagrt.KeywordGet(rest_part, lowflagKw_ctx))
+																																																				let_result_2347 = compiler__form_result_arity_4(flagrt.KeywordGet(coll, lowflagKw_stmts), ir, lowflagKw_value, flagrt.KeywordGet(rest_part, lowflagKw_ctx))
 																																																			}
-																																																			if_result_2344 = let_result_2343
+																																																			if_result_2348 = let_result_2347
 																																																		}
-																																																		let_result_2345 = if_result_2344
+																																																		let_result_2349 = if_result_2348
 																																																	}
-																																																	if_result_2346 = let_result_2345
+																																																	if_result_2350 = let_result_2349
 																																																}
-																																																if_result_2347 = if_result_2346
+																																																if_result_2351 = if_result_2350
 																																															}
-																																															if_result_2348 = if_result_2347
+																																															if_result_2352 = if_result_2351
 																																														}
-																																														let_result_2349 = if_result_2348
+																																														let_result_2353 = if_result_2352
 																																													}
-																																													if_result_2375 = let_result_2349
+																																													if_result_2379 = let_result_2353
 																																												} else {
-																																													var if_result_2374 flagrt.Value
+																																													var if_result_2378 flagrt.Value
 																																													if flagrt.Eq(mode, lowflagKw_try) {
-																																														var let_result_2373 flagrt.Value
+																																														var let_result_2377 flagrt.Value
 																																														{
 																																															var parsed = compiler__split_try_args_arity_1(node)
 																																															var body_forms = flagrt.KeywordGet(parsed, lowflagKw_body)
 																																															var catch_forms = flagrt.KeywordGet(parsed, lowflagKw_catches)
 																																															var finally_forms = flagrt.KeywordGet(parsed, lowflagKw_finally)
-																																															var let_result_2351 bool
+																																															var let_result_2355 bool
 																																															{
 																																																var or_tmp = flagrt.IsNil(body_forms)
-																																																var if_result_2350 bool
+																																																var if_result_2354 bool
 																																																if or_tmp {
-																																																	if_result_2350 = or_tmp
+																																																	if_result_2354 = or_tmp
 																																																} else {
-																																																	if_result_2350 = flagrt.IsEmpty(body_forms)
+																																																	if_result_2354 = flagrt.IsEmpty(body_forms)
 																																																}
-																																																let_result_2351 = if_result_2350
+																																																let_result_2355 = if_result_2354
 																																															}
-																																															var if_result_2352 flagrt.Value
-																																															if let_result_2351 {
-																																																if_result_2352 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, ctx)
+																																															var if_result_2356 flagrt.Value
+																																															if let_result_2355 {
+																																																if_result_2356 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, ctx)
 																																															} else {
-																																																if_result_2352 = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_forms, body_forms, ctx))
+																																																if_result_2356 = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_forms, body_forms, ctx))
 																																															}
-																																															var body = if_result_2352
-																																															var let_result_2356 bool
+																																															var body = if_result_2356
+																																															var let_result_2360 bool
 																																															{
-																																																var let_result_2354 bool
+																																																var let_result_2358 bool
 																																																{
 																																																	var or_tmp = flagrt.IsNil(catch_forms)
-																																																	var if_result_2353 bool
+																																																	var if_result_2357 bool
 																																																	if or_tmp {
-																																																		if_result_2353 = or_tmp
+																																																		if_result_2357 = or_tmp
 																																																	} else {
-																																																		if_result_2353 = flagrt.IsEmpty(catch_forms)
+																																																		if_result_2357 = flagrt.IsEmpty(catch_forms)
 																																																	}
-																																																	let_result_2354 = if_result_2353
+																																																	let_result_2358 = if_result_2357
 																																																}
-																																																var and_tmp = let_result_2354
-																																																var if_result_2355 bool
+																																																var and_tmp = let_result_2358
+																																																var if_result_2359 bool
 																																																if and_tmp {
-																																																	if_result_2355 = flagrt.IsNil(finally_forms)
+																																																	if_result_2359 = flagrt.IsNil(finally_forms)
 																																																} else {
-																																																	if_result_2355 = and_tmp
+																																																	if_result_2359 = and_tmp
 																																																}
-																																																let_result_2356 = if_result_2355
+																																																let_result_2360 = if_result_2359
 																																															}
-																																															var if_result_2372 flagrt.Value
-																																															if let_result_2356 {
-																																																if_result_2372 = body
+																																															var if_result_2376 flagrt.Value
+																																															if let_result_2360 {
+																																																if_result_2376 = body
 																																															} else {
-																																																if_result_2372 = func() flagrt.Value {
+																																																if_result_2376 = func() flagrt.Value {
 																																																	var remaining = compiler__stmt_list_arity_1(catch_forms)
 																																																	var ctx = flagrt.KeywordGet(body, lowflagKw_ctx)
 																																																	var catches = lowflagVec
 																																																	for {
-																																																		var let_result_2358 bool
+																																																		var let_result_2362 bool
 																																																		{
 																																																			var or_tmp = flagrt.IsNil(remaining)
-																																																			var if_result_2357 bool
+																																																			var if_result_2361 bool
 																																																			if or_tmp {
-																																																				if_result_2357 = or_tmp
+																																																				if_result_2361 = or_tmp
 																																																			} else {
-																																																				if_result_2357 = flagrt.IsEmpty(remaining)
+																																																				if_result_2361 = flagrt.IsEmpty(remaining)
 																																																			}
-																																																			let_result_2358 = if_result_2357
+																																																			let_result_2362 = if_result_2361
 																																																		}
-																																																		var if_result_2371 flagrt.Value
-																																																		if let_result_2358 {
-																																																			var let_result_2361 flagrt.Value
+																																																		var if_result_2375 flagrt.Value
+																																																		if let_result_2362 {
+																																																			var let_result_2365 flagrt.Value
 																																																			{
-																																																				var if_result_2359 flagrt.Value
+																																																				var if_result_2363 flagrt.Value
 																																																				if flagrt.IsNil(finally_forms) {
-																																																					if_result_2359 = flagrt.NilValue
+																																																					if_result_2363 = flagrt.NilValue
 																																																				} else {
-																																																					if_result_2359 = compiler__compile_form_node_arity_3(lowflagKw_forms, finally_forms, ctx)
+																																																					if_result_2363 = compiler__compile_form_node_arity_3(lowflagKw_forms, finally_forms, ctx)
 																																																				}
-																																																				var finally = if_result_2359
-																																																				var if_result_2360 flagrt.Value
+																																																				var finally = if_result_2363
+																																																				var if_result_2364 flagrt.Value
 																																																				if flagrt.IsNil(finally) {
-																																																					if_result_2360 = ctx
+																																																					if_result_2364 = ctx
 																																																				} else {
-																																																					if_result_2360 = flagrt.KeywordGet(finally, lowflagKw_ctx)
+																																																					if_result_2364 = flagrt.KeywordGet(finally, lowflagKw_ctx)
 																																																				}
-																																																				let_result_2361 = compiler__form_result_arity_4(lowflagVec, compiler__try_to_ir_arity_4(flagrt.KeywordGet(body, lowflagKw_stmts), flagrt.KeywordGet(body, lowflagKw_expr), catches, finally), lowflagKw_value, if_result_2360)
+																																																				let_result_2365 = compiler__form_result_arity_4(lowflagVec, compiler__try_to_ir_arity_4(flagrt.KeywordGet(body, lowflagKw_stmts), flagrt.KeywordGet(body, lowflagKw_expr), catches, finally), lowflagKw_value, if_result_2364)
 																																																			}
-																																																			if_result_2371 = let_result_2361
+																																																			if_result_2375 = let_result_2365
 																																																		} else {
-																																																			var let_result_2370 flagrt.Value
+																																																			var let_result_2374 flagrt.Value
 																																																			{
 																																																				var clause = compiler__parse_catch_clause_arity_1(flagrt.First(remaining))
 																																																				var ident = compiler__go_ident_arity_1(flagrt.KeywordGet(flagrt.KeywordGet(clause, lowflagKw_name), lowflagKw_name))
 																																																				var locals = flagrt.KeywordGet(ctx, lowflagKw_locals)
-																																																				var if_result_2363 flagrt.Value
+																																																				var if_result_2367 flagrt.Value
 																																																				if flagrt.Eq(ident, flagrt.NewString("_")) {
-																																																					if_result_2363 = locals
+																																																					if_result_2367 = locals
 																																																				} else {
-																																																					var if_result_2362 flagrt.Value
+																																																					var if_result_2366 flagrt.Value
 																																																					if flagrt.IsNil(locals) {
-																																																						if_result_2362 = lowflagMap
+																																																						if_result_2366 = lowflagMap
 																																																					} else {
-																																																						if_result_2362 = locals
+																																																						if_result_2366 = locals
 																																																					}
-																																																					if_result_2363 = flagrt.Assoc(if_result_2362, ident, lowflagKw_value)
+																																																					if_result_2367 = flagrt.Assoc(if_result_2366, ident, lowflagKw_value)
 																																																				}
-																																																				var handler_locals = if_result_2363
+																																																				var handler_locals = if_result_2367
 																																																				var handler_ctx = flagrt.Assoc(ctx, lowflagKw_locals, handler_locals)
-																																																				var let_result_2365 bool
+																																																				var let_result_2369 bool
 																																																				{
 																																																					var or_tmp = flagrt.IsNil(flagrt.KeywordGet(clause, lowflagKw_body))
-																																																					var if_result_2364 bool
+																																																					var if_result_2368 bool
 																																																					if or_tmp {
-																																																						if_result_2364 = or_tmp
+																																																						if_result_2368 = or_tmp
 																																																					} else {
-																																																						if_result_2364 = flagrt.IsEmpty(flagrt.KeywordGet(clause, lowflagKw_body))
+																																																						if_result_2368 = flagrt.IsEmpty(flagrt.KeywordGet(clause, lowflagKw_body))
 																																																					}
-																																																					let_result_2365 = if_result_2364
+																																																					let_result_2369 = if_result_2368
 																																																				}
-																																																				var if_result_2366 flagrt.Value
-																																																				if let_result_2365 {
-																																																					if_result_2366 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, handler_ctx)
+																																																				var if_result_2370 flagrt.Value
+																																																				if let_result_2369 {
+																																																					if_result_2370 = compiler__form_result_arity_4(lowflagVec, compiler__rt_nil_arity_0(), lowflagKw_value, handler_ctx)
 																																																				} else {
-																																																					if_result_2366 = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_forms, flagrt.KeywordGet(clause, lowflagKw_body), handler_ctx))
+																																																					if_result_2370 = compiler__coerce_form_value_arity_1(compiler__compile_form_node_arity_3(lowflagKw_forms, flagrt.KeywordGet(clause, lowflagKw_body), handler_ctx))
 																																																				}
-																																																				var handler_body = if_result_2366
+																																																				var handler_body = if_result_2370
 																																																				var handler = compiler__catch_handler_to_ir_arity_3(ident, flagrt.KeywordGet(handler_body, lowflagKw_stmts), flagrt.KeywordGet(handler_body, lowflagKw_expr))
-																																																				var recur_2367 = flagrt.Rest(remaining)
-																																																				var recur_2368 = flagrt.KeywordGet(handler_body, lowflagKw_ctx)
-																																																				var recur_2369 = flagrt.Conj(catches, flagrt.NewMap(lowflagKw_class, flagrt.KeywordGet(clause, lowflagKw_class), lowflagKw_stmts, lowflagVec, lowflagKw_handler, handler))
-																																																				remaining = recur_2367
-																																																				ctx = recur_2368
-																																																				catches = recur_2369
+																																																				var recur_2371 = flagrt.Rest(remaining)
+																																																				var recur_2372 = flagrt.KeywordGet(handler_body, lowflagKw_ctx)
+																																																				var recur_2373 = flagrt.Conj(catches, flagrt.NewMap(lowflagKw_class, flagrt.KeywordGet(clause, lowflagKw_class), lowflagKw_stmts, lowflagVec, lowflagKw_handler, handler))
+																																																				remaining = recur_2371
+																																																				ctx = recur_2372
+																																																				catches = recur_2373
 																																																				continue
-																																																				let_result_2370 = flagrt.NilValue
+																																																				let_result_2374 = flagrt.NilValue
 																																																			}
-																																																			if_result_2371 = let_result_2370
+																																																			if_result_2375 = let_result_2374
 																																																		}
-																																																		return if_result_2371
+																																																		return if_result_2375
 																																																	}
 																																																}()
 																																															}
-																																															let_result_2373 = if_result_2372
+																																															let_result_2377 = if_result_2376
 																																														}
-																																														if_result_2374 = let_result_2373
+																																														if_result_2378 = let_result_2377
 																																													} else {
-																																														if_result_2374 = func() flagrt.Value {
+																																														if_result_2378 = func() flagrt.Value {
 																																															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("unsupported compile-form mode"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_mode, mode)))
 																																															return flagrt.NilValue
 																																														}()
 																																													}
-																																													if_result_2375 = if_result_2374
+																																													if_result_2379 = if_result_2378
 																																												}
-																																												if_result_2376 = if_result_2375
+																																												if_result_2380 = if_result_2379
 																																											}
-																																											if_result_2377 = if_result_2376
+																																											if_result_2381 = if_result_2380
 																																										}
-																																										if_result_2378 = if_result_2377
+																																										if_result_2382 = if_result_2381
 																																									}
-																																									if_result_2379 = if_result_2378
+																																									if_result_2383 = if_result_2382
 																																								}
-																																								if_result_2380 = if_result_2379
+																																								if_result_2384 = if_result_2383
 																																							}
-																																							if_result_2381 = if_result_2380
+																																							if_result_2385 = if_result_2384
 																																						}
-																																						if_result_2382 = if_result_2381
+																																						if_result_2386 = if_result_2385
 																																					}
-																																					if_result_2383 = if_result_2382
+																																					if_result_2387 = if_result_2386
 																																				}
-																																				if_result_2384 = if_result_2383
+																																				if_result_2388 = if_result_2387
 																																			}
-																																			if_result_2385 = if_result_2384
+																																			if_result_2389 = if_result_2388
 																																		}
-																																		if_result_2386 = if_result_2385
+																																		if_result_2390 = if_result_2389
 																																	}
-																																	if_result_2387 = if_result_2386
+																																	if_result_2391 = if_result_2390
 																																}
-																																if_result_2388 = if_result_2387
+																																if_result_2392 = if_result_2391
 																															}
-																															if_result_2389 = if_result_2388
+																															if_result_2393 = if_result_2392
 																														}
-																														if_result_2390 = if_result_2389
+																														if_result_2394 = if_result_2393
 																													}
-																													if_result_2391 = if_result_2390
+																													if_result_2395 = if_result_2394
 																												}
-																												if_result_2392 = if_result_2391
+																												if_result_2396 = if_result_2395
 																											}
-																											if_result_2393 = if_result_2392
+																											if_result_2397 = if_result_2396
 																										}
-																										if_result_2394 = if_result_2393
+																										if_result_2398 = if_result_2397
 																									}
-																									if_result_2395 = if_result_2394
+																									if_result_2399 = if_result_2398
 																								}
-																								if_result_2396 = if_result_2395
+																								if_result_2400 = if_result_2399
 																							}
-																							if_result_2397 = if_result_2396
+																							if_result_2401 = if_result_2400
 																						}
-																						if_result_2398 = if_result_2397
+																						if_result_2402 = if_result_2401
 																					}
-																					if_result_2399 = if_result_2398
+																					if_result_2403 = if_result_2402
 																				}
-																				if_result_2400 = if_result_2399
+																				if_result_2404 = if_result_2403
 																			}
-																			if_result_2401 = if_result_2400
+																			if_result_2405 = if_result_2404
 																		}
-																		if_result_2402 = if_result_2401
+																		if_result_2406 = if_result_2405
 																	}
-																	if_result_2403 = if_result_2402
+																	if_result_2407 = if_result_2406
 																}
-																if_result_2404 = if_result_2403
+																if_result_2408 = if_result_2407
 															}
-															if_result_2405 = if_result_2404
+															if_result_2409 = if_result_2408
 														}
-														if_result_2406 = if_result_2405
+														if_result_2410 = if_result_2409
 													}
-													if_result_2407 = if_result_2406
+													if_result_2411 = if_result_2410
 												}
-												if_result_2408 = if_result_2407
+												if_result_2412 = if_result_2411
 											}
-											if_result_2409 = if_result_2408
+											if_result_2413 = if_result_2412
 										}
-										if_result_2410 = if_result_2409
+										if_result_2414 = if_result_2413
 									}
-									if_result_2411 = if_result_2410
+									if_result_2415 = if_result_2414
 								}
-								if_result_2412 = if_result_2411
+								if_result_2416 = if_result_2415
 							}
-							if_result_2413 = if_result_2412
+							if_result_2417 = if_result_2416
 						}
-						if_result_2414 = if_result_2413
+						if_result_2418 = if_result_2417
 					}
-					if_result_2415 = if_result_2414
+					if_result_2419 = if_result_2418
 				}
-				if_result_2416 = if_result_2415
+				if_result_2420 = if_result_2419
 			}
-			if_result_2417 = if_result_2416
+			if_result_2421 = if_result_2420
 		}
-		if_result_2418 = if_result_2417
+		if_result_2422 = if_result_2421
 	}
-	return if_result_2418
+	return if_result_2422
 }
 func compiler__compile_form_node_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -17558,85 +17554,85 @@ func compiler__compile_forms_to_ir_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emit_doc_comment_arity_1(doc flagrt.Value) flagrt.Value {
-	var let_result_2420 bool
+	var let_result_2424 bool
 	{
 		var or_tmp = flagrt.IsNil(doc)
-		var if_result_2419 bool
+		var if_result_2423 bool
 		if or_tmp {
-			if_result_2419 = or_tmp
+			if_result_2423 = or_tmp
 		} else {
-			if_result_2419 = flagrt.Eq(flagrt.NewString(""), doc)
+			if_result_2423 = flagrt.Eq(flagrt.NewString(""), doc)
 		}
-		let_result_2420 = if_result_2419
+		let_result_2424 = if_result_2423
 	}
-	var if_result_2434 flagrt.Value
-	if let_result_2420 {
-		if_result_2434 = flagrt.NewString("")
+	var if_result_2438 flagrt.Value
+	if let_result_2424 {
+		if_result_2438 = flagrt.NewString("")
 	} else {
-		if_result_2434 = func() flagrt.Value {
+		if_result_2438 = func() flagrt.Value {
 			var remaining = doc
 			var out = flagrt.NewString("")
 			var current = flagrt.NewString("")
 			for {
-				var let_result_2422 bool
+				var let_result_2426 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_2421 bool
+					var if_result_2425 bool
 					if or_tmp {
-						if_result_2421 = or_tmp
+						if_result_2425 = or_tmp
 					} else {
-						if_result_2421 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
+						if_result_2425 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
 					}
-					let_result_2422 = if_result_2421
+					let_result_2426 = if_result_2425
 				}
-				var if_result_2433 flagrt.Value
-				if let_result_2422 {
-					var if_result_2423 string
+				var if_result_2437 flagrt.Value
+				if let_result_2426 {
+					var if_result_2427 string
 					if flagrt.Eq(flagrt.NewString(""), current) {
-						if_result_2423 = flagrt.Str(out, "//\n")
+						if_result_2427 = flagrt.Str(out, "//\n")
 					} else {
-						if_result_2423 = flagrt.Str(out, "// ", current, "\n")
+						if_result_2427 = flagrt.Str(out, "// ", current, "\n")
 					}
-					if_result_2433 = flagrt.NewString(if_result_2423)
+					if_result_2437 = flagrt.NewString(if_result_2427)
 				} else {
-					var let_result_2432 flagrt.Value
+					var let_result_2436 flagrt.Value
 					{
 						var ch = flagrt.FnSubs(remaining, lowflagLong_0, lowflagLong_1)
-						var if_result_2431 flagrt.Value
+						var if_result_2435 flagrt.Value
 						if flagrt.Eq(ch, flagrt.NewString("\n")) {
-							var if_result_2424 string
+							var if_result_2428 string
 							if flagrt.Eq(flagrt.NewString(""), current) {
-								if_result_2424 = flagrt.Str(out, "//\n")
+								if_result_2428 = flagrt.Str(out, "//\n")
 							} else {
-								if_result_2424 = flagrt.Str(out, "// ", current, "\n")
+								if_result_2428 = flagrt.Str(out, "// ", current, "\n")
 							}
-							var recur_2425 = flagrt.FnSubs(remaining, lowflagLong_1)
-							var recur_2426 = flagrt.NewString(if_result_2424)
-							var recur_2427 = lowflagStr_
-							remaining = recur_2425
-							out = recur_2426
-							current = recur_2427
+							var recur_2429 = flagrt.FnSubs(remaining, lowflagLong_1)
+							var recur_2430 = flagrt.NewString(if_result_2428)
+							var recur_2431 = lowflagStr_
+							remaining = recur_2429
+							out = recur_2430
+							current = recur_2431
 							continue
-							if_result_2431 = flagrt.NilValue
+							if_result_2435 = flagrt.NilValue
 						} else {
-							var recur_2428 = flagrt.FnSubs(remaining, lowflagLong_1)
-							var recur_2429 = out
-							var recur_2430 = flagrt.NewString(flagrt.Str(current, ch))
-							remaining = recur_2428
-							out = recur_2429
-							current = recur_2430
+							var recur_2432 = flagrt.FnSubs(remaining, lowflagLong_1)
+							var recur_2433 = out
+							var recur_2434 = flagrt.NewString(flagrt.Str(current, ch))
+							remaining = recur_2432
+							out = recur_2433
+							current = recur_2434
 							continue
-							if_result_2431 = flagrt.NilValue
+							if_result_2435 = flagrt.NilValue
 						}
-						let_result_2432 = if_result_2431
+						let_result_2436 = if_result_2435
 					}
-					if_result_2433 = let_result_2432
+					if_result_2437 = let_result_2436
 				}
-				return if_result_2433
+				return if_result_2437
 			}
 		}()
 	}
-	return if_result_2434
+	return if_result_2438
 }
 func compiler__emit_doc_comment_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -17650,34 +17646,34 @@ func compiler__emit_extra_imports_arity_1(imports flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(imports)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2436 bool
+			var let_result_2440 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2435 bool
+				var if_result_2439 bool
 				if or_tmp {
-					if_result_2435 = or_tmp
+					if_result_2439 = or_tmp
 				} else {
-					if_result_2435 = flagrt.IsEmpty(remaining)
+					if_result_2439 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2436 = if_result_2435
+				let_result_2440 = if_result_2439
 			}
-			var if_result_2440 flagrt.Value
-			if let_result_2436 {
-				if_result_2440 = out
+			var if_result_2444 flagrt.Value
+			if let_result_2440 {
+				if_result_2444 = out
 			} else {
-				var let_result_2439 flagrt.Value
+				var let_result_2443 flagrt.Value
 				{
 					var imp = flagrt.First(remaining)
-					var recur_2437 = flagrt.Rest(remaining)
-					var recur_2438 = flagrt.NewString(flagrt.Str(out, "\t", flagrt.KeywordGet(imp, lowflagKw_name), " ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(imp, lowflagKw_path))), "\n"))
-					remaining = recur_2437
-					out = recur_2438
+					var recur_2441 = flagrt.Rest(remaining)
+					var recur_2442 = flagrt.NewString(flagrt.Str(out, "\t", flagrt.KeywordGet(imp, lowflagKw_name), " ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(imp, lowflagKw_path))), "\n"))
+					remaining = recur_2441
+					out = recur_2442
 					continue
-					let_result_2439 = flagrt.NilValue
+					let_result_2443 = flagrt.NilValue
 				}
-				if_result_2440 = let_result_2439
+				if_result_2444 = let_result_2443
 			}
-			return if_result_2440
+			return if_result_2444
 		}
 	}()
 }
@@ -17689,24 +17685,24 @@ func compiler__emit_extra_imports_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ends_with_newline_q_arity_1(s flagrt.Value) flagrt.Value {
-	var let_result_2442 bool
+	var let_result_2446 bool
 	{
 		var or_tmp = flagrt.IsNil(s)
-		var if_result_2441 bool
+		var if_result_2445 bool
 		if or_tmp {
-			if_result_2441 = or_tmp
+			if_result_2445 = or_tmp
 		} else {
-			if_result_2441 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(s))))
+			if_result_2445 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(s))))
 		}
-		let_result_2442 = if_result_2441
+		let_result_2446 = if_result_2445
 	}
-	var if_result_2443 bool
-	if let_result_2442 {
-		if_result_2443 = false
+	var if_result_2447 bool
+	if let_result_2446 {
+		if_result_2447 = false
 	} else {
-		if_result_2443 = flagrt.Eq(flagrt.NewString("\n"), flagrt.FnSubs(s, flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(s))), lowflagLong_1)))
+		if_result_2447 = flagrt.Eq(flagrt.NewString("\n"), flagrt.FnSubs(s, flagrt.Sub(flagrt.NewLong(int64(flagrt.Count(s))), lowflagLong_1)))
 	}
-	return flagrt.NewBool(if_result_2443)
+	return flagrt.NewBool(if_result_2447)
 }
 func compiler__ends_with_newline_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -17720,41 +17716,41 @@ func compiler__emit_type_decls_arity_1(decls flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(decls)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2445 bool
+			var let_result_2449 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2444 bool
+				var if_result_2448 bool
 				if or_tmp {
-					if_result_2444 = or_tmp
+					if_result_2448 = or_tmp
 				} else {
-					if_result_2444 = flagrt.IsEmpty(remaining)
+					if_result_2448 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2445 = if_result_2444
+				let_result_2449 = if_result_2448
 			}
-			var if_result_2450 flagrt.Value
-			if let_result_2445 {
-				if_result_2450 = out
+			var if_result_2454 flagrt.Value
+			if let_result_2449 {
+				if_result_2454 = out
 			} else {
-				var let_result_2449 flagrt.Value
+				var let_result_2453 flagrt.Value
 				{
 					var decl = flagrt.Str(flagrt.First(remaining))
-					var if_result_2446 string
+					var if_result_2450 string
 					if flagrt.IsTruthy(compiler__ends_with_newline_q_arity_1(flagrt.NewString(decl))) {
-						if_result_2446 = decl
+						if_result_2450 = decl
 					} else {
-						if_result_2446 = flagrt.Str(decl, "\n")
+						if_result_2450 = flagrt.Str(decl, "\n")
 					}
-					var with_nl = if_result_2446
-					var recur_2447 = flagrt.Rest(remaining)
-					var recur_2448 = flagrt.NewString(flagrt.Str(out, with_nl, "\n"))
-					remaining = recur_2447
-					out = recur_2448
+					var with_nl = if_result_2450
+					var recur_2451 = flagrt.Rest(remaining)
+					var recur_2452 = flagrt.NewString(flagrt.Str(out, with_nl, "\n"))
+					remaining = recur_2451
+					out = recur_2452
 					continue
-					let_result_2449 = flagrt.NilValue
+					let_result_2453 = flagrt.NilValue
 				}
-				if_result_2450 = let_result_2449
+				if_result_2454 = let_result_2453
 			}
-			return if_result_2450
+			return if_result_2454
 		}
 	}()
 }
@@ -17770,34 +17766,34 @@ func compiler__emit_functions_arity_1(fns flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(fns)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2452 bool
+			var let_result_2456 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2451 bool
+				var if_result_2455 bool
 				if or_tmp {
-					if_result_2451 = or_tmp
+					if_result_2455 = or_tmp
 				} else {
-					if_result_2451 = flagrt.IsEmpty(remaining)
+					if_result_2455 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2452 = if_result_2451
+				let_result_2456 = if_result_2455
 			}
-			var if_result_2456 flagrt.Value
-			if let_result_2452 {
-				if_result_2456 = out
+			var if_result_2460 flagrt.Value
+			if let_result_2456 {
+				if_result_2460 = out
 			} else {
-				var let_result_2455 flagrt.Value
+				var let_result_2459 flagrt.Value
 				{
 					var item = flagrt.First(remaining)
-					var recur_2453 = flagrt.Rest(remaining)
-					var recur_2454 = flagrt.NewString(flagrt.Str(out, compiler__emit_doc_comment_arity_1(flagrt.KeywordGet(item, lowflagKw_doc)), flagrt.KeywordGet(item, lowflagKw_source), "\n"))
-					remaining = recur_2453
-					out = recur_2454
+					var recur_2457 = flagrt.Rest(remaining)
+					var recur_2458 = flagrt.NewString(flagrt.Str(out, compiler__emit_doc_comment_arity_1(flagrt.KeywordGet(item, lowflagKw_doc)), flagrt.KeywordGet(item, lowflagKw_source), "\n"))
+					remaining = recur_2457
+					out = recur_2458
 					continue
-					let_result_2455 = flagrt.NilValue
+					let_result_2459 = flagrt.NilValue
 				}
-				if_result_2456 = let_result_2455
+				if_result_2460 = let_result_2459
 			}
-			return if_result_2456
+			return if_result_2460
 		}
 	}()
 }
@@ -17809,19 +17805,19 @@ func compiler__emit_functions_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emitted_var_expr_arity_1(expr flagrt.Value) flagrt.Value {
-	var if_result_2458 flagrt.Value
+	var if_result_2462 flagrt.Value
 	if flagrt.IsNil(expr) {
-		if_result_2458 = flagrt.NewString("")
+		if_result_2462 = flagrt.NewString("")
 	} else {
-		var if_result_2457 flagrt.Value
+		var if_result_2461 flagrt.Value
 		if flagrt.IsTruthy(flagrt.KeywordGet(expr, lowflagKw_kind)) {
-			if_result_2457 = compiler__render_ir_arity_1(expr)
+			if_result_2461 = compiler__render_ir_arity_1(expr)
 		} else {
-			if_result_2457 = flagrt.NewString(flagrt.Str(expr))
+			if_result_2461 = flagrt.NewString(flagrt.Str(expr))
 		}
-		if_result_2458 = if_result_2457
+		if_result_2462 = if_result_2461
 	}
-	return if_result_2458
+	return if_result_2462
 }
 func compiler__emitted_var_expr_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -17835,34 +17831,34 @@ func compiler__emit_vars_arity_1(vars flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(vars)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2460 bool
+			var let_result_2464 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2459 bool
+				var if_result_2463 bool
 				if or_tmp {
-					if_result_2459 = or_tmp
+					if_result_2463 = or_tmp
 				} else {
-					if_result_2459 = flagrt.IsEmpty(remaining)
+					if_result_2463 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2460 = if_result_2459
+				let_result_2464 = if_result_2463
 			}
-			var if_result_2464 flagrt.Value
-			if let_result_2460 {
-				if_result_2464 = out
+			var if_result_2468 flagrt.Value
+			if let_result_2464 {
+				if_result_2468 = out
 			} else {
-				var let_result_2463 flagrt.Value
+				var let_result_2467 flagrt.Value
 				{
 					var item = flagrt.First(remaining)
-					var recur_2461 = flagrt.Rest(remaining)
-					var recur_2462 = flagrt.NewString(flagrt.Str(out, compiler__emit_doc_comment_arity_1(flagrt.KeywordGet(item, lowflagKw_doc)), "var ", flagrt.KeywordGet(item, lowflagKw_go_name), " = ", compiler__emitted_var_expr_arity_1(flagrt.KeywordGet(item, lowflagKw_expr)), "\n"))
-					remaining = recur_2461
-					out = recur_2462
+					var recur_2465 = flagrt.Rest(remaining)
+					var recur_2466 = flagrt.NewString(flagrt.Str(out, compiler__emit_doc_comment_arity_1(flagrt.KeywordGet(item, lowflagKw_doc)), "var ", flagrt.KeywordGet(item, lowflagKw_go_name), " = ", compiler__emitted_var_expr_arity_1(flagrt.KeywordGet(item, lowflagKw_expr)), "\n"))
+					remaining = recur_2465
+					out = recur_2466
 					continue
-					let_result_2463 = flagrt.NilValue
+					let_result_2467 = flagrt.NilValue
 				}
-				if_result_2464 = let_result_2463
+				if_result_2468 = let_result_2467
 			}
-			return if_result_2464
+			return if_result_2468
 		}
 	}()
 }
@@ -17877,33 +17873,33 @@ func compiler__find_named_function_arity_2(fns flagrt.Value, want flagrt.Value) 
 	return func() flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(fns)
 		for {
-			var let_result_2466 bool
+			var let_result_2470 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2465 bool
+				var if_result_2469 bool
 				if or_tmp {
-					if_result_2465 = or_tmp
+					if_result_2469 = or_tmp
 				} else {
-					if_result_2465 = flagrt.IsEmpty(remaining)
+					if_result_2469 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2466 = if_result_2465
+				let_result_2470 = if_result_2469
 			}
-			var if_result_2469 flagrt.Value
-			if let_result_2466 {
-				if_result_2469 = flagrt.NilValue
+			var if_result_2473 flagrt.Value
+			if let_result_2470 {
+				if_result_2473 = flagrt.NilValue
 			} else {
-				var if_result_2468 flagrt.Value
+				var if_result_2472 flagrt.Value
 				if flagrt.Eq(want, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_flag_name)) {
-					if_result_2468 = flagrt.First(remaining)
+					if_result_2472 = flagrt.First(remaining)
 				} else {
-					var recur_2467 = flagrt.Rest(remaining)
-					remaining = recur_2467
+					var recur_2471 = flagrt.Rest(remaining)
+					remaining = recur_2471
 					continue
-					if_result_2468 = flagrt.NilValue
+					if_result_2472 = flagrt.NilValue
 				}
-				if_result_2469 = if_result_2468
+				if_result_2473 = if_result_2472
 			}
-			return if_result_2469
+			return if_result_2473
 		}
 	}()
 }
@@ -17915,76 +17911,76 @@ func compiler__find_named_function_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__find_entry_function_arity_1(fns flagrt.Value) flagrt.Value {
-	var let_result_2481 flagrt.Value
+	var let_result_2485 flagrt.Value
 	{
 		var lowflag_main = compiler__find_named_function_arity_2(fns, lowflagStr_flag_main)
-		var if_result_2480 flagrt.Value
+		var if_result_2484 flagrt.Value
 		if flagrt.IsTruthy(lowflag_main) {
-			if_result_2480 = lowflag_main
+			if_result_2484 = lowflag_main
 		} else {
-			if_result_2480 = func() flagrt.Value {
+			if_result_2484 = func() flagrt.Value {
 				var remaining = compiler__stmt_list_arity_1(fns)
 				for {
-					var let_result_2471 bool
+					var let_result_2475 bool
 					{
 						var or_tmp = flagrt.IsNil(remaining)
-						var if_result_2470 bool
+						var if_result_2474 bool
 						if or_tmp {
-							if_result_2470 = or_tmp
+							if_result_2474 = or_tmp
 						} else {
-							if_result_2470 = flagrt.IsEmpty(remaining)
+							if_result_2474 = flagrt.IsEmpty(remaining)
 						}
-						let_result_2471 = if_result_2470
+						let_result_2475 = if_result_2474
 					}
-					var if_result_2479 flagrt.Value
-					if let_result_2471 {
-						if_result_2479 = flagrt.NilValue
+					var if_result_2483 flagrt.Value
+					if let_result_2475 {
+						if_result_2483 = flagrt.NilValue
 					} else {
-						var let_result_2478 flagrt.Value
+						var let_result_2482 flagrt.Value
 						{
 							var item = flagrt.First(remaining)
-							var let_result_2475 bool
+							var let_result_2479 bool
 							{
 								var or_tmp = flagrt.Eq(flagrt.NewString("main"), flagrt.KeywordGet(item, lowflagKw_flag_name))
-								var if_result_2474 bool
+								var if_result_2478 bool
 								if or_tmp {
-									if_result_2474 = or_tmp
+									if_result_2478 = or_tmp
 								} else {
-									var let_result_2473 bool
+									var let_result_2477 bool
 									{
 										var or_tmp = flagrt.Eq(flagrt.NewString("flag_main"), flagrt.KeywordGet(item, lowflagKw_go_name))
-										var if_result_2472 bool
+										var if_result_2476 bool
 										if or_tmp {
-											if_result_2472 = or_tmp
+											if_result_2476 = or_tmp
 										} else {
-											if_result_2472 = flagrt.Eq(flagrt.NewString("main"), flagrt.KeywordGet(item, lowflagKw_go_name))
+											if_result_2476 = flagrt.Eq(flagrt.NewString("main"), flagrt.KeywordGet(item, lowflagKw_go_name))
 										}
-										let_result_2473 = if_result_2472
+										let_result_2477 = if_result_2476
 									}
-									if_result_2474 = let_result_2473
+									if_result_2478 = let_result_2477
 								}
-								let_result_2475 = if_result_2474
+								let_result_2479 = if_result_2478
 							}
-							var if_result_2477 flagrt.Value
-							if let_result_2475 {
-								if_result_2477 = item
+							var if_result_2481 flagrt.Value
+							if let_result_2479 {
+								if_result_2481 = item
 							} else {
-								var recur_2476 = flagrt.Rest(remaining)
-								remaining = recur_2476
+								var recur_2480 = flagrt.Rest(remaining)
+								remaining = recur_2480
 								continue
-								if_result_2477 = flagrt.NilValue
+								if_result_2481 = flagrt.NilValue
 							}
-							let_result_2478 = if_result_2477
+							let_result_2482 = if_result_2481
 						}
-						if_result_2479 = let_result_2478
+						if_result_2483 = let_result_2482
 					}
-					return if_result_2479
+					return if_result_2483
 				}
 			}()
 		}
-		let_result_2481 = if_result_2480
+		let_result_2485 = if_result_2484
 	}
-	return let_result_2481
+	return let_result_2485
 }
 func compiler__find_entry_function_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -17994,53 +17990,53 @@ func compiler__find_entry_function_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emit_imports_arity_5(needs_fmt flagrt.Value, include_main flagrt.Value, tests flagrt.Value, entry flagrt.Value, extra flagrt.Value) flagrt.Value {
-	var if_result_2482 string
+	var if_result_2486 string
 	if flagrt.IsTruthy(needs_fmt) {
-		if_result_2482 = "\t\"fmt\"\n"
+		if_result_2486 = "\t\"fmt\"\n"
 	} else {
-		if_result_2482 = ""
+		if_result_2486 = ""
 	}
-	var if_result_2489 string
+	var if_result_2493 string
 	if flagrt.IsTruthy(include_main) {
-		var let_result_2487 flagrt.Value
+		var let_result_2491 flagrt.Value
 		{
-			var let_result_2484 bool
+			var let_result_2488 bool
 			{
 				var or_tmp = flagrt.IsNil(tests)
-				var if_result_2483 bool
+				var if_result_2487 bool
 				if or_tmp {
-					if_result_2483 = or_tmp
+					if_result_2487 = or_tmp
 				} else {
-					if_result_2483 = flagrt.IsEmpty(tests)
+					if_result_2487 = flagrt.IsEmpty(tests)
 				}
-				let_result_2484 = if_result_2483
+				let_result_2488 = if_result_2487
 			}
-			var if_result_2485 bool
-			if let_result_2484 {
-				if_result_2485 = false
+			var if_result_2489 bool
+			if let_result_2488 {
+				if_result_2489 = false
 			} else {
-				if_result_2485 = true
+				if_result_2489 = true
 			}
-			var or_tmp = if_result_2485
-			var if_result_2486 flagrt.Value
+			var or_tmp = if_result_2489
+			var if_result_2490 flagrt.Value
 			if or_tmp {
-				if_result_2486 = flagrt.NewBool(or_tmp)
+				if_result_2490 = flagrt.NewBool(or_tmp)
 			} else {
-				if_result_2486 = entry
+				if_result_2490 = entry
 			}
-			let_result_2487 = if_result_2486
+			let_result_2491 = if_result_2490
 		}
-		var if_result_2488 string
-		if flagrt.IsTruthy(let_result_2487) {
-			if_result_2488 = "\t\"os\"\n"
+		var if_result_2492 string
+		if flagrt.IsTruthy(let_result_2491) {
+			if_result_2492 = "\t\"os\"\n"
 		} else {
-			if_result_2488 = ""
+			if_result_2492 = ""
 		}
-		if_result_2489 = flagrt.Str("\t\"strings\"\n", if_result_2488)
+		if_result_2493 = flagrt.Str("\t\"strings\"\n", if_result_2492)
 	} else {
-		if_result_2489 = ""
+		if_result_2493 = ""
 	}
-	return flagrt.NewString(flagrt.Str("import (\n", if_result_2482, if_result_2489, compiler__emit_extra_imports_arity_1(extra), "\tflagrt \"flag-lang/runtime\"\n", ")\n\n"))
+	return flagrt.NewString(flagrt.Str("import (\n", if_result_2486, if_result_2493, compiler__emit_extra_imports_arity_1(extra), "\tflagrt \"flag-lang/runtime\"\n", ")\n\n"))
 }
 func compiler__emit_imports_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -18064,34 +18060,34 @@ func compiler__emit_test_cases_arity_1(tests flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(tests)
 		var out = flagrt.NewString("\ttests := []flagTestCase{\n")
 		for {
-			var let_result_2491 bool
+			var let_result_2495 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2490 bool
+				var if_result_2494 bool
 				if or_tmp {
-					if_result_2490 = or_tmp
+					if_result_2494 = or_tmp
 				} else {
-					if_result_2490 = flagrt.IsEmpty(remaining)
+					if_result_2494 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2491 = if_result_2490
+				let_result_2495 = if_result_2494
 			}
-			var if_result_2495 flagrt.Value
-			if let_result_2491 {
-				if_result_2495 = flagrt.NewString(flagrt.Str(out, "\t}\n"))
+			var if_result_2499 flagrt.Value
+			if let_result_2495 {
+				if_result_2499 = flagrt.NewString(flagrt.Str(out, "\t}\n"))
 			} else {
-				var let_result_2494 flagrt.Value
+				var let_result_2498 flagrt.Value
 				{
 					var tc = flagrt.First(remaining)
-					var recur_2492 = flagrt.Rest(remaining)
-					var recur_2493 = flagrt.NewString(flagrt.Str(out, "\t\t{name: ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(tc, lowflagKw_label))), ", line: ", flagrt.KeywordGet(tc, lowflagKw_line), ", body: ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(tc, lowflagKw_body_source))), ", fn: ", flagrt.KeywordGet(tc, lowflagKw_go_name), "},\n"))
-					remaining = recur_2492
-					out = recur_2493
+					var recur_2496 = flagrt.Rest(remaining)
+					var recur_2497 = flagrt.NewString(flagrt.Str(out, "\t\t{name: ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(tc, lowflagKw_label))), ", line: ", flagrt.KeywordGet(tc, lowflagKw_line), ", body: ", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(tc, lowflagKw_body_source))), ", fn: ", flagrt.KeywordGet(tc, lowflagKw_go_name), "},\n"))
+					remaining = recur_2496
+					out = recur_2497
 					continue
-					let_result_2494 = flagrt.NilValue
+					let_result_2498 = flagrt.NilValue
 				}
-				if_result_2495 = let_result_2494
+				if_result_2499 = let_result_2498
 			}
-			return if_result_2495
+			return if_result_2499
 		}
 	}()
 }
@@ -18103,58 +18099,58 @@ func compiler__emit_test_cases_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emitted_stmt_prelude_arity_1(stmt flagrt.Value) flagrt.Value {
-	var if_result_2496 bool
+	var if_result_2500 bool
 	if flagrt.IsNil(flagrt.KeywordGet(stmt, lowflagKw_prelude_stmts)) {
-		if_result_2496 = false
+		if_result_2500 = false
 	} else {
-		if_result_2496 = true
+		if_result_2500 = true
 	}
-	var if_result_2504 flagrt.Value
-	if if_result_2496 {
-		if_result_2504 = compiler__render_ir_stmts_arity_2(flagrt.KeywordGet(stmt, lowflagKw_prelude_stmts), lowflagStr___11)
+	var if_result_2508 flagrt.Value
+	if if_result_2500 {
+		if_result_2508 = compiler__render_ir_stmts_arity_2(flagrt.KeywordGet(stmt, lowflagKw_prelude_stmts), lowflagStr___11)
 	} else {
-		var let_result_2503 flagrt.Value
+		var let_result_2507 flagrt.Value
 		{
-			var let_result_2498 flagrt.Value
+			var let_result_2502 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(stmt, lowflagKw_prelude)
-				var if_result_2497 flagrt.Value
+				var if_result_2501 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_2497 = or_tmp
+					if_result_2501 = or_tmp
 				} else {
-					if_result_2497 = flagrt.NewString("")
+					if_result_2501 = flagrt.NewString("")
 				}
-				let_result_2498 = if_result_2497
+				let_result_2502 = if_result_2501
 			}
-			var prelude = let_result_2498
-			var let_result_2500 bool
+			var prelude = let_result_2502
+			var let_result_2504 bool
 			{
 				var or_tmp = flagrt.IsNil(prelude)
-				var if_result_2499 bool
+				var if_result_2503 bool
 				if or_tmp {
-					if_result_2499 = or_tmp
+					if_result_2503 = or_tmp
 				} else {
-					if_result_2499 = flagrt.Eq(flagrt.NewString(""), prelude)
+					if_result_2503 = flagrt.Eq(flagrt.NewString(""), prelude)
 				}
-				let_result_2500 = if_result_2499
+				let_result_2504 = if_result_2503
 			}
-			var if_result_2502 flagrt.Value
-			if let_result_2500 {
-				if_result_2502 = flagrt.NewString("")
+			var if_result_2506 flagrt.Value
+			if let_result_2504 {
+				if_result_2506 = flagrt.NewString("")
 			} else {
-				var if_result_2501 flagrt.Value
+				var if_result_2505 flagrt.Value
 				if flagrt.IsTruthy(compiler__ends_with_newline_q_arity_1(prelude)) {
-					if_result_2501 = prelude
+					if_result_2505 = prelude
 				} else {
-					if_result_2501 = flagrt.NewString(flagrt.Str(prelude, "\n"))
+					if_result_2505 = flagrt.NewString(flagrt.Str(prelude, "\n"))
 				}
-				if_result_2502 = if_result_2501
+				if_result_2506 = if_result_2505
 			}
-			let_result_2503 = if_result_2502
+			let_result_2507 = if_result_2506
 		}
-		if_result_2504 = let_result_2503
+		if_result_2508 = let_result_2507
 	}
-	return if_result_2504
+	return if_result_2508
 }
 func compiler__emitted_stmt_prelude_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18164,36 +18160,36 @@ func compiler__emitted_stmt_prelude_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__emitted_stmt_code_arity_1(stmt flagrt.Value) flagrt.Value {
-	var if_result_2505 bool
+	var if_result_2509 bool
 	if flagrt.IsNil(flagrt.KeywordGet(stmt, lowflagKw_defer_stmt)) {
-		if_result_2505 = false
+		if_result_2509 = false
 	} else {
-		if_result_2505 = true
+		if_result_2509 = true
 	}
-	var if_result_2509 flagrt.Value
-	if if_result_2505 {
-		if_result_2509 = compiler__render_ir_stmt_arity_2(flagrt.KeywordGet(stmt, lowflagKw_defer_stmt), lowflagStr_)
+	var if_result_2513 flagrt.Value
+	if if_result_2509 {
+		if_result_2513 = compiler__render_ir_stmt_arity_2(flagrt.KeywordGet(stmt, lowflagKw_defer_stmt), lowflagStr_)
 	} else {
-		var if_result_2508 flagrt.Value
+		var if_result_2512 flagrt.Value
 		if flagrt.IsTruthy(flagrt.KeywordGet(flagrt.KeywordGet(stmt, lowflagKw_expr), lowflagKw_kind)) {
-			if_result_2508 = compiler__render_ir_arity_1(flagrt.KeywordGet(stmt, lowflagKw_expr))
+			if_result_2512 = compiler__render_ir_arity_1(flagrt.KeywordGet(stmt, lowflagKw_expr))
 		} else {
-			var let_result_2507 flagrt.Value
+			var let_result_2511 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(stmt, lowflagKw_code)
-				var if_result_2506 flagrt.Value
+				var if_result_2510 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_2506 = or_tmp
+					if_result_2510 = or_tmp
 				} else {
-					if_result_2506 = flagrt.NewString("")
+					if_result_2510 = flagrt.NewString("")
 				}
-				let_result_2507 = if_result_2506
+				let_result_2511 = if_result_2510
 			}
-			if_result_2508 = let_result_2507
+			if_result_2512 = let_result_2511
 		}
-		if_result_2509 = if_result_2508
+		if_result_2513 = if_result_2512
 	}
-	return if_result_2509
+	return if_result_2513
 }
 func compiler__emitted_stmt_code_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18207,43 +18203,43 @@ func compiler__emit_main_stmts_arity_1(stmts flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(stmts)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2511 bool
+			var let_result_2515 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2510 bool
+				var if_result_2514 bool
 				if or_tmp {
-					if_result_2510 = or_tmp
+					if_result_2514 = or_tmp
 				} else {
-					if_result_2510 = flagrt.IsEmpty(remaining)
+					if_result_2514 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2511 = if_result_2510
+				let_result_2515 = if_result_2514
 			}
-			var if_result_2516 flagrt.Value
-			if let_result_2511 {
-				if_result_2516 = out
+			var if_result_2520 flagrt.Value
+			if let_result_2515 {
+				if_result_2520 = out
 			} else {
-				var let_result_2515 flagrt.Value
+				var let_result_2519 flagrt.Value
 				{
 					var stmt = flagrt.First(remaining)
 					var prelude_out = compiler__emitted_stmt_prelude_arity_1(stmt)
 					var code = compiler__emitted_stmt_code_arity_1(stmt)
-					var if_result_2512 string
+					var if_result_2516 string
 					if flagrt.Eq(lowflagLong_0, flagrt.KeywordGet(stmt, lowflagKw_kind)) {
-						if_result_2512 = flagrt.Str("\t", code, "\n")
+						if_result_2516 = flagrt.Str("\t", code, "\n")
 					} else {
-						if_result_2512 = flagrt.Str("\t_ = ", code, "\n")
+						if_result_2516 = flagrt.Str("\t_ = ", code, "\n")
 					}
-					var line = if_result_2512
-					var recur_2513 = flagrt.Rest(remaining)
-					var recur_2514 = flagrt.NewString(flagrt.Str(out, prelude_out, line))
-					remaining = recur_2513
-					out = recur_2514
+					var line = if_result_2516
+					var recur_2517 = flagrt.Rest(remaining)
+					var recur_2518 = flagrt.NewString(flagrt.Str(out, prelude_out, line))
+					remaining = recur_2517
+					out = recur_2518
 					continue
-					let_result_2515 = flagrt.NilValue
+					let_result_2519 = flagrt.NilValue
 				}
-				if_result_2516 = let_result_2515
+				if_result_2520 = let_result_2519
 			}
-			return if_result_2516
+			return if_result_2520
 		}
 	}()
 }
@@ -18255,41 +18251,41 @@ func compiler__emit_main_stmts_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emit_entry_call_arity_1(entry flagrt.Value) flagrt.Value {
-	var if_result_2522 string
+	var if_result_2526 string
 	if flagrt.IsNil(entry) {
-		if_result_2522 = ""
+		if_result_2526 = ""
 	} else {
-		var let_result_2520 flagrt.Value
+		var let_result_2524 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(entry, lowflagKw_has_rest)
-			var if_result_2519 flagrt.Value
+			var if_result_2523 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2519 = or_tmp
+				if_result_2523 = or_tmp
 			} else {
-				var let_result_2518 flagrt.Value
+				var let_result_2522 flagrt.Value
 				{
 					var or_tmp = flagrt.KeywordGet(entry, lowflagKw_param_count)
-					var if_result_2517 flagrt.Value
+					var if_result_2521 flagrt.Value
 					if flagrt.IsTruthy(or_tmp) {
-						if_result_2517 = or_tmp
+						if_result_2521 = or_tmp
 					} else {
-						if_result_2517 = lowflagLong_0
+						if_result_2521 = lowflagLong_0
 					}
-					let_result_2518 = if_result_2517
+					let_result_2522 = if_result_2521
 				}
-				if_result_2519 = flagrt.NewBool(flagrt.Lt(lowflagLong_0, let_result_2518))
+				if_result_2523 = flagrt.NewBool(flagrt.Lt(lowflagLong_0, let_result_2522))
 			}
-			let_result_2520 = if_result_2519
+			let_result_2524 = if_result_2523
 		}
-		var if_result_2521 string
-		if flagrt.IsTruthy(let_result_2520) {
-			if_result_2521 = flagrt.Str("\targs := make([]flagrt.Value, 0, len(os.Args)-1)\n", "\tfor _, arg := range os.Args[1:] {\n", "\t\targs = append(args, flagrt.NewString(arg))\n", "\t}\n", "\t_ = flagrt.Call(", flagrt.KeywordGet(entry, lowflagKw_go_name), ", args...)\n")
+		var if_result_2525 string
+		if flagrt.IsTruthy(let_result_2524) {
+			if_result_2525 = flagrt.Str("\targs := make([]flagrt.Value, 0, len(os.Args)-1)\n", "\tfor _, arg := range os.Args[1:] {\n", "\t\targs = append(args, flagrt.NewString(arg))\n", "\t}\n", "\t_ = flagrt.Call(", flagrt.KeywordGet(entry, lowflagKw_go_name), ", args...)\n")
 		} else {
-			if_result_2521 = flagrt.Str("\t_ = flagrt.Call(", flagrt.KeywordGet(entry, lowflagKw_go_name), ")\n")
+			if_result_2525 = flagrt.Str("\t_ = flagrt.Call(", flagrt.KeywordGet(entry, lowflagKw_go_name), ")\n")
 		}
-		if_result_2522 = if_result_2521
+		if_result_2526 = if_result_2525
 	}
-	return flagrt.NewString(if_result_2522)
+	return flagrt.NewString(if_result_2526)
 }
 func compiler__emit_entry_call_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18299,39 +18295,7 @@ func compiler__emit_entry_call_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emit_main_arity_2(result flagrt.Value, entry flagrt.Value) flagrt.Value {
-	var let_result_2526 string
-	{
-		var tests = flagrt.KeywordGet(result, lowflagKw_tests)
-		var let_result_2524 bool
-		{
-			var or_tmp = flagrt.IsNil(tests)
-			var if_result_2523 bool
-			if or_tmp {
-				if_result_2523 = or_tmp
-			} else {
-				if_result_2523 = flagrt.IsEmpty(tests)
-			}
-			let_result_2524 = if_result_2523
-		}
-		var if_result_2525 string
-		if let_result_2524 {
-			if_result_2525 = flagrt.Str(compiler__emit_main_stmts_arity_1(flagrt.KeywordGet(result, lowflagKw_stmts)), compiler__emit_entry_call_arity_1(entry))
-		} else {
-			if_result_2525 = flagrt.Str(compiler__emit_test_cases_arity_1(tests), "\tpassed := 0\n", "\tfailed := 0\n", "\tfor _, tc := range tests {\n", "\t\tif runFlagTestCase(tc) {\n", "\t\t\tpassed++\n", "\t\t} else {\n", "\t\t\tfailed++\n", "\t\t}\n", "\t}\n", "\tfmt.Printf(\"%d passed, %d failed\\n\", passed, failed)\n", "\tif failed > 0 {\n", "\t\tos.Exit(1)\n", "\t}\n")
-		}
-		let_result_2526 = flagrt.Str("func main() {\n", "\t_ = strings.HasSuffix\n", if_result_2525, "}\n")
-	}
-	return flagrt.NewString(let_result_2526)
-}
-func compiler__emit_main_variadic(args ...flagrt.Value) flagrt.Value {
-	if len(args) != 2 {
-		panic("compiler__emit_main expects exactly 2 arguments")
-	}
-	return compiler__emit_main_arity_2(args[0], args[1])
-}
-
-func compiler__emit_go_file_arity_3(pkg_name flagrt.Value, result flagrt.Value, include_main flagrt.Value) flagrt.Value {
-	var let_result_2544 string
+	var let_result_2530 string
 	{
 		var tests = flagrt.KeywordGet(result, lowflagKw_tests)
 		var let_result_2528 bool
@@ -18345,99 +18309,131 @@ func compiler__emit_go_file_arity_3(pkg_name flagrt.Value, result flagrt.Value, 
 			}
 			let_result_2528 = if_result_2527
 		}
-		var if_result_2530 bool
+		var if_result_2529 string
 		if let_result_2528 {
-			var if_result_2529 bool
-			if flagrt.IsTruthy(flagrt.KeywordGet(result, lowflagKw_needs_fmt)) {
-				if_result_2529 = true
+			if_result_2529 = flagrt.Str(compiler__emit_main_stmts_arity_1(flagrt.KeywordGet(result, lowflagKw_stmts)), compiler__emit_entry_call_arity_1(entry))
+		} else {
+			if_result_2529 = flagrt.Str(compiler__emit_test_cases_arity_1(tests), "\tpassed := 0\n", "\tfailed := 0\n", "\tfor _, tc := range tests {\n", "\t\tif runFlagTestCase(tc) {\n", "\t\t\tpassed++\n", "\t\t} else {\n", "\t\t\tfailed++\n", "\t\t}\n", "\t}\n", "\tfmt.Printf(\"%d passed, %d failed\\n\", passed, failed)\n", "\tif failed > 0 {\n", "\t\tos.Exit(1)\n", "\t}\n")
+		}
+		let_result_2530 = flagrt.Str("func main() {\n", "\t_ = strings.HasSuffix\n", if_result_2529, "}\n")
+	}
+	return flagrt.NewString(let_result_2530)
+}
+func compiler__emit_main_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__emit_main expects exactly 2 arguments")
+	}
+	return compiler__emit_main_arity_2(args[0], args[1])
+}
+
+func compiler__emit_go_file_arity_3(pkg_name flagrt.Value, result flagrt.Value, include_main flagrt.Value) flagrt.Value {
+	var let_result_2548 string
+	{
+		var tests = flagrt.KeywordGet(result, lowflagKw_tests)
+		var let_result_2532 bool
+		{
+			var or_tmp = flagrt.IsNil(tests)
+			var if_result_2531 bool
+			if or_tmp {
+				if_result_2531 = or_tmp
 			} else {
-				if_result_2529 = false
+				if_result_2531 = flagrt.IsEmpty(tests)
 			}
-			if_result_2530 = if_result_2529
-		} else {
-			if_result_2530 = true
+			let_result_2532 = if_result_2531
 		}
-		var needs_fmt = if_result_2530
-		var if_result_2531 flagrt.Value
+		var if_result_2534 bool
+		if let_result_2532 {
+			var if_result_2533 bool
+			if flagrt.IsTruthy(flagrt.KeywordGet(result, lowflagKw_needs_fmt)) {
+				if_result_2533 = true
+			} else {
+				if_result_2533 = false
+			}
+			if_result_2534 = if_result_2533
+		} else {
+			if_result_2534 = true
+		}
+		var needs_fmt = if_result_2534
+		var if_result_2535 flagrt.Value
 		if flagrt.IsTruthy(include_main) {
-			if_result_2531 = compiler__find_entry_function_arity_1(flagrt.KeywordGet(result, lowflagKw_functions))
+			if_result_2535 = compiler__find_entry_function_arity_1(flagrt.KeywordGet(result, lowflagKw_functions))
 		} else {
-			if_result_2531 = flagrt.NilValue
+			if_result_2535 = flagrt.NilValue
 		}
-		var entry = if_result_2531
+		var entry = if_result_2535
 		var vars = flagrt.KeywordGet(result, lowflagKw_vars)
-		var let_result_2533 flagrt.Value
+		var let_result_2537 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(result, lowflagKw_namespace_code)
-			var if_result_2532 flagrt.Value
+			var if_result_2536 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2532 = or_tmp
+				if_result_2536 = or_tmp
 			} else {
-				if_result_2532 = flagrt.NewString("")
+				if_result_2536 = flagrt.NewString("")
 			}
-			let_result_2533 = if_result_2532
+			let_result_2537 = if_result_2536
 		}
-		var ns_code = let_result_2533
-		var let_result_2535 bool
+		var ns_code = let_result_2537
+		var let_result_2539 bool
 		{
 			var or_tmp = flagrt.IsNil(vars)
-			var if_result_2534 bool
+			var if_result_2538 bool
 			if or_tmp {
-				if_result_2534 = or_tmp
+				if_result_2538 = or_tmp
 			} else {
-				if_result_2534 = flagrt.IsEmpty(vars)
+				if_result_2538 = flagrt.IsEmpty(vars)
 			}
-			let_result_2535 = if_result_2534
+			let_result_2539 = if_result_2538
 		}
-		var if_result_2536 string
-		if let_result_2535 {
-			if_result_2536 = ""
+		var if_result_2540 string
+		if let_result_2539 {
+			if_result_2540 = ""
 		} else {
-			if_result_2536 = "\n"
+			if_result_2540 = "\n"
 		}
-		var let_result_2541 flagrt.Value
+		var let_result_2545 flagrt.Value
 		{
 			var and_tmp = include_main
-			var if_result_2540 flagrt.Value
+			var if_result_2544 flagrt.Value
 			if flagrt.IsTruthy(and_tmp) {
-				var let_result_2538 bool
+				var let_result_2542 bool
 				{
 					var or_tmp = flagrt.IsNil(tests)
-					var if_result_2537 bool
+					var if_result_2541 bool
 					if or_tmp {
-						if_result_2537 = or_tmp
+						if_result_2541 = or_tmp
 					} else {
-						if_result_2537 = flagrt.IsEmpty(tests)
+						if_result_2541 = flagrt.IsEmpty(tests)
 					}
-					let_result_2538 = if_result_2537
+					let_result_2542 = if_result_2541
 				}
-				var if_result_2539 bool
-				if let_result_2538 {
-					if_result_2539 = false
+				var if_result_2543 bool
+				if let_result_2542 {
+					if_result_2543 = false
 				} else {
-					if_result_2539 = true
+					if_result_2543 = true
 				}
-				if_result_2540 = flagrt.NewBool(if_result_2539)
+				if_result_2544 = flagrt.NewBool(if_result_2543)
 			} else {
-				if_result_2540 = and_tmp
+				if_result_2544 = and_tmp
 			}
-			let_result_2541 = if_result_2540
+			let_result_2545 = if_result_2544
 		}
-		var if_result_2542 flagrt.Value
-		if flagrt.IsTruthy(let_result_2541) {
-			if_result_2542 = compiler__emit_test_runner_arity_0()
+		var if_result_2546 flagrt.Value
+		if flagrt.IsTruthy(let_result_2545) {
+			if_result_2546 = compiler__emit_test_runner_arity_0()
 		} else {
-			if_result_2542 = flagrt.NewString("")
+			if_result_2546 = flagrt.NewString("")
 		}
-		var if_result_2543 flagrt.Value
+		var if_result_2547 flagrt.Value
 		if flagrt.IsTruthy(include_main) {
-			if_result_2543 = compiler__emit_main_arity_2(result, entry)
+			if_result_2547 = compiler__emit_main_arity_2(result, entry)
 		} else {
-			if_result_2543 = flagrt.NewString("")
+			if_result_2547 = flagrt.NewString("")
 		}
-		let_result_2544 = flagrt.Str("package ", pkg_name, "\n\n", compiler__emit_imports_arity_5(flagrt.NewBool(needs_fmt), include_main, tests, entry, flagrt.KeywordGet(result, lowflagKw_extra_imports)), ns_code, compiler__emit_type_decls_arity_1(flagrt.KeywordGet(result, lowflagKw_type_decls)), compiler__emit_functions_arity_1(flagrt.KeywordGet(result, lowflagKw_functions)), compiler__emit_vars_arity_1(vars), if_result_2536, if_result_2542, if_result_2543)
+		let_result_2548 = flagrt.Str("package ", pkg_name, "\n\n", compiler__emit_imports_arity_5(flagrt.NewBool(needs_fmt), include_main, tests, entry, flagrt.KeywordGet(result, lowflagKw_extra_imports)), ns_code, compiler__emit_type_decls_arity_1(flagrt.KeywordGet(result, lowflagKw_type_decls)), compiler__emit_functions_arity_1(flagrt.KeywordGet(result, lowflagKw_functions)), compiler__emit_vars_arity_1(vars), if_result_2540, if_result_2546, if_result_2547)
 	}
-	return flagrt.NewString(let_result_2544)
+	return flagrt.NewString(let_result_2548)
 }
 func compiler__emit_go_file_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -18457,35 +18453,35 @@ func compiler__compile_program_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ast_symbol_name_arity_1(node flagrt.Value) flagrt.Value {
-	var let_result_2549 flagrt.Value
+	var let_result_2553 flagrt.Value
 	{
 		var n = compiler__unwrap_ast_arity_1(node)
-		var let_result_2547 bool
+		var let_result_2551 bool
 		{
 			var and_tmp = flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(n, lowflagKw_kind))
-			var if_result_2546 bool
+			var if_result_2550 bool
 			if and_tmp {
-				var if_result_2545 bool
+				var if_result_2549 bool
 				if flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(n, lowflagKw_name)) {
-					if_result_2545 = false
+					if_result_2549 = false
 				} else {
-					if_result_2545 = true
+					if_result_2549 = true
 				}
-				if_result_2546 = if_result_2545
+				if_result_2550 = if_result_2549
 			} else {
-				if_result_2546 = and_tmp
+				if_result_2550 = and_tmp
 			}
-			let_result_2547 = if_result_2546
+			let_result_2551 = if_result_2550
 		}
-		var if_result_2548 flagrt.Value
-		if let_result_2547 {
-			if_result_2548 = flagrt.KeywordGet(n, lowflagKw_name)
+		var if_result_2552 flagrt.Value
+		if let_result_2551 {
+			if_result_2552 = flagrt.KeywordGet(n, lowflagKw_name)
 		} else {
-			if_result_2548 = flagrt.NilValue
+			if_result_2552 = flagrt.NilValue
 		}
-		let_result_2549 = if_result_2548
+		let_result_2553 = if_result_2552
 	}
-	return let_result_2549
+	return let_result_2553
 }
 func compiler__ast_symbol_name_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18495,18 +18491,18 @@ func compiler__ast_symbol_name_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ast_elements_arity_1(node flagrt.Value) flagrt.Value {
-	var let_result_2551 flagrt.Value
+	var let_result_2555 flagrt.Value
 	{
 		var els = flagrt.KeywordGet(compiler__unwrap_ast_arity_1(node), lowflagKw_elements)
-		var if_result_2550 flagrt.Value
+		var if_result_2554 flagrt.Value
 		if flagrt.IsNil(els) {
-			if_result_2550 = lowflagVec
+			if_result_2554 = lowflagVec
 		} else {
-			if_result_2550 = els
+			if_result_2554 = els
 		}
-		let_result_2551 = if_result_2550
+		let_result_2555 = if_result_2554
 	}
-	return let_result_2551
+	return let_result_2555
 }
 func compiler__ast_elements_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18516,24 +18512,24 @@ func compiler__ast_elements_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__flatten_form_expr_arity_1(part flagrt.Value) flagrt.Value {
-	var let_result_2553 bool
+	var let_result_2557 bool
 	{
 		var or_tmp = flagrt.IsNil(flagrt.KeywordGet(part, lowflagKw_stmts))
-		var if_result_2552 bool
+		var if_result_2556 bool
 		if or_tmp {
-			if_result_2552 = or_tmp
+			if_result_2556 = or_tmp
 		} else {
-			if_result_2552 = flagrt.IsEmpty(flagrt.KeywordGet(part, lowflagKw_stmts))
+			if_result_2556 = flagrt.IsEmpty(flagrt.KeywordGet(part, lowflagKw_stmts))
 		}
-		let_result_2553 = if_result_2552
+		let_result_2557 = if_result_2556
 	}
-	var if_result_2554 flagrt.Value
-	if let_result_2553 {
-		if_result_2554 = flagrt.KeywordGet(part, lowflagKw_expr)
+	var if_result_2558 flagrt.Value
+	if let_result_2557 {
+		if_result_2558 = flagrt.KeywordGet(part, lowflagKw_expr)
 	} else {
-		if_result_2554 = compiler__value_iife_ir_arity_1(compiler__append_stmt_arity_2(flagrt.KeywordGet(part, lowflagKw_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.KeywordGet(part, lowflagKw_expr))))
+		if_result_2558 = compiler__value_iife_ir_arity_1(compiler__append_stmt_arity_2(flagrt.KeywordGet(part, lowflagKw_stmts), flagrt.NewMap(lowflagKw_kind, lowflagKw_return, lowflagKw_expr, flagrt.KeywordGet(part, lowflagKw_expr))))
 	}
-	return if_result_2554
+	return if_result_2558
 }
 func compiler__flatten_form_expr_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18553,13 +18549,13 @@ func compiler__module_list_source_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compiled_inner_ctx_arity_1(compiled flagrt.Value) flagrt.Value {
-	var if_result_2555 flagrt.Value
+	var if_result_2559 flagrt.Value
 	if flagrt.IsNil(flagrt.KeywordGet(compiled, lowflagKw_ctx)) {
-		if_result_2555 = compiled
+		if_result_2559 = compiled
 	} else {
-		if_result_2555 = flagrt.KeywordGet(compiled, lowflagKw_ctx)
+		if_result_2559 = flagrt.KeywordGet(compiled, lowflagKw_ctx)
 	}
-	return if_result_2555
+	return if_result_2559
 }
 func compiler__compiled_inner_ctx_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -18569,18 +18565,18 @@ func compiler__compiled_inner_ctx_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__module_ctx_keep_arity_2(outer flagrt.Value, inner flagrt.Value) flagrt.Value {
-	var let_result_2557 flagrt.Value
+	var let_result_2561 flagrt.Value
 	{
 		var or_tmp = flagrt.KeywordGet(inner, lowflagKw_constants)
-		var if_result_2556 flagrt.Value
+		var if_result_2560 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_2556 = or_tmp
+			if_result_2560 = or_tmp
 		} else {
-			if_result_2556 = flagrt.KeywordGet(outer, lowflagKw_constants)
+			if_result_2560 = flagrt.KeywordGet(outer, lowflagKw_constants)
 		}
-		let_result_2557 = if_result_2556
+		let_result_2561 = if_result_2560
 	}
-	return flagrt.Assoc(flagrt.Assoc(outer, lowflagKw_if_temps, flagrt.KeywordGet(inner, lowflagKw_if_temps)), lowflagKw_constants, let_result_2557)
+	return flagrt.Assoc(flagrt.Assoc(outer, lowflagKw_if_temps, flagrt.KeywordGet(inner, lowflagKw_if_temps)), lowflagKw_constants, let_result_2561)
 }
 func compiler__module_ctx_keep_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -18590,23 +18586,23 @@ func compiler__module_ctx_keep_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__module_ctx_after_fn_arity_5(outer flagrt.Value, compiled flagrt.Value, lowflag_name flagrt.Value, go_name flagrt.Value, info flagrt.Value) flagrt.Value {
-	var let_result_2560 flagrt.Value
+	var let_result_2564 flagrt.Value
 	{
 		var inner = compiler__compiled_inner_ctx_arity_1(compiled)
-		var let_result_2559 flagrt.Value
+		var let_result_2563 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(outer, lowflagKw_globals)
-			var if_result_2558 flagrt.Value
+			var if_result_2562 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2558 = or_tmp
+				if_result_2562 = or_tmp
 			} else {
-				if_result_2558 = lowflagMap
+				if_result_2562 = lowflagMap
 			}
-			let_result_2559 = if_result_2558
+			let_result_2563 = if_result_2562
 		}
-		let_result_2560 = compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__register_fn_info_arity_3(compiler__module_ctx_keep_arity_2(outer, inner), go_name, info), lowflagKw_globals, compiler__map_put_arity_3(let_result_2559, go_name, lowflagKw_value)), lowflag_name, go_name)
+		let_result_2564 = compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__register_fn_info_arity_3(compiler__module_ctx_keep_arity_2(outer, inner), go_name, info), lowflagKw_globals, compiler__map_put_arity_3(let_result_2563, go_name, lowflagKw_value)), lowflag_name, go_name)
 	}
-	return let_result_2560
+	return let_result_2564
 }
 func compiler__module_ctx_after_fn_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -18616,23 +18612,23 @@ func compiler__module_ctx_after_fn_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__module_ctx_after_def_arity_4(outer flagrt.Value, compiled flagrt.Value, lowflag_name flagrt.Value, go_name flagrt.Value) flagrt.Value {
-	var let_result_2563 flagrt.Value
+	var let_result_2567 flagrt.Value
 	{
 		var inner = compiler__compiled_inner_ctx_arity_1(compiled)
-		var let_result_2562 flagrt.Value
+		var let_result_2566 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(outer, lowflagKw_globals)
-			var if_result_2561 flagrt.Value
+			var if_result_2565 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2561 = or_tmp
+				if_result_2565 = or_tmp
 			} else {
-				if_result_2561 = lowflagMap
+				if_result_2565 = lowflagMap
 			}
-			let_result_2562 = if_result_2561
+			let_result_2566 = if_result_2565
 		}
-		let_result_2563 = compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__module_ctx_keep_arity_2(outer, inner), lowflagKw_globals, compiler__map_put_arity_3(let_result_2562, go_name, lowflagKw_value)), lowflag_name, go_name)
+		let_result_2567 = compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__module_ctx_keep_arity_2(outer, inner), lowflagKw_globals, compiler__map_put_arity_3(let_result_2566, go_name, lowflagKw_value)), lowflag_name, go_name)
 	}
-	return let_result_2563
+	return let_result_2567
 }
 func compiler__module_ctx_after_def_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 4 {
@@ -18642,23 +18638,23 @@ func compiler__module_ctx_after_def_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__module_ctx_after_test_arity_3(outer flagrt.Value, compiled flagrt.Value, go_name flagrt.Value) flagrt.Value {
-	var let_result_2566 flagrt.Value
+	var let_result_2570 flagrt.Value
 	{
 		var inner = compiler__compiled_inner_ctx_arity_1(compiled)
-		var let_result_2565 flagrt.Value
+		var let_result_2569 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(outer, lowflagKw_functions)
-			var if_result_2564 flagrt.Value
+			var if_result_2568 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2564 = or_tmp
+				if_result_2568 = or_tmp
 			} else {
-				if_result_2564 = lowflagMap
+				if_result_2568 = lowflagMap
 			}
-			let_result_2565 = if_result_2564
+			let_result_2569 = if_result_2568
 		}
-		let_result_2566 = flagrt.Assoc(compiler__module_ctx_keep_arity_2(outer, inner), lowflagKw_functions, compiler__map_put_arity_3(let_result_2565, go_name, flagrt.NewBool(true)))
+		let_result_2570 = flagrt.Assoc(compiler__module_ctx_keep_arity_2(outer, inner), lowflagKw_functions, compiler__map_put_arity_3(let_result_2569, go_name, flagrt.NewBool(true)))
 	}
-	return let_result_2566
+	return let_result_2570
 }
 func compiler__module_ctx_after_test_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -18678,33 +18674,33 @@ func compiler__defn_var_binding_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__ensure_unique_fn_arity_3(ctx flagrt.Value, go_name flagrt.Value, kind flagrt.Value) flagrt.Value {
-	var let_result_2569 flagrt.Value
+	var let_result_2573 flagrt.Value
 	{
 		var and_tmp = flagrt.Get(flagrt.KeywordGet(ctx, lowflagKw_functions), go_name)
-		var if_result_2568 flagrt.Value
+		var if_result_2572 flagrt.Value
 		if flagrt.IsTruthy(and_tmp) {
-			var if_result_2567 bool
+			var if_result_2571 bool
 			if flagrt.IsTruthy(flagrt.KeywordGet(ctx, lowflagKw_allow_redefine)) {
-				if_result_2567 = false
+				if_result_2571 = false
 			} else {
-				if_result_2567 = true
+				if_result_2571 = true
 			}
-			if_result_2568 = flagrt.NewBool(if_result_2567)
+			if_result_2572 = flagrt.NewBool(if_result_2571)
 		} else {
-			if_result_2568 = and_tmp
+			if_result_2572 = and_tmp
 		}
-		let_result_2569 = if_result_2568
+		let_result_2573 = if_result_2572
 	}
-	var if_result_2570 flagrt.Value
-	if flagrt.IsTruthy(let_result_2569) {
-		if_result_2570 = func() flagrt.Value {
+	var if_result_2574 flagrt.Value
+	if flagrt.IsTruthy(let_result_2573) {
+		if_result_2574 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(kind, " \"", go_name, "\" already defined")), flagrt.NewKeyword("data"), lowflagMap))
 			return flagrt.NilValue
 		}()
 	} else {
-		if_result_2570 = ctx
+		if_result_2574 = ctx
 	}
-	return if_result_2570
+	return if_result_2574
 }
 func compiler__ensure_unique_fn_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -18714,101 +18710,101 @@ func compiler__ensure_unique_fn_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_single_arity_defn_arity_5(name flagrt.Value, go_name flagrt.Value, doc flagrt.Value, rest_els flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2584 flagrt.Value
+	var let_result_2588 flagrt.Value
 	{
 		var params_ast = compiler__unwrap_ast_arity_1(flagrt.First(rest_els))
-		var if_result_2571 bool
+		var if_result_2575 bool
 		if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(params_ast, lowflagKw_kind)) {
-			if_result_2571 = false
+			if_result_2575 = false
 		} else {
-			if_result_2571 = true
+			if_result_2575 = true
 		}
-		var if_result_2583 flagrt.Value
-		if if_result_2571 {
-			if_result_2583 = func() flagrt.Value {
+		var if_result_2587 flagrt.Value
+		if if_result_2575 {
+			if_result_2587 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn expects a parameter vector"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_2582 flagrt.Value
+			var let_result_2586 flagrt.Value
 			{
 				var body_els = flagrt.Rest(rest_els)
-				var let_result_2573 bool
+				var let_result_2577 bool
 				{
 					var or_tmp = flagrt.IsNil(body_els)
-					var if_result_2572 bool
+					var if_result_2576 bool
 					if or_tmp {
-						if_result_2572 = or_tmp
+						if_result_2576 = or_tmp
 					} else {
-						if_result_2572 = flagrt.IsEmpty(body_els)
+						if_result_2576 = flagrt.IsEmpty(body_els)
 					}
-					let_result_2573 = if_result_2572
+					let_result_2577 = if_result_2576
 				}
-				var if_result_2581 flagrt.Value
-				if let_result_2573 {
-					if_result_2581 = func() flagrt.Value {
+				var if_result_2585 flagrt.Value
+				if let_result_2577 {
+					if_result_2585 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn expects name, optional docstring, vector params, and body"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var let_result_2580 flagrt.Value
+					var let_result_2584 flagrt.Value
 					{
 						var bound = compiler__bind_params_to_ir_arity_5(params_ast, lowflagStr_defn, flagrt.KeywordGet(ctx, lowflagKw_locals), ctx, compiler__compile_form_to_ir)
 						var params = flagrt.KeywordGet(bound, lowflagKw_params)
 						var has_rest = flagrt.KeywordGet(bound, lowflagKw_has_rest)
 						var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(params))))
 						var variadic = flagrt.Str(go_name, "_variadic")
-						var if_result_2574 string
+						var if_result_2578 string
 						if flagrt.IsTruthy(has_rest) {
-							if_result_2574 = variadic
+							if_result_2578 = variadic
 						} else {
-							if_result_2574 = flagrt.Str(go_name, "_arity_", n)
+							if_result_2578 = flagrt.Str(go_name, "_arity_", n)
 						}
-						var arity_name = if_result_2574
-						var if_result_2575 flagrt.Value
+						var arity_name = if_result_2578
+						var if_result_2579 flagrt.Value
 						if flagrt.IsTruthy(has_rest) {
-							if_result_2575 = flagrt.NilValue
+							if_result_2579 = flagrt.NilValue
 						} else {
-							if_result_2575 = n
+							if_result_2579 = n
 						}
-						var if_result_2576 flagrt.Value
+						var if_result_2580 flagrt.Value
 						if flagrt.IsTruthy(has_rest) {
-							if_result_2576 = lowflagMap
+							if_result_2580 = lowflagMap
 						} else {
-							if_result_2576 = flagrt.NewMap(n, flagrt.NewString(arity_name))
+							if_result_2580 = flagrt.NewMap(n, flagrt.NewString(arity_name))
 						}
-						var info = flagrt.NewMap(lowflagKw_has_rest, has_rest, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_arity, if_result_2575, lowflagKw_arity_names, if_result_2576)
-						var if_result_2577 flagrt.Value
+						var info = flagrt.NewMap(lowflagKw_has_rest, has_rest, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_arity, if_result_2579, lowflagKw_arity_names, if_result_2580)
+						var if_result_2581 flagrt.Value
 						if flagrt.IsNil(flagrt.KeywordGet(bound, lowflagKw_ctx)) {
-							if_result_2577 = ctx
+							if_result_2581 = ctx
 						} else {
-							if_result_2577 = flagrt.KeywordGet(bound, lowflagKw_ctx)
+							if_result_2581 = flagrt.KeywordGet(bound, lowflagKw_ctx)
 						}
-						var let_result_2579 flagrt.Value
+						var let_result_2583 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_globals)
-							var if_result_2578 flagrt.Value
+							var if_result_2582 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_2578 = or_tmp
+								if_result_2582 = or_tmp
 							} else {
-								if_result_2578 = lowflagMap
+								if_result_2582 = lowflagMap
 							}
-							let_result_2579 = if_result_2578
+							let_result_2583 = if_result_2582
 						}
-						var fn_ctx = compiler__bind_module_name_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(if_result_2577, lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals)), lowflagKw_self_function_name, name), lowflagKw_self_function_arity, n), lowflagKw_self_variadic_name, compiler__as_value_arity_1(flagrt.NewString(variadic))), lowflagKw_self_function_rest, has_rest), lowflagKw_self_arity_name, compiler__as_value_arity_1(flagrt.NewString(arity_name))), lowflagKw_globals, compiler__map_put_arity_3(let_result_2579, go_name, lowflagKw_value)), go_name, info), name, go_name)
+						var fn_ctx = compiler__bind_module_name_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(if_result_2581, lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals)), lowflagKw_self_function_name, name), lowflagKw_self_function_arity, n), lowflagKw_self_variadic_name, compiler__as_value_arity_1(flagrt.NewString(variadic))), lowflagKw_self_function_rest, has_rest), lowflagKw_self_arity_name, compiler__as_value_arity_1(flagrt.NewString(arity_name))), lowflagKw_globals, compiler__map_put_arity_3(let_result_2583, go_name, lowflagKw_value)), go_name, info), name, go_name)
 						var compiled = compiler__coerce_form_value_arity_1(compiler__compile_forms_to_ir_arity_2(body_els, fn_ctx))
 						var decls = compiler__defn_to_ir_arity_8(flagrt.NewString(arity_name), flagrt.NewString(variadic), go_name, params, has_rest, flagrt.KeywordGet(bound, lowflagKw_init_stmts), flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr))
-						let_result_2580 = flagrt.NewMap(lowflagKw_op, lowflagKw_defn, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_has_rest, has_rest, lowflagKw_arity_names, flagrt.KeywordGet(info, lowflagKw_arity_names), lowflagKw_doc, doc, lowflagKw_params, params, lowflagKw_ir_decls, decls, lowflagKw_body_expr, flagrt.KeywordGet(compiled, lowflagKw_expr), lowflagKw_body_stmts, flagrt.KeywordGet(compiled, lowflagKw_stmts), lowflagKw_init_stmts, flagrt.KeywordGet(bound, lowflagKw_init_stmts)), lowflagKw_var, compiler__defn_var_binding_arity_3(name, go_name, flagrt.NewString(variadic)), lowflagKw_ctx, compiler__module_ctx_after_fn_arity_5(ctx, compiled, name, go_name, info))
+						let_result_2584 = flagrt.NewMap(lowflagKw_op, lowflagKw_defn, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_has_rest, has_rest, lowflagKw_arity_names, flagrt.KeywordGet(info, lowflagKw_arity_names), lowflagKw_doc, doc, lowflagKw_params, params, lowflagKw_ir_decls, decls, lowflagKw_body_expr, flagrt.KeywordGet(compiled, lowflagKw_expr), lowflagKw_body_stmts, flagrt.KeywordGet(compiled, lowflagKw_stmts), lowflagKw_init_stmts, flagrt.KeywordGet(bound, lowflagKw_init_stmts)), lowflagKw_var, compiler__defn_var_binding_arity_3(name, go_name, flagrt.NewString(variadic)), lowflagKw_ctx, compiler__module_ctx_after_fn_arity_5(ctx, compiled, name, go_name, info))
 					}
-					if_result_2581 = let_result_2580
+					if_result_2585 = let_result_2584
 				}
-				let_result_2582 = if_result_2581
+				let_result_2586 = if_result_2585
 			}
-			if_result_2583 = let_result_2582
+			if_result_2587 = let_result_2586
 		}
-		let_result_2584 = if_result_2583
+		let_result_2588 = if_result_2587
 	}
-	return let_result_2584
+	return let_result_2588
 }
 func compiler__compile_single_arity_defn_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -18825,121 +18821,121 @@ func compiler__compile_multi_arity_pending_arity_3(arity_forms flagrt.Value, go_
 		var names = lowflagMap
 		var counts = lowflagVec
 		for {
-			var let_result_2586 bool
+			var let_result_2590 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2585 bool
+				var if_result_2589 bool
 				if or_tmp {
-					if_result_2585 = or_tmp
+					if_result_2589 = or_tmp
 				} else {
-					if_result_2585 = flagrt.IsEmpty(remaining)
+					if_result_2589 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2586 = if_result_2585
+				let_result_2590 = if_result_2589
 			}
-			var if_result_2605 flagrt.Value
-			if let_result_2586 {
-				if_result_2605 = flagrt.NewMap(lowflagKw_pending, pending, lowflagKw_names, names, lowflagKw_counts, counts)
+			var if_result_2609 flagrt.Value
+			if let_result_2590 {
+				if_result_2609 = flagrt.NewMap(lowflagKw_pending, pending, lowflagKw_names, names, lowflagKw_counts, counts)
 			} else {
-				var let_result_2604 flagrt.Value
+				var let_result_2608 flagrt.Value
 				{
 					var raw = flagrt.First(remaining)
 					var list = compiler__unwrap_ast_arity_1(raw)
-					var let_result_2589 bool
+					var let_result_2593 bool
 					{
-						var if_result_2587 bool
+						var if_result_2591 bool
 						if flagrt.Eq(lowflagKw_list, flagrt.KeywordGet(list, lowflagKw_kind)) {
-							if_result_2587 = false
+							if_result_2591 = false
 						} else {
-							if_result_2587 = true
+							if_result_2591 = true
 						}
-						var or_tmp = if_result_2587
-						var if_result_2588 bool
+						var or_tmp = if_result_2591
+						var if_result_2592 bool
 						if or_tmp {
-							if_result_2588 = or_tmp
+							if_result_2592 = or_tmp
 						} else {
-							if_result_2588 = flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(compiler__ast_elements_arity_1(list)))), lowflagLong_2)
+							if_result_2592 = flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(compiler__ast_elements_arity_1(list)))), lowflagLong_2)
 						}
-						let_result_2589 = if_result_2588
+						let_result_2593 = if_result_2592
 					}
-					var if_result_2603 flagrt.Value
-					if let_result_2589 {
-						if_result_2603 = func() flagrt.Value {
+					var if_result_2607 flagrt.Value
+					if let_result_2593 {
+						if_result_2607 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn arity expects ([params] body...)"), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_2602 flagrt.Value
+						var let_result_2606 flagrt.Value
 						{
 							var params_ast = compiler__unwrap_ast_arity_1(flagrt.First(compiler__ast_elements_arity_1(list)))
-							var if_result_2590 bool
+							var if_result_2594 bool
 							if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(params_ast, lowflagKw_kind)) {
-								if_result_2590 = false
+								if_result_2594 = false
 							} else {
-								if_result_2590 = true
+								if_result_2594 = true
 							}
-							var if_result_2601 flagrt.Value
-							if if_result_2590 {
-								if_result_2601 = func() flagrt.Value {
+							var if_result_2605 flagrt.Value
+							if if_result_2594 {
+								if_result_2605 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn arity expects a parameter vector"), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var let_result_2600 flagrt.Value
+								var let_result_2604 flagrt.Value
 								{
 									var bound = compiler__bind_params_to_ir_arity_5(params_ast, lowflagStr_defn, flagrt.KeywordGet(ctx, lowflagKw_locals), ctx, compiler__compile_form_to_ir)
-									var if_result_2599 flagrt.Value
+									var if_result_2603 flagrt.Value
 									if flagrt.IsTruthy(flagrt.KeywordGet(bound, lowflagKw_has_rest)) {
-										if_result_2599 = func() flagrt.Value {
+										if_result_2603 = func() flagrt.Value {
 											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("multi-arity defn does not yet support & rest"), flagrt.NewKeyword("data"), lowflagMap))
 											return flagrt.NilValue
 										}()
 									} else {
-										var let_result_2598 flagrt.Value
+										var let_result_2602 flagrt.Value
 										{
 											var params = flagrt.KeywordGet(bound, lowflagKw_params)
 											var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(params))))
-											var if_result_2597 flagrt.Value
+											var if_result_2601 flagrt.Value
 											if flagrt.IsTruthy(flagrt.Get(seen, n)) {
-												if_result_2597 = func() flagrt.Value {
+												if_result_2601 = func() flagrt.Value {
 													flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("duplicate arity with ", n, " arguments")), flagrt.NewKeyword("data"), lowflagMap))
 													return flagrt.NilValue
 												}()
 											} else {
-												var let_result_2596 flagrt.Value
+												var let_result_2600 flagrt.Value
 												{
 													var arity_name = flagrt.Str(go_name, "_arity_", n)
-													var recur_2591 = flagrt.Rest(remaining)
-													var recur_2592 = compiler__map_put_arity_3(seen, n, flagrt.NewBool(true))
-													var recur_2593 = flagrt.Conj(pending, flagrt.NewMap(lowflagKw_list, list, lowflagKw_params, params, lowflagKw_init_stmts, flagrt.KeywordGet(bound, lowflagKw_init_stmts), lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_n, n))
-													var recur_2594 = compiler__map_put_arity_3(names, n, flagrt.NewString(arity_name))
-													var recur_2595 = flagrt.Conj(counts, n)
-													remaining = recur_2591
-													seen = recur_2592
-													pending = recur_2593
-													names = recur_2594
-													counts = recur_2595
+													var recur_2595 = flagrt.Rest(remaining)
+													var recur_2596 = compiler__map_put_arity_3(seen, n, flagrt.NewBool(true))
+													var recur_2597 = flagrt.Conj(pending, flagrt.NewMap(lowflagKw_list, list, lowflagKw_params, params, lowflagKw_init_stmts, flagrt.KeywordGet(bound, lowflagKw_init_stmts), lowflagKw_locals, flagrt.KeywordGet(bound, lowflagKw_locals), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_n, n))
+													var recur_2598 = compiler__map_put_arity_3(names, n, flagrt.NewString(arity_name))
+													var recur_2599 = flagrt.Conj(counts, n)
+													remaining = recur_2595
+													seen = recur_2596
+													pending = recur_2597
+													names = recur_2598
+													counts = recur_2599
 													continue
-													let_result_2596 = flagrt.NilValue
+													let_result_2600 = flagrt.NilValue
 												}
-												if_result_2597 = let_result_2596
+												if_result_2601 = let_result_2600
 											}
-											let_result_2598 = if_result_2597
+											let_result_2602 = if_result_2601
 										}
-										if_result_2599 = let_result_2598
+										if_result_2603 = let_result_2602
 									}
-									let_result_2600 = if_result_2599
+									let_result_2604 = if_result_2603
 								}
-								if_result_2601 = let_result_2600
+								if_result_2605 = let_result_2604
 							}
-							let_result_2602 = if_result_2601
+							let_result_2606 = if_result_2605
 						}
-						if_result_2603 = let_result_2602
+						if_result_2607 = let_result_2606
 					}
-					let_result_2604 = if_result_2603
+					let_result_2608 = if_result_2607
 				}
-				if_result_2605 = let_result_2604
+				if_result_2609 = let_result_2608
 			}
-			return if_result_2605
+			return if_result_2609
 		}
 	}()
 }
@@ -18951,87 +18947,87 @@ func compiler__compile_multi_arity_pending_variadic(args ...flagrt.Value) flagrt
 }
 
 func compiler__compile_multi_arity_defn_arity_5(name flagrt.Value, go_name flagrt.Value, doc flagrt.Value, arity_forms flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2607 bool
+	var let_result_2611 bool
 	{
 		var or_tmp = flagrt.IsNil(arity_forms)
-		var if_result_2606 bool
+		var if_result_2610 bool
 		if or_tmp {
-			if_result_2606 = or_tmp
+			if_result_2610 = or_tmp
 		} else {
-			if_result_2606 = flagrt.IsEmpty(arity_forms)
+			if_result_2610 = flagrt.IsEmpty(arity_forms)
 		}
-		let_result_2607 = if_result_2606
+		let_result_2611 = if_result_2610
 	}
-	var if_result_2618 flagrt.Value
-	if let_result_2607 {
-		if_result_2618 = func() flagrt.Value {
+	var if_result_2622 flagrt.Value
+	if let_result_2611 {
+		if_result_2622 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn expects at least one arity"), flagrt.NewKeyword("data"), lowflagMap))
 			return flagrt.NilValue
 		}()
 	} else {
-		var let_result_2617 flagrt.Value
+		var let_result_2621 flagrt.Value
 		{
 			var parsed = compiler__compile_multi_arity_pending_arity_3(arity_forms, go_name, ctx)
 			var variadic = flagrt.Str(go_name, "_variadic")
 			var info = flagrt.NewMap(lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, lowflagStr_, lowflagKw_arity, flagrt.NilValue, lowflagKw_arity_names, flagrt.KeywordGet(parsed, lowflagKw_names))
-			var let_result_2609 flagrt.Value
+			var let_result_2613 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_globals)
-				var if_result_2608 flagrt.Value
+				var if_result_2612 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_2608 = or_tmp
+					if_result_2612 = or_tmp
 				} else {
-					if_result_2608 = lowflagMap
+					if_result_2612 = lowflagMap
 				}
-				let_result_2609 = if_result_2608
+				let_result_2613 = if_result_2612
 			}
-			var fn_base = compiler__bind_module_name_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_self_function_name, name), lowflagKw_self_variadic_name, compiler__as_value_arity_1(flagrt.NewString(variadic))), lowflagKw_self_arity_names, flagrt.KeywordGet(parsed, lowflagKw_names)), lowflagKw_self_function_rest, flagrt.NewBool(false)), lowflagKw_globals, compiler__map_put_arity_3(let_result_2609, go_name, lowflagKw_value)), go_name, info), name, go_name)
+			var fn_base = compiler__bind_module_name_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_self_function_name, name), lowflagKw_self_variadic_name, compiler__as_value_arity_1(flagrt.NewString(variadic))), lowflagKw_self_arity_names, flagrt.KeywordGet(parsed, lowflagKw_names)), lowflagKw_self_function_rest, flagrt.NewBool(false)), lowflagKw_globals, compiler__map_put_arity_3(let_result_2613, go_name, lowflagKw_value)), go_name, info), name, go_name)
 			var compiled = func() flagrt.Value {
 				var remaining = flagrt.KeywordGet(parsed, lowflagKw_pending)
 				var cur = fn_base
 				var arities = lowflagVec
 				for {
-					var let_result_2611 bool
+					var let_result_2615 bool
 					{
 						var or_tmp = flagrt.IsNil(remaining)
-						var if_result_2610 bool
+						var if_result_2614 bool
 						if or_tmp {
-							if_result_2610 = or_tmp
+							if_result_2614 = or_tmp
 						} else {
-							if_result_2610 = flagrt.IsEmpty(remaining)
+							if_result_2614 = flagrt.IsEmpty(remaining)
 						}
-						let_result_2611 = if_result_2610
+						let_result_2615 = if_result_2614
 					}
-					var if_result_2616 flagrt.Value
-					if let_result_2611 {
-						if_result_2616 = flagrt.NewMap(lowflagKw_arities, arities, lowflagKw_ctx, cur)
+					var if_result_2620 flagrt.Value
+					if let_result_2615 {
+						if_result_2620 = flagrt.NewMap(lowflagKw_arities, arities, lowflagKw_ctx, cur)
 					} else {
-						var let_result_2615 flagrt.Value
+						var let_result_2619 flagrt.Value
 						{
 							var item = flagrt.First(remaining)
 							var body_els = flagrt.Rest(compiler__ast_elements_arity_1(flagrt.KeywordGet(item, lowflagKw_list)))
 							var fn_ctx = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(cur, lowflagKw_locals, flagrt.KeywordGet(item, lowflagKw_locals)), lowflagKw_self_function_arity, flagrt.KeywordGet(item, lowflagKw_n)), lowflagKw_self_arity_name, compiler__as_value_arity_1(flagrt.KeywordGet(item, lowflagKw_arity_name)))
 							var body = compiler__coerce_form_value_arity_1(compiler__compile_forms_to_ir_arity_2(body_els, fn_ctx))
-							var recur_2612 = flagrt.Rest(remaining)
-							var recur_2613 = flagrt.KeywordGet(body, lowflagKw_ctx)
-							var recur_2614 = flagrt.Conj(arities, flagrt.NewMap(lowflagKw_name, flagrt.KeywordGet(item, lowflagKw_arity_name), lowflagKw_params, flagrt.KeywordGet(item, lowflagKw_params), lowflagKw_init_stmts, flagrt.KeywordGet(item, lowflagKw_init_stmts), lowflagKw_body_stmts, flagrt.KeywordGet(body, lowflagKw_stmts), lowflagKw_body_expr, flagrt.KeywordGet(body, lowflagKw_expr), lowflagKw_n, flagrt.KeywordGet(item, lowflagKw_n)))
-							remaining = recur_2612
-							cur = recur_2613
-							arities = recur_2614
+							var recur_2616 = flagrt.Rest(remaining)
+							var recur_2617 = flagrt.KeywordGet(body, lowflagKw_ctx)
+							var recur_2618 = flagrt.Conj(arities, flagrt.NewMap(lowflagKw_name, flagrt.KeywordGet(item, lowflagKw_arity_name), lowflagKw_params, flagrt.KeywordGet(item, lowflagKw_params), lowflagKw_init_stmts, flagrt.KeywordGet(item, lowflagKw_init_stmts), lowflagKw_body_stmts, flagrt.KeywordGet(body, lowflagKw_stmts), lowflagKw_body_expr, flagrt.KeywordGet(body, lowflagKw_expr), lowflagKw_n, flagrt.KeywordGet(item, lowflagKw_n)))
+							remaining = recur_2616
+							cur = recur_2617
+							arities = recur_2618
 							continue
-							let_result_2615 = flagrt.NilValue
+							let_result_2619 = flagrt.NilValue
 						}
-						if_result_2616 = let_result_2615
+						if_result_2620 = let_result_2619
 					}
-					return if_result_2616
+					return if_result_2620
 				}
 			}()
 			var decls = compiler__defn_multi_to_ir_arity_3(flagrt.NewString(variadic), compiler__multi_arity_expects_msg_arity_2(name, flagrt.KeywordGet(parsed, lowflagKw_counts)), flagrt.KeywordGet(compiled, lowflagKw_arities))
-			let_result_2617 = flagrt.NewMap(lowflagKw_op, lowflagKw_defn, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, lowflagStr_, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_arity_names, flagrt.KeywordGet(parsed, lowflagKw_names), lowflagKw_doc, doc, lowflagKw_params, lowflagVec, lowflagKw_ir_decls, decls), lowflagKw_var, compiler__defn_var_binding_arity_3(name, go_name, flagrt.NewString(variadic)), lowflagKw_ctx, compiler__module_ctx_after_fn_arity_5(ctx, flagrt.KeywordGet(compiled, lowflagKw_ctx), name, go_name, info))
+			let_result_2621 = flagrt.NewMap(lowflagKw_op, lowflagKw_defn, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, lowflagStr_, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_arity_names, flagrt.KeywordGet(parsed, lowflagKw_names), lowflagKw_doc, doc, lowflagKw_params, lowflagVec, lowflagKw_ir_decls, decls), lowflagKw_var, compiler__defn_var_binding_arity_3(name, go_name, flagrt.NewString(variadic)), lowflagKw_ctx, compiler__module_ctx_after_fn_arity_5(ctx, flagrt.KeywordGet(compiled, lowflagKw_ctx), name, go_name, info))
 		}
-		if_result_2618 = let_result_2617
+		if_result_2622 = let_result_2621
 	}
-	return if_result_2618
+	return if_result_2622
 }
 func compiler__compile_multi_arity_defn_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -19041,125 +19037,125 @@ func compiler__compile_multi_arity_defn_variadic(args ...flagrt.Value) flagrt.Va
 }
 
 func compiler__compile_defn_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2636 flagrt.Value
+	var let_result_2640 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
-		var if_result_2635 flagrt.Value
+		var if_result_2639 flagrt.Value
 		if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(els))), lowflagLong_3) {
-			if_result_2635 = func() flagrt.Value {
+			if_result_2639 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(compiler__form_pos_prefix_arity_1(form), "defn expects name, optional docstring, vector params, and body")), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_2634 flagrt.Value
+			var let_result_2638 flagrt.Value
 			{
 				var name = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
-				var if_result_2633 flagrt.Value
+				var if_result_2637 flagrt.Value
 				if flagrt.IsNil(name) {
-					if_result_2633 = func() flagrt.Value {
+					if_result_2637 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn expects a function name"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var let_result_2632 flagrt.Value
+					var let_result_2636 flagrt.Value
 					{
 						var go_name = compiler__def_go_ident_arity_2(ctx, name)
 						var ctx = compiler__ensure_unique_fn_arity_3(ctx, go_name, lowflagStr_function)
 						var third = flagrt.First(flagrt.Rest(flagrt.Rest(els)))
-						var let_result_2621 bool
-						{
-							var if_result_2619 bool
-							if flagrt.IsNil(third) {
-								if_result_2619 = false
-							} else {
-								if_result_2619 = true
-							}
-							var and_tmp = if_result_2619
-							var if_result_2620 bool
-							if and_tmp {
-								if_result_2620 = flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(compiler__unwrap_ast_arity_1(third), lowflagKw_kind))
-							} else {
-								if_result_2620 = and_tmp
-							}
-							let_result_2621 = if_result_2620
-						}
-						var has_doc = let_result_2621
-						var if_result_2622 flagrt.Value
-						if has_doc {
-							if_result_2622 = flagrt.KeywordGet(compiler__unwrap_ast_arity_1(third), lowflagKw_value)
-						} else {
-							if_result_2622 = flagrt.NewString("")
-						}
-						var doc = if_result_2622
-						var if_result_2623 flagrt.Value
-						if has_doc {
-							if_result_2623 = flagrt.Rest(flagrt.Rest(flagrt.Rest(els)))
-						} else {
-							if_result_2623 = flagrt.Rest(flagrt.Rest(els))
-						}
-						var rest_els = if_result_2623
 						var let_result_2625 bool
 						{
-							var or_tmp = flagrt.IsNil(rest_els)
-							var if_result_2624 bool
-							if or_tmp {
-								if_result_2624 = or_tmp
+							var if_result_2623 bool
+							if flagrt.IsNil(third) {
+								if_result_2623 = false
 							} else {
-								if_result_2624 = flagrt.IsEmpty(rest_els)
+								if_result_2623 = true
+							}
+							var and_tmp = if_result_2623
+							var if_result_2624 bool
+							if and_tmp {
+								if_result_2624 = flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(compiler__unwrap_ast_arity_1(third), lowflagKw_kind))
+							} else {
+								if_result_2624 = and_tmp
 							}
 							let_result_2625 = if_result_2624
 						}
-						var if_result_2631 flagrt.Value
-						if let_result_2625 {
-							if_result_2631 = func() flagrt.Value {
+						var has_doc = let_result_2625
+						var if_result_2626 flagrt.Value
+						if has_doc {
+							if_result_2626 = flagrt.KeywordGet(compiler__unwrap_ast_arity_1(third), lowflagKw_value)
+						} else {
+							if_result_2626 = flagrt.NewString("")
+						}
+						var doc = if_result_2626
+						var if_result_2627 flagrt.Value
+						if has_doc {
+							if_result_2627 = flagrt.Rest(flagrt.Rest(flagrt.Rest(els)))
+						} else {
+							if_result_2627 = flagrt.Rest(flagrt.Rest(els))
+						}
+						var rest_els = if_result_2627
+						var let_result_2629 bool
+						{
+							var or_tmp = flagrt.IsNil(rest_els)
+							var if_result_2628 bool
+							if or_tmp {
+								if_result_2628 = or_tmp
+							} else {
+								if_result_2628 = flagrt.IsEmpty(rest_els)
+							}
+							let_result_2629 = if_result_2628
+						}
+						var if_result_2635 flagrt.Value
+						if let_result_2629 {
+							if_result_2635 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(compiler__form_pos_prefix_arity_1(form), "defn expects name, optional docstring, vector params, and body")), flagrt.NewKeyword("data"), lowflagMap))
 								return flagrt.NilValue
 							}()
 						} else {
-							var let_result_2630 flagrt.Value
+							var let_result_2634 flagrt.Value
 							{
 								var head = compiler__unwrap_ast_arity_1(flagrt.First(rest_els))
-								var if_result_2629 flagrt.Value
+								var if_result_2633 flagrt.Value
 								if flagrt.Eq(lowflagKw_list, flagrt.KeywordGet(head, lowflagKw_kind)) {
-									if_result_2629 = compiler__compile_multi_arity_defn_arity_5(name, go_name, doc, rest_els, ctx)
+									if_result_2633 = compiler__compile_multi_arity_defn_arity_5(name, go_name, doc, rest_els, ctx)
 								} else {
-									var let_result_2627 bool
+									var let_result_2631 bool
 									{
 										var or_tmp = flagrt.IsNil(flagrt.Rest(rest_els))
-										var if_result_2626 bool
+										var if_result_2630 bool
 										if or_tmp {
-											if_result_2626 = or_tmp
+											if_result_2630 = or_tmp
 										} else {
-											if_result_2626 = flagrt.IsEmpty(flagrt.Rest(rest_els))
+											if_result_2630 = flagrt.IsEmpty(flagrt.Rest(rest_els))
 										}
-										let_result_2627 = if_result_2626
+										let_result_2631 = if_result_2630
 									}
-									var if_result_2628 flagrt.Value
-									if let_result_2627 {
-										if_result_2628 = func() flagrt.Value {
+									var if_result_2632 flagrt.Value
+									if let_result_2631 {
+										if_result_2632 = func() flagrt.Value {
 											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str(compiler__form_pos_prefix_arity_1(form), "defn expects name, optional docstring, vector params, and body")), flagrt.NewKeyword("data"), lowflagMap))
 											return flagrt.NilValue
 										}()
 									} else {
-										if_result_2628 = compiler__compile_single_arity_defn_arity_5(name, go_name, doc, rest_els, ctx)
+										if_result_2632 = compiler__compile_single_arity_defn_arity_5(name, go_name, doc, rest_els, ctx)
 									}
-									if_result_2629 = if_result_2628
+									if_result_2633 = if_result_2632
 								}
-								let_result_2630 = if_result_2629
+								let_result_2634 = if_result_2633
 							}
-							if_result_2631 = let_result_2630
+							if_result_2635 = let_result_2634
 						}
-						let_result_2632 = if_result_2631
+						let_result_2636 = if_result_2635
 					}
-					if_result_2633 = let_result_2632
+					if_result_2637 = let_result_2636
 				}
-				let_result_2634 = if_result_2633
+				let_result_2638 = if_result_2637
 			}
-			if_result_2635 = let_result_2634
+			if_result_2639 = let_result_2638
 		}
-		let_result_2636 = if_result_2635
+		let_result_2640 = if_result_2639
 	}
-	return let_result_2636
+	return let_result_2640
 }
 func compiler__compile_defn_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -19169,137 +19165,137 @@ func compiler__compile_defn_form_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_def_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2656 flagrt.Value
+	var let_result_2660 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
 		var n = flagrt.NewLong(int64(flagrt.Count(els)))
-		var let_result_2640 bool
+		var let_result_2644 bool
 		{
-			var if_result_2637 bool
+			var if_result_2641 bool
 			if flagrt.Eq(n, lowflagLong_3) {
-				if_result_2637 = false
+				if_result_2641 = false
 			} else {
-				if_result_2637 = true
+				if_result_2641 = true
 			}
-			var and_tmp = if_result_2637
-			var if_result_2639 bool
+			var and_tmp = if_result_2641
+			var if_result_2643 bool
 			if and_tmp {
-				var if_result_2638 bool
+				var if_result_2642 bool
 				if flagrt.Eq(n, lowflagLong_4) {
-					if_result_2638 = false
+					if_result_2642 = false
 				} else {
-					if_result_2638 = true
+					if_result_2642 = true
 				}
-				if_result_2639 = if_result_2638
+				if_result_2643 = if_result_2642
 			} else {
-				if_result_2639 = and_tmp
+				if_result_2643 = and_tmp
 			}
-			let_result_2640 = if_result_2639
+			let_result_2644 = if_result_2643
 		}
-		var if_result_2655 flagrt.Value
-		if let_result_2640 {
-			if_result_2655 = func() flagrt.Value {
+		var if_result_2659 flagrt.Value
+		if let_result_2644 {
+			if_result_2659 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("def expects name, optional docstring, and value"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_2654 flagrt.Value
+			var let_result_2658 flagrt.Value
 			{
 				var name = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
-				var if_result_2653 flagrt.Value
+				var if_result_2657 flagrt.Value
 				if flagrt.IsNil(name) {
-					if_result_2653 = func() flagrt.Value {
+					if_result_2657 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("def expects a symbol name"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var let_result_2652 flagrt.Value
+					var let_result_2656 flagrt.Value
 					{
 						var has_doc = flagrt.Eq(n, lowflagLong_4)
-						var if_result_2641 flagrt.Value
+						var if_result_2645 flagrt.Value
 						if has_doc {
-							if_result_2641 = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(flagrt.Rest(els))))
+							if_result_2645 = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(flagrt.Rest(els))))
 						} else {
-							if_result_2641 = flagrt.NilValue
+							if_result_2645 = flagrt.NilValue
 						}
-						var doc_node = if_result_2641
-						var let_result_2644 bool
+						var doc_node = if_result_2645
+						var let_result_2648 bool
 						{
 							var and_tmp = has_doc
-							var if_result_2643 bool
+							var if_result_2647 bool
 							if and_tmp {
-								var if_result_2642 bool
+								var if_result_2646 bool
 								if flagrt.Eq(lowflagKw_string, flagrt.KeywordGet(doc_node, lowflagKw_kind)) {
-									if_result_2642 = false
+									if_result_2646 = false
 								} else {
-									if_result_2642 = true
+									if_result_2646 = true
 								}
-								if_result_2643 = if_result_2642
+								if_result_2647 = if_result_2646
 							} else {
-								if_result_2643 = and_tmp
+								if_result_2647 = and_tmp
 							}
-							let_result_2644 = if_result_2643
+							let_result_2648 = if_result_2647
 						}
-						var if_result_2651 flagrt.Value
-						if let_result_2644 {
-							if_result_2651 = func() flagrt.Value {
+						var if_result_2655 flagrt.Value
+						if let_result_2648 {
+							if_result_2655 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("def docstring must be a string"), flagrt.NewKeyword("data"), lowflagMap))
 								return flagrt.NilValue
 							}()
 						} else {
-							var let_result_2650 flagrt.Value
+							var let_result_2654 flagrt.Value
 							{
-								var if_result_2645 flagrt.Value
+								var if_result_2649 flagrt.Value
 								if has_doc {
-									if_result_2645 = flagrt.KeywordGet(doc_node, lowflagKw_value)
+									if_result_2649 = flagrt.KeywordGet(doc_node, lowflagKw_value)
 								} else {
-									if_result_2645 = flagrt.NewString("")
+									if_result_2649 = flagrt.NewString("")
 								}
-								var doc = if_result_2645
-								var if_result_2646 flagrt.Value
+								var doc = if_result_2649
+								var if_result_2650 flagrt.Value
 								if has_doc {
-									if_result_2646 = flagrt.First(flagrt.Rest(flagrt.Rest(flagrt.Rest(els))))
+									if_result_2650 = flagrt.First(flagrt.Rest(flagrt.Rest(flagrt.Rest(els))))
 								} else {
-									if_result_2646 = flagrt.First(flagrt.Rest(flagrt.Rest(els)))
+									if_result_2650 = flagrt.First(flagrt.Rest(flagrt.Rest(els)))
 								}
-								var value_node = if_result_2646
+								var value_node = if_result_2650
 								var go_name = compiler__def_go_ident_arity_2(ctx, name)
 								var compiled = compiler__coerce_form_value_arity_1(compiler__compile_form_to_ir_arity_2(value_node, ctx))
-								var if_result_2647 bool
+								var if_result_2651 bool
 								if flagrt.Eq(lowflagKw_value, flagrt.KeywordGet(compiled, lowflagKw_expr_kind)) {
-									if_result_2647 = false
+									if_result_2651 = false
 								} else {
-									if_result_2647 = true
+									if_result_2651 = true
 								}
-								var if_result_2649 flagrt.Value
-								if if_result_2647 {
-									if_result_2649 = func() flagrt.Value {
+								var if_result_2653 flagrt.Value
+								if if_result_2651 {
+									if_result_2653 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("def value must evaluate to Value"), flagrt.NewKeyword("data"), lowflagMap))
 										return flagrt.NilValue
 									}()
 								} else {
-									var let_result_2648 flagrt.Value
+									var let_result_2652 flagrt.Value
 									{
 										var next_ctx = compiler__module_ctx_after_def_arity_4(ctx, compiled, name, go_name)
-										let_result_2648 = flagrt.NewMap(lowflagKw_op, lowflagKw_def, lowflagKw_var, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_doc, doc, lowflagKw_expr, compiler__flatten_form_expr_arity_1(compiled)), lowflagKw_ctx, next_ctx)
+										let_result_2652 = flagrt.NewMap(lowflagKw_op, lowflagKw_def, lowflagKw_var, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_doc, doc, lowflagKw_expr, compiler__flatten_form_expr_arity_1(compiled)), lowflagKw_ctx, next_ctx)
 									}
-									if_result_2649 = let_result_2648
+									if_result_2653 = let_result_2652
 								}
-								let_result_2650 = if_result_2649
+								let_result_2654 = if_result_2653
 							}
-							if_result_2651 = let_result_2650
+							if_result_2655 = let_result_2654
 						}
-						let_result_2652 = if_result_2651
+						let_result_2656 = if_result_2655
 					}
-					if_result_2653 = let_result_2652
+					if_result_2657 = let_result_2656
 				}
-				let_result_2654 = if_result_2653
+				let_result_2658 = if_result_2657
 			}
-			if_result_2655 = let_result_2654
+			if_result_2659 = let_result_2658
 		}
-		let_result_2656 = if_result_2655
+		let_result_2660 = if_result_2659
 	}
-	return let_result_2656
+	return let_result_2660
 }
 func compiler__compile_def_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -19309,106 +19305,106 @@ func compiler__compile_def_form_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_declare_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2673 flagrt.Value
+	var let_result_2677 flagrt.Value
 	{
 		var els = flagrt.Rest(compiler__ast_elements_arity_1(form))
-		var let_result_2658 bool
+		var let_result_2662 bool
 		{
 			var or_tmp = flagrt.IsNil(els)
-			var if_result_2657 bool
+			var if_result_2661 bool
 			if or_tmp {
-				if_result_2657 = or_tmp
+				if_result_2661 = or_tmp
 			} else {
-				if_result_2657 = flagrt.IsEmpty(els)
+				if_result_2661 = flagrt.IsEmpty(els)
 			}
-			let_result_2658 = if_result_2657
+			let_result_2662 = if_result_2661
 		}
-		var if_result_2672 flagrt.Value
-		if let_result_2658 {
-			if_result_2672 = func() flagrt.Value {
+		var if_result_2676 flagrt.Value
+		if let_result_2662 {
+			if_result_2676 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("declare expects one or more names", compiler__form_at_suffix_arity_1(form))), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			if_result_2672 = func() flagrt.Value {
+			if_result_2676 = func() flagrt.Value {
 				var remaining = els
 				var ctx = ctx
 				var names = lowflagVec
 				for {
-					var let_result_2660 bool
+					var let_result_2664 bool
 					{
 						var or_tmp = flagrt.IsNil(remaining)
-						var if_result_2659 bool
+						var if_result_2663 bool
 						if or_tmp {
-							if_result_2659 = or_tmp
+							if_result_2663 = or_tmp
 						} else {
-							if_result_2659 = flagrt.IsEmpty(remaining)
+							if_result_2663 = flagrt.IsEmpty(remaining)
 						}
-						let_result_2660 = if_result_2659
+						let_result_2664 = if_result_2663
 					}
-					var if_result_2671 flagrt.Value
-					if let_result_2660 {
-						if_result_2671 = flagrt.NewMap(lowflagKw_op, lowflagKw_declare, lowflagKw_names, names, lowflagKw_ctx, ctx)
+					var if_result_2675 flagrt.Value
+					if let_result_2664 {
+						if_result_2675 = flagrt.NewMap(lowflagKw_op, lowflagKw_declare, lowflagKw_names, names, lowflagKw_ctx, ctx)
 					} else {
-						var let_result_2670 flagrt.Value
+						var let_result_2674 flagrt.Value
 						{
 							var sym = compiler__unwrap_ast_arity_1(flagrt.First(remaining))
-							var let_result_2663 bool
+							var let_result_2667 bool
 							{
 								var and_tmp = flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(sym, lowflagKw_kind))
-								var if_result_2662 bool
+								var if_result_2666 bool
 								if and_tmp {
-									var if_result_2661 bool
+									var if_result_2665 bool
 									if flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(sym, lowflagKw_name)) {
-										if_result_2661 = false
+										if_result_2665 = false
 									} else {
-										if_result_2661 = true
+										if_result_2665 = true
 									}
-									if_result_2662 = if_result_2661
+									if_result_2666 = if_result_2665
 								} else {
-									if_result_2662 = and_tmp
+									if_result_2666 = and_tmp
 								}
-								let_result_2663 = if_result_2662
+								let_result_2667 = if_result_2666
 							}
-							var if_result_2664 flagrt.Value
-							if let_result_2663 {
-								if_result_2664 = flagrt.KeywordGet(sym, lowflagKw_name)
+							var if_result_2668 flagrt.Value
+							if let_result_2667 {
+								if_result_2668 = flagrt.KeywordGet(sym, lowflagKw_name)
 							} else {
-								if_result_2664 = flagrt.NilValue
+								if_result_2668 = flagrt.NilValue
 							}
-							var name = if_result_2664
-							var if_result_2669 flagrt.Value
+							var name = if_result_2668
+							var if_result_2673 flagrt.Value
 							if flagrt.IsNil(name) {
-								if_result_2669 = func() flagrt.Value {
+								if_result_2673 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("declare expects symbols", compiler__form_at_suffix_arity_1(flagrt.First(remaining)))), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var let_result_2668 flagrt.Value
+								var let_result_2672 flagrt.Value
 								{
 									var go_name = compiler__def_go_ident_arity_2(ctx, name)
-									var recur_2665 = flagrt.Rest(remaining)
-									var recur_2666 = compiler__bind_module_name_arity_3(ctx, name, go_name)
-									var recur_2667 = flagrt.Conj(names, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name))
-									remaining = recur_2665
-									ctx = recur_2666
-									names = recur_2667
+									var recur_2669 = flagrt.Rest(remaining)
+									var recur_2670 = compiler__bind_module_name_arity_3(ctx, name, go_name)
+									var recur_2671 = flagrt.Conj(names, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name))
+									remaining = recur_2669
+									ctx = recur_2670
+									names = recur_2671
 									continue
-									let_result_2668 = flagrt.NilValue
+									let_result_2672 = flagrt.NilValue
 								}
-								if_result_2669 = let_result_2668
+								if_result_2673 = let_result_2672
 							}
-							let_result_2670 = if_result_2669
+							let_result_2674 = if_result_2673
 						}
-						if_result_2671 = let_result_2670
+						if_result_2675 = let_result_2674
 					}
-					return if_result_2671
+					return if_result_2675
 				}
 			}()
 		}
-		let_result_2673 = if_result_2672
+		let_result_2677 = if_result_2676
 	}
-	return let_result_2673
+	return let_result_2677
 }
 func compiler__compile_declare_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -19422,34 +19418,34 @@ func compiler__merge_defined_names_arity_2(defined flagrt.Value, names flagrt.Va
 		var remaining = compiler__stmt_list_arity_1(names)
 		var out = defined
 		for {
-			var let_result_2675 bool
+			var let_result_2679 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2674 bool
+				var if_result_2678 bool
 				if or_tmp {
-					if_result_2674 = or_tmp
+					if_result_2678 = or_tmp
 				} else {
-					if_result_2674 = flagrt.IsEmpty(remaining)
+					if_result_2678 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2675 = if_result_2674
+				let_result_2679 = if_result_2678
 			}
-			var if_result_2679 flagrt.Value
-			if let_result_2675 {
-				if_result_2679 = out
+			var if_result_2683 flagrt.Value
+			if let_result_2679 {
+				if_result_2683 = out
 			} else {
-				var let_result_2678 flagrt.Value
+				var let_result_2682 flagrt.Value
 				{
 					var item = flagrt.First(remaining)
-					var recur_2676 = flagrt.Rest(remaining)
-					var recur_2677 = compiler__map_put_arity_3(out, flagrt.KeywordGet(item, lowflagKw_flag_name), flagrt.KeywordGet(item, lowflagKw_go_name))
-					remaining = recur_2676
-					out = recur_2677
+					var recur_2680 = flagrt.Rest(remaining)
+					var recur_2681 = compiler__map_put_arity_3(out, flagrt.KeywordGet(item, lowflagKw_flag_name), flagrt.KeywordGet(item, lowflagKw_go_name))
+					remaining = recur_2680
+					out = recur_2681
 					continue
-					let_result_2678 = flagrt.NilValue
+					let_result_2682 = flagrt.NilValue
 				}
-				if_result_2679 = let_result_2678
+				if_result_2683 = let_result_2682
 			}
-			return if_result_2679
+			return if_result_2683
 		}
 	}()
 }
@@ -19461,27 +19457,27 @@ func compiler__merge_defined_names_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_deftest_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_2685 flagrt.Value
+	var let_result_2689 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
-		var if_result_2684 flagrt.Value
+		var if_result_2688 flagrt.Value
 		if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(els))), lowflagLong_3) {
-			if_result_2684 = func() flagrt.Value {
+			if_result_2688 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("deftest expects a name and body"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_2683 flagrt.Value
+			var let_result_2687 flagrt.Value
 			{
 				var name = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
-				var if_result_2682 flagrt.Value
+				var if_result_2686 flagrt.Value
 				if flagrt.IsNil(name) {
-					if_result_2682 = func() flagrt.Value {
+					if_result_2686 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("deftest expects a test name"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var let_result_2681 flagrt.Value
+					var let_result_2685 flagrt.Value
 					{
 						var go_name = compiler__def_go_ident_arity_2(ctx, name)
 						var ctx = compiler__ensure_unique_fn_arity_3(ctx, go_name, lowflagStr_test)
@@ -19489,23 +19485,23 @@ func compiler__compile_deftest_form_arity_2(form flagrt.Value, ctx flagrt.Value)
 						var compiled = compiler__compile_forms_to_ir_arity_2(body_els, ctx)
 						var body_expr = compiler__testing_to_ir_arity_2(flagrt.KeywordGet(compiled, lowflagKw_stmts), flagrt.KeywordGet(compiled, lowflagKw_expr))
 						var decls = compiler__defn_to_ir_arity_8(go_name, flagrt.NewString(flagrt.Str(go_name, "_variadic")), go_name, lowflagVec, flagrt.NewBool(false), lowflagVec, lowflagVec, body_expr)
-						var if_result_2680 flagrt.Value
+						var if_result_2684 flagrt.Value
 						if flagrt.IsNil(flagrt.KeywordGet(form, lowflagKw_line)) {
-							if_result_2680 = lowflagLong_0
+							if_result_2684 = lowflagLong_0
 						} else {
-							if_result_2680 = flagrt.KeywordGet(form, lowflagKw_line)
+							if_result_2684 = flagrt.KeywordGet(form, lowflagKw_line)
 						}
-						let_result_2681 = flagrt.NewMap(lowflagKw_op, lowflagKw_deftest, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(flagrt.Str(go_name, "_variadic")), lowflagKw_arity_name, go_name, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_doc, lowflagStr_, lowflagKw_params, lowflagVec, lowflagKw_ir_decls, decls, lowflagKw_body_expr, body_expr, lowflagKw_body_stmts, lowflagVec, lowflagKw_init_stmts, lowflagVec), lowflagKw_test, flagrt.NewMap(lowflagKw_go_name, go_name, lowflagKw_label, name, lowflagKw_line, if_result_2680, lowflagKw_body_source, compiler__module_list_source_arity_1(body_els)), lowflagKw_ctx, compiler__module_ctx_after_test_arity_3(ctx, compiled, go_name))
+						let_result_2685 = flagrt.NewMap(lowflagKw_op, lowflagKw_deftest, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(flagrt.Str(go_name, "_variadic")), lowflagKw_arity_name, go_name, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_doc, lowflagStr_, lowflagKw_params, lowflagVec, lowflagKw_ir_decls, decls, lowflagKw_body_expr, body_expr, lowflagKw_body_stmts, lowflagVec, lowflagKw_init_stmts, lowflagVec), lowflagKw_test, flagrt.NewMap(lowflagKw_go_name, go_name, lowflagKw_label, name, lowflagKw_line, if_result_2684, lowflagKw_body_source, compiler__module_list_source_arity_1(body_els)), lowflagKw_ctx, compiler__module_ctx_after_test_arity_3(ctx, compiled, go_name))
 					}
-					if_result_2682 = let_result_2681
+					if_result_2686 = let_result_2685
 				}
-				let_result_2683 = if_result_2682
+				let_result_2687 = if_result_2686
 			}
-			if_result_2684 = let_result_2683
+			if_result_2688 = let_result_2687
 		}
-		let_result_2685 = if_result_2684
+		let_result_2689 = if_result_2688
 	}
-	return let_result_2685
+	return let_result_2689
 }
 func compiler__compile_deftest_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -19515,18 +19511,18 @@ func compiler__compile_deftest_form_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__reserved_go_ident_q_arity_1(name flagrt.Value) flagrt.Value {
-	var let_result_2687 bool
+	var let_result_2691 bool
 	{
 		var or_tmp = flagrt.Contains(compiler__go_keywords, name)
-		var if_result_2686 bool
+		var if_result_2690 bool
 		if or_tmp {
-			if_result_2686 = or_tmp
+			if_result_2690 = or_tmp
 		} else {
-			if_result_2686 = flagrt.Contains(compiler__reserved_go_idents, name)
+			if_result_2690 = flagrt.Contains(compiler__reserved_go_idents, name)
 		}
-		let_result_2687 = if_result_2686
+		let_result_2691 = if_result_2690
 	}
-	return flagrt.NewBool(let_result_2687)
+	return flagrt.NewBool(let_result_2691)
 }
 func compiler__reserved_go_ident_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -19536,64 +19532,64 @@ func compiler__reserved_go_ident_q_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__type_hint_to_go_type_arity_1(hint flagrt.Value) flagrt.Value {
-	var let_result_2689 bool
+	var let_result_2693 bool
 	{
 		var or_tmp = flagrt.Eq(hint, flagrt.NewString("double"))
-		var if_result_2688 bool
+		var if_result_2692 bool
 		if or_tmp {
-			if_result_2688 = or_tmp
+			if_result_2692 = or_tmp
 		} else {
-			if_result_2688 = flagrt.Eq(hint, flagrt.NewString("float"))
+			if_result_2692 = flagrt.Eq(hint, flagrt.NewString("float"))
 		}
-		let_result_2689 = if_result_2688
+		let_result_2693 = if_result_2692
 	}
-	var if_result_2697 flagrt.Value
-	if let_result_2689 {
-		if_result_2697 = flagrt.NewString("float64")
+	var if_result_2701 flagrt.Value
+	if let_result_2693 {
+		if_result_2701 = flagrt.NewString("float64")
 	} else {
-		var let_result_2691 bool
+		var let_result_2695 bool
 		{
 			var or_tmp = flagrt.Eq(hint, flagrt.NewString("long"))
-			var if_result_2690 bool
+			var if_result_2694 bool
 			if or_tmp {
-				if_result_2690 = or_tmp
+				if_result_2694 = or_tmp
 			} else {
-				if_result_2690 = flagrt.Eq(hint, flagrt.NewString("int"))
+				if_result_2694 = flagrt.Eq(hint, flagrt.NewString("int"))
 			}
-			let_result_2691 = if_result_2690
+			let_result_2695 = if_result_2694
 		}
-		var if_result_2696 flagrt.Value
-		if let_result_2691 {
-			if_result_2696 = flagrt.NewString("int64")
+		var if_result_2700 flagrt.Value
+		if let_result_2695 {
+			if_result_2700 = flagrt.NewString("int64")
 		} else {
-			var if_result_2695 flagrt.Value
+			var if_result_2699 flagrt.Value
 			if flagrt.Eq(hint, flagrt.NewString("string")) {
-				if_result_2695 = flagrt.NewString("string")
+				if_result_2699 = flagrt.NewString("string")
 			} else {
-				var let_result_2693 bool
+				var let_result_2697 bool
 				{
 					var or_tmp = flagrt.Eq(hint, flagrt.NewString("boolean"))
-					var if_result_2692 bool
+					var if_result_2696 bool
 					if or_tmp {
-						if_result_2692 = or_tmp
+						if_result_2696 = or_tmp
 					} else {
-						if_result_2692 = flagrt.Eq(hint, flagrt.NewString("bool"))
+						if_result_2696 = flagrt.Eq(hint, flagrt.NewString("bool"))
 					}
-					let_result_2693 = if_result_2692
+					let_result_2697 = if_result_2696
 				}
-				var if_result_2694 flagrt.Value
-				if let_result_2693 {
-					if_result_2694 = flagrt.NewString("bool")
+				var if_result_2698 flagrt.Value
+				if let_result_2697 {
+					if_result_2698 = flagrt.NewString("bool")
 				} else {
-					if_result_2694 = flagrt.NilValue
+					if_result_2698 = flagrt.NilValue
 				}
-				if_result_2695 = if_result_2694
+				if_result_2699 = if_result_2698
 			}
-			if_result_2696 = if_result_2695
+			if_result_2700 = if_result_2699
 		}
-		if_result_2697 = if_result_2696
+		if_result_2701 = if_result_2700
 	}
-	return if_result_2697
+	return if_result_2701
 }
 func compiler__type_hint_to_go_type_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -19608,61 +19604,61 @@ func compiler__hyphen_ident_parts_arity_1(name flagrt.Value) flagrt.Value {
 		var cur = flagrt.NewString("")
 		var out = lowflagVec
 		for {
-			var let_result_2699 bool
+			var let_result_2703 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2698 bool
+				var if_result_2702 bool
 				if or_tmp {
-					if_result_2698 = or_tmp
+					if_result_2702 = or_tmp
 				} else {
-					if_result_2698 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
+					if_result_2702 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
 				}
-				let_result_2699 = if_result_2698
+				let_result_2703 = if_result_2702
 			}
-			var if_result_2710 flagrt.Value
-			if let_result_2699 {
-				var if_result_2700 flagrt.Value
+			var if_result_2714 flagrt.Value
+			if let_result_2703 {
+				var if_result_2704 flagrt.Value
 				if flagrt.Eq(cur, flagrt.NewString("")) {
-					if_result_2700 = out
+					if_result_2704 = out
 				} else {
-					if_result_2700 = flagrt.Conj(out, cur)
+					if_result_2704 = flagrt.Conj(out, cur)
 				}
-				if_result_2710 = if_result_2700
+				if_result_2714 = if_result_2704
 			} else {
-				var let_result_2709 flagrt.Value
+				var let_result_2713 flagrt.Value
 				{
 					var ch = flagrt.FnSubs(remaining, lowflagLong_0, lowflagLong_1)
-					var if_result_2708 flagrt.Value
+					var if_result_2712 flagrt.Value
 					if flagrt.Eq(ch, flagrt.NewString("-")) {
-						var if_result_2701 flagrt.Value
+						var if_result_2705 flagrt.Value
 						if flagrt.Eq(cur, flagrt.NewString("")) {
-							if_result_2701 = out
+							if_result_2705 = out
 						} else {
-							if_result_2701 = flagrt.Conj(out, cur)
+							if_result_2705 = flagrt.Conj(out, cur)
 						}
-						var recur_2702 = flagrt.FnSubs(remaining, lowflagLong_1)
-						var recur_2703 = lowflagStr_
-						var recur_2704 = if_result_2701
-						remaining = recur_2702
-						cur = recur_2703
-						out = recur_2704
+						var recur_2706 = flagrt.FnSubs(remaining, lowflagLong_1)
+						var recur_2707 = lowflagStr_
+						var recur_2708 = if_result_2705
+						remaining = recur_2706
+						cur = recur_2707
+						out = recur_2708
 						continue
-						if_result_2708 = flagrt.NilValue
+						if_result_2712 = flagrt.NilValue
 					} else {
-						var recur_2705 = flagrt.FnSubs(remaining, lowflagLong_1)
-						var recur_2706 = flagrt.NewString(flagrt.Str(cur, ch))
-						var recur_2707 = out
-						remaining = recur_2705
-						cur = recur_2706
-						out = recur_2707
+						var recur_2709 = flagrt.FnSubs(remaining, lowflagLong_1)
+						var recur_2710 = flagrt.NewString(flagrt.Str(cur, ch))
+						var recur_2711 = out
+						remaining = recur_2709
+						cur = recur_2710
+						out = recur_2711
 						continue
-						if_result_2708 = flagrt.NilValue
+						if_result_2712 = flagrt.NilValue
 					}
-					let_result_2709 = if_result_2708
+					let_result_2713 = if_result_2712
 				}
-				if_result_2710 = let_result_2709
+				if_result_2714 = let_result_2713
 			}
-			return if_result_2710
+			return if_result_2714
 		}
 	}()
 }
@@ -19678,40 +19674,40 @@ func compiler__exported_record_field_name_arity_1(lowflag_name flagrt.Value) fla
 		var remaining = compiler__hyphen_ident_parts_arity_1(lowflag_name)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2712 bool
+			var let_result_2716 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2711 bool
+				var if_result_2715 bool
 				if or_tmp {
-					if_result_2711 = or_tmp
+					if_result_2715 = or_tmp
 				} else {
-					if_result_2711 = flagrt.IsEmpty(remaining)
+					if_result_2715 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2712 = if_result_2711
+				let_result_2716 = if_result_2715
 			}
-			var if_result_2717 flagrt.Value
-			if let_result_2712 {
-				if_result_2717 = out
+			var if_result_2721 flagrt.Value
+			if let_result_2716 {
+				if_result_2721 = out
 			} else {
-				var let_result_2716 flagrt.Value
+				var let_result_2720 flagrt.Value
 				{
 					var part = flagrt.First(remaining)
-					var if_result_2713 flagrt.Value
+					var if_result_2717 flagrt.Value
 					if flagrt.Eq(part, flagrt.NewString("eof")) {
-						if_result_2713 = flagrt.NewString("EOF")
+						if_result_2717 = flagrt.NewString("EOF")
 					} else {
-						if_result_2713 = compiler__upcase_first_ident_arity_1(part)
+						if_result_2717 = compiler__upcase_first_ident_arity_1(part)
 					}
-					var recur_2714 = flagrt.Rest(remaining)
-					var recur_2715 = flagrt.NewString(flagrt.Str(out, if_result_2713))
-					remaining = recur_2714
-					out = recur_2715
+					var recur_2718 = flagrt.Rest(remaining)
+					var recur_2719 = flagrt.NewString(flagrt.Str(out, if_result_2717))
+					remaining = recur_2718
+					out = recur_2719
 					continue
-					let_result_2716 = flagrt.NilValue
+					let_result_2720 = flagrt.NilValue
 				}
-				if_result_2717 = let_result_2716
+				if_result_2721 = let_result_2720
 			}
-			return if_result_2717
+			return if_result_2721
 		}
 	}()
 }
@@ -19723,18 +19719,18 @@ func compiler__exported_record_field_name_variadic(args ...flagrt.Value) flagrt.
 }
 
 func compiler__record_param_name_arity_1(lowflag_name flagrt.Value) flagrt.Value {
-	var let_result_2719 flagrt.Value
+	var let_result_2723 flagrt.Value
 	{
 		var param = compiler__go_ident_arity_1(lowflag_name)
-		var if_result_2718 flagrt.Value
+		var if_result_2722 flagrt.Value
 		if flagrt.IsTruthy(compiler__reserved_go_ident_q_arity_1(param)) {
-			if_result_2718 = flagrt.NewString(flagrt.Str(param, "_"))
+			if_result_2722 = flagrt.NewString(flagrt.Str(param, "_"))
 		} else {
-			if_result_2718 = param
+			if_result_2722 = param
 		}
-		let_result_2719 = if_result_2718
+		let_result_2723 = if_result_2722
 	}
-	return let_result_2719
+	return let_result_2723
 }
 func compiler__record_param_name_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -19748,40 +19744,40 @@ func compiler__join_strings_arity_2(items flagrt.Value, sep flagrt.Value) flagrt
 		var remaining = compiler__stmt_list_arity_1(items)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_2721 bool
+			var let_result_2725 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2720 bool
+				var if_result_2724 bool
 				if or_tmp {
-					if_result_2720 = or_tmp
+					if_result_2724 = or_tmp
 				} else {
-					if_result_2720 = flagrt.IsEmpty(remaining)
+					if_result_2724 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2721 = if_result_2720
+				let_result_2725 = if_result_2724
 			}
-			var if_result_2726 flagrt.Value
-			if let_result_2721 {
-				if_result_2726 = out
+			var if_result_2730 flagrt.Value
+			if let_result_2725 {
+				if_result_2730 = out
 			} else {
-				var let_result_2725 flagrt.Value
+				var let_result_2729 flagrt.Value
 				{
 					var item = flagrt.Str(flagrt.First(remaining))
-					var if_result_2722 string
+					var if_result_2726 string
 					if flagrt.Eq(out, flagrt.NewString("")) {
-						if_result_2722 = item
+						if_result_2726 = item
 					} else {
-						if_result_2722 = flagrt.Str(out, sep, item)
+						if_result_2726 = flagrt.Str(out, sep, item)
 					}
-					var recur_2723 = flagrt.Rest(remaining)
-					var recur_2724 = flagrt.NewString(if_result_2722)
-					remaining = recur_2723
-					out = recur_2724
+					var recur_2727 = flagrt.Rest(remaining)
+					var recur_2728 = flagrt.NewString(if_result_2726)
+					remaining = recur_2727
+					out = recur_2728
 					continue
-					let_result_2725 = flagrt.NilValue
+					let_result_2729 = flagrt.NilValue
 				}
-				if_result_2726 = let_result_2725
+				if_result_2730 = let_result_2729
 			}
-			return if_result_2726
+			return if_result_2730
 		}
 	}()
 }
@@ -19793,40 +19789,40 @@ func compiler__join_strings_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__space_char_q_arity_1(ch flagrt.Value) flagrt.Value {
-	var let_result_2732 bool
+	var let_result_2736 bool
 	{
 		var or_tmp = flagrt.Eq(ch, flagrt.NewString(" "))
-		var if_result_2731 bool
+		var if_result_2735 bool
 		if or_tmp {
-			if_result_2731 = or_tmp
+			if_result_2735 = or_tmp
 		} else {
-			var let_result_2730 bool
+			var let_result_2734 bool
 			{
 				var or_tmp = flagrt.Eq(ch, flagrt.NewString("\t"))
-				var if_result_2729 bool
+				var if_result_2733 bool
 				if or_tmp {
-					if_result_2729 = or_tmp
+					if_result_2733 = or_tmp
 				} else {
-					var let_result_2728 bool
+					var let_result_2732 bool
 					{
 						var or_tmp = flagrt.Eq(ch, flagrt.NewString("\n"))
-						var if_result_2727 bool
+						var if_result_2731 bool
 						if or_tmp {
-							if_result_2727 = or_tmp
+							if_result_2731 = or_tmp
 						} else {
-							if_result_2727 = flagrt.Eq(ch, flagrt.NewString("\r"))
+							if_result_2731 = flagrt.Eq(ch, flagrt.NewString("\r"))
 						}
-						let_result_2728 = if_result_2727
+						let_result_2732 = if_result_2731
 					}
-					if_result_2729 = let_result_2728
+					if_result_2733 = let_result_2732
 				}
-				let_result_2730 = if_result_2729
+				let_result_2734 = if_result_2733
 			}
-			if_result_2731 = let_result_2730
+			if_result_2735 = let_result_2734
 		}
-		let_result_2732 = if_result_2731
+		let_result_2736 = if_result_2735
 	}
-	return flagrt.NewBool(let_result_2732)
+	return flagrt.NewBool(let_result_2736)
 }
 func compiler__space_char_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -19839,53 +19835,53 @@ func compiler__trim_space_arity_1(s flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
 		var text = flagrt.NewString(flagrt.Str(s))
 		for {
-			var let_result_2734 bool
+			var let_result_2738 bool
 			{
 				var or_tmp = flagrt.IsNil(text)
-				var if_result_2733 bool
+				var if_result_2737 bool
 				if or_tmp {
-					if_result_2733 = or_tmp
+					if_result_2737 = or_tmp
 				} else {
-					if_result_2733 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(text))))
+					if_result_2737 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(text))))
 				}
-				let_result_2734 = if_result_2733
+				let_result_2738 = if_result_2737
 			}
-			var if_result_2740 flagrt.Value
-			if let_result_2734 {
-				if_result_2740 = flagrt.NewString("")
+			var if_result_2744 flagrt.Value
+			if let_result_2738 {
+				if_result_2744 = flagrt.NewString("")
 			} else {
-				var if_result_2739 flagrt.Value
+				var if_result_2743 flagrt.Value
 				if flagrt.IsTruthy(compiler__space_char_q_arity_1(flagrt.FnSubs(text, lowflagLong_0, lowflagLong_1))) {
-					var recur_2735 = flagrt.FnSubs(text, lowflagLong_1)
-					text = recur_2735
+					var recur_2739 = flagrt.FnSubs(text, lowflagLong_1)
+					text = recur_2739
 					continue
-					if_result_2739 = flagrt.NilValue
+					if_result_2743 = flagrt.NilValue
 				} else {
-					if_result_2739 = func() flagrt.Value {
+					if_result_2743 = func() flagrt.Value {
 						var end = flagrt.NewLong(int64(flagrt.Count(text)))
 						for {
-							var if_result_2738 flagrt.Value
+							var if_result_2742 flagrt.Value
 							if flagrt.Eq(lowflagLong_0, end) {
-								if_result_2738 = flagrt.NewString("")
+								if_result_2742 = flagrt.NewString("")
 							} else {
-								var if_result_2737 flagrt.Value
+								var if_result_2741 flagrt.Value
 								if flagrt.IsTruthy(compiler__space_char_q_arity_1(flagrt.FnSubs(text, flagrt.Sub(end, lowflagLong_1), end))) {
-									var recur_2736 = flagrt.Sub(end, lowflagLong_1)
-									end = recur_2736
+									var recur_2740 = flagrt.Sub(end, lowflagLong_1)
+									end = recur_2740
 									continue
-									if_result_2737 = flagrt.NilValue
+									if_result_2741 = flagrt.NilValue
 								} else {
-									if_result_2737 = flagrt.FnSubs(text, lowflagLong_0, end)
+									if_result_2741 = flagrt.FnSubs(text, lowflagLong_0, end)
 								}
-								if_result_2738 = if_result_2737
+								if_result_2742 = if_result_2741
 							}
-							return if_result_2738
+							return if_result_2742
 						}
 					}()
 				}
-				if_result_2740 = if_result_2739
+				if_result_2744 = if_result_2743
 			}
-			return if_result_2740
+			return if_result_2744
 		}
 	}()
 }
@@ -19897,25 +19893,25 @@ func compiler__trim_space_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__starts_with_str_q_arity_2(s flagrt.Value, prefix flagrt.Value) flagrt.Value {
-	var let_result_2743 bool
+	var let_result_2747 bool
 	{
 		var text = flagrt.Str(s)
 		var want = flagrt.Str(prefix)
 		var n = flagrt.NewLong(int64(flagrt.Count(flagrt.NewString(want))))
-		var let_result_2742 bool
+		var let_result_2746 bool
 		{
 			var and_tmp = flagrt.Ge(flagrt.NewLong(int64(flagrt.Count(flagrt.NewString(text)))), n)
-			var if_result_2741 bool
+			var if_result_2745 bool
 			if and_tmp {
-				if_result_2741 = flagrt.Eq(flagrt.NewString(want), flagrt.FnSubs(flagrt.NewString(text), lowflagLong_0, n))
+				if_result_2745 = flagrt.Eq(flagrt.NewString(want), flagrt.FnSubs(flagrt.NewString(text), lowflagLong_0, n))
 			} else {
-				if_result_2741 = and_tmp
+				if_result_2745 = and_tmp
 			}
-			let_result_2742 = if_result_2741
+			let_result_2746 = if_result_2745
 		}
-		let_result_2743 = let_result_2742
+		let_result_2747 = let_result_2746
 	}
-	return flagrt.NewBool(let_result_2743)
+	return flagrt.NewBool(let_result_2747)
 }
 func compiler__starts_with_str_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20075,18 +20071,18 @@ func compiler__module_import_paths_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__add_library_root_arity_3(dir flagrt.Value, seen flagrt.Value, roots flagrt.Value) flagrt.Value {
-	var let_result_2745 flagrt.Value
+	var let_result_2749 flagrt.Value
 	{
 		var abs = compiler__abs_path_arity_1(dir)
-		var if_result_2744 flagrt.Value
+		var if_result_2748 flagrt.Value
 		if flagrt.Contains(seen, abs) {
-			if_result_2744 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
+			if_result_2748 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
 		} else {
-			if_result_2744 = flagrt.NewMap(lowflagKw_seen, flagrt.Assoc(seen, abs, flagrt.NewBool(true)), lowflagKw_roots, flagrt.Conj(roots, abs))
+			if_result_2748 = flagrt.NewMap(lowflagKw_seen, flagrt.Assoc(seen, abs, flagrt.NewBool(true)), lowflagKw_roots, flagrt.Conj(roots, abs))
 		}
-		let_result_2745 = if_result_2744
+		let_result_2749 = if_result_2748
 	}
-	return let_result_2745
+	return let_result_2749
 }
 func compiler__add_library_root_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -20101,46 +20097,46 @@ func compiler__walk_library_root_arity_3(start flagrt.Value, seen flagrt.Value, 
 		var seen = seen
 		var roots = roots
 		for {
-			var let_result_2753 flagrt.Value
+			var let_result_2757 flagrt.Value
 			{
 				var lib = compiler__path_join_arity_2(dir, lowflagStr_libraries)
-				var if_result_2746 flagrt.Value
+				var if_result_2750 flagrt.Value
 				if flagrt.IsTruthy(compiler__dir_exists_q_arity_1(lib)) {
-					if_result_2746 = compiler__add_library_root_arity_3(dir, seen, roots)
+					if_result_2750 = compiler__add_library_root_arity_3(dir, seen, roots)
 				} else {
-					if_result_2746 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
+					if_result_2750 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
 				}
-				var added = if_result_2746
+				var added = if_result_2750
 				var seen2 = flagrt.KeywordGet(added, lowflagKw_seen)
 				var roots2 = flagrt.KeywordGet(added, lowflagKw_roots)
 				var gom = compiler__path_join_arity_2(dir, lowflagStr_go_mod)
-				var if_result_2752 flagrt.Value
+				var if_result_2756 flagrt.Value
 				if flagrt.IsTruthy(compiler__file_exists_q_arity_1(gom)) {
-					if_result_2752 = compiler__add_library_root_arity_3(dir, seen2, roots2)
+					if_result_2756 = compiler__add_library_root_arity_3(dir, seen2, roots2)
 				} else {
-					var let_result_2751 flagrt.Value
+					var let_result_2755 flagrt.Value
 					{
 						var parent = compiler__path_dir_arity_1(dir)
-						var if_result_2750 flagrt.Value
+						var if_result_2754 flagrt.Value
 						if flagrt.Eq(parent, dir) {
-							if_result_2750 = flagrt.NewMap(lowflagKw_seen, seen2, lowflagKw_roots, roots2)
+							if_result_2754 = flagrt.NewMap(lowflagKw_seen, seen2, lowflagKw_roots, roots2)
 						} else {
-							var recur_2747 = parent
-							var recur_2748 = seen2
-							var recur_2749 = roots2
-							dir = recur_2747
-							seen = recur_2748
-							roots = recur_2749
+							var recur_2751 = parent
+							var recur_2752 = seen2
+							var recur_2753 = roots2
+							dir = recur_2751
+							seen = recur_2752
+							roots = recur_2753
 							continue
-							if_result_2750 = flagrt.NilValue
+							if_result_2754 = flagrt.NilValue
 						}
-						let_result_2751 = if_result_2750
+						let_result_2755 = if_result_2754
 					}
-					if_result_2752 = let_result_2751
+					if_result_2756 = let_result_2755
 				}
-				let_result_2753 = if_result_2752
+				let_result_2757 = if_result_2756
 			}
-			return let_result_2753
+			return let_result_2757
 		}
 	}()
 }
@@ -20152,65 +20148,65 @@ func compiler__walk_library_root_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__library_search_roots_arity_1(importer_path flagrt.Value) flagrt.Value {
-	var let_result_2764 flagrt.Value
+	var let_result_2768 flagrt.Value
 	{
-		var let_result_2755 bool
+		var let_result_2759 bool
 		{
 			var or_tmp = flagrt.IsNil(importer_path)
-			var if_result_2754 bool
+			var if_result_2758 bool
 			if or_tmp {
-				if_result_2754 = or_tmp
+				if_result_2758 = or_tmp
 			} else {
-				if_result_2754 = flagrt.Eq(importer_path, flagrt.NewString(""))
+				if_result_2758 = flagrt.Eq(importer_path, flagrt.NewString(""))
 			}
-			let_result_2755 = if_result_2754
+			let_result_2759 = if_result_2758
 		}
-		var if_result_2756 flagrt.Value
-		if let_result_2755 {
-			if_result_2756 = flagrt.NewArray(compiler__cwd_path_arity_0())
+		var if_result_2760 flagrt.Value
+		if let_result_2759 {
+			if_result_2760 = flagrt.NewArray(compiler__cwd_path_arity_0())
 		} else {
-			if_result_2756 = flagrt.NewArray(compiler__path_dir_arity_1(importer_path), compiler__cwd_path_arity_0())
+			if_result_2760 = flagrt.NewArray(compiler__path_dir_arity_1(importer_path), compiler__cwd_path_arity_0())
 		}
-		var starts = if_result_2756
-		let_result_2764 = flagrt.KeywordGet(func() flagrt.Value {
+		var starts = if_result_2760
+		let_result_2768 = flagrt.KeywordGet(func() flagrt.Value {
 			var remaining = starts
 			var seen = lowflagMap
 			var roots = lowflagVec
 			for {
-				var let_result_2758 bool
+				var let_result_2762 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_2757 bool
+					var if_result_2761 bool
 					if or_tmp {
-						if_result_2757 = or_tmp
+						if_result_2761 = or_tmp
 					} else {
-						if_result_2757 = flagrt.IsEmpty(remaining)
+						if_result_2761 = flagrt.IsEmpty(remaining)
 					}
-					let_result_2758 = if_result_2757
+					let_result_2762 = if_result_2761
 				}
-				var if_result_2763 flagrt.Value
-				if let_result_2758 {
-					if_result_2763 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
+				var if_result_2767 flagrt.Value
+				if let_result_2762 {
+					if_result_2767 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_roots, roots)
 				} else {
-					var let_result_2762 flagrt.Value
+					var let_result_2766 flagrt.Value
 					{
 						var walked = compiler__walk_library_root_arity_3(flagrt.First(remaining), seen, roots)
-						var recur_2759 = flagrt.Rest(remaining)
-						var recur_2760 = flagrt.KeywordGet(walked, lowflagKw_seen)
-						var recur_2761 = flagrt.KeywordGet(walked, lowflagKw_roots)
-						remaining = recur_2759
-						seen = recur_2760
-						roots = recur_2761
+						var recur_2763 = flagrt.Rest(remaining)
+						var recur_2764 = flagrt.KeywordGet(walked, lowflagKw_seen)
+						var recur_2765 = flagrt.KeywordGet(walked, lowflagKw_roots)
+						remaining = recur_2763
+						seen = recur_2764
+						roots = recur_2765
 						continue
-						let_result_2762 = flagrt.NilValue
+						let_result_2766 = flagrt.NilValue
 					}
-					if_result_2763 = let_result_2762
+					if_result_2767 = let_result_2766
 				}
-				return if_result_2763
+				return if_result_2767
 			}
 		}(), lowflagKw_roots)
 	}
-	return let_result_2764
+	return let_result_2768
 }
 func compiler__library_search_roots_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -20220,48 +20216,48 @@ func compiler__library_search_roots_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__import_path_candidates_arity_2(importer_path flagrt.Value, import_path flagrt.Value) flagrt.Value {
-	var if_result_2771 flagrt.Value
+	var if_result_2775 flagrt.Value
 	if flagrt.IsTruthy(compiler__path_abs_q_arity_1(import_path)) {
-		if_result_2771 = flagrt.NewArray(import_path)
+		if_result_2775 = flagrt.NewArray(import_path)
 	} else {
-		var let_result_2770 flagrt.Value
+		var let_result_2774 flagrt.Value
 		{
 			var dir = compiler__path_dir_arity_1(importer_path)
 			var cwd = compiler__cwd_path_arity_0()
 			var rel = flagrt.NewArray(compiler__path_join_arity_2(dir, import_path), compiler__path_join_arity_2(cwd, import_path))
-			let_result_2770 = func() flagrt.Value {
+			let_result_2774 = func() flagrt.Value {
 				var remaining = compiler__library_search_roots_arity_1(importer_path)
 				var out = rel
 				for {
-					var let_result_2766 bool
+					var let_result_2770 bool
 					{
 						var or_tmp = flagrt.IsNil(remaining)
-						var if_result_2765 bool
+						var if_result_2769 bool
 						if or_tmp {
-							if_result_2765 = or_tmp
+							if_result_2769 = or_tmp
 						} else {
-							if_result_2765 = flagrt.IsEmpty(remaining)
+							if_result_2769 = flagrt.IsEmpty(remaining)
 						}
-						let_result_2766 = if_result_2765
+						let_result_2770 = if_result_2769
 					}
-					var if_result_2769 flagrt.Value
-					if let_result_2766 {
-						if_result_2769 = out
+					var if_result_2773 flagrt.Value
+					if let_result_2770 {
+						if_result_2773 = out
 					} else {
-						var recur_2767 = flagrt.Rest(remaining)
-						var recur_2768 = flagrt.Conj(out, compiler__path_join_arity_2(compiler__path_join_arity_2(flagrt.First(remaining), lowflagStr_libraries), import_path))
-						remaining = recur_2767
-						out = recur_2768
+						var recur_2771 = flagrt.Rest(remaining)
+						var recur_2772 = flagrt.Conj(out, compiler__path_join_arity_2(compiler__path_join_arity_2(flagrt.First(remaining), lowflagStr_libraries), import_path))
+						remaining = recur_2771
+						out = recur_2772
 						continue
-						if_result_2769 = flagrt.NilValue
+						if_result_2773 = flagrt.NilValue
 					}
-					return if_result_2769
+					return if_result_2773
 				}
 			}()
 		}
-		if_result_2771 = let_result_2770
+		if_result_2775 = let_result_2774
 	}
-	return if_result_2771
+	return if_result_2775
 }
 func compiler__import_path_candidates_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20271,59 +20267,59 @@ func compiler__import_path_candidates_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__try_source_file_arity_2(abs flagrt.Value, tried flagrt.Value) flagrt.Value {
-	var if_result_2780 flagrt.Value
+	var if_result_2784 flagrt.Value
 	if flagrt.IsTruthy(compiler__file_exists_q_arity_1(abs)) {
-		if_result_2780 = flagrt.NewMap(lowflagKw_path, abs, lowflagKw_tried, tried)
+		if_result_2784 = flagrt.NewMap(lowflagKw_path, abs, lowflagKw_tried, tried)
 	} else {
-		var if_result_2779 flagrt.Value
+		var if_result_2783 flagrt.Value
 		if flagrt.Eq(compiler__path_ext_arity_1(abs), flagrt.NewString("")) {
-			if_result_2779 = func() flagrt.Value {
+			if_result_2783 = func() flagrt.Value {
 				var exts = lowflagVec_12
 				var tried = tried
 				for {
-					var let_result_2773 bool
+					var let_result_2777 bool
 					{
 						var or_tmp = flagrt.IsNil(exts)
-						var if_result_2772 bool
+						var if_result_2776 bool
 						if or_tmp {
-							if_result_2772 = or_tmp
+							if_result_2776 = or_tmp
 						} else {
-							if_result_2772 = flagrt.IsEmpty(exts)
+							if_result_2776 = flagrt.IsEmpty(exts)
 						}
-						let_result_2773 = if_result_2772
+						let_result_2777 = if_result_2776
 					}
-					var if_result_2778 flagrt.Value
-					if let_result_2773 {
-						if_result_2778 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_tried, tried)
+					var if_result_2782 flagrt.Value
+					if let_result_2777 {
+						if_result_2782 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_tried, tried)
 					} else {
-						var let_result_2777 flagrt.Value
+						var let_result_2781 flagrt.Value
 						{
 							var with_ext = flagrt.Str(abs, flagrt.First(exts))
 							var tried2 = flagrt.Conj(tried, flagrt.NewString(with_ext))
-							var if_result_2776 flagrt.Value
+							var if_result_2780 flagrt.Value
 							if flagrt.IsTruthy(compiler__file_exists_q_arity_1(flagrt.NewString(with_ext))) {
-								if_result_2776 = flagrt.NewMap(lowflagKw_path, flagrt.NewString(with_ext), lowflagKw_tried, tried2)
+								if_result_2780 = flagrt.NewMap(lowflagKw_path, flagrt.NewString(with_ext), lowflagKw_tried, tried2)
 							} else {
-								var recur_2774 = flagrt.Rest(exts)
-								var recur_2775 = tried2
-								exts = recur_2774
-								tried = recur_2775
+								var recur_2778 = flagrt.Rest(exts)
+								var recur_2779 = tried2
+								exts = recur_2778
+								tried = recur_2779
 								continue
-								if_result_2776 = flagrt.NilValue
+								if_result_2780 = flagrt.NilValue
 							}
-							let_result_2777 = if_result_2776
+							let_result_2781 = if_result_2780
 						}
-						if_result_2778 = let_result_2777
+						if_result_2782 = let_result_2781
 					}
-					return if_result_2778
+					return if_result_2782
 				}
 			}()
 		} else {
-			if_result_2779 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_tried, tried)
+			if_result_2783 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_tried, tried)
 		}
-		if_result_2780 = if_result_2779
+		if_result_2784 = if_result_2783
 	}
-	return if_result_2780
+	return if_result_2784
 }
 func compiler__try_source_file_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20333,64 +20329,64 @@ func compiler__try_source_file_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__resolve_import_path_arity_2(importer_path flagrt.Value, import_path flagrt.Value) flagrt.Value {
-	var let_result_2789 flagrt.Value
+	var let_result_2793 flagrt.Value
 	{
 		var trimmed = compiler__trim_space_arity_1(import_path)
-		var if_result_2788 flagrt.Value
+		var if_result_2792 flagrt.Value
 		if flagrt.Eq(trimmed, flagrt.NewString("")) {
-			if_result_2788 = func() flagrt.Value {
+			if_result_2792 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("empty import path"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			if_result_2788 = func() flagrt.Value {
+			if_result_2792 = func() flagrt.Value {
 				var cands = compiler__import_path_candidates_arity_2(importer_path, trimmed)
 				var tried = lowflagVec
 				for {
-					var let_result_2782 bool
+					var let_result_2786 bool
 					{
 						var or_tmp = flagrt.IsNil(cands)
-						var if_result_2781 bool
+						var if_result_2785 bool
 						if or_tmp {
-							if_result_2781 = or_tmp
+							if_result_2785 = or_tmp
 						} else {
-							if_result_2781 = flagrt.IsEmpty(cands)
+							if_result_2785 = flagrt.IsEmpty(cands)
 						}
-						let_result_2782 = if_result_2781
+						let_result_2786 = if_result_2785
 					}
-					var if_result_2787 flagrt.Value
-					if let_result_2782 {
-						if_result_2787 = func() flagrt.Value {
+					var if_result_2791 flagrt.Value
+					if let_result_2786 {
+						if_result_2791 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("not found (tried ", compiler__join_strings_arity_2(tried, lowflagStr____5), ")")), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_2786 flagrt.Value
+						var let_result_2790 flagrt.Value
 						{
 							var abs = compiler__abs_path_arity_1(flagrt.First(cands))
 							var hit = compiler__try_source_file_arity_2(abs, flagrt.Conj(tried, abs))
-							var if_result_2785 flagrt.Value
+							var if_result_2789 flagrt.Value
 							if flagrt.IsNil(flagrt.KeywordGet(hit, lowflagKw_path)) {
-								var recur_2783 = flagrt.Rest(cands)
-								var recur_2784 = flagrt.KeywordGet(hit, lowflagKw_tried)
-								cands = recur_2783
-								tried = recur_2784
+								var recur_2787 = flagrt.Rest(cands)
+								var recur_2788 = flagrt.KeywordGet(hit, lowflagKw_tried)
+								cands = recur_2787
+								tried = recur_2788
 								continue
-								if_result_2785 = flagrt.NilValue
+								if_result_2789 = flagrt.NilValue
 							} else {
-								if_result_2785 = flagrt.KeywordGet(hit, lowflagKw_path)
+								if_result_2789 = flagrt.KeywordGet(hit, lowflagKw_path)
 							}
-							let_result_2786 = if_result_2785
+							let_result_2790 = if_result_2789
 						}
-						if_result_2787 = let_result_2786
+						if_result_2791 = let_result_2790
 					}
-					return if_result_2787
+					return if_result_2791
 				}
 			}()
 		}
-		let_result_2789 = if_result_2788
+		let_result_2793 = if_result_2792
 	}
-	return let_result_2789
+	return let_result_2793
 }
 func compiler__resolve_import_path_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20400,81 +20396,81 @@ func compiler__resolve_import_path_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__load_program_modules_arity_4(path flagrt.Value, seen flagrt.Value, stack flagrt.Value, order flagrt.Value) flagrt.Value {
-	var let_result_2802 flagrt.Value
+	var let_result_2806 flagrt.Value
 	{
 		var abs = compiler__abs_path_arity_1(path)
-		var if_result_2801 flagrt.Value
+		var if_result_2805 flagrt.Value
 		if flagrt.Contains(seen, abs) {
-			if_result_2801 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_order, order)
+			if_result_2805 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_order, order)
 		} else {
-			var if_result_2800 flagrt.Value
+			var if_result_2804 flagrt.Value
 			if flagrt.Contains(stack, abs) {
-				if_result_2800 = func() flagrt.Value {
+				if_result_2804 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("circular import involving ", abs)), flagrt.NewKeyword("data"), lowflagMap))
 					return flagrt.NilValue
 				}()
 			} else {
-				var let_result_2799 flagrt.Value
+				var let_result_2803 flagrt.Value
 				{
 					var stack2 = flagrt.Assoc(stack, abs, flagrt.NewBool(true))
 					var loaded = func() flagrt.Value {
-						var let_result_2791 flagrt.Value
+						var let_result_2795 flagrt.Value
 						{
 							var or_tmp = compiler__module_import_paths_arity_1(abs)
-							var if_result_2790 flagrt.Value
+							var if_result_2794 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_2790 = or_tmp
+								if_result_2794 = or_tmp
 							} else {
-								if_result_2790 = lowflagVec
+								if_result_2794 = lowflagVec
 							}
-							let_result_2791 = if_result_2790
+							let_result_2795 = if_result_2794
 						}
-						var remaining = let_result_2791
+						var remaining = let_result_2795
 						var seen = seen
 						var order = order
 						for {
-							var let_result_2793 bool
+							var let_result_2797 bool
 							{
 								var or_tmp = flagrt.IsNil(remaining)
-								var if_result_2792 bool
+								var if_result_2796 bool
 								if or_tmp {
-									if_result_2792 = or_tmp
+									if_result_2796 = or_tmp
 								} else {
-									if_result_2792 = flagrt.IsEmpty(remaining)
+									if_result_2796 = flagrt.IsEmpty(remaining)
 								}
-								let_result_2793 = if_result_2792
+								let_result_2797 = if_result_2796
 							}
-							var if_result_2798 flagrt.Value
-							if let_result_2793 {
-								if_result_2798 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_order, order)
+							var if_result_2802 flagrt.Value
+							if let_result_2797 {
+								if_result_2802 = flagrt.NewMap(lowflagKw_seen, seen, lowflagKw_order, order)
 							} else {
-								var let_result_2797 flagrt.Value
+								var let_result_2801 flagrt.Value
 								{
 									var resolved = compiler__resolve_import_path_arity_2(abs, flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
 									var nested = compiler__load_program_modules_arity_4(resolved, seen, stack2, order)
-									var recur_2794 = flagrt.Rest(remaining)
-									var recur_2795 = flagrt.KeywordGet(nested, lowflagKw_seen)
-									var recur_2796 = flagrt.KeywordGet(nested, lowflagKw_order)
-									remaining = recur_2794
-									seen = recur_2795
-									order = recur_2796
+									var recur_2798 = flagrt.Rest(remaining)
+									var recur_2799 = flagrt.KeywordGet(nested, lowflagKw_seen)
+									var recur_2800 = flagrt.KeywordGet(nested, lowflagKw_order)
+									remaining = recur_2798
+									seen = recur_2799
+									order = recur_2800
 									continue
-									let_result_2797 = flagrt.NilValue
+									let_result_2801 = flagrt.NilValue
 								}
-								if_result_2798 = let_result_2797
+								if_result_2802 = let_result_2801
 							}
-							return if_result_2798
+							return if_result_2802
 						}
 					}()
-					let_result_2799 = flagrt.NewMap(lowflagKw_seen, flagrt.Assoc(flagrt.KeywordGet(loaded, lowflagKw_seen), abs, flagrt.NewBool(true)), lowflagKw_order, flagrt.Conj(flagrt.KeywordGet(loaded, lowflagKw_order), abs))
+					let_result_2803 = flagrt.NewMap(lowflagKw_seen, flagrt.Assoc(flagrt.KeywordGet(loaded, lowflagKw_seen), abs, flagrt.NewBool(true)), lowflagKw_order, flagrt.Conj(flagrt.KeywordGet(loaded, lowflagKw_order), abs))
 				}
-				if_result_2800 = let_result_2799
+				if_result_2804 = let_result_2803
 			}
-			if_result_2801 = if_result_2800
+			if_result_2805 = if_result_2804
 		}
-		let_result_2802 = if_result_2801
+		let_result_2806 = if_result_2805
 	}
-	return let_result_2802
+	return let_result_2806
 }
 func compiler__load_program_modules_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 4 {
@@ -20484,43 +20480,43 @@ func compiler__load_program_modules_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__prologue_path_arity_0() flagrt.Value {
-	var let_result_2808 flagrt.Value
+	var let_result_2812 flagrt.Value
 	{
 		var cands = flagrt.NewArray(compiler__path_join_arity_2(compiler__cwd_path_arity_0(), lowflagStr_internal_compiler_prolog), compiler__path_join_arity_2(compiler__cwd_path_arity_0(), lowflagStr_prologue_flag))
-		let_result_2808 = func() flagrt.Value {
+		let_result_2812 = func() flagrt.Value {
 			var remaining = cands
 			for {
-				var let_result_2804 bool
+				var let_result_2808 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_2803 bool
+					var if_result_2807 bool
 					if or_tmp {
-						if_result_2803 = or_tmp
+						if_result_2807 = or_tmp
 					} else {
-						if_result_2803 = flagrt.IsEmpty(remaining)
+						if_result_2807 = flagrt.IsEmpty(remaining)
 					}
-					let_result_2804 = if_result_2803
+					let_result_2808 = if_result_2807
 				}
-				var if_result_2807 flagrt.Value
-				if let_result_2804 {
-					if_result_2807 = flagrt.Call(flagrt.GoFunction("compiler/prologue-path"))
+				var if_result_2811 flagrt.Value
+				if let_result_2808 {
+					if_result_2811 = flagrt.Call(flagrt.GoFunction("compiler/prologue-path"))
 				} else {
-					var if_result_2806 flagrt.Value
+					var if_result_2810 flagrt.Value
 					if flagrt.IsTruthy(compiler__file_exists_q_arity_1(flagrt.First(remaining))) {
-						if_result_2806 = compiler__abs_path_arity_1(flagrt.First(remaining))
+						if_result_2810 = compiler__abs_path_arity_1(flagrt.First(remaining))
 					} else {
-						var recur_2805 = flagrt.Rest(remaining)
-						remaining = recur_2805
+						var recur_2809 = flagrt.Rest(remaining)
+						remaining = recur_2809
 						continue
-						if_result_2806 = flagrt.NilValue
+						if_result_2810 = flagrt.NilValue
 					}
-					if_result_2807 = if_result_2806
+					if_result_2811 = if_result_2810
 				}
-				return if_result_2807
+				return if_result_2811
 			}
 		}()
 	}
-	return let_result_2808
+	return let_result_2812
 }
 func compiler__prologue_path_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 0 {
@@ -20530,44 +20526,44 @@ func compiler__prologue_path_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__load_program_arity_1(entry_path flagrt.Value) flagrt.Value {
-	var let_result_2813 flagrt.Value
+	var let_result_2817 flagrt.Value
 	{
 		var abs = compiler__abs_path_arity_1(entry_path)
 		var kind = compiler__path_stat_kind_arity_1(abs)
-		var if_result_2812 flagrt.Value
+		var if_result_2816 flagrt.Value
 		if flagrt.Eq(kind, flagrt.NewString("missing")) {
-			if_result_2812 = func() flagrt.Value {
+			if_result_2816 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("stat ", entry_path, ": file does not exist")), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var if_result_2811 flagrt.Value
+			var if_result_2815 flagrt.Value
 			if flagrt.Eq(kind, flagrt.NewString("dir")) {
-				if_result_2811 = func() flagrt.Value {
+				if_result_2815 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("LoadProgram expects a file entry, got directory ", abs, " (pass main.flag or similar)")), flagrt.NewKeyword("data"), lowflagMap))
 					return flagrt.NilValue
 				}()
 			} else {
-				var let_result_2810 flagrt.Value
+				var let_result_2814 flagrt.Value
 				{
 					var pro = compiler__prologue_path_arity_0()
-					var if_result_2809 flagrt.Value
+					var if_result_2813 flagrt.Value
 					if flagrt.Eq(abs, pro) {
-						if_result_2809 = lowflagMap_35
+						if_result_2813 = lowflagMap_35
 					} else {
-						if_result_2809 = compiler__load_program_modules_arity_4(pro, lowflagMap, lowflagMap, lowflagVec)
+						if_result_2813 = compiler__load_program_modules_arity_4(pro, lowflagMap, lowflagMap, lowflagVec)
 					}
-					var base = if_result_2809
+					var base = if_result_2813
 					var loaded = compiler__load_program_modules_arity_4(abs, flagrt.KeywordGet(base, lowflagKw_seen), lowflagMap, flagrt.KeywordGet(base, lowflagKw_order))
-					let_result_2810 = flagrt.NewMap(lowflagKw_entry, abs, lowflagKw_modules, flagrt.KeywordGet(loaded, lowflagKw_order))
+					let_result_2814 = flagrt.NewMap(lowflagKw_entry, abs, lowflagKw_modules, flagrt.KeywordGet(loaded, lowflagKw_order))
 				}
-				if_result_2811 = let_result_2810
+				if_result_2815 = let_result_2814
 			}
-			if_result_2812 = if_result_2811
+			if_result_2816 = if_result_2815
 		}
-		let_result_2813 = if_result_2812
+		let_result_2817 = if_result_2816
 	}
-	return let_result_2813
+	return let_result_2817
 }
 func compiler__load_program_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -20588,43 +20584,43 @@ func compiler__go_package_name_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__module_export_set_arity_1(exports flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_2815 flagrt.Value
+		var let_result_2819 flagrt.Value
 		{
 			var or_tmp = exports
-			var if_result_2814 flagrt.Value
+			var if_result_2818 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2814 = or_tmp
+				if_result_2818 = or_tmp
 			} else {
-				if_result_2814 = lowflagVec
+				if_result_2818 = lowflagVec
 			}
-			let_result_2815 = if_result_2814
+			let_result_2819 = if_result_2818
 		}
-		var remaining = let_result_2815
+		var remaining = let_result_2819
 		var out = lowflagMap
 		for {
-			var let_result_2817 bool
+			var let_result_2821 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2816 bool
+				var if_result_2820 bool
 				if or_tmp {
-					if_result_2816 = or_tmp
+					if_result_2820 = or_tmp
 				} else {
-					if_result_2816 = flagrt.IsEmpty(remaining)
+					if_result_2820 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2817 = if_result_2816
+				let_result_2821 = if_result_2820
 			}
-			var if_result_2820 flagrt.Value
-			if let_result_2817 {
-				if_result_2820 = out
+			var if_result_2824 flagrt.Value
+			if let_result_2821 {
+				if_result_2824 = out
 			} else {
-				var recur_2818 = flagrt.Rest(remaining)
-				var recur_2819 = flagrt.Assoc(out, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), flagrt.NewBool(true))
-				remaining = recur_2818
-				out = recur_2819
+				var recur_2822 = flagrt.Rest(remaining)
+				var recur_2823 = flagrt.Assoc(out, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), flagrt.NewBool(true))
+				remaining = recur_2822
+				out = recur_2823
 				continue
-				if_result_2820 = flagrt.NilValue
+				if_result_2824 = flagrt.NilValue
 			}
-			return if_result_2820
+			return if_result_2824
 		}
 	}()
 }
@@ -20636,80 +20632,80 @@ func compiler__module_export_set_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__validate_exports_arity_3(mod flagrt.Value, defined flagrt.Value, defined_macros flagrt.Value) flagrt.Value {
-	var if_result_2821 bool
+	var if_result_2825 bool
 	if flagrt.IsTruthy(flagrt.KeywordGet(mod, lowflagKw_has_header)) {
-		if_result_2821 = false
+		if_result_2825 = false
 	} else {
-		if_result_2821 = true
+		if_result_2825 = true
 	}
-	var if_result_2832 flagrt.Value
-	if if_result_2821 {
-		if_result_2832 = flagrt.NilValue
+	var if_result_2836 flagrt.Value
+	if if_result_2825 {
+		if_result_2836 = flagrt.NilValue
 	} else {
-		if_result_2832 = func() flagrt.Value {
-			var let_result_2823 flagrt.Value
+		if_result_2836 = func() flagrt.Value {
+			var let_result_2827 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(mod, lowflagKw_exports)
-				var if_result_2822 flagrt.Value
+				var if_result_2826 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_2822 = or_tmp
+					if_result_2826 = or_tmp
 				} else {
-					if_result_2822 = lowflagVec
+					if_result_2826 = lowflagVec
 				}
-				let_result_2823 = if_result_2822
+				let_result_2827 = if_result_2826
 			}
-			var remaining = let_result_2823
+			var remaining = let_result_2827
 			for {
-				var let_result_2825 bool
+				var let_result_2829 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_2824 bool
+					var if_result_2828 bool
 					if or_tmp {
-						if_result_2824 = or_tmp
+						if_result_2828 = or_tmp
 					} else {
-						if_result_2824 = flagrt.IsEmpty(remaining)
+						if_result_2828 = flagrt.IsEmpty(remaining)
 					}
-					let_result_2825 = if_result_2824
+					let_result_2829 = if_result_2828
 				}
-				var if_result_2831 flagrt.Value
-				if let_result_2825 {
-					if_result_2831 = flagrt.NilValue
+				var if_result_2835 flagrt.Value
+				if let_result_2829 {
+					if_result_2835 = flagrt.NilValue
 				} else {
-					var let_result_2830 flagrt.Value
+					var let_result_2834 flagrt.Value
 					{
 						var name = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
-						var let_result_2827 bool
+						var let_result_2831 bool
 						{
 							var or_tmp = flagrt.Contains(defined, name)
-							var if_result_2826 bool
+							var if_result_2830 bool
 							if or_tmp {
-								if_result_2826 = or_tmp
+								if_result_2830 = or_tmp
 							} else {
-								if_result_2826 = flagrt.Contains(defined_macros, name)
+								if_result_2830 = flagrt.Contains(defined_macros, name)
 							}
-							let_result_2827 = if_result_2826
+							let_result_2831 = if_result_2830
 						}
-						var if_result_2829 flagrt.Value
-						if let_result_2827 {
-							var recur_2828 = flagrt.Rest(remaining)
-							remaining = recur_2828
+						var if_result_2833 flagrt.Value
+						if let_result_2831 {
+							var recur_2832 = flagrt.Rest(remaining)
+							remaining = recur_2832
 							continue
-							if_result_2829 = flagrt.NilValue
+							if_result_2833 = flagrt.NilValue
 						} else {
-							if_result_2829 = func() flagrt.Value {
+							if_result_2833 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("export \"", name, "\" is not defined in module \"", flagrt.KeywordGet(mod, lowflagKw_namespace), "\"")), flagrt.NewKeyword("data"), lowflagMap))
 								return flagrt.NilValue
 							}()
 						}
-						let_result_2830 = if_result_2829
+						let_result_2834 = if_result_2833
 					}
-					if_result_2831 = let_result_2830
+					if_result_2835 = let_result_2834
 				}
-				return if_result_2831
+				return if_result_2835
 			}
 		}()
 	}
-	return if_result_2832
+	return if_result_2836
 }
 func compiler__validate_exports_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -20719,22 +20715,22 @@ func compiler__validate_exports_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__add_go_import_arity_2(ctx flagrt.Value, pkg_name flagrt.Value) flagrt.Value {
-	var let_result_2836 flagrt.Value
+	var let_result_2840 flagrt.Value
 	{
 		var path = flagrt.Str("flagbuild/", pkg_name)
-		var let_result_2834 flagrt.Value
+		var let_result_2838 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_go_imports)
-			var if_result_2833 flagrt.Value
+			var if_result_2837 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2833 = or_tmp
+				if_result_2837 = or_tmp
 			} else {
-				if_result_2833 = lowflagVec
+				if_result_2837 = lowflagVec
 			}
-			let_result_2834 = if_result_2833
+			let_result_2838 = if_result_2837
 		}
-		var imports = let_result_2834
-		var if_result_2835 flagrt.Value
+		var imports = let_result_2838
+		var if_result_2839 flagrt.Value
 		if flagrt.IsTruthy(flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 			if len(args) != 1 {
 				panic("fn expects exactly 1 arguments")
@@ -20742,13 +20738,13 @@ func compiler__add_go_import_arity_2(ctx flagrt.Value, pkg_name flagrt.Value) fl
 			imp := args[0]
 			return flagrt.NewBool(flagrt.Eq(flagrt.KeywordGet(imp, lowflagKw_path), flagrt.NewString(path)))
 		}), imports)) {
-			if_result_2835 = ctx
+			if_result_2839 = ctx
 		} else {
-			if_result_2835 = flagrt.Assoc(ctx, lowflagKw_go_imports, flagrt.Conj(imports, flagrt.NewMap(lowflagKw_name, pkg_name, lowflagKw_path, flagrt.NewString(path))))
+			if_result_2839 = flagrt.Assoc(ctx, lowflagKw_go_imports, flagrt.Conj(imports, flagrt.NewMap(lowflagKw_name, pkg_name, lowflagKw_path, flagrt.NewString(path))))
 		}
-		let_result_2836 = if_result_2835
+		let_result_2840 = if_result_2839
 	}
-	return let_result_2836
+	return let_result_2840
 }
 func compiler__add_go_import_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20763,37 +20759,37 @@ func compiler__replace_nth_arity_3(xs flagrt.Value, i flagrt.Value, value flagrt
 		var n = lowflagLong_0
 		var out = lowflagVec
 		for {
-			var let_result_2838 bool
+			var let_result_2842 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2837 bool
+				var if_result_2841 bool
 				if or_tmp {
-					if_result_2837 = or_tmp
+					if_result_2841 = or_tmp
 				} else {
-					if_result_2837 = flagrt.IsEmpty(remaining)
+					if_result_2841 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2838 = if_result_2837
+				let_result_2842 = if_result_2841
 			}
-			var if_result_2843 flagrt.Value
-			if let_result_2838 {
-				if_result_2843 = out
+			var if_result_2847 flagrt.Value
+			if let_result_2842 {
+				if_result_2847 = out
 			} else {
-				var if_result_2839 flagrt.Value
+				var if_result_2843 flagrt.Value
 				if flagrt.Eq(n, i) {
-					if_result_2839 = value
+					if_result_2843 = value
 				} else {
-					if_result_2839 = flagrt.First(remaining)
+					if_result_2843 = flagrt.First(remaining)
 				}
-				var recur_2840 = flagrt.Rest(remaining)
-				var recur_2841 = flagrt.Inc(n)
-				var recur_2842 = flagrt.Conj(out, if_result_2839)
-				remaining = recur_2840
-				n = recur_2841
-				out = recur_2842
+				var recur_2844 = flagrt.Rest(remaining)
+				var recur_2845 = flagrt.Inc(n)
+				var recur_2846 = flagrt.Conj(out, if_result_2843)
+				remaining = recur_2844
+				n = recur_2845
+				out = recur_2846
 				continue
-				if_result_2843 = flagrt.NilValue
+				if_result_2847 = flagrt.NilValue
 			}
-			return if_result_2843
+			return if_result_2847
 		}
 	}()
 }
@@ -20805,30 +20801,30 @@ func compiler__replace_nth_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__rename_defmacro_arity_2(form flagrt.Value, name flagrt.Value) flagrt.Value {
-	var let_result_2847 flagrt.Value
+	var let_result_2851 flagrt.Value
 	{
 		var node = compiler__unwrap_ast_arity_1(form)
-		var let_result_2845 flagrt.Value
+		var let_result_2849 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(node, lowflagKw_elements)
-			var if_result_2844 flagrt.Value
+			var if_result_2848 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2844 = or_tmp
+				if_result_2848 = or_tmp
 			} else {
-				if_result_2844 = lowflagVec
+				if_result_2848 = lowflagVec
 			}
-			let_result_2845 = if_result_2844
+			let_result_2849 = if_result_2848
 		}
-		var els = let_result_2845
-		var if_result_2846 flagrt.Value
+		var els = let_result_2849
+		var if_result_2850 flagrt.Value
 		if flagrt.Lt(flagrt.NewLong(int64(flagrt.Count(els))), lowflagLong_2) {
-			if_result_2846 = form
+			if_result_2850 = form
 		} else {
-			if_result_2846 = flagrt.Assoc(node, lowflagKw_elements, compiler__replace_nth_arity_3(els, lowflagLong_1, flagrt.NewMap(lowflagKw_kind, lowflagKw_symbol, lowflagKw_name, name, lowflagKw_line, flagrt.KeywordGet(node, lowflagKw_line), lowflagKw_col, flagrt.KeywordGet(node, lowflagKw_col))))
+			if_result_2850 = flagrt.Assoc(node, lowflagKw_elements, compiler__replace_nth_arity_3(els, lowflagLong_1, flagrt.NewMap(lowflagKw_kind, lowflagKw_symbol, lowflagKw_name, name, lowflagKw_line, flagrt.KeywordGet(node, lowflagKw_line), lowflagKw_col, flagrt.KeywordGet(node, lowflagKw_col))))
 		}
-		let_result_2847 = if_result_2846
+		let_result_2851 = if_result_2850
 	}
-	return let_result_2847
+	return let_result_2851
 }
 func compiler__rename_defmacro_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -20838,19 +20834,19 @@ func compiler__rename_defmacro_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__defmacro_form_name_arity_1(form flagrt.Value) flagrt.Value {
-	var let_result_2849 flagrt.Value
+	var let_result_2853 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
 		var head = compiler__ast_symbol_name_arity_1(flagrt.First(els))
-		var if_result_2848 flagrt.Value
+		var if_result_2852 flagrt.Value
 		if flagrt.Eq(head, flagrt.NewString("defmacro")) {
-			if_result_2848 = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
+			if_result_2852 = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
 		} else {
-			if_result_2848 = flagrt.NilValue
+			if_result_2852 = flagrt.NilValue
 		}
-		let_result_2849 = if_result_2848
+		let_result_2853 = if_result_2852
 	}
-	return let_result_2849
+	return let_result_2853
 }
 func compiler__defmacro_form_name_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -20861,59 +20857,59 @@ func compiler__defmacro_form_name_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__collect_defmacros_arity_1(forms flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_2851 flagrt.Value
+		var let_result_2855 flagrt.Value
 		{
 			var or_tmp = forms
-			var if_result_2850 flagrt.Value
+			var if_result_2854 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2850 = or_tmp
+				if_result_2854 = or_tmp
 			} else {
-				if_result_2850 = lowflagVec
+				if_result_2854 = lowflagVec
 			}
-			let_result_2851 = if_result_2850
+			let_result_2855 = if_result_2854
 		}
-		var remaining = let_result_2851
+		var remaining = let_result_2855
 		var out = lowflagMap
 		for {
-			var let_result_2853 bool
+			var let_result_2857 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2852 bool
+				var if_result_2856 bool
 				if or_tmp {
-					if_result_2852 = or_tmp
+					if_result_2856 = or_tmp
 				} else {
-					if_result_2852 = flagrt.IsEmpty(remaining)
+					if_result_2856 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2853 = if_result_2852
+				let_result_2857 = if_result_2856
 			}
-			var if_result_2860 flagrt.Value
-			if let_result_2853 {
-				if_result_2860 = out
+			var if_result_2864 flagrt.Value
+			if let_result_2857 {
+				if_result_2864 = out
 			} else {
-				var let_result_2859 flagrt.Value
+				var let_result_2863 flagrt.Value
 				{
 					var name = compiler__defmacro_form_name_arity_1(flagrt.First(remaining))
-					var if_result_2858 flagrt.Value
+					var if_result_2862 flagrt.Value
 					if flagrt.IsNil(name) {
-						var recur_2854 = flagrt.Rest(remaining)
-						var recur_2855 = out
-						remaining = recur_2854
-						out = recur_2855
+						var recur_2858 = flagrt.Rest(remaining)
+						var recur_2859 = out
+						remaining = recur_2858
+						out = recur_2859
 						continue
-						if_result_2858 = flagrt.NilValue
+						if_result_2862 = flagrt.NilValue
 					} else {
-						var recur_2856 = flagrt.Rest(remaining)
-						var recur_2857 = flagrt.Assoc(out, name, flagrt.First(remaining))
-						remaining = recur_2856
-						out = recur_2857
+						var recur_2860 = flagrt.Rest(remaining)
+						var recur_2861 = flagrt.Assoc(out, name, flagrt.First(remaining))
+						remaining = recur_2860
+						out = recur_2861
 						continue
-						if_result_2858 = flagrt.NilValue
+						if_result_2862 = flagrt.NilValue
 					}
-					let_result_2859 = if_result_2858
+					let_result_2863 = if_result_2862
 				}
-				if_result_2860 = let_result_2859
+				if_result_2864 = let_result_2863
 			}
-			return if_result_2860
+			return if_result_2864
 		}
 	}()
 }
@@ -20925,56 +20921,56 @@ func compiler__collect_defmacros_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__seed_one_export_arity_9(ctx flagrt.Value, prefix flagrt.Value, pkg_name flagrt.Value, package_mode_q flagrt.Value, exp flagrt.Value, defs flagrt.Value, macros flagrt.Value, fn_info flagrt.Value, spec_path flagrt.Value) flagrt.Value {
-	var let_result_2868 flagrt.Value
+	var let_result_2872 flagrt.Value
 	{
 		var go_name = flagrt.Get(defs, exp)
-		var if_result_2867 flagrt.Value
+		var if_result_2871 flagrt.Value
 		if flagrt.IsTruthy(go_name) {
-			var let_result_2862 flagrt.Value
-			{
-				var if_result_2861 flagrt.Value
-				if flagrt.IsTruthy(package_mode_q) {
-					if_result_2861 = flagrt.NewString(flagrt.Str(pkg_name, ".", go_name))
-				} else {
-					if_result_2861 = go_name
-				}
-				var ref = if_result_2861
-				var ctx = compiler__bind_module_name_arity_3(ctx, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(prefix, "/", exp))), ref)
-				var info = compiler__qualify_fn_info_arity_3(flagrt.Get(fn_info, exp), pkg_name, package_mode_q)
-				let_result_2862 = compiler__register_fn_info_arity_3(ctx, ref, info)
-			}
-			if_result_2867 = let_result_2862
-		} else {
 			var let_result_2866 flagrt.Value
 			{
-				var mac = flagrt.Get(macros, exp)
 				var if_result_2865 flagrt.Value
+				if flagrt.IsTruthy(package_mode_q) {
+					if_result_2865 = flagrt.NewString(flagrt.Str(pkg_name, ".", go_name))
+				} else {
+					if_result_2865 = go_name
+				}
+				var ref = if_result_2865
+				var ctx = compiler__bind_module_name_arity_3(ctx, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(prefix, "/", exp))), ref)
+				var info = compiler__qualify_fn_info_arity_3(flagrt.Get(fn_info, exp), pkg_name, package_mode_q)
+				let_result_2866 = compiler__register_fn_info_arity_3(ctx, ref, info)
+			}
+			if_result_2871 = let_result_2866
+		} else {
+			var let_result_2870 flagrt.Value
+			{
+				var mac = flagrt.Get(macros, exp)
+				var if_result_2869 flagrt.Value
 				if flagrt.IsTruthy(mac) {
-					var let_result_2864 flagrt.Value
+					var let_result_2868 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_macro_forms)
-						var if_result_2863 flagrt.Value
+						var if_result_2867 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_2863 = or_tmp
+							if_result_2867 = or_tmp
 						} else {
-							if_result_2863 = lowflagVec
+							if_result_2867 = lowflagVec
 						}
-						let_result_2864 = if_result_2863
+						let_result_2868 = if_result_2867
 					}
-					if_result_2865 = flagrt.Assoc(ctx, lowflagKw_macro_forms, flagrt.Conj(let_result_2864, compiler__rename_defmacro_arity_2(mac, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(prefix, "/", exp))))))
+					if_result_2869 = flagrt.Assoc(ctx, lowflagKw_macro_forms, flagrt.Conj(let_result_2868, compiler__rename_defmacro_arity_2(mac, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(prefix, "/", exp))))))
 				} else {
-					if_result_2865 = func() flagrt.Value {
+					if_result_2869 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": exported \"", exp, "\" has no definition")), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				}
-				let_result_2866 = if_result_2865
+				let_result_2870 = if_result_2869
 			}
-			if_result_2867 = let_result_2866
+			if_result_2871 = let_result_2870
 		}
-		let_result_2868 = if_result_2867
+		let_result_2872 = if_result_2871
 	}
-	return let_result_2868
+	return let_result_2872
 }
 func compiler__seed_one_export_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 9 {
@@ -20984,68 +20980,68 @@ func compiler__seed_one_export_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__seed_one_refer_arity_9(ctx flagrt.Value, pkg_name flagrt.Value, package_mode_q flagrt.Value, ref_name flagrt.Value, exports flagrt.Value, defs flagrt.Value, macros flagrt.Value, fn_info flagrt.Value, spec_path flagrt.Value) flagrt.Value {
-	var if_result_2869 bool
+	var if_result_2873 bool
 	if flagrt.Contains(exports, ref_name) {
-		if_result_2869 = false
+		if_result_2873 = false
 	} else {
-		if_result_2869 = true
+		if_result_2873 = true
 	}
-	var if_result_2883 flagrt.Value
-	if if_result_2869 {
-		if_result_2883 = func() flagrt.Value {
+	var if_result_2887 flagrt.Value
+	if if_result_2873 {
+		if_result_2887 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": cannot :refer \"", ref_name, "\" (not in :exports)")), flagrt.NewKeyword("data"), lowflagMap))
 			return flagrt.NilValue
 		}()
 	} else {
-		var let_result_2882 flagrt.Value
+		var let_result_2886 flagrt.Value
 		{
 			var go_name = flagrt.Get(defs, ref_name)
-			var if_result_2881 flagrt.Value
+			var if_result_2885 flagrt.Value
 			if flagrt.IsTruthy(go_name) {
-				var let_result_2876 flagrt.Value
+				var let_result_2880 flagrt.Value
 				{
-					var if_result_2870 flagrt.Value
+					var if_result_2874 flagrt.Value
 					if flagrt.IsTruthy(package_mode_q) {
-						if_result_2870 = flagrt.NewString(flagrt.Str(pkg_name, ".", go_name))
+						if_result_2874 = flagrt.NewString(flagrt.Str(pkg_name, ".", go_name))
 					} else {
-						if_result_2870 = go_name
+						if_result_2874 = go_name
 					}
-					var ref = if_result_2870
+					var ref = if_result_2874
 					var ns = flagrt.KeywordGet(ctx, lowflagKw_namespace)
-					var let_result_2872 flagrt.Value
+					var let_result_2876 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_module)
-						var if_result_2871 flagrt.Value
+						var if_result_2875 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_2871 = or_tmp
+							if_result_2875 = or_tmp
 						} else {
-							if_result_2871 = lowflagMap
+							if_result_2875 = lowflagMap
 						}
-						let_result_2872 = if_result_2871
+						let_result_2876 = if_result_2875
 					}
-					var mod0 = let_result_2872
+					var mod0 = let_result_2876
 					var mod1 = flagrt.MapDissoc(mod0, ref_name)
-					var let_result_2874 bool
+					var let_result_2878 bool
 					{
 						var or_tmp = flagrt.IsNil(ns)
-						var if_result_2873 bool
+						var if_result_2877 bool
 						if or_tmp {
-							if_result_2873 = or_tmp
+							if_result_2877 = or_tmp
 						} else {
-							if_result_2873 = flagrt.Eq(flagrt.NewString(""), ns)
+							if_result_2877 = flagrt.Eq(flagrt.NewString(""), ns)
 						}
-						let_result_2874 = if_result_2873
+						let_result_2878 = if_result_2877
 					}
-					var if_result_2875 flagrt.Value
-					if let_result_2874 {
-						if_result_2875 = mod1
+					var if_result_2879 flagrt.Value
+					if let_result_2878 {
+						if_result_2879 = mod1
 					} else {
-						if_result_2875 = flagrt.MapDissoc(mod1, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", ref_name))))
+						if_result_2879 = flagrt.MapDissoc(mod1, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", ref_name))))
 					}
-					var mod2 = if_result_2875
+					var mod2 = if_result_2879
 					var ctx1 = flagrt.Assoc(ctx, lowflagKw_module, mod2)
 					var info = compiler__qualify_fn_info_arity_3(flagrt.Get(fn_info, ref_name), pkg_name, package_mode_q)
-					let_result_2876 = func() flagrt.Value {
+					let_result_2880 = func() flagrt.Value {
 						var __flag_try_result flagrt.Value
 						func() {
 							defer func() {
@@ -21072,40 +21068,40 @@ func compiler__seed_one_refer_arity_9(ctx flagrt.Value, pkg_name flagrt.Value, p
 						return __flag_try_result
 					}()
 				}
-				if_result_2881 = let_result_2876
+				if_result_2885 = let_result_2880
 			} else {
-				var let_result_2880 flagrt.Value
+				var let_result_2884 flagrt.Value
 				{
 					var mac = flagrt.Get(macros, ref_name)
-					var if_result_2879 flagrt.Value
+					var if_result_2883 flagrt.Value
 					if flagrt.IsTruthy(mac) {
-						var let_result_2878 flagrt.Value
+						var let_result_2882 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_macro_forms)
-							var if_result_2877 flagrt.Value
+							var if_result_2881 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_2877 = or_tmp
+								if_result_2881 = or_tmp
 							} else {
-								if_result_2877 = lowflagVec
+								if_result_2881 = lowflagVec
 							}
-							let_result_2878 = if_result_2877
+							let_result_2882 = if_result_2881
 						}
-						if_result_2879 = flagrt.Assoc(ctx, lowflagKw_macro_forms, flagrt.Conj(let_result_2878, compiler__rename_defmacro_arity_2(mac, ref_name)))
+						if_result_2883 = flagrt.Assoc(ctx, lowflagKw_macro_forms, flagrt.Conj(let_result_2882, compiler__rename_defmacro_arity_2(mac, ref_name)))
 					} else {
-						if_result_2879 = func() flagrt.Value {
+						if_result_2883 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": referred \"", ref_name, "\" has no definition")), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					}
-					let_result_2880 = if_result_2879
+					let_result_2884 = if_result_2883
 				}
-				if_result_2881 = let_result_2880
+				if_result_2885 = let_result_2884
 			}
-			let_result_2882 = if_result_2881
+			let_result_2886 = if_result_2885
 		}
-		if_result_2883 = let_result_2882
+		if_result_2887 = let_result_2886
 	}
-	return if_result_2883
+	return if_result_2887
 }
 func compiler__seed_one_refer_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 9 {
@@ -21115,305 +21111,305 @@ func compiler__seed_one_refer_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__seed_one_import_arity_8(ctx flagrt.Value, importer_path flagrt.Value, spec flagrt.Value, by_path flagrt.Value, module_defs flagrt.Value, module_macros flagrt.Value, module_fn_info flagrt.Value, used_prefixes flagrt.Value) flagrt.Value {
-	var let_result_2931 flagrt.Value
+	var let_result_2935 flagrt.Value
 	{
 		var spec_path = flagrt.Str(flagrt.KeywordGet(spec, lowflagKw_path))
 		var resolved = compiler__resolve_import_path_arity_2(importer_path, flagrt.NewString(spec_path))
 		var provider = flagrt.Get(by_path, resolved)
-		var if_result_2930 flagrt.Value
+		var if_result_2934 flagrt.Value
 		if flagrt.IsNil(provider) {
-			if_result_2930 = func() flagrt.Value {
+			if_result_2934 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": module not loaded")), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var if_result_2884 bool
+			var if_result_2888 bool
 			if flagrt.IsTruthy(flagrt.KeywordGet(provider, lowflagKw_has_header)) {
-				if_result_2884 = false
+				if_result_2888 = false
 			} else {
-				if_result_2884 = true
+				if_result_2888 = true
 			}
-			var if_result_2929 flagrt.Value
-			if if_result_2884 {
-				if_result_2929 = func() flagrt.Value {
+			var if_result_2933 flagrt.Value
+			if if_result_2888 {
+				if_result_2933 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": target ", resolved, " has no module header")), flagrt.NewKeyword("data"), lowflagMap))
 					return flagrt.NilValue
 				}()
 			} else {
-				var let_result_2928 flagrt.Value
+				var let_result_2932 flagrt.Value
 				{
-					var let_result_2886 bool
+					var let_result_2890 bool
 					{
 						var or_tmp = flagrt.IsNil(flagrt.KeywordGet(spec, lowflagKw_as))
-						var if_result_2885 bool
+						var if_result_2889 bool
 						if or_tmp {
-							if_result_2885 = or_tmp
+							if_result_2889 = or_tmp
 						} else {
-							if_result_2885 = flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(spec, lowflagKw_as))
-						}
-						let_result_2886 = if_result_2885
-					}
-					var if_result_2887 flagrt.Value
-					if let_result_2886 {
-						if_result_2887 = flagrt.KeywordGet(provider, lowflagKw_namespace)
-					} else {
-						if_result_2887 = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.KeywordGet(spec, lowflagKw_as))))
-					}
-					var prefix = if_result_2887
-					var prev = flagrt.Get(used_prefixes, prefix)
-					var let_result_2890 flagrt.Value
-					{
-						var and_tmp = prev
-						var if_result_2889 flagrt.Value
-						if flagrt.IsTruthy(and_tmp) {
-							var if_result_2888 bool
-							if flagrt.Eq(prev, resolved) {
-								if_result_2888 = false
-							} else {
-								if_result_2888 = true
-							}
-							if_result_2889 = flagrt.NewBool(if_result_2888)
-						} else {
-							if_result_2889 = and_tmp
+							if_result_2889 = flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(spec, lowflagKw_as))
 						}
 						let_result_2890 = if_result_2889
 					}
-					var if_result_2927 flagrt.Value
-					if flagrt.IsTruthy(let_result_2890) {
-						if_result_2927 = func() flagrt.Value {
+					var if_result_2891 flagrt.Value
+					if let_result_2890 {
+						if_result_2891 = flagrt.KeywordGet(provider, lowflagKw_namespace)
+					} else {
+						if_result_2891 = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.KeywordGet(spec, lowflagKw_as))))
+					}
+					var prefix = if_result_2891
+					var prev = flagrt.Get(used_prefixes, prefix)
+					var let_result_2894 flagrt.Value
+					{
+						var and_tmp = prev
+						var if_result_2893 flagrt.Value
+						if flagrt.IsTruthy(and_tmp) {
+							var if_result_2892 bool
+							if flagrt.Eq(prev, resolved) {
+								if_result_2892 = false
+							} else {
+								if_result_2892 = true
+							}
+							if_result_2893 = flagrt.NewBool(if_result_2892)
+						} else {
+							if_result_2893 = and_tmp
+						}
+						let_result_2894 = if_result_2893
+					}
+					var if_result_2931 flagrt.Value
+					if flagrt.IsTruthy(let_result_2894) {
+						if_result_2931 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import prefix \"", prefix, "\" already used by ", prev)), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_2926 flagrt.Value
+						var let_result_2930 flagrt.Value
 						{
 							var exports = compiler__module_export_set_arity_1(flagrt.KeywordGet(provider, lowflagKw_exports))
 							var defs = flagrt.Get(module_defs, resolved)
-							var let_result_2892 flagrt.Value
+							var let_result_2896 flagrt.Value
 							{
 								var or_tmp = flagrt.Get(module_macros, resolved)
-								var if_result_2891 flagrt.Value
+								var if_result_2895 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_2891 = or_tmp
+									if_result_2895 = or_tmp
 								} else {
-									if_result_2891 = lowflagMap
+									if_result_2895 = lowflagMap
 								}
-								let_result_2892 = if_result_2891
+								let_result_2896 = if_result_2895
 							}
-							var macros = let_result_2892
-							var let_result_2894 flagrt.Value
+							var macros = let_result_2896
+							var let_result_2898 flagrt.Value
 							{
 								var or_tmp = flagrt.Get(module_fn_info, resolved)
-								var if_result_2893 flagrt.Value
+								var if_result_2897 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_2893 = or_tmp
+									if_result_2897 = or_tmp
 								} else {
-									if_result_2893 = lowflagMap
+									if_result_2897 = lowflagMap
 								}
-								let_result_2894 = if_result_2893
+								let_result_2898 = if_result_2897
 							}
-							var fn_info = let_result_2894
-							var if_result_2925 flagrt.Value
+							var fn_info = let_result_2898
+							var if_result_2929 flagrt.Value
 							if flagrt.IsNil(defs) {
-								if_result_2925 = func() flagrt.Value {
+								if_result_2929 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("import \"", spec_path, "\": provider not compiled yet")), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var let_result_2924 flagrt.Value
+								var let_result_2928 flagrt.Value
 								{
-									var if_result_2895 bool
+									var if_result_2899 bool
 									if flagrt.IsTruthy(flagrt.KeywordGet(ctx, lowflagKw_package_mode)) {
-										if_result_2895 = true
+										if_result_2899 = true
 									} else {
-										if_result_2895 = false
+										if_result_2899 = false
 									}
-									var package_mode_q = if_result_2895
-									var if_result_2896 flagrt.Value
+									var package_mode_q = if_result_2899
+									var if_result_2900 flagrt.Value
 									if package_mode_q {
-										if_result_2896 = compiler__go_package_name_arity_1(flagrt.KeywordGet(provider, lowflagKw_namespace))
+										if_result_2900 = compiler__go_package_name_arity_1(flagrt.KeywordGet(provider, lowflagKw_namespace))
 									} else {
-										if_result_2896 = flagrt.NewString("")
+										if_result_2900 = flagrt.NewString("")
 									}
-									var pkg_name = if_result_2896
-									var let_result_2903 flagrt.Value
+									var pkg_name = if_result_2900
+									var let_result_2907 flagrt.Value
 									{
 										var and_tmp = package_mode_q
-										var if_result_2902 flagrt.Value
+										var if_result_2906 flagrt.Value
 										if and_tmp {
-											var let_result_2901 flagrt.Value
+											var let_result_2905 flagrt.Value
 											{
-												var if_result_2897 bool
+												var if_result_2901 bool
 												if flagrt.IsTruthy(flagrt.KeywordGet(spec, lowflagKw_skip_go_import)) {
-													if_result_2897 = false
+													if_result_2901 = false
 												} else {
-													if_result_2897 = true
+													if_result_2901 = true
 												}
-												var and_tmp = if_result_2897
-												var if_result_2900 flagrt.Value
+												var and_tmp = if_result_2901
+												var if_result_2904 flagrt.Value
 												if and_tmp {
-													var let_result_2899 flagrt.Value
+													var let_result_2903 flagrt.Value
 													{
 														var or_tmp = flagrt.KeywordGet(provider, lowflagKw_exports)
-														var if_result_2898 flagrt.Value
+														var if_result_2902 flagrt.Value
 														if flagrt.IsTruthy(or_tmp) {
-															if_result_2898 = or_tmp
+															if_result_2902 = or_tmp
 														} else {
-															if_result_2898 = lowflagVec
+															if_result_2902 = lowflagVec
 														}
-														let_result_2899 = if_result_2898
+														let_result_2903 = if_result_2902
 													}
-													if_result_2900 = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+													if_result_2904 = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 														if len(args) != 1 {
 															panic("fn expects exactly 1 arguments")
 														}
 														exp := args[0]
 														return flagrt.Get(defs, flagrt.NewString(flagrt.Str(exp)))
-													}), let_result_2899)
+													}), let_result_2903)
 												} else {
-													if_result_2900 = flagrt.NewBool(and_tmp)
+													if_result_2904 = flagrt.NewBool(and_tmp)
 												}
-												let_result_2901 = if_result_2900
+												let_result_2905 = if_result_2904
 											}
-											if_result_2902 = let_result_2901
+											if_result_2906 = let_result_2905
 										} else {
-											if_result_2902 = flagrt.NewBool(and_tmp)
+											if_result_2906 = flagrt.NewBool(and_tmp)
 										}
-										let_result_2903 = if_result_2902
+										let_result_2907 = if_result_2906
 									}
-									var if_result_2904 flagrt.Value
-									if flagrt.IsTruthy(let_result_2903) {
-										if_result_2904 = compiler__add_go_import_arity_2(ctx, pkg_name)
+									var if_result_2908 flagrt.Value
+									if flagrt.IsTruthy(let_result_2907) {
+										if_result_2908 = compiler__add_go_import_arity_2(ctx, pkg_name)
 									} else {
-										if_result_2904 = ctx
+										if_result_2908 = ctx
 									}
-									var ctx1 = if_result_2904
+									var ctx1 = if_result_2908
 									var ctx2 = func() flagrt.Value {
-										var let_result_2906 flagrt.Value
+										var let_result_2910 flagrt.Value
 										{
 											var or_tmp = flagrt.KeywordGet(provider, lowflagKw_exports)
-											var if_result_2905 flagrt.Value
+											var if_result_2909 flagrt.Value
 											if flagrt.IsTruthy(or_tmp) {
-												if_result_2905 = or_tmp
+												if_result_2909 = or_tmp
 											} else {
-												if_result_2905 = lowflagVec
+												if_result_2909 = lowflagVec
 											}
-											let_result_2906 = if_result_2905
+											let_result_2910 = if_result_2909
 										}
-										var remaining = let_result_2906
+										var remaining = let_result_2910
 										var ctx = ctx1
 										for {
-											var let_result_2908 bool
+											var let_result_2912 bool
 											{
 												var or_tmp = flagrt.IsNil(remaining)
-												var if_result_2907 bool
+												var if_result_2911 bool
 												if or_tmp {
-													if_result_2907 = or_tmp
+													if_result_2911 = or_tmp
 												} else {
-													if_result_2907 = flagrt.IsEmpty(remaining)
+													if_result_2911 = flagrt.IsEmpty(remaining)
 												}
-												let_result_2908 = if_result_2907
+												let_result_2912 = if_result_2911
 											}
-											var if_result_2911 flagrt.Value
-											if let_result_2908 {
-												if_result_2911 = ctx
+											var if_result_2915 flagrt.Value
+											if let_result_2912 {
+												if_result_2915 = ctx
 											} else {
-												var recur_2909 = flagrt.Rest(remaining)
-												var recur_2910 = compiler__seed_one_export_arity_9(ctx, prefix, pkg_name, flagrt.NewBool(package_mode_q), compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), defs, macros, fn_info, flagrt.NewString(spec_path))
-												remaining = recur_2909
-												ctx = recur_2910
+												var recur_2913 = flagrt.Rest(remaining)
+												var recur_2914 = compiler__seed_one_export_arity_9(ctx, prefix, pkg_name, flagrt.NewBool(package_mode_q), compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), defs, macros, fn_info, flagrt.NewString(spec_path))
+												remaining = recur_2913
+												ctx = recur_2914
 												continue
-												if_result_2911 = flagrt.NilValue
+												if_result_2915 = flagrt.NilValue
 											}
-											return if_result_2911
+											return if_result_2915
 										}
 									}()
-									var let_result_2913 bool
+									var let_result_2917 bool
 									{
 										var or_tmp = flagrt.Eq(lowflagKw_all, flagrt.KeywordGet(spec, lowflagKw_refer))
-										var if_result_2912 bool
+										var if_result_2916 bool
 										if or_tmp {
-											if_result_2912 = or_tmp
+											if_result_2916 = or_tmp
 										} else {
-											if_result_2912 = flagrt.Eq(flagrt.NewString("all"), flagrt.KeywordGet(spec, lowflagKw_refer))
+											if_result_2916 = flagrt.Eq(flagrt.NewString("all"), flagrt.KeywordGet(spec, lowflagKw_refer))
 										}
-										let_result_2913 = if_result_2912
+										let_result_2917 = if_result_2916
 									}
-									var if_result_2918 flagrt.Value
-									if let_result_2913 {
-										var let_result_2915 flagrt.Value
+									var if_result_2922 flagrt.Value
+									if let_result_2917 {
+										var let_result_2919 flagrt.Value
 										{
 											var or_tmp = flagrt.KeywordGet(provider, lowflagKw_exports)
-											var if_result_2914 flagrt.Value
+											var if_result_2918 flagrt.Value
 											if flagrt.IsTruthy(or_tmp) {
-												if_result_2914 = or_tmp
+												if_result_2918 = or_tmp
 											} else {
-												if_result_2914 = lowflagVec
+												if_result_2918 = lowflagVec
 											}
-											let_result_2915 = if_result_2914
+											let_result_2919 = if_result_2918
 										}
-										if_result_2918 = let_result_2915
+										if_result_2922 = let_result_2919
 									} else {
-										var let_result_2917 flagrt.Value
+										var let_result_2921 flagrt.Value
 										{
 											var or_tmp = flagrt.KeywordGet(spec, lowflagKw_refer)
-											var if_result_2916 flagrt.Value
+											var if_result_2920 flagrt.Value
 											if flagrt.IsTruthy(or_tmp) {
-												if_result_2916 = or_tmp
+												if_result_2920 = or_tmp
 											} else {
-												if_result_2916 = lowflagVec
+												if_result_2920 = lowflagVec
 											}
-											let_result_2917 = if_result_2916
+											let_result_2921 = if_result_2920
 										}
-										if_result_2918 = let_result_2917
+										if_result_2922 = let_result_2921
 									}
-									var refer_names = if_result_2918
+									var refer_names = if_result_2922
 									var ctx3 = func() flagrt.Value {
 										var remaining = refer_names
 										var ctx = ctx2
 										for {
-											var let_result_2920 bool
+											var let_result_2924 bool
 											{
 												var or_tmp = flagrt.IsNil(remaining)
-												var if_result_2919 bool
+												var if_result_2923 bool
 												if or_tmp {
-													if_result_2919 = or_tmp
+													if_result_2923 = or_tmp
 												} else {
-													if_result_2919 = flagrt.IsEmpty(remaining)
+													if_result_2923 = flagrt.IsEmpty(remaining)
 												}
-												let_result_2920 = if_result_2919
+												let_result_2924 = if_result_2923
 											}
-											var if_result_2923 flagrt.Value
-											if let_result_2920 {
-												if_result_2923 = ctx
+											var if_result_2927 flagrt.Value
+											if let_result_2924 {
+												if_result_2927 = ctx
 											} else {
-												var recur_2921 = flagrt.Rest(remaining)
-												var recur_2922 = compiler__seed_one_refer_arity_9(ctx, pkg_name, flagrt.NewBool(package_mode_q), compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), exports, defs, macros, fn_info, flagrt.NewString(spec_path))
-												remaining = recur_2921
-												ctx = recur_2922
+												var recur_2925 = flagrt.Rest(remaining)
+												var recur_2926 = compiler__seed_one_refer_arity_9(ctx, pkg_name, flagrt.NewBool(package_mode_q), compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), exports, defs, macros, fn_info, flagrt.NewString(spec_path))
+												remaining = recur_2925
+												ctx = recur_2926
 												continue
-												if_result_2923 = flagrt.NilValue
+												if_result_2927 = flagrt.NilValue
 											}
-											return if_result_2923
+											return if_result_2927
 										}
 									}()
-									let_result_2924 = flagrt.NewMap(lowflagKw_ctx, ctx3, lowflagKw_used_prefixes, flagrt.Assoc(used_prefixes, prefix, resolved))
+									let_result_2928 = flagrt.NewMap(lowflagKw_ctx, ctx3, lowflagKw_used_prefixes, flagrt.Assoc(used_prefixes, prefix, resolved))
 								}
-								if_result_2925 = let_result_2924
+								if_result_2929 = let_result_2928
 							}
-							let_result_2926 = if_result_2925
+							let_result_2930 = if_result_2929
 						}
-						if_result_2927 = let_result_2926
+						if_result_2931 = let_result_2930
 					}
-					let_result_2928 = if_result_2927
+					let_result_2932 = if_result_2931
 				}
-				if_result_2929 = let_result_2928
+				if_result_2933 = let_result_2932
 			}
-			if_result_2930 = if_result_2929
+			if_result_2934 = if_result_2933
 		}
-		let_result_2931 = if_result_2930
+		let_result_2935 = if_result_2934
 	}
-	return let_result_2931
+	return let_result_2935
 }
 func compiler__seed_one_import_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 8 {
@@ -21424,62 +21420,62 @@ func compiler__seed_one_import_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__seed_imports_arity_6(ctx flagrt.Value, mod flagrt.Value, by_path flagrt.Value, module_defs flagrt.Value, module_macros flagrt.Value, module_fn_info flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_2933 flagrt.Value
+		var let_result_2937 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(mod, lowflagKw_imports)
-			var if_result_2932 flagrt.Value
+			var if_result_2936 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2932 = or_tmp
+				if_result_2936 = or_tmp
 			} else {
-				if_result_2932 = lowflagVec
+				if_result_2936 = lowflagVec
 			}
-			let_result_2933 = if_result_2932
+			let_result_2937 = if_result_2936
 		}
-		var remaining = let_result_2933
+		var remaining = let_result_2937
 		var ctx = ctx
 		var used = lowflagMap
 		for {
-			var let_result_2935 bool
+			var let_result_2939 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2934 bool
+				var if_result_2938 bool
 				if or_tmp {
-					if_result_2934 = or_tmp
+					if_result_2938 = or_tmp
 				} else {
-					if_result_2934 = flagrt.IsEmpty(remaining)
+					if_result_2938 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2935 = if_result_2934
+				let_result_2939 = if_result_2938
 			}
-			var if_result_2942 flagrt.Value
-			if let_result_2935 {
-				if_result_2942 = ctx
+			var if_result_2946 flagrt.Value
+			if let_result_2939 {
+				if_result_2946 = ctx
 			} else {
-				var let_result_2941 flagrt.Value
+				var let_result_2945 flagrt.Value
 				{
-					var let_result_2937 flagrt.Value
+					var let_result_2941 flagrt.Value
 					{
 						var or_tmp = module_fn_info
-						var if_result_2936 flagrt.Value
+						var if_result_2940 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_2936 = or_tmp
+							if_result_2940 = or_tmp
 						} else {
-							if_result_2936 = lowflagMap
+							if_result_2940 = lowflagMap
 						}
-						let_result_2937 = if_result_2936
+						let_result_2941 = if_result_2940
 					}
-					var out = compiler__seed_one_import_arity_8(ctx, flagrt.KeywordGet(mod, lowflagKw_path), flagrt.First(remaining), by_path, module_defs, module_macros, let_result_2937, used)
-					var recur_2938 = flagrt.Rest(remaining)
-					var recur_2939 = flagrt.KeywordGet(out, lowflagKw_ctx)
-					var recur_2940 = flagrt.KeywordGet(out, lowflagKw_used_prefixes)
-					remaining = recur_2938
-					ctx = recur_2939
-					used = recur_2940
+					var out = compiler__seed_one_import_arity_8(ctx, flagrt.KeywordGet(mod, lowflagKw_path), flagrt.First(remaining), by_path, module_defs, module_macros, let_result_2941, used)
+					var recur_2942 = flagrt.Rest(remaining)
+					var recur_2943 = flagrt.KeywordGet(out, lowflagKw_ctx)
+					var recur_2944 = flagrt.KeywordGet(out, lowflagKw_used_prefixes)
+					remaining = recur_2942
+					ctx = recur_2943
+					used = recur_2944
 					continue
-					let_result_2941 = flagrt.NilValue
+					let_result_2945 = flagrt.NilValue
 				}
-				if_result_2942 = let_result_2941
+				if_result_2946 = let_result_2945
 			}
-			return if_result_2942
+			return if_result_2946
 		}
 	}()
 }
@@ -21501,46 +21497,46 @@ func compiler__implicit_prologue_spec_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__with_implicit_prologue_import_arity_2(mod flagrt.Value, prologue_path flagrt.Value) flagrt.Value {
-	var let_result_2946 bool
+	var let_result_2950 bool
 	{
 		var or_tmp = flagrt.IsNil(prologue_path)
-		var if_result_2945 bool
+		var if_result_2949 bool
 		if or_tmp {
-			if_result_2945 = or_tmp
+			if_result_2949 = or_tmp
 		} else {
-			var let_result_2944 bool
+			var let_result_2948 bool
 			{
 				var or_tmp = flagrt.Eq(flagrt.NewString(""), prologue_path)
-				var if_result_2943 bool
+				var if_result_2947 bool
 				if or_tmp {
-					if_result_2943 = or_tmp
+					if_result_2947 = or_tmp
 				} else {
-					if_result_2943 = flagrt.Eq(flagrt.KeywordGet(mod, lowflagKw_path), prologue_path)
+					if_result_2947 = flagrt.Eq(flagrt.KeywordGet(mod, lowflagKw_path), prologue_path)
 				}
-				let_result_2944 = if_result_2943
+				let_result_2948 = if_result_2947
 			}
-			if_result_2945 = let_result_2944
+			if_result_2949 = let_result_2948
 		}
-		let_result_2946 = if_result_2945
+		let_result_2950 = if_result_2949
 	}
-	var if_result_2949 flagrt.Value
-	if let_result_2946 {
-		if_result_2949 = mod
+	var if_result_2953 flagrt.Value
+	if let_result_2950 {
+		if_result_2953 = mod
 	} else {
-		var let_result_2948 flagrt.Value
+		var let_result_2952 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(mod, lowflagKw_imports)
-			var if_result_2947 flagrt.Value
+			var if_result_2951 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2947 = or_tmp
+				if_result_2951 = or_tmp
 			} else {
-				if_result_2947 = lowflagVec
+				if_result_2951 = lowflagVec
 			}
-			let_result_2948 = if_result_2947
+			let_result_2952 = if_result_2951
 		}
-		if_result_2949 = flagrt.Assoc(mod, lowflagKw_imports, flagrt.Into(flagrt.NewArray(compiler__implicit_prologue_spec_arity_1(prologue_path)), let_result_2948))
+		if_result_2953 = flagrt.Assoc(mod, lowflagKw_imports, flagrt.Into(flagrt.NewArray(compiler__implicit_prologue_spec_arity_1(prologue_path)), let_result_2952))
 	}
-	return if_result_2949
+	return if_result_2953
 }
 func compiler__with_implicit_prologue_import_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -21550,29 +21546,29 @@ func compiler__with_implicit_prologue_import_variadic(args ...flagrt.Value) flag
 }
 
 func compiler__program_prologue_path_arity_1(modules flagrt.Value) flagrt.Value {
-	var let_result_2953 flagrt.Value
+	var let_result_2957 flagrt.Value
 	{
 		var mod = flagrt.First(modules)
-		var let_result_2951 flagrt.Value
+		var let_result_2955 flagrt.Value
 		{
 			var and_tmp = mod
-			var if_result_2950 flagrt.Value
+			var if_result_2954 flagrt.Value
 			if flagrt.IsTruthy(and_tmp) {
-				if_result_2950 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("prologue"), flagrt.KeywordGet(mod, lowflagKw_namespace)))
+				if_result_2954 = flagrt.NewBool(flagrt.Eq(flagrt.NewString("prologue"), flagrt.KeywordGet(mod, lowflagKw_namespace)))
 			} else {
-				if_result_2950 = and_tmp
+				if_result_2954 = and_tmp
 			}
-			let_result_2951 = if_result_2950
+			let_result_2955 = if_result_2954
 		}
-		var if_result_2952 flagrt.Value
-		if flagrt.IsTruthy(let_result_2951) {
-			if_result_2952 = flagrt.KeywordGet(mod, lowflagKw_path)
+		var if_result_2956 flagrt.Value
+		if flagrt.IsTruthy(let_result_2955) {
+			if_result_2956 = flagrt.KeywordGet(mod, lowflagKw_path)
 		} else {
-			if_result_2952 = flagrt.NilValue
+			if_result_2956 = flagrt.NilValue
 		}
-		let_result_2953 = if_result_2952
+		let_result_2957 = if_result_2956
 	}
-	return let_result_2953
+	return let_result_2957
 }
 func compiler__program_prologue_path_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -21586,63 +21582,63 @@ func compiler__insert_sorted_string_arity_2(xs flagrt.Value, s flagrt.Value) fla
 		var remaining = xs
 		var out = lowflagVec
 		for {
-			var let_result_2955 bool
+			var let_result_2959 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2954 bool
+				var if_result_2958 bool
 				if or_tmp {
-					if_result_2954 = or_tmp
+					if_result_2958 = or_tmp
 				} else {
-					if_result_2954 = flagrt.IsEmpty(remaining)
+					if_result_2958 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2955 = if_result_2954
+				let_result_2959 = if_result_2958
 			}
-			var if_result_2964 flagrt.Value
-			if let_result_2955 {
-				if_result_2964 = flagrt.Conj(out, s)
+			var if_result_2968 flagrt.Value
+			if let_result_2959 {
+				if_result_2968 = flagrt.Conj(out, s)
 			} else {
-				var if_result_2963 flagrt.Value
+				var if_result_2967 flagrt.Value
 				if flagrt.Lt(flagrt.Compare(s, flagrt.NewString(flagrt.Str(flagrt.First(remaining)))), lowflagLong_0) {
-					if_result_2963 = func() flagrt.Value {
+					if_result_2967 = func() flagrt.Value {
 						var more = remaining
 						var acc = flagrt.Conj(out, s)
 						for {
-							var let_result_2957 bool
+							var let_result_2961 bool
 							{
 								var or_tmp = flagrt.IsNil(more)
-								var if_result_2956 bool
+								var if_result_2960 bool
 								if or_tmp {
-									if_result_2956 = or_tmp
+									if_result_2960 = or_tmp
 								} else {
-									if_result_2956 = flagrt.IsEmpty(more)
+									if_result_2960 = flagrt.IsEmpty(more)
 								}
-								let_result_2957 = if_result_2956
+								let_result_2961 = if_result_2960
 							}
-							var if_result_2960 flagrt.Value
-							if let_result_2957 {
-								if_result_2960 = acc
+							var if_result_2964 flagrt.Value
+							if let_result_2961 {
+								if_result_2964 = acc
 							} else {
-								var recur_2958 = flagrt.Rest(more)
-								var recur_2959 = flagrt.Conj(acc, flagrt.First(more))
-								more = recur_2958
-								acc = recur_2959
+								var recur_2962 = flagrt.Rest(more)
+								var recur_2963 = flagrt.Conj(acc, flagrt.First(more))
+								more = recur_2962
+								acc = recur_2963
 								continue
-								if_result_2960 = flagrt.NilValue
+								if_result_2964 = flagrt.NilValue
 							}
-							return if_result_2960
+							return if_result_2964
 						}
 					}()
 				} else {
-					var recur_2961 = flagrt.Rest(remaining)
-					var recur_2962 = flagrt.Conj(out, flagrt.First(remaining))
-					remaining = recur_2961
-					out = recur_2962
+					var recur_2965 = flagrt.Rest(remaining)
+					var recur_2966 = flagrt.Conj(out, flagrt.First(remaining))
+					remaining = recur_2965
+					out = recur_2966
 					continue
-					if_result_2963 = flagrt.NilValue
+					if_result_2967 = flagrt.NilValue
 				}
-				if_result_2964 = if_result_2963
+				if_result_2968 = if_result_2967
 			}
-			return if_result_2964
+			return if_result_2968
 		}
 	}()
 }
@@ -21658,29 +21654,29 @@ func compiler__sort_strings_arity_1(xs flagrt.Value) flagrt.Value {
 		var remaining = xs
 		var out = lowflagVec
 		for {
-			var let_result_2966 bool
+			var let_result_2970 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2965 bool
+				var if_result_2969 bool
 				if or_tmp {
-					if_result_2965 = or_tmp
+					if_result_2969 = or_tmp
 				} else {
-					if_result_2965 = flagrt.IsEmpty(remaining)
+					if_result_2969 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2966 = if_result_2965
+				let_result_2970 = if_result_2969
 			}
-			var if_result_2969 flagrt.Value
-			if let_result_2966 {
-				if_result_2969 = out
+			var if_result_2973 flagrt.Value
+			if let_result_2970 {
+				if_result_2973 = out
 			} else {
-				var recur_2967 = flagrt.Rest(remaining)
-				var recur_2968 = compiler__insert_sorted_string_arity_2(out, flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
-				remaining = recur_2967
-				out = recur_2968
+				var recur_2971 = flagrt.Rest(remaining)
+				var recur_2972 = compiler__insert_sorted_string_arity_2(out, flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
+				remaining = recur_2971
+				out = recur_2972
 				continue
-				if_result_2969 = flagrt.NilValue
+				if_result_2973 = flagrt.NilValue
 			}
-			return if_result_2969
+			return if_result_2973
 		}
 	}()
 }
@@ -21697,60 +21693,60 @@ func compiler__unique_strings_arity_1(xs flagrt.Value) flagrt.Value {
 		var seen = lowflagMap
 		var out = lowflagVec
 		for {
-			var let_result_2971 bool
+			var let_result_2975 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_2970 bool
+				var if_result_2974 bool
 				if or_tmp {
-					if_result_2970 = or_tmp
+					if_result_2974 = or_tmp
 				} else {
-					if_result_2970 = flagrt.IsEmpty(remaining)
+					if_result_2974 = flagrt.IsEmpty(remaining)
 				}
-				let_result_2971 = if_result_2970
+				let_result_2975 = if_result_2974
 			}
-			var if_result_2982 flagrt.Value
-			if let_result_2971 {
-				if_result_2982 = out
+			var if_result_2986 flagrt.Value
+			if let_result_2975 {
+				if_result_2986 = out
 			} else {
-				var let_result_2981 flagrt.Value
+				var let_result_2985 flagrt.Value
 				{
 					var name = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
-					var let_result_2973 bool
+					var let_result_2977 bool
 					{
 						var or_tmp = flagrt.Eq(name, flagrt.NewString(""))
-						var if_result_2972 bool
+						var if_result_2976 bool
 						if or_tmp {
-							if_result_2972 = or_tmp
+							if_result_2976 = or_tmp
 						} else {
-							if_result_2972 = flagrt.Contains(seen, name)
+							if_result_2976 = flagrt.Contains(seen, name)
 						}
-						let_result_2973 = if_result_2972
+						let_result_2977 = if_result_2976
 					}
-					var if_result_2980 flagrt.Value
-					if let_result_2973 {
-						var recur_2974 = flagrt.Rest(remaining)
-						var recur_2975 = seen
-						var recur_2976 = out
-						remaining = recur_2974
-						seen = recur_2975
-						out = recur_2976
+					var if_result_2984 flagrt.Value
+					if let_result_2977 {
+						var recur_2978 = flagrt.Rest(remaining)
+						var recur_2979 = seen
+						var recur_2980 = out
+						remaining = recur_2978
+						seen = recur_2979
+						out = recur_2980
 						continue
-						if_result_2980 = flagrt.NilValue
+						if_result_2984 = flagrt.NilValue
 					} else {
-						var recur_2977 = flagrt.Rest(remaining)
-						var recur_2978 = flagrt.Assoc(seen, name, flagrt.NewBool(true))
-						var recur_2979 = flagrt.Conj(out, name)
-						remaining = recur_2977
-						seen = recur_2978
-						out = recur_2979
+						var recur_2981 = flagrt.Rest(remaining)
+						var recur_2982 = flagrt.Assoc(seen, name, flagrt.NewBool(true))
+						var recur_2983 = flagrt.Conj(out, name)
+						remaining = recur_2981
+						seen = recur_2982
+						out = recur_2983
 						continue
-						if_result_2980 = flagrt.NilValue
+						if_result_2984 = flagrt.NilValue
 					}
-					let_result_2981 = if_result_2980
+					let_result_2985 = if_result_2984
 				}
-				if_result_2982 = let_result_2981
+				if_result_2986 = let_result_2985
 			}
-			return if_result_2982
+			return if_result_2986
 		}
 	}()
 }
@@ -21762,62 +21758,62 @@ func compiler__unique_strings_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__emit_flagi_go_exports_arity_1(go_exports flagrt.Value) flagrt.Value {
-	var let_result_2984 bool
+	var let_result_2988 bool
 	{
 		var or_tmp = flagrt.IsNil(go_exports)
-		var if_result_2983 bool
+		var if_result_2987 bool
 		if or_tmp {
-			if_result_2983 = or_tmp
+			if_result_2987 = or_tmp
 		} else {
-			if_result_2983 = flagrt.IsEmpty(go_exports)
+			if_result_2987 = flagrt.IsEmpty(go_exports)
 		}
-		let_result_2984 = if_result_2983
+		let_result_2988 = if_result_2987
 	}
-	var if_result_2992 string
-	if let_result_2984 {
-		if_result_2992 = ""
+	var if_result_2996 string
+	if let_result_2988 {
+		if_result_2996 = ""
 	} else {
-		var let_result_2991 string
+		var let_result_2995 string
 		{
 			var keys = compiler__sort_strings_arity_1(flagrt.FnKeys(go_exports))
-			let_result_2991 = flagrt.Str("\n :go-exports {", compiler__join_strings_arity_2(func() flagrt.Value {
+			let_result_2995 = flagrt.Str("\n :go-exports {", compiler__join_strings_arity_2(func() flagrt.Value {
 				var remaining = keys
 				var out = lowflagVec
 				for {
-					var let_result_2986 bool
+					var let_result_2990 bool
 					{
 						var or_tmp = flagrt.IsNil(remaining)
-						var if_result_2985 bool
+						var if_result_2989 bool
 						if or_tmp {
-							if_result_2985 = or_tmp
+							if_result_2989 = or_tmp
 						} else {
-							if_result_2985 = flagrt.IsEmpty(remaining)
+							if_result_2989 = flagrt.IsEmpty(remaining)
 						}
-						let_result_2986 = if_result_2985
+						let_result_2990 = if_result_2989
 					}
-					var if_result_2990 flagrt.Value
-					if let_result_2986 {
-						if_result_2990 = out
+					var if_result_2994 flagrt.Value
+					if let_result_2990 {
+						if_result_2994 = out
 					} else {
-						var let_result_2989 flagrt.Value
+						var let_result_2993 flagrt.Value
 						{
 							var k = flagrt.Str(flagrt.First(remaining))
-							var recur_2987 = flagrt.Rest(remaining)
-							var recur_2988 = flagrt.Conj(out, flagrt.NewString(flagrt.Str(k, " ", flagrt.NewString(flagrt.Format("%q", flagrt.Get(go_exports, flagrt.NewString(k)))))))
-							remaining = recur_2987
-							out = recur_2988
+							var recur_2991 = flagrt.Rest(remaining)
+							var recur_2992 = flagrt.Conj(out, flagrt.NewString(flagrt.Str(k, " ", flagrt.NewString(flagrt.Format("%q", flagrt.Get(go_exports, flagrt.NewString(k)))))))
+							remaining = recur_2991
+							out = recur_2992
 							continue
-							let_result_2989 = flagrt.NilValue
+							let_result_2993 = flagrt.NilValue
 						}
-						if_result_2990 = let_result_2989
+						if_result_2994 = let_result_2993
 					}
-					return if_result_2990
+					return if_result_2994
 				}
 			}(), lowflagStr___12), "}")
 		}
-		if_result_2992 = let_result_2991
+		if_result_2996 = let_result_2995
 	}
-	return flagrt.NewString(if_result_2992)
+	return flagrt.NewString(if_result_2996)
 }
 func compiler__emit_flagi_go_exports_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -21827,139 +21823,139 @@ func compiler__emit_flagi_go_exports_variadic(args ...flagrt.Value) flagrt.Value
 }
 
 func compiler__emit_flagi_arity_5(ns flagrt.Value, exports flagrt.Value, go_exports flagrt.Value, macros flagrt.Value, defined flagrt.Value) flagrt.Value {
-	var let_result_3017 string
+	var let_result_3021 string
 	{
 		var unique = compiler__sort_strings_arity_1(compiler__unique_strings_arity_1(exports))
-		var if_result_2993 string
+		var if_result_2997 string
 		if flagrt.IsEmpty(unique) {
-			if_result_2993 = ""
+			if_result_2997 = ""
 		} else {
-			if_result_2993 = flagrt.Str("\n :exports   [", compiler__join_strings_arity_2(unique, lowflagStr___12), "]")
+			if_result_2997 = flagrt.Str("\n :exports   [", compiler__join_strings_arity_2(unique, lowflagStr___12), "]")
 		}
-		var header = flagrt.Str("{:namespace ", flagrt.NewString(flagrt.Format("%q", ns)), if_result_2993, compiler__emit_flagi_go_exports_arity_1(go_exports), "}\n")
-		var let_result_2995 flagrt.Value
+		var header = flagrt.Str("{:namespace ", flagrt.NewString(flagrt.Format("%q", ns)), if_result_2997, compiler__emit_flagi_go_exports_arity_1(go_exports), "}\n")
+		var let_result_2999 flagrt.Value
 		{
 			var or_tmp = macros
-			var if_result_2994 flagrt.Value
+			var if_result_2998 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_2994 = or_tmp
+				if_result_2998 = or_tmp
 			} else {
-				if_result_2994 = lowflagMap
+				if_result_2998 = lowflagMap
 			}
-			let_result_2995 = if_result_2994
+			let_result_2999 = if_result_2998
 		}
-		var macro_names = compiler__sort_strings_arity_1(flagrt.FnKeys(let_result_2995))
+		var macro_names = compiler__sort_strings_arity_1(flagrt.FnKeys(let_result_2999))
 		var macro_src = func() flagrt.Value {
 			var remaining = macro_names
 			var out = flagrt.NewString("")
 			for {
-				var let_result_2997 bool
+				var let_result_3001 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_2996 bool
+					var if_result_3000 bool
 					if or_tmp {
-						if_result_2996 = or_tmp
+						if_result_3000 = or_tmp
 					} else {
-						if_result_2996 = flagrt.IsEmpty(remaining)
+						if_result_3000 = flagrt.IsEmpty(remaining)
 					}
-					let_result_2997 = if_result_2996
+					let_result_3001 = if_result_3000
 				}
-				var if_result_3000 flagrt.Value
-				if let_result_2997 {
-					if_result_3000 = out
+				var if_result_3004 flagrt.Value
+				if let_result_3001 {
+					if_result_3004 = out
 				} else {
-					var recur_2998 = flagrt.Rest(remaining)
-					var recur_2999 = flagrt.NewString(flagrt.Str(out, "\n", compiler__ast_form_source_arity_1(flagrt.Get(macros, flagrt.First(remaining))), "\n"))
-					remaining = recur_2998
-					out = recur_2999
+					var recur_3002 = flagrt.Rest(remaining)
+					var recur_3003 = flagrt.NewString(flagrt.Str(out, "\n", compiler__ast_form_source_arity_1(flagrt.Get(macros, flagrt.First(remaining))), "\n"))
+					remaining = recur_3002
+					out = recur_3003
 					continue
-					if_result_3000 = flagrt.NilValue
+					if_result_3004 = flagrt.NilValue
 				}
-				return if_result_3000
+				return if_result_3004
 			}
 		}()
 		var decls = func() flagrt.Value {
 			var remaining = unique
 			var out = lowflagVec
 			for {
-				var let_result_3002 bool
+				var let_result_3006 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3001 bool
+					var if_result_3005 bool
 					if or_tmp {
-						if_result_3001 = or_tmp
+						if_result_3005 = or_tmp
 					} else {
-						if_result_3001 = flagrt.IsEmpty(remaining)
+						if_result_3005 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3002 = if_result_3001
+					let_result_3006 = if_result_3005
 				}
-				var if_result_3015 flagrt.Value
-				if let_result_3002 {
-					if_result_3015 = out
+				var if_result_3019 flagrt.Value
+				if let_result_3006 {
+					if_result_3019 = out
 				} else {
-					var let_result_3014 flagrt.Value
+					var let_result_3018 flagrt.Value
 					{
 						var name = flagrt.Str(flagrt.First(remaining))
-						var if_result_3013 flagrt.Value
+						var if_result_3017 flagrt.Value
 						if flagrt.IsTruthy(flagrt.Get(macros, flagrt.NewString(name))) {
-							var recur_3003 = flagrt.Rest(remaining)
-							var recur_3004 = out
-							remaining = recur_3003
-							out = recur_3004
+							var recur_3007 = flagrt.Rest(remaining)
+							var recur_3008 = out
+							remaining = recur_3007
+							out = recur_3008
 							continue
-							if_result_3013 = flagrt.NilValue
+							if_result_3017 = flagrt.NilValue
 						} else {
-							var let_result_3007 flagrt.Value
+							var let_result_3011 flagrt.Value
 							{
 								var or_tmp = flagrt.Get(defined, flagrt.NewString(name))
-								var if_result_3006 flagrt.Value
+								var if_result_3010 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3006 = or_tmp
+									if_result_3010 = or_tmp
 								} else {
-									var if_result_3005 bool
+									var if_result_3009 bool
 									if flagrt.IsNil(flagrt.Get(go_exports, flagrt.NewString(name))) {
-										if_result_3005 = false
+										if_result_3009 = false
 									} else {
-										if_result_3005 = true
+										if_result_3009 = true
 									}
-									if_result_3006 = flagrt.NewBool(if_result_3005)
+									if_result_3010 = flagrt.NewBool(if_result_3009)
 								}
-								let_result_3007 = if_result_3006
+								let_result_3011 = if_result_3010
 							}
-							var if_result_3012 flagrt.Value
-							if flagrt.IsTruthy(let_result_3007) {
-								var recur_3008 = flagrt.Rest(remaining)
-								var recur_3009 = flagrt.Conj(out, flagrt.NewString(name))
-								remaining = recur_3008
-								out = recur_3009
+							var if_result_3016 flagrt.Value
+							if flagrt.IsTruthy(let_result_3011) {
+								var recur_3012 = flagrt.Rest(remaining)
+								var recur_3013 = flagrt.Conj(out, flagrt.NewString(name))
+								remaining = recur_3012
+								out = recur_3013
 								continue
-								if_result_3012 = flagrt.NilValue
+								if_result_3016 = flagrt.NilValue
 							} else {
-								var recur_3010 = flagrt.Rest(remaining)
-								var recur_3011 = out
-								remaining = recur_3010
-								out = recur_3011
+								var recur_3014 = flagrt.Rest(remaining)
+								var recur_3015 = out
+								remaining = recur_3014
+								out = recur_3015
 								continue
-								if_result_3012 = flagrt.NilValue
+								if_result_3016 = flagrt.NilValue
 							}
-							if_result_3013 = if_result_3012
+							if_result_3017 = if_result_3016
 						}
-						let_result_3014 = if_result_3013
+						let_result_3018 = if_result_3017
 					}
-					if_result_3015 = let_result_3014
+					if_result_3019 = let_result_3018
 				}
-				return if_result_3015
+				return if_result_3019
 			}
 		}()
-		var if_result_3016 string
+		var if_result_3020 string
 		if flagrt.IsEmpty(decls) {
-			if_result_3016 = ""
+			if_result_3020 = ""
 		} else {
-			if_result_3016 = flagrt.Str("\n(declare ", compiler__join_strings_arity_2(decls, lowflagStr___12), ")\n")
+			if_result_3020 = flagrt.Str("\n(declare ", compiler__join_strings_arity_2(decls, lowflagStr___12), ")\n")
 		}
-		let_result_3017 = flagrt.Str(header, macro_src, if_result_3016)
+		let_result_3021 = flagrt.Str(header, macro_src, if_result_3020)
 	}
-	return flagrt.NewString(let_result_3017)
+	return flagrt.NewString(let_result_3021)
 }
 func compiler__emit_flagi_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -21970,118 +21966,118 @@ func compiler__emit_flagi_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__seed_prologue_package_refs_arity_2(ctx flagrt.Value, exports flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_3019 flagrt.Value
+		var let_result_3023 flagrt.Value
 		{
 			var or_tmp = exports
-			var if_result_3018 flagrt.Value
+			var if_result_3022 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3018 = or_tmp
+				if_result_3022 = or_tmp
 			} else {
-				if_result_3018 = lowflagMap
+				if_result_3022 = lowflagMap
 			}
-			let_result_3019 = if_result_3018
+			let_result_3023 = if_result_3022
 		}
-		var remaining = flagrt.FnKeys(let_result_3019)
+		var remaining = flagrt.FnKeys(let_result_3023)
 		var ctx = ctx
 		for {
-			var let_result_3021 bool
+			var let_result_3025 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3020 bool
+				var if_result_3024 bool
 				if or_tmp {
-					if_result_3020 = or_tmp
+					if_result_3024 = or_tmp
 				} else {
-					if_result_3020 = flagrt.IsEmpty(remaining)
+					if_result_3024 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3021 = if_result_3020
+				let_result_3025 = if_result_3024
 			}
-			var if_result_3038 flagrt.Value
-			if let_result_3021 {
-				if_result_3038 = ctx
+			var if_result_3042 flagrt.Value
+			if let_result_3025 {
+				if_result_3042 = ctx
 			} else {
-				var let_result_3037 flagrt.Value
+				var let_result_3041 flagrt.Value
 				{
 					var name = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
-					var let_result_3023 flagrt.Value
+					var let_result_3027 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_module)
-						var if_result_3022 flagrt.Value
+						var if_result_3026 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_3022 = or_tmp
+							if_result_3026 = or_tmp
 						} else {
-							if_result_3022 = lowflagMap
+							if_result_3026 = lowflagMap
 						}
-						let_result_3023 = if_result_3022
+						let_result_3027 = if_result_3026
 					}
-					var prev = flagrt.Get(let_result_3023, name)
-					var let_result_3025 flagrt.Value
+					var prev = flagrt.Get(let_result_3027, name)
+					var let_result_3029 flagrt.Value
 					{
 						var and_tmp = prev
-						var if_result_3024 flagrt.Value
+						var if_result_3028 flagrt.Value
 						if flagrt.IsTruthy(and_tmp) {
-							if_result_3024 = compiler__str_contains_q_arity_2(prev, lowflagStr___8)
+							if_result_3028 = compiler__str_contains_q_arity_2(prev, lowflagStr___8)
 						} else {
-							if_result_3024 = and_tmp
+							if_result_3028 = and_tmp
 						}
-						let_result_3025 = if_result_3024
+						let_result_3029 = if_result_3028
 					}
-					var if_result_3036 flagrt.Value
-					if flagrt.IsTruthy(let_result_3025) {
-						var recur_3026 = flagrt.Rest(remaining)
-						var recur_3027 = ctx
-						remaining = recur_3026
-						ctx = recur_3027
+					var if_result_3040 flagrt.Value
+					if flagrt.IsTruthy(let_result_3029) {
+						var recur_3030 = flagrt.Rest(remaining)
+						var recur_3031 = ctx
+						remaining = recur_3030
+						ctx = recur_3031
 						continue
-						if_result_3036 = flagrt.NilValue
+						if_result_3040 = flagrt.NilValue
 					} else {
-						var let_result_3035 flagrt.Value
+						var let_result_3039 flagrt.Value
 						{
 							var ref = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str("prologue.", flagrt.Get(exports, name))))
-							var let_result_3029 flagrt.Value
+							var let_result_3033 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_module)
-								var if_result_3028 flagrt.Value
+								var if_result_3032 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3028 = or_tmp
+									if_result_3032 = or_tmp
 								} else {
-									if_result_3028 = lowflagMap
+									if_result_3032 = lowflagMap
 								}
-								let_result_3029 = if_result_3028
+								let_result_3033 = if_result_3032
 							}
-							var mod1 = flagrt.Assoc(let_result_3029, name, ref)
+							var mod1 = flagrt.Assoc(let_result_3033, name, ref)
 							var ns = flagrt.KeywordGet(ctx, lowflagKw_namespace)
-							var let_result_3031 bool
+							var let_result_3035 bool
 							{
 								var or_tmp = flagrt.IsNil(ns)
-								var if_result_3030 bool
+								var if_result_3034 bool
 								if or_tmp {
-									if_result_3030 = or_tmp
+									if_result_3034 = or_tmp
 								} else {
-									if_result_3030 = flagrt.Eq(ns, flagrt.NewString(""))
+									if_result_3034 = flagrt.Eq(ns, flagrt.NewString(""))
 								}
-								let_result_3031 = if_result_3030
+								let_result_3035 = if_result_3034
 							}
-							var if_result_3032 flagrt.Value
-							if let_result_3031 {
-								if_result_3032 = mod1
+							var if_result_3036 flagrt.Value
+							if let_result_3035 {
+								if_result_3036 = mod1
 							} else {
-								if_result_3032 = flagrt.Assoc(mod1, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", name))), ref)
+								if_result_3036 = flagrt.Assoc(mod1, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", name))), ref)
 							}
-							var mod2 = if_result_3032
-							var recur_3033 = flagrt.Rest(remaining)
-							var recur_3034 = flagrt.Assoc(ctx, lowflagKw_module, mod2)
-							remaining = recur_3033
-							ctx = recur_3034
+							var mod2 = if_result_3036
+							var recur_3037 = flagrt.Rest(remaining)
+							var recur_3038 = flagrt.Assoc(ctx, lowflagKw_module, mod2)
+							remaining = recur_3037
+							ctx = recur_3038
 							continue
-							let_result_3035 = flagrt.NilValue
+							let_result_3039 = flagrt.NilValue
 						}
-						if_result_3036 = let_result_3035
+						if_result_3040 = let_result_3039
 					}
-					let_result_3037 = if_result_3036
+					let_result_3041 = if_result_3040
 				}
-				if_result_3038 = let_result_3037
+				if_result_3042 = let_result_3041
 			}
-			return if_result_3038
+			return if_result_3042
 		}
 	}()
 }
@@ -22093,35 +22089,11 @@ func compiler__seed_prologue_package_refs_variadic(args ...flagrt.Value) flagrt.
 }
 
 func compiler__strip_inlined_prologue_name_arity_3(ctx flagrt.Value, lowflag_name flagrt.Value, go_name flagrt.Value) flagrt.Value {
-	var let_result_3065 flagrt.Value
+	var let_result_3069 flagrt.Value
 	{
-		var let_result_3040 flagrt.Value
-		{
-			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_functions)
-			var if_result_3039 flagrt.Value
-			if flagrt.IsTruthy(or_tmp) {
-				if_result_3039 = or_tmp
-			} else {
-				if_result_3039 = lowflagMap
-			}
-			let_result_3040 = if_result_3039
-		}
-		var fns = flagrt.MapDissoc(let_result_3040, go_name)
-		var let_result_3042 flagrt.Value
-		{
-			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_globals)
-			var if_result_3041 flagrt.Value
-			if flagrt.IsTruthy(or_tmp) {
-				if_result_3041 = or_tmp
-			} else {
-				if_result_3041 = lowflagMap
-			}
-			let_result_3042 = if_result_3041
-		}
-		var globs = flagrt.MapDissoc(let_result_3042, go_name)
 		var let_result_3044 flagrt.Value
 		{
-			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_module)
+			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_functions)
 			var if_result_3043 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
 				if_result_3043 = or_tmp
@@ -22130,128 +22102,152 @@ func compiler__strip_inlined_prologue_name_arity_3(ctx flagrt.Value, lowflag_nam
 			}
 			let_result_3044 = if_result_3043
 		}
-		var mod = let_result_3044
+		var fns = flagrt.MapDissoc(let_result_3044, go_name)
+		var let_result_3046 flagrt.Value
+		{
+			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_globals)
+			var if_result_3045 flagrt.Value
+			if flagrt.IsTruthy(or_tmp) {
+				if_result_3045 = or_tmp
+			} else {
+				if_result_3045 = lowflagMap
+			}
+			let_result_3046 = if_result_3045
+		}
+		var globs = flagrt.MapDissoc(let_result_3046, go_name)
+		var let_result_3048 flagrt.Value
+		{
+			var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_module)
+			var if_result_3047 flagrt.Value
+			if flagrt.IsTruthy(or_tmp) {
+				if_result_3047 = or_tmp
+			} else {
+				if_result_3047 = lowflagMap
+			}
+			let_result_3048 = if_result_3047
+		}
+		var mod = let_result_3048
 		var prev = flagrt.Get(mod, lowflag_name)
-		var let_result_3050 flagrt.Value
+		var let_result_3054 flagrt.Value
 		{
 			var or_tmp = flagrt.IsNil(lowflag_name)
-			var if_result_3049 flagrt.Value
+			var if_result_3053 flagrt.Value
 			if or_tmp {
-				if_result_3049 = flagrt.NewBool(or_tmp)
+				if_result_3053 = flagrt.NewBool(or_tmp)
 			} else {
-				var let_result_3048 flagrt.Value
+				var let_result_3052 flagrt.Value
 				{
 					var or_tmp = flagrt.Eq(lowflag_name, flagrt.NewString(""))
-					var if_result_3047 flagrt.Value
+					var if_result_3051 flagrt.Value
 					if or_tmp {
-						if_result_3047 = flagrt.NewBool(or_tmp)
+						if_result_3051 = flagrt.NewBool(or_tmp)
 					} else {
-						var let_result_3046 flagrt.Value
+						var let_result_3050 flagrt.Value
 						{
 							var and_tmp = prev
-							var if_result_3045 flagrt.Value
+							var if_result_3049 flagrt.Value
 							if flagrt.IsTruthy(and_tmp) {
-								if_result_3045 = compiler__str_contains_q_arity_2(prev, lowflagStr___8)
+								if_result_3049 = compiler__str_contains_q_arity_2(prev, lowflagStr___8)
 							} else {
-								if_result_3045 = and_tmp
+								if_result_3049 = and_tmp
 							}
-							let_result_3046 = if_result_3045
+							let_result_3050 = if_result_3049
 						}
-						if_result_3047 = let_result_3046
+						if_result_3051 = let_result_3050
 					}
-					let_result_3048 = if_result_3047
+					let_result_3052 = if_result_3051
 				}
-				if_result_3049 = let_result_3048
+				if_result_3053 = let_result_3052
 			}
-			let_result_3050 = if_result_3049
+			let_result_3054 = if_result_3053
 		}
-		var if_result_3051 flagrt.Value
-		if flagrt.IsTruthy(let_result_3050) {
-			if_result_3051 = mod
+		var if_result_3055 flagrt.Value
+		if flagrt.IsTruthy(let_result_3054) {
+			if_result_3055 = mod
 		} else {
-			if_result_3051 = flagrt.MapDissoc(mod, lowflag_name)
+			if_result_3055 = flagrt.MapDissoc(mod, lowflag_name)
 		}
-		var mod1 = if_result_3051
+		var mod1 = if_result_3055
 		var ns = flagrt.KeywordGet(ctx, lowflagKw_namespace)
-		var let_result_3057 bool
+		var let_result_3061 bool
 		{
 			var or_tmp = flagrt.IsNil(ns)
-			var if_result_3056 bool
+			var if_result_3060 bool
 			if or_tmp {
-				if_result_3056 = or_tmp
+				if_result_3060 = or_tmp
 			} else {
-				var let_result_3055 bool
+				var let_result_3059 bool
 				{
 					var or_tmp = flagrt.Eq(ns, flagrt.NewString(""))
-					var if_result_3054 bool
+					var if_result_3058 bool
 					if or_tmp {
-						if_result_3054 = or_tmp
+						if_result_3058 = or_tmp
 					} else {
-						var let_result_3053 bool
+						var let_result_3057 bool
 						{
 							var or_tmp = flagrt.IsNil(lowflag_name)
-							var if_result_3052 bool
+							var if_result_3056 bool
 							if or_tmp {
-								if_result_3052 = or_tmp
+								if_result_3056 = or_tmp
 							} else {
-								if_result_3052 = flagrt.Eq(lowflag_name, flagrt.NewString(""))
+								if_result_3056 = flagrt.Eq(lowflag_name, flagrt.NewString(""))
 							}
-							let_result_3053 = if_result_3052
+							let_result_3057 = if_result_3056
 						}
-						if_result_3054 = let_result_3053
+						if_result_3058 = let_result_3057
 					}
-					let_result_3055 = if_result_3054
+					let_result_3059 = if_result_3058
 				}
-				if_result_3056 = let_result_3055
+				if_result_3060 = let_result_3059
 			}
-			let_result_3057 = if_result_3056
+			let_result_3061 = if_result_3060
 		}
-		var if_result_3058 flagrt.Value
-		if let_result_3057 {
-			if_result_3058 = flagrt.NewString("")
+		var if_result_3062 flagrt.Value
+		if let_result_3061 {
+			if_result_3062 = flagrt.NewString("")
 		} else {
-			if_result_3058 = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", lowflag_name)))
+			if_result_3062 = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(ns, "/", lowflag_name)))
 		}
-		var qual = if_result_3058
-		var if_result_3059 flagrt.Value
+		var qual = if_result_3062
+		var if_result_3063 flagrt.Value
 		if flagrt.Eq(qual, flagrt.NewString("")) {
-			if_result_3059 = flagrt.NilValue
+			if_result_3063 = flagrt.NilValue
 		} else {
-			if_result_3059 = flagrt.Get(mod1, qual)
+			if_result_3063 = flagrt.Get(mod1, qual)
 		}
-		var qprev = if_result_3059
-		var let_result_3063 flagrt.Value
+		var qprev = if_result_3063
+		var let_result_3067 flagrt.Value
 		{
 			var or_tmp = flagrt.Eq(qual, flagrt.NewString(""))
-			var if_result_3062 flagrt.Value
+			var if_result_3066 flagrt.Value
 			if or_tmp {
-				if_result_3062 = flagrt.NewBool(or_tmp)
+				if_result_3066 = flagrt.NewBool(or_tmp)
 			} else {
-				var let_result_3061 flagrt.Value
+				var let_result_3065 flagrt.Value
 				{
 					var and_tmp = qprev
-					var if_result_3060 flagrt.Value
+					var if_result_3064 flagrt.Value
 					if flagrt.IsTruthy(and_tmp) {
-						if_result_3060 = compiler__str_contains_q_arity_2(qprev, lowflagStr___8)
+						if_result_3064 = compiler__str_contains_q_arity_2(qprev, lowflagStr___8)
 					} else {
-						if_result_3060 = and_tmp
+						if_result_3064 = and_tmp
 					}
-					let_result_3061 = if_result_3060
+					let_result_3065 = if_result_3064
 				}
-				if_result_3062 = let_result_3061
+				if_result_3066 = let_result_3065
 			}
-			let_result_3063 = if_result_3062
+			let_result_3067 = if_result_3066
 		}
-		var if_result_3064 flagrt.Value
-		if flagrt.IsTruthy(let_result_3063) {
-			if_result_3064 = mod1
+		var if_result_3068 flagrt.Value
+		if flagrt.IsTruthy(let_result_3067) {
+			if_result_3068 = mod1
 		} else {
-			if_result_3064 = flagrt.MapDissoc(mod1, qual)
+			if_result_3068 = flagrt.MapDissoc(mod1, qual)
 		}
-		var mod2 = if_result_3064
-		let_result_3065 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_functions, fns), lowflagKw_globals, globs), lowflagKw_module, mod2)
+		var mod2 = if_result_3068
+		let_result_3069 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_functions, fns), lowflagKw_globals, globs), lowflagKw_module, mod2)
 	}
-	return let_result_3065
+	return let_result_3069
 }
 func compiler__strip_inlined_prologue_name_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -22262,48 +22258,48 @@ func compiler__strip_inlined_prologue_name_variadic(args ...flagrt.Value) flagrt
 
 func compiler__strip_inlined_prologue_arity_2(ctx flagrt.Value, names flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_3067 flagrt.Value
+		var let_result_3071 flagrt.Value
 		{
 			var or_tmp = names
-			var if_result_3066 flagrt.Value
+			var if_result_3070 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3066 = or_tmp
+				if_result_3070 = or_tmp
 			} else {
-				if_result_3066 = lowflagVec
+				if_result_3070 = lowflagVec
 			}
-			let_result_3067 = if_result_3066
+			let_result_3071 = if_result_3070
 		}
-		var remaining = let_result_3067
+		var remaining = let_result_3071
 		var ctx = ctx
 		for {
-			var let_result_3069 bool
+			var let_result_3073 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3068 bool
+				var if_result_3072 bool
 				if or_tmp {
-					if_result_3068 = or_tmp
+					if_result_3072 = or_tmp
 				} else {
-					if_result_3068 = flagrt.IsEmpty(remaining)
+					if_result_3072 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3069 = if_result_3068
+				let_result_3073 = if_result_3072
 			}
-			var if_result_3073 flagrt.Value
-			if let_result_3069 {
-				if_result_3073 = flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_prologue_fns, lowflagVec), lowflagKw_prologue_vars, lowflagVec)
+			var if_result_3077 flagrt.Value
+			if let_result_3073 {
+				if_result_3077 = flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_prologue_fns, lowflagVec), lowflagKw_prologue_vars, lowflagVec)
 			} else {
-				var let_result_3072 flagrt.Value
+				var let_result_3076 flagrt.Value
 				{
 					var item = flagrt.First(remaining)
-					var recur_3070 = flagrt.Rest(remaining)
-					var recur_3071 = compiler__strip_inlined_prologue_name_arity_3(ctx, flagrt.KeywordGet(item, lowflagKw_flag_name), flagrt.KeywordGet(item, lowflagKw_go_name))
-					remaining = recur_3070
-					ctx = recur_3071
+					var recur_3074 = flagrt.Rest(remaining)
+					var recur_3075 = compiler__strip_inlined_prologue_name_arity_3(ctx, flagrt.KeywordGet(item, lowflagKw_flag_name), flagrt.KeywordGet(item, lowflagKw_go_name))
+					remaining = recur_3074
+					ctx = recur_3075
 					continue
-					let_result_3072 = flagrt.NilValue
+					let_result_3076 = flagrt.NilValue
 				}
-				if_result_3073 = let_result_3072
+				if_result_3077 = let_result_3076
 			}
-			return if_result_3073
+			return if_result_3077
 		}
 	}()
 }
@@ -22315,53 +22311,53 @@ func compiler__strip_inlined_prologue_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__result_refs_package_q_arity_2(result flagrt.Value, prefix flagrt.Value) flagrt.Value {
-	var let_result_3091 flagrt.Value
+	var let_result_3095 flagrt.Value
 	{
-		var let_result_3077 flagrt.Value
+		var let_result_3081 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(result, lowflagKw_functions)
-			var if_result_3076 flagrt.Value
+			var if_result_3080 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3076 = or_tmp
+				if_result_3080 = or_tmp
 			} else {
-				if_result_3076 = lowflagVec
+				if_result_3080 = lowflagVec
 			}
-			let_result_3077 = if_result_3076
+			let_result_3081 = if_result_3080
 		}
 		var or_tmp = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 			if len(args) != 1 {
 				panic("fn expects exactly 1 arguments")
 			}
 			fn := args[0]
-			var let_result_3075 flagrt.Value
+			var let_result_3079 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(fn, lowflagKw_source)
-				var if_result_3074 flagrt.Value
+				var if_result_3078 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_3074 = or_tmp
+					if_result_3078 = or_tmp
 				} else {
-					if_result_3074 = flagrt.NewString("")
+					if_result_3078 = flagrt.NewString("")
 				}
-				let_result_3075 = if_result_3074
+				let_result_3079 = if_result_3078
 			}
-			return compiler__str_contains_q_arity_2(let_result_3075, prefix)
-		}), let_result_3077)
-		var if_result_3090 flagrt.Value
+			return compiler__str_contains_q_arity_2(let_result_3079, prefix)
+		}), let_result_3081)
+		var if_result_3094 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3090 = or_tmp
+			if_result_3094 = or_tmp
 		} else {
-			var let_result_3089 flagrt.Value
+			var let_result_3093 flagrt.Value
 			{
-				var let_result_3079 flagrt.Value
+				var let_result_3083 flagrt.Value
 				{
 					var or_tmp = flagrt.KeywordGet(result, lowflagKw_vars)
-					var if_result_3078 flagrt.Value
+					var if_result_3082 flagrt.Value
 					if flagrt.IsTruthy(or_tmp) {
-						if_result_3078 = or_tmp
+						if_result_3082 = or_tmp
 					} else {
-						if_result_3078 = lowflagVec
+						if_result_3082 = lowflagVec
 					}
-					let_result_3079 = if_result_3078
+					let_result_3083 = if_result_3082
 				}
 				var or_tmp = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 					if len(args) != 1 {
@@ -22369,76 +22365,76 @@ func compiler__result_refs_package_q_arity_2(result flagrt.Value, prefix flagrt.
 					}
 					v := args[0]
 					return compiler__str_contains_q_arity_2(compiler__emitted_var_expr_arity_1(flagrt.KeywordGet(v, lowflagKw_expr)), prefix)
-				}), let_result_3079)
-				var if_result_3088 flagrt.Value
+				}), let_result_3083)
+				var if_result_3092 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_3088 = or_tmp
+					if_result_3092 = or_tmp
 				} else {
-					var let_result_3087 flagrt.Value
+					var let_result_3091 flagrt.Value
 					{
-						var let_result_3083 flagrt.Value
+						var let_result_3087 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(result, lowflagKw_stmts)
-							var if_result_3082 flagrt.Value
+							var if_result_3086 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3082 = or_tmp
+								if_result_3086 = or_tmp
 							} else {
-								if_result_3082 = lowflagVec
+								if_result_3086 = lowflagVec
 							}
-							let_result_3083 = if_result_3082
+							let_result_3087 = if_result_3086
 						}
 						var or_tmp = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 							if len(args) != 1 {
 								panic("fn expects exactly 1 arguments")
 							}
 							stmt := args[0]
-							var let_result_3081 flagrt.Value
-							{
-								var or_tmp = compiler__str_contains_q_arity_2(compiler__emitted_stmt_code_arity_1(stmt), prefix)
-								var if_result_3080 flagrt.Value
-								if flagrt.IsTruthy(or_tmp) {
-									if_result_3080 = or_tmp
-								} else {
-									if_result_3080 = compiler__str_contains_q_arity_2(compiler__emitted_stmt_prelude_arity_1(stmt), prefix)
-								}
-								let_result_3081 = if_result_3080
-							}
-							return let_result_3081
-						}), let_result_3083)
-						var if_result_3086 flagrt.Value
-						if flagrt.IsTruthy(or_tmp) {
-							if_result_3086 = or_tmp
-						} else {
 							var let_result_3085 flagrt.Value
 							{
-								var or_tmp = flagrt.KeywordGet(result, lowflagKw_type_decls)
+								var or_tmp = compiler__str_contains_q_arity_2(compiler__emitted_stmt_code_arity_1(stmt), prefix)
 								var if_result_3084 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
 									if_result_3084 = or_tmp
 								} else {
-									if_result_3084 = lowflagVec
+									if_result_3084 = compiler__str_contains_q_arity_2(compiler__emitted_stmt_prelude_arity_1(stmt), prefix)
 								}
 								let_result_3085 = if_result_3084
 							}
-							if_result_3086 = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
+							return let_result_3085
+						}), let_result_3087)
+						var if_result_3090 flagrt.Value
+						if flagrt.IsTruthy(or_tmp) {
+							if_result_3090 = or_tmp
+						} else {
+							var let_result_3089 flagrt.Value
+							{
+								var or_tmp = flagrt.KeywordGet(result, lowflagKw_type_decls)
+								var if_result_3088 flagrt.Value
+								if flagrt.IsTruthy(or_tmp) {
+									if_result_3088 = or_tmp
+								} else {
+									if_result_3088 = lowflagVec
+								}
+								let_result_3089 = if_result_3088
+							}
+							if_result_3090 = flagrt.Some(flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {
 								if len(args) != 1 {
 									panic("fn expects exactly 1 arguments")
 								}
 								decl := args[0]
 								return compiler__str_contains_q_arity_2(flagrt.NewString(flagrt.Str(decl)), prefix)
-							}), let_result_3085)
+							}), let_result_3089)
 						}
-						let_result_3087 = if_result_3086
+						let_result_3091 = if_result_3090
 					}
-					if_result_3088 = let_result_3087
+					if_result_3092 = let_result_3091
 				}
-				let_result_3089 = if_result_3088
+				let_result_3093 = if_result_3092
 			}
-			if_result_3090 = let_result_3089
+			if_result_3094 = let_result_3093
 		}
-		let_result_3091 = if_result_3090
+		let_result_3095 = if_result_3094
 	}
-	return let_result_3091
+	return let_result_3095
 }
 func compiler__result_refs_package_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -22448,29 +22444,29 @@ func compiler__result_refs_package_q_variadic(args ...flagrt.Value) flagrt.Value
 }
 
 func compiler__expand_module_forms_arity_2(seed flagrt.Value, forms flagrt.Value) flagrt.Value {
-	var let_result_3093 flagrt.Value
+	var let_result_3097 flagrt.Value
 	{
 		var or_tmp = seed
-		var if_result_3092 flagrt.Value
+		var if_result_3096 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3092 = or_tmp
+			if_result_3096 = or_tmp
 		} else {
-			if_result_3092 = lowflagVec
+			if_result_3096 = lowflagVec
 		}
-		let_result_3093 = if_result_3092
+		let_result_3097 = if_result_3096
 	}
-	var let_result_3095 flagrt.Value
+	var let_result_3099 flagrt.Value
 	{
 		var or_tmp = forms
-		var if_result_3094 flagrt.Value
+		var if_result_3098 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3094 = or_tmp
+			if_result_3098 = or_tmp
 		} else {
-			if_result_3094 = lowflagVec
+			if_result_3098 = lowflagVec
 		}
-		let_result_3095 = if_result_3094
+		let_result_3099 = if_result_3098
 	}
-	return flagrt.Call(flagrt.GoFunction("compiler/expand-forms"), let_result_3093, let_result_3095)
+	return flagrt.Call(flagrt.GoFunction("compiler/expand-forms"), let_result_3097, let_result_3099)
 }
 func compiler__expand_module_forms_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -22481,83 +22477,83 @@ func compiler__expand_module_forms_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__apply_go_exports_arity_2(mod flagrt.Value, ctx flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_3097 flagrt.Value
+		var let_result_3101 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(mod, lowflagKw_go_exports)
-			var if_result_3096 flagrt.Value
+			var if_result_3100 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3096 = or_tmp
+				if_result_3100 = or_tmp
 			} else {
-				if_result_3096 = lowflagMap
+				if_result_3100 = lowflagMap
 			}
-			let_result_3097 = if_result_3096
+			let_result_3101 = if_result_3100
 		}
-		var remaining = flagrt.FnKeys(let_result_3097)
+		var remaining = flagrt.FnKeys(let_result_3101)
 		var ctx = ctx
 		var vars = lowflagVec
 		var defined = lowflagMap
 		for {
-			var let_result_3099 bool
+			var let_result_3103 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3098 bool
+				var if_result_3102 bool
 				if or_tmp {
-					if_result_3098 = or_tmp
+					if_result_3102 = or_tmp
 				} else {
-					if_result_3098 = flagrt.IsEmpty(remaining)
+					if_result_3102 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3099 = if_result_3098
+				let_result_3103 = if_result_3102
 			}
-			var if_result_3109 flagrt.Value
-			if let_result_3099 {
-				if_result_3109 = flagrt.NewMap(lowflagKw_ctx, ctx, lowflagKw_vars, vars, lowflagKw_defined, defined)
+			var if_result_3113 flagrt.Value
+			if let_result_3103 {
+				if_result_3113 = flagrt.NewMap(lowflagKw_ctx, ctx, lowflagKw_vars, vars, lowflagKw_defined, defined)
 			} else {
-				var let_result_3108 flagrt.Value
+				var let_result_3112 flagrt.Value
 				{
 					var local = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.First(remaining))))
 					var host = compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(flagrt.Get(flagrt.KeywordGet(mod, lowflagKw_go_exports), local))))
 					var rt = flagrt.Call(flagrt.GoFunction("compiler/go-bind-ident"), host)
 					var go_name = compiler__as_value_arity_1(compiler__def_go_ident_arity_2(ctx, local))
-					var if_result_3107 flagrt.Value
+					var if_result_3111 flagrt.Value
 					if flagrt.IsTruthy(flagrt.Get(flagrt.KeywordGet(ctx, lowflagKw_globals), go_name)) {
-						if_result_3107 = func() flagrt.Value {
+						if_result_3111 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("symbol \"", local, "\" already defined")), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_3106 flagrt.Value
+						var let_result_3110 flagrt.Value
 						{
 							var ctx1 = compiler__bind_module_name_arity_3(ctx, local, go_name)
-							var let_result_3101 flagrt.Value
+							var let_result_3105 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(ctx1, lowflagKw_globals)
-								var if_result_3100 flagrt.Value
+								var if_result_3104 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3100 = or_tmp
+									if_result_3104 = or_tmp
 								} else {
-									if_result_3100 = lowflagMap
+									if_result_3104 = lowflagMap
 								}
-								let_result_3101 = if_result_3100
+								let_result_3105 = if_result_3104
 							}
-							var ctx2 = flagrt.Assoc(ctx1, lowflagKw_globals, flagrt.Assoc(let_result_3101, go_name, lowflagKw_value))
-							var recur_3102 = flagrt.Rest(remaining)
-							var recur_3103 = ctx2
-							var recur_3104 = flagrt.Conj(vars, flagrt.NewMap(lowflagKw_flag_name, local, lowflagKw_go_name, go_name, lowflagKw_expr, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str("flagrt.", rt)))))
-							var recur_3105 = flagrt.Assoc(defined, local, go_name)
-							remaining = recur_3102
-							ctx = recur_3103
-							vars = recur_3104
-							defined = recur_3105
+							var ctx2 = flagrt.Assoc(ctx1, lowflagKw_globals, flagrt.Assoc(let_result_3105, go_name, lowflagKw_value))
+							var recur_3106 = flagrt.Rest(remaining)
+							var recur_3107 = ctx2
+							var recur_3108 = flagrt.Conj(vars, flagrt.NewMap(lowflagKw_flag_name, local, lowflagKw_go_name, go_name, lowflagKw_expr, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str("flagrt.", rt)))))
+							var recur_3109 = flagrt.Assoc(defined, local, go_name)
+							remaining = recur_3106
+							ctx = recur_3107
+							vars = recur_3108
+							defined = recur_3109
 							continue
-							let_result_3106 = flagrt.NilValue
+							let_result_3110 = flagrt.NilValue
 						}
-						if_result_3107 = let_result_3106
+						if_result_3111 = let_result_3110
 					}
-					let_result_3108 = if_result_3107
+					let_result_3112 = if_result_3111
 				}
-				if_result_3109 = let_result_3108
+				if_result_3113 = let_result_3112
 			}
-			return if_result_3109
+			return if_result_3113
 		}
 	}()
 }
@@ -22570,48 +22566,48 @@ func compiler__apply_go_exports_variadic(args ...flagrt.Value) flagrt.Value {
 
 func compiler__intern_var_defs_arity_1(constants flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_3111 flagrt.Value
+		var let_result_3115 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(constants, lowflagKw_order)
-			var if_result_3110 flagrt.Value
+			var if_result_3114 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3110 = or_tmp
+				if_result_3114 = or_tmp
 			} else {
-				if_result_3110 = lowflagVec
+				if_result_3114 = lowflagVec
 			}
-			let_result_3111 = if_result_3110
+			let_result_3115 = if_result_3114
 		}
-		var remaining = let_result_3111
+		var remaining = let_result_3115
 		var out = lowflagVec
 		for {
-			var let_result_3113 bool
+			var let_result_3117 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3112 bool
+				var if_result_3116 bool
 				if or_tmp {
-					if_result_3112 = or_tmp
+					if_result_3116 = or_tmp
 				} else {
-					if_result_3112 = flagrt.IsEmpty(remaining)
+					if_result_3116 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3113 = if_result_3112
+				let_result_3117 = if_result_3116
 			}
-			var if_result_3117 flagrt.Value
-			if let_result_3113 {
-				if_result_3117 = out
+			var if_result_3121 flagrt.Value
+			if let_result_3117 {
+				if_result_3121 = out
 			} else {
-				var let_result_3116 flagrt.Value
+				var let_result_3120 flagrt.Value
 				{
 					var item = flagrt.First(remaining)
-					var recur_3114 = flagrt.Rest(remaining)
-					var recur_3115 = flagrt.Conj(out, flagrt.NewMap(lowflagKw_doc, lowflagStr_, lowflagKw_go_name, flagrt.KeywordGet(item, lowflagKw_name), lowflagKw_expr, flagrt.KeywordGet(item, lowflagKw_code)))
-					remaining = recur_3114
-					out = recur_3115
+					var recur_3118 = flagrt.Rest(remaining)
+					var recur_3119 = flagrt.Conj(out, flagrt.NewMap(lowflagKw_doc, lowflagStr_, lowflagKw_go_name, flagrt.KeywordGet(item, lowflagKw_name), lowflagKw_expr, flagrt.KeywordGet(item, lowflagKw_code)))
+					remaining = recur_3118
+					out = recur_3119
 					continue
-					let_result_3116 = flagrt.NilValue
+					let_result_3120 = flagrt.NilValue
 				}
-				if_result_3117 = let_result_3116
+				if_result_3121 = let_result_3120
 			}
-			return if_result_3117
+			return if_result_3121
 		}
 	}()
 }
@@ -22623,29 +22619,29 @@ func compiler__intern_var_defs_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__merge_compile_defined_arity_2(exported flagrt.Value, compiled flagrt.Value) flagrt.Value {
-	var let_result_3119 flagrt.Value
+	var let_result_3123 flagrt.Value
 	{
 		var or_tmp = flagrt.KeywordGet(exported, lowflagKw_defined)
-		var if_result_3118 flagrt.Value
+		var if_result_3122 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3118 = or_tmp
+			if_result_3122 = or_tmp
 		} else {
-			if_result_3118 = lowflagMap
+			if_result_3122 = lowflagMap
 		}
-		let_result_3119 = if_result_3118
+		let_result_3123 = if_result_3122
 	}
-	var let_result_3121 flagrt.Value
+	var let_result_3125 flagrt.Value
 	{
 		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_defined)
-		var if_result_3120 flagrt.Value
+		var if_result_3124 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3120 = or_tmp
+			if_result_3124 = or_tmp
 		} else {
-			if_result_3120 = lowflagMap
+			if_result_3124 = lowflagMap
 		}
-		let_result_3121 = if_result_3120
+		let_result_3125 = if_result_3124
 	}
-	return flagrt.Into(let_result_3119, let_result_3121)
+	return flagrt.Into(let_result_3123, let_result_3125)
 }
 func compiler__merge_compile_defined_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -22655,31 +22651,9 @@ func compiler__merge_compile_defined_variadic(args ...flagrt.Value) flagrt.Value
 }
 
 func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Value) flagrt.Value {
-	var let_result_3123 flagrt.Value
-	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_type_decls)
-		var if_result_3122 flagrt.Value
-		if flagrt.IsTruthy(or_tmp) {
-			if_result_3122 = or_tmp
-		} else {
-			if_result_3122 = lowflagVec
-		}
-		let_result_3123 = if_result_3122
-	}
-	var let_result_3125 flagrt.Value
-	{
-		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_type_decls)
-		var if_result_3124 flagrt.Value
-		if flagrt.IsTruthy(or_tmp) {
-			if_result_3124 = or_tmp
-		} else {
-			if_result_3124 = lowflagVec
-		}
-		let_result_3125 = if_result_3124
-	}
 	var let_result_3127 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_functions)
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_type_decls)
 		var if_result_3126 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3126 = or_tmp
@@ -22690,7 +22664,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3129 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_functions)
+		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_type_decls)
 		var if_result_3128 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3128 = or_tmp
@@ -22701,7 +22675,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3131 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_vars)
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_functions)
 		var if_result_3130 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3130 = or_tmp
@@ -22712,7 +22686,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3133 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_vars)
+		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_functions)
 		var if_result_3132 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3132 = or_tmp
@@ -22723,7 +22697,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3135 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_stmts)
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_vars)
 		var if_result_3134 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3134 = or_tmp
@@ -22734,7 +22708,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3137 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_stmts)
+		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_vars)
 		var if_result_3136 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3136 = or_tmp
@@ -22745,7 +22719,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3139 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_tests)
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_stmts)
 		var if_result_3138 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3138 = or_tmp
@@ -22756,7 +22730,7 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3141 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_tests)
+		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_stmts)
 		var if_result_3140 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3140 = or_tmp
@@ -22767,22 +22741,44 @@ func compiler__append_compile_acc_arity_2(acc flagrt.Value, compiled flagrt.Valu
 	}
 	var let_result_3143 flagrt.Value
 	{
-		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_needs_fmt)
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_tests)
 		var if_result_3142 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
 			if_result_3142 = or_tmp
 		} else {
-			if_result_3142 = flagrt.KeywordGet(compiled, lowflagKw_needs_fmt)
+			if_result_3142 = lowflagVec
 		}
 		let_result_3143 = if_result_3142
 	}
-	var if_result_3144 bool
-	if flagrt.IsTruthy(let_result_3143) {
-		if_result_3144 = true
-	} else {
-		if_result_3144 = false
+	var let_result_3145 flagrt.Value
+	{
+		var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_tests)
+		var if_result_3144 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_3144 = or_tmp
+		} else {
+			if_result_3144 = lowflagVec
+		}
+		let_result_3145 = if_result_3144
 	}
-	return flagrt.NewMap(lowflagKw_type_decls, flagrt.Into(let_result_3123, let_result_3125), lowflagKw_functions, flagrt.Into(let_result_3127, let_result_3129), lowflagKw_vars, flagrt.Into(let_result_3131, let_result_3133), lowflagKw_stmts, flagrt.Into(let_result_3135, let_result_3137), lowflagKw_tests, flagrt.Into(let_result_3139, let_result_3141), lowflagKw_needs_fmt, flagrt.NewBool(if_result_3144))
+	var let_result_3147 flagrt.Value
+	{
+		var or_tmp = flagrt.KeywordGet(acc, lowflagKw_needs_fmt)
+		var if_result_3146 flagrt.Value
+		if flagrt.IsTruthy(or_tmp) {
+			if_result_3146 = or_tmp
+		} else {
+			if_result_3146 = flagrt.KeywordGet(compiled, lowflagKw_needs_fmt)
+		}
+		let_result_3147 = if_result_3146
+	}
+	var if_result_3148 bool
+	if flagrt.IsTruthy(let_result_3147) {
+		if_result_3148 = true
+	} else {
+		if_result_3148 = false
+	}
+	return flagrt.NewMap(lowflagKw_type_decls, flagrt.Into(let_result_3127, let_result_3129), lowflagKw_functions, flagrt.Into(let_result_3131, let_result_3133), lowflagKw_vars, flagrt.Into(let_result_3135, let_result_3137), lowflagKw_stmts, flagrt.Into(let_result_3139, let_result_3141), lowflagKw_tests, flagrt.Into(let_result_3143, let_result_3145), lowflagKw_needs_fmt, flagrt.NewBool(if_result_3148))
 }
 func compiler__append_compile_acc_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -22796,40 +22792,40 @@ func compiler__first_token_arity_1(s flagrt.Value) flagrt.Value {
 		var remaining = compiler__trim_space_arity_1(s)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_3146 bool
+			var let_result_3150 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3145 bool
+				var if_result_3149 bool
 				if or_tmp {
-					if_result_3145 = or_tmp
+					if_result_3149 = or_tmp
 				} else {
-					if_result_3145 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
+					if_result_3149 = flagrt.Eq(lowflagLong_0, flagrt.NewLong(int64(flagrt.Count(remaining))))
 				}
-				let_result_3146 = if_result_3145
+				let_result_3150 = if_result_3149
 			}
-			var if_result_3151 flagrt.Value
-			if let_result_3146 {
-				if_result_3151 = out
+			var if_result_3155 flagrt.Value
+			if let_result_3150 {
+				if_result_3155 = out
 			} else {
-				var let_result_3150 flagrt.Value
+				var let_result_3154 flagrt.Value
 				{
 					var ch = flagrt.FnSubs(remaining, lowflagLong_0, lowflagLong_1)
-					var if_result_3149 flagrt.Value
+					var if_result_3153 flagrt.Value
 					if flagrt.IsTruthy(compiler__space_char_q_arity_1(ch)) {
-						if_result_3149 = out
+						if_result_3153 = out
 					} else {
-						var recur_3147 = flagrt.FnSubs(remaining, lowflagLong_1)
-						var recur_3148 = flagrt.NewString(flagrt.Str(out, ch))
-						remaining = recur_3147
-						out = recur_3148
+						var recur_3151 = flagrt.FnSubs(remaining, lowflagLong_1)
+						var recur_3152 = flagrt.NewString(flagrt.Str(out, ch))
+						remaining = recur_3151
+						out = recur_3152
 						continue
-						if_result_3149 = flagrt.NilValue
+						if_result_3153 = flagrt.NilValue
 					}
-					let_result_3150 = if_result_3149
+					let_result_3154 = if_result_3153
 				}
-				if_result_3151 = let_result_3150
+				if_result_3155 = let_result_3154
 			}
-			return if_result_3151
+			return if_result_3155
 		}
 	}()
 }
@@ -22841,18 +22837,18 @@ func compiler__first_token_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__var_init_name_arity_1(line flagrt.Value) flagrt.Value {
-	var let_result_3153 flagrt.Value
+	var let_result_3157 flagrt.Value
 	{
 		var trimmed = compiler__trim_space_arity_1(line)
-		var if_result_3152 flagrt.Value
+		var if_result_3156 flagrt.Value
 		if flagrt.IsTruthy(compiler__starts_with_str_q_arity_2(trimmed, lowflagStr_var_)) {
-			if_result_3152 = compiler__first_token_arity_1(flagrt.FnSubs(trimmed, lowflagLong_4))
+			if_result_3156 = compiler__first_token_arity_1(flagrt.FnSubs(trimmed, lowflagLong_4))
 		} else {
-			if_result_3152 = flagrt.NewString("")
+			if_result_3156 = flagrt.NewString("")
 		}
-		let_result_3153 = if_result_3152
+		let_result_3157 = if_result_3156
 	}
-	return let_result_3153
+	return let_result_3157
 }
 func compiler__var_init_name_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -22866,42 +22862,42 @@ func compiler__render_local_inits_arity_1(lines flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(lines)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_3155 bool
+			var let_result_3159 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3154 bool
+				var if_result_3158 bool
 				if or_tmp {
-					if_result_3154 = or_tmp
+					if_result_3158 = or_tmp
 				} else {
-					if_result_3154 = flagrt.IsEmpty(remaining)
+					if_result_3158 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3155 = if_result_3154
+				let_result_3159 = if_result_3158
 			}
-			var if_result_3160 flagrt.Value
-			if let_result_3155 {
-				if_result_3160 = out
+			var if_result_3164 flagrt.Value
+			if let_result_3159 {
+				if_result_3164 = out
 			} else {
-				var let_result_3159 flagrt.Value
+				var let_result_3163 flagrt.Value
 				{
 					var line = flagrt.Str(flagrt.First(remaining))
 					var name = compiler__var_init_name_arity_1(flagrt.NewString(line))
-					var if_result_3156 string
+					var if_result_3160 string
 					if flagrt.Eq(name, flagrt.NewString("")) {
-						if_result_3156 = ""
+						if_result_3160 = ""
 					} else {
-						if_result_3156 = flagrt.Str("\t_ = ", name, "\n")
+						if_result_3160 = flagrt.Str("\t_ = ", name, "\n")
 					}
-					var extra = if_result_3156
-					var recur_3157 = flagrt.Rest(remaining)
-					var recur_3158 = flagrt.NewString(flagrt.Str(out, line, extra))
-					remaining = recur_3157
-					out = recur_3158
+					var extra = if_result_3160
+					var recur_3161 = flagrt.Rest(remaining)
+					var recur_3162 = flagrt.NewString(flagrt.Str(out, line, extra))
+					remaining = recur_3161
+					out = recur_3162
 					continue
-					let_result_3159 = flagrt.NilValue
+					let_result_3163 = flagrt.NilValue
 				}
-				if_result_3160 = let_result_3159
+				if_result_3164 = let_result_3163
 			}
-			return if_result_3160
+			return if_result_3164
 		}
 	}()
 }
@@ -22917,29 +22913,29 @@ func compiler__render_direct_param_list_arity_1(params flagrt.Value) flagrt.Valu
 		var remaining = compiler__stmt_list_arity_1(params)
 		var parts = lowflagVec
 		for {
-			var let_result_3162 bool
+			var let_result_3166 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3161 bool
+				var if_result_3165 bool
 				if or_tmp {
-					if_result_3161 = or_tmp
+					if_result_3165 = or_tmp
 				} else {
-					if_result_3161 = flagrt.IsEmpty(remaining)
+					if_result_3165 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3162 = if_result_3161
+				let_result_3166 = if_result_3165
 			}
-			var if_result_3165 flagrt.Value
-			if let_result_3162 {
-				if_result_3165 = compiler__join_strings_arity_2(parts, lowflagStr____5)
+			var if_result_3169 flagrt.Value
+			if let_result_3166 {
+				if_result_3169 = compiler__join_strings_arity_2(parts, lowflagStr____5)
 			} else {
-				var recur_3163 = flagrt.Rest(remaining)
-				var recur_3164 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.First(remaining), " flagrt.Value")))
-				remaining = recur_3163
-				parts = recur_3164
+				var recur_3167 = flagrt.Rest(remaining)
+				var recur_3168 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.First(remaining), " flagrt.Value")))
+				remaining = recur_3167
+				parts = recur_3168
 				continue
-				if_result_3165 = flagrt.NilValue
+				if_result_3169 = flagrt.NilValue
 			}
-			return if_result_3165
+			return if_result_3169
 		}
 	}()
 }
@@ -22955,18 +22951,18 @@ func compiler__render_call_args_arity_1(n flagrt.Value) flagrt.Value {
 		var i = lowflagLong_0
 		var parts = lowflagVec
 		for {
-			var if_result_3168 flagrt.Value
+			var if_result_3172 flagrt.Value
 			if flagrt.Eq(i, n) {
-				if_result_3168 = compiler__join_strings_arity_2(parts, lowflagStr____5)
+				if_result_3172 = compiler__join_strings_arity_2(parts, lowflagStr____5)
 			} else {
-				var recur_3166 = flagrt.Inc(i)
-				var recur_3167 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str("args[", i, "]")))
-				i = recur_3166
-				parts = recur_3167
+				var recur_3170 = flagrt.Inc(i)
+				var recur_3171 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str("args[", i, "]")))
+				i = recur_3170
+				parts = recur_3171
 				continue
-				if_result_3168 = flagrt.NilValue
+				if_result_3172 = flagrt.NilValue
 			}
-			return if_result_3168
+			return if_result_3172
 		}
 	}()
 }
@@ -22978,20 +22974,20 @@ func compiler__render_call_args_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__render_variadic_function_body_arity_1(fn flagrt.Value) flagrt.Value {
-	var let_result_3170 string
+	var let_result_3174 string
 	{
 		var params = compiler__stmt_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params))
 		var n = flagrt.NewLong(int64(flagrt.Count(params)))
 		var arity = flagrt.KeywordGet(fn, lowflagKw_arity_name)
-		var if_result_3169 string
+		var if_result_3173 string
 		if flagrt.Eq(n, lowflagLong_0) {
-			if_result_3169 = flagrt.Str("\treturn ", arity, "()\n")
+			if_result_3173 = flagrt.Str("\treturn ", arity, "()\n")
 		} else {
-			if_result_3169 = flagrt.Str("\treturn ", arity, "(", compiler__render_call_args_arity_1(n), ")\n")
+			if_result_3173 = flagrt.Str("\treturn ", arity, "(", compiler__render_call_args_arity_1(n), ")\n")
 		}
-		let_result_3170 = flagrt.Str("\tif len(args) != ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects exactly ", n, " arguments")))), ")\n", "\t}\n", if_result_3169)
+		let_result_3174 = flagrt.Str("\tif len(args) != ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects exactly ", n, " arguments")))), ")\n", "\t}\n", if_result_3173)
 	}
-	return flagrt.NewString(let_result_3170)
+	return flagrt.NewString(let_result_3174)
 }
 func compiler__render_variadic_function_body_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23001,92 +22997,92 @@ func compiler__render_variadic_function_body_variadic(args ...flagrt.Value) flag
 }
 
 func compiler__render_standalone_variadic_body_arity_1(fn flagrt.Value) flagrt.Value {
-	var let_result_3185 string
+	var let_result_3189 string
 	{
 		var params = compiler__stmt_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params))
 		var n = flagrt.NewLong(int64(flagrt.Count(params)))
-		var if_result_3171 string
+		var if_result_3175 string
 		if flagrt.IsTruthy(flagrt.KeywordGet(fn, lowflagKw_has_rest)) {
-			if_result_3171 = flagrt.Str("\tif len(args) < ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects at least ", n, " arguments")))), ")\n", "\t}\n")
+			if_result_3175 = flagrt.Str("\tif len(args) < ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects at least ", n, " arguments")))), ")\n", "\t}\n")
 		} else {
-			if_result_3171 = flagrt.Str("\tif len(args) != ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects exactly ", n, " arguments")))), ")\n", "\t}\n")
+			if_result_3175 = flagrt.Str("\tif len(args) != ", n, " {\n", "\t\tpanic(", flagrt.NewString(flagrt.Format("%q", flagrt.NewString(flagrt.Str(flagrt.KeywordGet(fn, lowflagKw_go_name), " expects exactly ", n, " arguments")))), ")\n", "\t}\n")
 		}
-		var check = if_result_3171
+		var check = if_result_3175
 		var binds = func() flagrt.Value {
 			var remaining = params
 			var i = lowflagLong_0
 			var out = flagrt.NewString("")
 			for {
-				var let_result_3173 bool
+				var let_result_3177 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3172 bool
+					var if_result_3176 bool
 					if or_tmp {
-						if_result_3172 = or_tmp
+						if_result_3176 = or_tmp
 					} else {
-						if_result_3172 = flagrt.IsEmpty(remaining)
+						if_result_3176 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3173 = if_result_3172
+					let_result_3177 = if_result_3176
 				}
-				var if_result_3179 flagrt.Value
-				if let_result_3173 {
-					if_result_3179 = out
+				var if_result_3183 flagrt.Value
+				if let_result_3177 {
+					if_result_3183 = out
 				} else {
-					var let_result_3178 flagrt.Value
+					var let_result_3182 flagrt.Value
 					{
 						var param = flagrt.Str(flagrt.First(remaining))
-						var if_result_3174 string
+						var if_result_3178 string
 						if flagrt.Eq(flagrt.NewString(param), flagrt.NewString("_")) {
-							if_result_3174 = flagrt.Str("\t_ = args[", i, "]\n")
+							if_result_3178 = flagrt.Str("\t_ = args[", i, "]\n")
 						} else {
-							if_result_3174 = flagrt.Str("\t", param, " := args[", i, "]\n")
+							if_result_3178 = flagrt.Str("\t", param, " := args[", i, "]\n")
 						}
-						var line = if_result_3174
-						var recur_3175 = flagrt.Rest(remaining)
-						var recur_3176 = flagrt.Inc(i)
-						var recur_3177 = flagrt.NewString(flagrt.Str(out, line))
-						remaining = recur_3175
-						i = recur_3176
-						out = recur_3177
+						var line = if_result_3178
+						var recur_3179 = flagrt.Rest(remaining)
+						var recur_3180 = flagrt.Inc(i)
+						var recur_3181 = flagrt.NewString(flagrt.Str(out, line))
+						remaining = recur_3179
+						i = recur_3180
+						out = recur_3181
 						continue
-						let_result_3178 = flagrt.NilValue
+						let_result_3182 = flagrt.NilValue
 					}
-					if_result_3179 = let_result_3178
+					if_result_3183 = let_result_3182
 				}
-				return if_result_3179
+				return if_result_3183
 			}
 		}()
-		var let_result_3181 flagrt.Value
+		var let_result_3185 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(fn, lowflagKw_body_prelude)
-			var if_result_3180 flagrt.Value
+			var if_result_3184 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3180 = or_tmp
+				if_result_3184 = or_tmp
 			} else {
-				if_result_3180 = flagrt.NewString("")
+				if_result_3184 = flagrt.NewString("")
 			}
-			let_result_3181 = if_result_3180
+			let_result_3185 = if_result_3184
 		}
-		var if_result_3184 flagrt.Value
+		var if_result_3188 flagrt.Value
 		if flagrt.IsTruthy(compiler__blank_str_q_arity_1(flagrt.KeywordGet(fn, lowflagKw_body))) {
-			var let_result_3183 flagrt.Value
+			var let_result_3187 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(fn, lowflagKw_body_source)
-				var if_result_3182 flagrt.Value
+				var if_result_3186 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_3182 = or_tmp
+					if_result_3186 = or_tmp
 				} else {
-					if_result_3182 = flagrt.NewString("")
+					if_result_3186 = flagrt.NewString("")
 				}
-				let_result_3183 = if_result_3182
+				let_result_3187 = if_result_3186
 			}
-			if_result_3184 = let_result_3183
+			if_result_3188 = let_result_3187
 		} else {
-			if_result_3184 = flagrt.KeywordGet(fn, lowflagKw_body)
+			if_result_3188 = flagrt.KeywordGet(fn, lowflagKw_body)
 		}
-		let_result_3185 = flagrt.Str(check, binds, compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3181, "\treturn ", if_result_3184, "\n")
+		let_result_3189 = flagrt.Str(check, binds, compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3185, "\treturn ", if_result_3188, "\n")
 	}
-	return flagrt.NewString(let_result_3185)
+	return flagrt.NewString(let_result_3189)
 }
 func compiler__render_standalone_variadic_body_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23096,83 +23092,83 @@ func compiler__render_standalone_variadic_body_variadic(args ...flagrt.Value) fl
 }
 
 func compiler__render_multi_arity_dispatch_arity_1(fn flagrt.Value) flagrt.Value {
-	var let_result_3198 string
+	var let_result_3202 string
 	{
 		var arities = compiler__stmt_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_arities))
 		var counts = func() flagrt.Value {
 			var remaining = arities
 			var out = lowflagVec
 			for {
-				var let_result_3187 bool
+				var let_result_3191 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3186 bool
+					var if_result_3190 bool
 					if or_tmp {
-						if_result_3186 = or_tmp
+						if_result_3190 = or_tmp
 					} else {
-						if_result_3186 = flagrt.IsEmpty(remaining)
+						if_result_3190 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3187 = if_result_3186
+					let_result_3191 = if_result_3190
 				}
-				var if_result_3190 flagrt.Value
-				if let_result_3187 {
-					if_result_3190 = out
+				var if_result_3194 flagrt.Value
+				if let_result_3191 {
+					if_result_3194 = out
 				} else {
-					var recur_3188 = flagrt.Rest(remaining)
-					var recur_3189 = flagrt.Conj(out, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_params))))))
-					remaining = recur_3188
-					out = recur_3189
+					var recur_3192 = flagrt.Rest(remaining)
+					var recur_3193 = flagrt.Conj(out, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_params))))))
+					remaining = recur_3192
+					out = recur_3193
 					continue
-					if_result_3190 = flagrt.NilValue
+					if_result_3194 = flagrt.NilValue
 				}
-				return if_result_3190
+				return if_result_3194
 			}
 		}()
 		var cases = func() flagrt.Value {
 			var remaining = arities
 			var out = flagrt.NewString("\tswitch len(args) {\n")
 			for {
-				var let_result_3192 bool
+				var let_result_3196 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3191 bool
+					var if_result_3195 bool
 					if or_tmp {
-						if_result_3191 = or_tmp
+						if_result_3195 = or_tmp
 					} else {
-						if_result_3191 = flagrt.IsEmpty(remaining)
+						if_result_3195 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3192 = if_result_3191
+					let_result_3196 = if_result_3195
 				}
-				var if_result_3197 flagrt.Value
-				if let_result_3192 {
-					if_result_3197 = out
+				var if_result_3201 flagrt.Value
+				if let_result_3196 {
+					if_result_3201 = out
 				} else {
-					var let_result_3196 flagrt.Value
+					var let_result_3200 flagrt.Value
 					{
 						var a = flagrt.First(remaining)
 						var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(flagrt.KeywordGet(a, lowflagKw_params)))))
-						var if_result_3193 string
+						var if_result_3197 string
 						if flagrt.Eq(n, lowflagLong_0) {
-							if_result_3193 = flagrt.Str("\t\treturn ", flagrt.KeywordGet(a, lowflagKw_arity_name), "()\n")
+							if_result_3197 = flagrt.Str("\t\treturn ", flagrt.KeywordGet(a, lowflagKw_arity_name), "()\n")
 						} else {
-							if_result_3193 = flagrt.Str("\t\treturn ", flagrt.KeywordGet(a, lowflagKw_arity_name), "(", compiler__render_call_args_arity_1(n), ")\n")
+							if_result_3197 = flagrt.Str("\t\treturn ", flagrt.KeywordGet(a, lowflagKw_arity_name), "(", compiler__render_call_args_arity_1(n), ")\n")
 						}
-						var call = if_result_3193
-						var recur_3194 = flagrt.Rest(remaining)
-						var recur_3195 = flagrt.NewString(flagrt.Str(out, "\tcase ", n, ":\n", call))
-						remaining = recur_3194
-						out = recur_3195
+						var call = if_result_3197
+						var recur_3198 = flagrt.Rest(remaining)
+						var recur_3199 = flagrt.NewString(flagrt.Str(out, "\tcase ", n, ":\n", call))
+						remaining = recur_3198
+						out = recur_3199
 						continue
-						let_result_3196 = flagrt.NilValue
+						let_result_3200 = flagrt.NilValue
 					}
-					if_result_3197 = let_result_3196
+					if_result_3201 = let_result_3200
 				}
-				return if_result_3197
+				return if_result_3201
 			}
 		}()
-		let_result_3198 = flagrt.Str(cases, "\tdefault:\n\t\tpanic(", flagrt.NewString(flagrt.Format("%q", compiler__multi_arity_expects_msg_arity_2(flagrt.KeywordGet(fn, lowflagKw_flag_name), counts))), ")\n", "\t}\n")
+		let_result_3202 = flagrt.Str(cases, "\tdefault:\n\t\tpanic(", flagrt.NewString(flagrt.Format("%q", compiler__multi_arity_expects_msg_arity_2(flagrt.KeywordGet(fn, lowflagKw_flag_name), counts))), ")\n", "\t}\n")
 	}
-	return flagrt.NewString(let_result_3198)
+	return flagrt.NewString(let_result_3202)
 }
 func compiler__render_multi_arity_dispatch_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23182,18 +23178,18 @@ func compiler__render_multi_arity_dispatch_variadic(args ...flagrt.Value) flagrt
 }
 
 func compiler__render_arity_function_arity_2(parent flagrt.Value, arity flagrt.Value) flagrt.Value {
-	var let_result_3200 flagrt.Value
+	var let_result_3204 flagrt.Value
 	{
 		var or_tmp = flagrt.KeywordGet(arity, lowflagKw_body_prelude)
-		var if_result_3199 flagrt.Value
+		var if_result_3203 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3199 = or_tmp
+			if_result_3203 = or_tmp
 		} else {
-			if_result_3199 = flagrt.NewString("")
+			if_result_3203 = flagrt.NewString("")
 		}
-		let_result_3200 = if_result_3199
+		let_result_3204 = if_result_3203
 	}
-	return flagrt.NewString(flagrt.Str("func ", flagrt.KeywordGet(arity, lowflagKw_arity_name), "(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(arity, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(arity, lowflagKw_local_inits)), let_result_3200, "\treturn ", flagrt.KeywordGet(arity, lowflagKw_body), "\n}\n\n"))
+	return flagrt.NewString(flagrt.Str("func ", flagrt.KeywordGet(arity, lowflagKw_arity_name), "(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(arity, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(arity, lowflagKw_local_inits)), let_result_3204, "\treturn ", flagrt.KeywordGet(arity, lowflagKw_body), "\n}\n\n"))
 }
 func compiler__render_arity_function_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -23203,24 +23199,24 @@ func compiler__render_arity_function_variadic(args ...flagrt.Value) flagrt.Value
 }
 
 func compiler__function_body_source_arity_1(fn flagrt.Value) flagrt.Value {
-	var if_result_3203 flagrt.Value
+	var if_result_3207 flagrt.Value
 	if flagrt.IsTruthy(compiler__blank_str_q_arity_1(flagrt.KeywordGet(fn, lowflagKw_body))) {
-		var let_result_3202 flagrt.Value
+		var let_result_3206 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(fn, lowflagKw_body_source)
-			var if_result_3201 flagrt.Value
+			var if_result_3205 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3201 = or_tmp
+				if_result_3205 = or_tmp
 			} else {
-				if_result_3201 = flagrt.NewString("")
+				if_result_3205 = flagrt.NewString("")
 			}
-			let_result_3202 = if_result_3201
+			let_result_3206 = if_result_3205
 		}
-		if_result_3203 = let_result_3202
+		if_result_3207 = let_result_3206
 	} else {
-		if_result_3203 = flagrt.KeywordGet(fn, lowflagKw_body)
+		if_result_3207 = flagrt.KeywordGet(fn, lowflagKw_body)
 	}
-	return if_result_3203
+	return if_result_3207
 }
 func compiler__function_body_source_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23230,110 +23226,110 @@ func compiler__function_body_source_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__render_function_def_arity_1(fn flagrt.Value) flagrt.Value {
-	var if_result_3204 bool
+	var if_result_3208 bool
 	if flagrt.IsTruthy(compiler__blank_str_q_arity_1(flagrt.KeywordGet(fn, lowflagKw_go_signature))) {
-		if_result_3204 = false
+		if_result_3208 = false
 	} else {
-		if_result_3204 = true
+		if_result_3208 = true
 	}
-	var if_result_3221 flagrt.Value
-	if if_result_3204 {
-		if_result_3221 = flagrt.NewString(flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_go_name), flagrt.KeywordGet(fn, lowflagKw_go_signature), " {\n", compiler__function_body_source_arity_1(fn), "}\n"))
+	var if_result_3225 flagrt.Value
+	if if_result_3208 {
+		if_result_3225 = flagrt.NewString(flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_go_name), flagrt.KeywordGet(fn, lowflagKw_go_signature), " {\n", compiler__function_body_source_arity_1(fn), "}\n"))
 	} else {
-		var let_result_3206 bool
+		var let_result_3210 bool
 		{
 			var or_tmp = flagrt.IsNil(flagrt.KeywordGet(fn, lowflagKw_ir_decls))
-			var if_result_3205 bool
+			var if_result_3209 bool
 			if or_tmp {
-				if_result_3205 = or_tmp
+				if_result_3209 = or_tmp
 			} else {
-				if_result_3205 = flagrt.IsEmpty(flagrt.KeywordGet(fn, lowflagKw_ir_decls))
+				if_result_3209 = flagrt.IsEmpty(flagrt.KeywordGet(fn, lowflagKw_ir_decls))
 			}
-			let_result_3206 = if_result_3205
+			let_result_3210 = if_result_3209
 		}
-		var if_result_3207 bool
-		if let_result_3206 {
-			if_result_3207 = false
+		var if_result_3211 bool
+		if let_result_3210 {
+			if_result_3211 = false
 		} else {
-			if_result_3207 = true
+			if_result_3211 = true
 		}
-		var if_result_3220 flagrt.Value
-		if if_result_3207 {
-			if_result_3220 = compiler__render_ir_stmts_arity_2(flagrt.KeywordGet(fn, lowflagKw_ir_decls), lowflagStr_)
+		var if_result_3224 flagrt.Value
+		if if_result_3211 {
+			if_result_3224 = compiler__render_ir_stmts_arity_2(flagrt.KeywordGet(fn, lowflagKw_ir_decls), lowflagStr_)
 		} else {
-			var let_result_3209 bool
+			var let_result_3213 bool
 			{
 				var or_tmp = flagrt.IsNil(flagrt.KeywordGet(fn, lowflagKw_arities))
-				var if_result_3208 bool
+				var if_result_3212 bool
 				if or_tmp {
-					if_result_3208 = or_tmp
+					if_result_3212 = or_tmp
 				} else {
-					if_result_3208 = flagrt.IsEmpty(flagrt.KeywordGet(fn, lowflagKw_arities))
+					if_result_3212 = flagrt.IsEmpty(flagrt.KeywordGet(fn, lowflagKw_arities))
 				}
-				let_result_3209 = if_result_3208
+				let_result_3213 = if_result_3212
 			}
-			var if_result_3210 bool
-			if let_result_3209 {
-				if_result_3210 = false
+			var if_result_3214 bool
+			if let_result_3213 {
+				if_result_3214 = false
 			} else {
-				if_result_3210 = true
+				if_result_3214 = true
 			}
-			var if_result_3219 string
-			if if_result_3210 {
-				if_result_3219 = flagrt.Str(func() flagrt.Value {
+			var if_result_3223 string
+			if if_result_3214 {
+				if_result_3223 = flagrt.Str(func() flagrt.Value {
 					var remaining = compiler__stmt_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_arities))
 					var out = flagrt.NewString("")
 					for {
-						var let_result_3212 bool
+						var let_result_3216 bool
 						{
 							var or_tmp = flagrt.IsNil(remaining)
-							var if_result_3211 bool
+							var if_result_3215 bool
 							if or_tmp {
-								if_result_3211 = or_tmp
+								if_result_3215 = or_tmp
 							} else {
-								if_result_3211 = flagrt.IsEmpty(remaining)
+								if_result_3215 = flagrt.IsEmpty(remaining)
 							}
-							let_result_3212 = if_result_3211
+							let_result_3216 = if_result_3215
 						}
-						var if_result_3215 flagrt.Value
-						if let_result_3212 {
-							if_result_3215 = out
+						var if_result_3219 flagrt.Value
+						if let_result_3216 {
+							if_result_3219 = out
 						} else {
-							var recur_3213 = flagrt.Rest(remaining)
-							var recur_3214 = flagrt.NewString(flagrt.Str(out, compiler__render_arity_function_arity_2(fn, flagrt.First(remaining))))
-							remaining = recur_3213
-							out = recur_3214
+							var recur_3217 = flagrt.Rest(remaining)
+							var recur_3218 = flagrt.NewString(flagrt.Str(out, compiler__render_arity_function_arity_2(fn, flagrt.First(remaining))))
+							remaining = recur_3217
+							out = recur_3218
 							continue
-							if_result_3215 = flagrt.NilValue
+							if_result_3219 = flagrt.NilValue
 						}
-						return if_result_3215
+						return if_result_3219
 					}
 				}(), "func ", flagrt.KeywordGet(fn, lowflagKw_variadic_name), "(args ...flagrt.Value) flagrt.Value {\n", compiler__render_multi_arity_dispatch_arity_1(fn), "}\n")
 			} else {
-				var if_result_3218 string
+				var if_result_3222 string
 				if flagrt.IsTruthy(flagrt.KeywordGet(fn, lowflagKw_has_rest)) {
-					if_result_3218 = flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_variadic_name), "(args ...flagrt.Value) flagrt.Value {\n", compiler__render_standalone_variadic_body_arity_1(fn), "}\n")
+					if_result_3222 = flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_variadic_name), "(args ...flagrt.Value) flagrt.Value {\n", compiler__render_standalone_variadic_body_arity_1(fn), "}\n")
 				} else {
-					var let_result_3217 flagrt.Value
+					var let_result_3221 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(fn, lowflagKw_body_prelude)
-						var if_result_3216 flagrt.Value
+						var if_result_3220 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_3216 = or_tmp
+							if_result_3220 = or_tmp
 						} else {
-							if_result_3216 = flagrt.NewString("")
+							if_result_3220 = flagrt.NewString("")
 						}
-						let_result_3217 = if_result_3216
+						let_result_3221 = if_result_3220
 					}
-					if_result_3218 = flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_arity_name), "(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3217, "\treturn ", compiler__function_body_source_arity_1(fn), "\n}\n\n", "func ", flagrt.KeywordGet(fn, lowflagKw_variadic_name), "(args ...flagrt.Value) flagrt.Value {\n", compiler__render_variadic_function_body_arity_1(fn), "}\n")
+					if_result_3222 = flagrt.Str("func ", flagrt.KeywordGet(fn, lowflagKw_arity_name), "(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3221, "\treturn ", compiler__function_body_source_arity_1(fn), "\n}\n\n", "func ", flagrt.KeywordGet(fn, lowflagKw_variadic_name), "(args ...flagrt.Value) flagrt.Value {\n", compiler__render_variadic_function_body_arity_1(fn), "}\n")
 				}
-				if_result_3219 = if_result_3218
+				if_result_3223 = if_result_3222
 			}
-			if_result_3220 = flagrt.NewString(if_result_3219)
+			if_result_3224 = flagrt.NewString(if_result_3223)
 		}
-		if_result_3221 = if_result_3220
+		if_result_3225 = if_result_3224
 	}
-	return if_result_3221
+	return if_result_3225
 }
 func compiler__render_function_def_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23347,29 +23343,29 @@ func compiler__render_direct_param_types_arity_1(params flagrt.Value) flagrt.Val
 		var remaining = compiler__stmt_list_arity_1(params)
 		var parts = lowflagVec
 		for {
-			var let_result_3223 bool
+			var let_result_3227 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3222 bool
+				var if_result_3226 bool
 				if or_tmp {
-					if_result_3222 = or_tmp
+					if_result_3226 = or_tmp
 				} else {
-					if_result_3222 = flagrt.IsEmpty(remaining)
+					if_result_3226 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3223 = if_result_3222
+				let_result_3227 = if_result_3226
 			}
-			var if_result_3226 flagrt.Value
-			if let_result_3223 {
-				if_result_3226 = compiler__join_strings_arity_2(parts, lowflagStr____5)
+			var if_result_3230 flagrt.Value
+			if let_result_3227 {
+				if_result_3230 = compiler__join_strings_arity_2(parts, lowflagStr____5)
 			} else {
-				var recur_3224 = flagrt.Rest(remaining)
-				var recur_3225 = flagrt.Conj(parts, flagrt.NewString("flagrt.Value"))
-				remaining = recur_3224
-				parts = recur_3225
+				var recur_3228 = flagrt.Rest(remaining)
+				var recur_3229 = flagrt.Conj(parts, flagrt.NewString("flagrt.Value"))
+				remaining = recur_3228
+				parts = recur_3229
 				continue
-				if_result_3226 = flagrt.NilValue
+				if_result_3230 = flagrt.NilValue
 			}
-			return if_result_3226
+			return if_result_3230
 		}
 	}()
 }
@@ -23391,18 +23387,18 @@ func compiler__render_direct_function_type_variadic(args ...flagrt.Value) flagrt
 }
 
 func compiler__render_direct_function_literal_arity_1(fn flagrt.Value) flagrt.Value {
-	var let_result_3228 flagrt.Value
+	var let_result_3232 flagrt.Value
 	{
 		var or_tmp = flagrt.KeywordGet(fn, lowflagKw_body_prelude)
-		var if_result_3227 flagrt.Value
+		var if_result_3231 flagrt.Value
 		if flagrt.IsTruthy(or_tmp) {
-			if_result_3227 = or_tmp
+			if_result_3231 = or_tmp
 		} else {
-			if_result_3227 = flagrt.NewString("")
+			if_result_3231 = flagrt.NewString("")
 		}
-		let_result_3228 = if_result_3227
+		let_result_3232 = if_result_3231
 	}
-	return flagrt.NewString(flagrt.Str("func(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3228, "\treturn ", flagrt.KeywordGet(fn, lowflagKw_body), "\n}"))
+	return flagrt.NewString(flagrt.Str("func(", compiler__render_direct_param_list_arity_1(flagrt.KeywordGet(fn, lowflagKw_params)), ") flagrt.Value {\n", compiler__render_local_inits_arity_1(flagrt.KeywordGet(fn, lowflagKw_local_inits)), let_result_3232, "\treturn ", flagrt.KeywordGet(fn, lowflagKw_body), "\n}"))
 }
 func compiler__render_direct_function_literal_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23456,29 +23452,29 @@ func compiler__functions_with_source_arity_1(fns flagrt.Value) flagrt.Value {
 		var remaining = compiler__stmt_list_arity_1(fns)
 		var out = lowflagVec
 		for {
-			var let_result_3230 bool
+			var let_result_3234 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3229 bool
+				var if_result_3233 bool
 				if or_tmp {
-					if_result_3229 = or_tmp
+					if_result_3233 = or_tmp
 				} else {
-					if_result_3229 = flagrt.IsEmpty(remaining)
+					if_result_3233 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3230 = if_result_3229
+				let_result_3234 = if_result_3233
 			}
-			var if_result_3233 flagrt.Value
-			if let_result_3230 {
-				if_result_3233 = out
+			var if_result_3237 flagrt.Value
+			if let_result_3234 {
+				if_result_3237 = out
 			} else {
-				var recur_3231 = flagrt.Rest(remaining)
-				var recur_3232 = flagrt.Conj(out, compiler__function_with_source_arity_1(flagrt.First(remaining)))
-				remaining = recur_3231
-				out = recur_3232
+				var recur_3235 = flagrt.Rest(remaining)
+				var recur_3236 = flagrt.Conj(out, compiler__function_with_source_arity_1(flagrt.First(remaining)))
+				remaining = recur_3235
+				out = recur_3236
 				continue
-				if_result_3233 = flagrt.NilValue
+				if_result_3237 = flagrt.NilValue
 			}
-			return if_result_3233
+			return if_result_3237
 		}
 	}()
 }
@@ -23490,55 +23486,21 @@ func compiler__functions_with_source_variadic(args ...flagrt.Value) flagrt.Value
 }
 
 func compiler__box_go_value_arity_2(var_name flagrt.Value, go_type flagrt.Value) flagrt.Value {
-	var if_result_3237 flagrt.Value
-	if flagrt.Eq(go_type, flagrt.NewString("float64")) {
-		if_result_3237 = flagrt.NewString(flagrt.Str("flagrt.NewDouble(", var_name, ")"))
-	} else {
-		var if_result_3236 flagrt.Value
-		if flagrt.Eq(go_type, flagrt.NewString("int64")) {
-			if_result_3236 = flagrt.NewString(flagrt.Str("flagrt.NewLong(", var_name, ")"))
-		} else {
-			var if_result_3235 flagrt.Value
-			if flagrt.Eq(go_type, flagrt.NewString("string")) {
-				if_result_3235 = flagrt.NewString(flagrt.Str("flagrt.NewString(", var_name, ")"))
-			} else {
-				var if_result_3234 flagrt.Value
-				if flagrt.Eq(go_type, flagrt.NewString("bool")) {
-					if_result_3234 = flagrt.NewString(flagrt.Str("flagrt.NewBoolean(", var_name, ")"))
-				} else {
-					if_result_3234 = var_name
-				}
-				if_result_3235 = if_result_3234
-			}
-			if_result_3236 = if_result_3235
-		}
-		if_result_3237 = if_result_3236
-	}
-	return if_result_3237
-}
-func compiler__box_go_value_variadic(args ...flagrt.Value) flagrt.Value {
-	if len(args) != 2 {
-		panic("compiler__box_go_value expects exactly 2 arguments")
-	}
-	return compiler__box_go_value_arity_2(args[0], args[1])
-}
-
-func compiler__unbox_go_value_arity_2(var_name flagrt.Value, go_type flagrt.Value) flagrt.Value {
 	var if_result_3241 flagrt.Value
 	if flagrt.Eq(go_type, flagrt.NewString("float64")) {
-		if_result_3241 = flagrt.NewString(flagrt.Str(var_name, ".Double()"))
+		if_result_3241 = flagrt.NewString(flagrt.Str("flagrt.NewDouble(", var_name, ")"))
 	} else {
 		var if_result_3240 flagrt.Value
 		if flagrt.Eq(go_type, flagrt.NewString("int64")) {
-			if_result_3240 = flagrt.NewString(flagrt.Str(var_name, ".Long()"))
+			if_result_3240 = flagrt.NewString(flagrt.Str("flagrt.NewLong(", var_name, ")"))
 		} else {
 			var if_result_3239 flagrt.Value
 			if flagrt.Eq(go_type, flagrt.NewString("string")) {
-				if_result_3239 = flagrt.NewString(flagrt.Str(var_name, ".String()"))
+				if_result_3239 = flagrt.NewString(flagrt.Str("flagrt.NewString(", var_name, ")"))
 			} else {
 				var if_result_3238 flagrt.Value
 				if flagrt.Eq(go_type, flagrt.NewString("bool")) {
-					if_result_3238 = flagrt.NewString(flagrt.Str(var_name, ".Bool()"))
+					if_result_3238 = flagrt.NewString(flagrt.Str("flagrt.NewBoolean(", var_name, ")"))
 				} else {
 					if_result_3238 = var_name
 				}
@@ -23550,31 +23512,31 @@ func compiler__unbox_go_value_arity_2(var_name flagrt.Value, go_type flagrt.Valu
 	}
 	return if_result_3241
 }
-func compiler__unbox_go_value_variadic(args ...flagrt.Value) flagrt.Value {
+func compiler__box_go_value_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
-		panic("compiler__unbox_go_value expects exactly 2 arguments")
+		panic("compiler__box_go_value expects exactly 2 arguments")
 	}
-	return compiler__unbox_go_value_arity_2(args[0], args[1])
+	return compiler__box_go_value_arity_2(args[0], args[1])
 }
 
-func compiler__unbox_record_field_arity_2(expr flagrt.Value, go_type flagrt.Value) flagrt.Value {
+func compiler__unbox_go_value_arity_2(var_name flagrt.Value, go_type flagrt.Value) flagrt.Value {
 	var if_result_3245 flagrt.Value
-	if flagrt.Eq(go_type, flagrt.NewString("string")) {
-		if_result_3245 = flagrt.NewString(flagrt.Str("flagrt.RequireString(", expr, ")"))
+	if flagrt.Eq(go_type, flagrt.NewString("float64")) {
+		if_result_3245 = flagrt.NewString(flagrt.Str(var_name, ".Double()"))
 	} else {
 		var if_result_3244 flagrt.Value
 		if flagrt.Eq(go_type, flagrt.NewString("int64")) {
-			if_result_3244 = flagrt.NewString(flagrt.Str("flagrt.RequireLong(", expr, ")"))
+			if_result_3244 = flagrt.NewString(flagrt.Str(var_name, ".Long()"))
 		} else {
 			var if_result_3243 flagrt.Value
-			if flagrt.Eq(go_type, flagrt.NewString("float64")) {
-				if_result_3243 = flagrt.NewString(flagrt.Str("flagrt.RequireDouble(", expr, ")"))
+			if flagrt.Eq(go_type, flagrt.NewString("string")) {
+				if_result_3243 = flagrt.NewString(flagrt.Str(var_name, ".String()"))
 			} else {
 				var if_result_3242 flagrt.Value
 				if flagrt.Eq(go_type, flagrt.NewString("bool")) {
-					if_result_3242 = flagrt.NewString(flagrt.Str("flagrt.RequireBool(", expr, ")"))
+					if_result_3242 = flagrt.NewString(flagrt.Str(var_name, ".Bool()"))
 				} else {
-					if_result_3242 = expr
+					if_result_3242 = var_name
 				}
 				if_result_3243 = if_result_3242
 			}
@@ -23583,6 +23545,40 @@ func compiler__unbox_record_field_arity_2(expr flagrt.Value, go_type flagrt.Valu
 		if_result_3245 = if_result_3244
 	}
 	return if_result_3245
+}
+func compiler__unbox_go_value_variadic(args ...flagrt.Value) flagrt.Value {
+	if len(args) != 2 {
+		panic("compiler__unbox_go_value expects exactly 2 arguments")
+	}
+	return compiler__unbox_go_value_arity_2(args[0], args[1])
+}
+
+func compiler__unbox_record_field_arity_2(expr flagrt.Value, go_type flagrt.Value) flagrt.Value {
+	var if_result_3249 flagrt.Value
+	if flagrt.Eq(go_type, flagrt.NewString("string")) {
+		if_result_3249 = flagrt.NewString(flagrt.Str("flagrt.RequireString(", expr, ")"))
+	} else {
+		var if_result_3248 flagrt.Value
+		if flagrt.Eq(go_type, flagrt.NewString("int64")) {
+			if_result_3248 = flagrt.NewString(flagrt.Str("flagrt.RequireLong(", expr, ")"))
+		} else {
+			var if_result_3247 flagrt.Value
+			if flagrt.Eq(go_type, flagrt.NewString("float64")) {
+				if_result_3247 = flagrt.NewString(flagrt.Str("flagrt.RequireDouble(", expr, ")"))
+			} else {
+				var if_result_3246 flagrt.Value
+				if flagrt.Eq(go_type, flagrt.NewString("bool")) {
+					if_result_3246 = flagrt.NewString(flagrt.Str("flagrt.RequireBool(", expr, ")"))
+				} else {
+					if_result_3246 = expr
+				}
+				if_result_3247 = if_result_3246
+			}
+			if_result_3248 = if_result_3247
+		}
+		if_result_3249 = if_result_3248
+	}
+	return if_result_3249
 }
 func compiler__unbox_record_field_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -23602,31 +23598,31 @@ func compiler__fmt_call_ir_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__form_kind_number_arity_1(k flagrt.Value) flagrt.Value {
-	var if_result_3249 flagrt.Value
+	var if_result_3253 flagrt.Value
 	if flagrt.Eq(k, lowflagKw_value) {
-		if_result_3249 = lowflagLong_1
+		if_result_3253 = lowflagLong_1
 	} else {
-		var if_result_3248 flagrt.Value
+		var if_result_3252 flagrt.Value
 		if flagrt.Eq(k, lowflagKw_string) {
-			if_result_3248 = lowflagLong_2
+			if_result_3252 = lowflagLong_2
 		} else {
-			var if_result_3247 flagrt.Value
+			var if_result_3251 flagrt.Value
 			if flagrt.Eq(k, lowflagKw_bool) {
-				if_result_3247 = lowflagLong_3
+				if_result_3251 = lowflagLong_3
 			} else {
-				var if_result_3246 flagrt.Value
+				var if_result_3250 flagrt.Value
 				if flagrt.Eq(k, lowflagKw_mutable_value) {
-					if_result_3246 = lowflagLong_4
+					if_result_3250 = lowflagLong_4
 				} else {
-					if_result_3246 = lowflagLong_0
+					if_result_3250 = lowflagLong_0
 				}
-				if_result_3247 = if_result_3246
+				if_result_3251 = if_result_3250
 			}
-			if_result_3248 = if_result_3247
+			if_result_3252 = if_result_3251
 		}
-		if_result_3249 = if_result_3248
+		if_result_3253 = if_result_3252
 	}
-	return if_result_3249
+	return if_result_3253
 }
 func compiler__form_kind_number_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23636,16 +23632,16 @@ func compiler__form_kind_number_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__require_top_level_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var if_result_3250 flagrt.Value
+	var if_result_3254 flagrt.Value
 	if flagrt.IsTruthy(flagrt.KeywordGet(ctx, lowflagKw_allow_top_level)) {
-		if_result_3250 = ctx
+		if_result_3254 = ctx
 	} else {
-		if_result_3250 = func() flagrt.Value {
+		if_result_3254 = func() flagrt.Value {
 			flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("top-level expressions are only allowed in the entry module", compiler__form_at_suffix_arity_1(form))), flagrt.NewKeyword("data"), lowflagMap))
 			return flagrt.NilValue
 		}()
 	}
-	return if_result_3250
+	return if_result_3254
 }
 func compiler__require_top_level_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -23655,12 +23651,12 @@ func compiler__require_top_level_form_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__intern_keyword_code_arity_2(ctx flagrt.Value, lowflag_name flagrt.Value) flagrt.Value {
-	var let_result_3251 flagrt.Value
+	var let_result_3255 flagrt.Value
 	{
 		var out = compiler__intern_form_ir_arity_3(ctx, flagrt.NewString(flagrt.Str("Kw_", compiler__sanitize_keyword_ident_arity_1(lowflag_name))), compiler__literal_rt_call_arity_2(lowflagStr_NewKeyword, flagrt.NewArray(flagrt.NewMap(lowflagKw_kind, lowflagKw_string, lowflagKw_value, lowflag_name))))
-		let_result_3251 = flagrt.NewMap(lowflagKw_code, compiler__render_ir_arity_1(flagrt.KeywordGet(out, lowflagKw_ir)), lowflagKw_ctx, flagrt.KeywordGet(out, lowflagKw_ctx))
+		let_result_3255 = flagrt.NewMap(lowflagKw_code, compiler__render_ir_arity_1(flagrt.KeywordGet(out, lowflagKw_ir)), lowflagKw_ctx, flagrt.KeywordGet(out, lowflagKw_ctx))
 	}
-	return let_result_3251
+	return let_result_3255
 }
 func compiler__intern_keyword_code_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -23670,91 +23666,91 @@ func compiler__intern_keyword_code_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__parse_record_field_arity_1(expr flagrt.Value) flagrt.Value {
-	var let_result_3264 flagrt.Value
+	var let_result_3268 flagrt.Value
 	{
-		var if_result_3254 flagrt.Value
+		var if_result_3258 flagrt.Value
 		if flagrt.Eq(lowflagKw_meta, flagrt.KeywordGet(expr, lowflagKw_kind)) {
-			var let_result_3253 flagrt.Value
+			var let_result_3257 flagrt.Value
 			{
 				var m = flagrt.KeywordGet(expr, lowflagKw_meta)
-				var if_result_3252 flagrt.Value
+				var if_result_3256 flagrt.Value
 				if flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(m, lowflagKw_kind)) {
-					if_result_3252 = flagrt.KeywordGet(m, lowflagKw_name)
+					if_result_3256 = flagrt.KeywordGet(m, lowflagKw_name)
 				} else {
-					if_result_3252 = func() flagrt.Value {
+					if_result_3256 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defrecord field type hint must be a symbol"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				}
-				let_result_3253 = if_result_3252
+				let_result_3257 = if_result_3256
 			}
-			if_result_3254 = let_result_3253
+			if_result_3258 = let_result_3257
 		} else {
-			if_result_3254 = flagrt.NewString("")
+			if_result_3258 = flagrt.NewString("")
 		}
-		var hint = if_result_3254
+		var hint = if_result_3258
 		var target = compiler__unwrap_ast_arity_1(expr)
-		var let_result_3257 bool
+		var let_result_3261 bool
 		{
 			var and_tmp = flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(target, lowflagKw_kind))
-			var if_result_3256 bool
+			var if_result_3260 bool
 			if and_tmp {
-				var if_result_3255 bool
+				var if_result_3259 bool
 				if flagrt.Eq(flagrt.NewString(""), flagrt.KeywordGet(target, lowflagKw_name)) {
-					if_result_3255 = false
+					if_result_3259 = false
 				} else {
-					if_result_3255 = true
+					if_result_3259 = true
 				}
-				if_result_3256 = if_result_3255
+				if_result_3260 = if_result_3259
 			} else {
-				if_result_3256 = and_tmp
+				if_result_3260 = and_tmp
 			}
-			let_result_3257 = if_result_3256
+			let_result_3261 = if_result_3260
 		}
-		var if_result_3258 flagrt.Value
-		if let_result_3257 {
-			if_result_3258 = flagrt.KeywordGet(target, lowflagKw_name)
+		var if_result_3262 flagrt.Value
+		if let_result_3261 {
+			if_result_3262 = flagrt.KeywordGet(target, lowflagKw_name)
 		} else {
-			if_result_3258 = flagrt.NilValue
+			if_result_3262 = flagrt.NilValue
 		}
-		var name = if_result_3258
-		var if_result_3263 flagrt.Value
+		var name = if_result_3262
+		var if_result_3267 flagrt.Value
 		if flagrt.IsNil(name) {
-			if_result_3263 = func() flagrt.Value {
+			if_result_3267 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defrecord fields must be symbols"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_3262 flagrt.Value
+			var let_result_3266 flagrt.Value
 			{
-				var if_result_3261 flagrt.Value
+				var if_result_3265 flagrt.Value
 				if flagrt.Eq(hint, flagrt.NewString("")) {
-					if_result_3261 = flagrt.NewString("flagrt.Value")
+					if_result_3265 = flagrt.NewString("flagrt.Value")
 				} else {
-					var let_result_3260 flagrt.Value
+					var let_result_3264 flagrt.Value
 					{
 						var mapped = compiler__type_hint_to_go_type_arity_1(hint)
-						var if_result_3259 flagrt.Value
+						var if_result_3263 flagrt.Value
 						if flagrt.IsNil(mapped) {
-							if_result_3259 = func() flagrt.Value {
+							if_result_3263 = func() flagrt.Value {
 								flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("unsupported defrecord field type \"", hint, "\"")), flagrt.NewKeyword("data"), lowflagMap))
 								return flagrt.NilValue
 							}()
 						} else {
-							if_result_3259 = mapped
+							if_result_3263 = mapped
 						}
-						let_result_3260 = if_result_3259
+						let_result_3264 = if_result_3263
 					}
-					if_result_3261 = let_result_3260
+					if_result_3265 = let_result_3264
 				}
-				var go_type = if_result_3261
-				let_result_3262 = flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, compiler__exported_record_field_name_arity_1(name), lowflagKw_go_type, go_type, lowflagKw_param, compiler__record_param_name_arity_1(name))
+				var go_type = if_result_3265
+				let_result_3266 = flagrt.NewMap(lowflagKw_flag_name, name, lowflagKw_go_name, compiler__exported_record_field_name_arity_1(name), lowflagKw_go_type, go_type, lowflagKw_param, compiler__record_param_name_arity_1(name))
 			}
-			if_result_3263 = let_result_3262
+			if_result_3267 = let_result_3266
 		}
-		let_result_3264 = if_result_3263
+		let_result_3268 = if_result_3267
 	}
-	return let_result_3264
+	return let_result_3268
 }
 func compiler__parse_record_field_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -23768,34 +23764,34 @@ func compiler__record_type_decl_arity_2(type_name flagrt.Value, fields flagrt.Va
 		var remaining = compiler__stmt_list_arity_1(fields)
 		var out = flagrt.NewString("")
 		for {
-			var let_result_3266 bool
+			var let_result_3270 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3265 bool
+				var if_result_3269 bool
 				if or_tmp {
-					if_result_3265 = or_tmp
+					if_result_3269 = or_tmp
 				} else {
-					if_result_3265 = flagrt.IsEmpty(remaining)
+					if_result_3269 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3266 = if_result_3265
+				let_result_3270 = if_result_3269
 			}
-			var if_result_3270 flagrt.Value
-			if let_result_3266 {
-				if_result_3270 = out
+			var if_result_3274 flagrt.Value
+			if let_result_3270 {
+				if_result_3274 = out
 			} else {
-				var let_result_3269 flagrt.Value
+				var let_result_3273 flagrt.Value
 				{
 					var f = flagrt.First(remaining)
-					var recur_3267 = flagrt.Rest(remaining)
-					var recur_3268 = flagrt.NewString(flagrt.Str(out, "\t", flagrt.KeywordGet(f, lowflagKw_go_name), " ", flagrt.KeywordGet(f, lowflagKw_go_type), " `flag:", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(f, lowflagKw_flag_name))), "`\n"))
-					remaining = recur_3267
-					out = recur_3268
+					var recur_3271 = flagrt.Rest(remaining)
+					var recur_3272 = flagrt.NewString(flagrt.Str(out, "\t", flagrt.KeywordGet(f, lowflagKw_go_name), " ", flagrt.KeywordGet(f, lowflagKw_go_type), " `flag:", flagrt.NewString(flagrt.Format("%q", flagrt.KeywordGet(f, lowflagKw_flag_name))), "`\n"))
+					remaining = recur_3271
+					out = recur_3272
 					continue
-					let_result_3269 = flagrt.NilValue
+					let_result_3273 = flagrt.NilValue
 				}
-				if_result_3270 = let_result_3269
+				if_result_3274 = let_result_3273
 			}
-			return if_result_3270
+			return if_result_3274
 		}
 	}(), "}\n"))
 }
@@ -23811,34 +23807,34 @@ func compiler__record_ctor_body_arity_2(type_name flagrt.Value, fields flagrt.Va
 		var remaining = compiler__stmt_list_arity_1(fields)
 		var parts = lowflagVec
 		for {
-			var let_result_3272 bool
+			var let_result_3276 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3271 bool
+				var if_result_3275 bool
 				if or_tmp {
-					if_result_3271 = or_tmp
+					if_result_3275 = or_tmp
 				} else {
-					if_result_3271 = flagrt.IsEmpty(remaining)
+					if_result_3275 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3272 = if_result_3271
+				let_result_3276 = if_result_3275
 			}
-			var if_result_3276 flagrt.Value
-			if let_result_3272 {
-				if_result_3276 = compiler__join_strings_arity_2(parts, lowflagStr____5)
+			var if_result_3280 flagrt.Value
+			if let_result_3276 {
+				if_result_3280 = compiler__join_strings_arity_2(parts, lowflagStr____5)
 			} else {
-				var let_result_3275 flagrt.Value
+				var let_result_3279 flagrt.Value
 				{
 					var f = flagrt.First(remaining)
-					var recur_3273 = flagrt.Rest(remaining)
-					var recur_3274 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(f, lowflagKw_go_name), ": ", compiler__unbox_record_field_arity_2(flagrt.KeywordGet(f, lowflagKw_param), flagrt.KeywordGet(f, lowflagKw_go_type)))))
-					remaining = recur_3273
-					parts = recur_3274
+					var recur_3277 = flagrt.Rest(remaining)
+					var recur_3278 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(f, lowflagKw_go_name), ": ", compiler__unbox_record_field_arity_2(flagrt.KeywordGet(f, lowflagKw_param), flagrt.KeywordGet(f, lowflagKw_go_type)))))
+					remaining = recur_3277
+					parts = recur_3278
 					continue
-					let_result_3275 = flagrt.NilValue
+					let_result_3279 = flagrt.NilValue
 				}
-				if_result_3276 = let_result_3275
+				if_result_3280 = let_result_3279
 			}
-			return if_result_3276
+			return if_result_3280
 		}
 	}(), "})"))
 }
@@ -23855,38 +23851,38 @@ func compiler__record_map_ctor_body_arity_3(type_name flagrt.Value, fields flagr
 		var ctx = ctx
 		var parts = lowflagVec
 		for {
-			var let_result_3278 bool
+			var let_result_3282 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3277 bool
+				var if_result_3281 bool
 				if or_tmp {
-					if_result_3277 = or_tmp
+					if_result_3281 = or_tmp
 				} else {
-					if_result_3277 = flagrt.IsEmpty(remaining)
+					if_result_3281 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3278 = if_result_3277
+				let_result_3282 = if_result_3281
 			}
-			var if_result_3283 flagrt.Value
-			if let_result_3278 {
-				if_result_3283 = flagrt.NewMap(lowflagKw_code, flagrt.NewString(flagrt.Str("flagrt.NewRecord(", type_name, "{", compiler__join_strings_arity_2(parts, lowflagStr____5), "})")), lowflagKw_ctx, ctx)
+			var if_result_3287 flagrt.Value
+			if let_result_3282 {
+				if_result_3287 = flagrt.NewMap(lowflagKw_code, flagrt.NewString(flagrt.Str("flagrt.NewRecord(", type_name, "{", compiler__join_strings_arity_2(parts, lowflagStr____5), "})")), lowflagKw_ctx, ctx)
 			} else {
-				var let_result_3282 flagrt.Value
+				var let_result_3286 flagrt.Value
 				{
 					var f = flagrt.First(remaining)
 					var interned = compiler__intern_keyword_code_arity_2(ctx, flagrt.KeywordGet(f, lowflagKw_flag_name))
 					var get_code = flagrt.Str("flagrt.Get(m, ", flagrt.KeywordGet(interned, lowflagKw_code), ")")
-					var recur_3279 = flagrt.Rest(remaining)
-					var recur_3280 = flagrt.KeywordGet(interned, lowflagKw_ctx)
-					var recur_3281 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(f, lowflagKw_go_name), ": ", compiler__unbox_record_field_arity_2(flagrt.NewString(get_code), flagrt.KeywordGet(f, lowflagKw_go_type)))))
-					remaining = recur_3279
-					ctx = recur_3280
-					parts = recur_3281
+					var recur_3283 = flagrt.Rest(remaining)
+					var recur_3284 = flagrt.KeywordGet(interned, lowflagKw_ctx)
+					var recur_3285 = flagrt.Conj(parts, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(f, lowflagKw_go_name), ": ", compiler__unbox_record_field_arity_2(flagrt.NewString(get_code), flagrt.KeywordGet(f, lowflagKw_go_type)))))
+					remaining = recur_3283
+					ctx = recur_3284
+					parts = recur_3285
 					continue
-					let_result_3282 = flagrt.NilValue
+					let_result_3286 = flagrt.NilValue
 				}
-				if_result_3283 = let_result_3282
+				if_result_3287 = let_result_3286
 			}
-			return if_result_3283
+			return if_result_3287
 		}
 	}()
 }
@@ -23898,15 +23894,15 @@ func compiler__record_map_ctor_body_variadic(args ...flagrt.Value) flagrt.Value 
 }
 
 func compiler__record_ctor_function_arity_4(lowflag_name flagrt.Value, go_name flagrt.Value, params flagrt.Value, body flagrt.Value) flagrt.Value {
-	var let_result_3284 flagrt.Value
+	var let_result_3288 flagrt.Value
 	{
 		var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(params))))
 		var variadic = flagrt.Str(go_name, "_variadic")
 		var arity_name = flagrt.Str(go_name, "_arity_", n)
 		var decls = compiler__defn_to_ir_arity_8(flagrt.NewString(arity_name), flagrt.NewString(variadic), go_name, params, flagrt.NewBool(false), lowflagVec, lowflagVec, flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, body))
-		let_result_3284 = flagrt.NewMap(lowflagKw_flag_name, lowflag_name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_arity_names, flagrt.NewMap(n, flagrt.NewString(arity_name)), lowflagKw_doc, lowflagStr_, lowflagKw_params, params, lowflagKw_ir_decls, decls, lowflagKw_body_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, body), lowflagKw_body_stmts, lowflagVec, lowflagKw_init_stmts, lowflagVec)
+		let_result_3288 = flagrt.NewMap(lowflagKw_flag_name, lowflag_name, lowflagKw_go_name, go_name, lowflagKw_variadic_name, flagrt.NewString(variadic), lowflagKw_arity_name, flagrt.NewString(arity_name), lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_arity_names, flagrt.NewMap(n, flagrt.NewString(arity_name)), lowflagKw_doc, lowflagStr_, lowflagKw_params, params, lowflagKw_ir_decls, decls, lowflagKw_body_expr, flagrt.NewMap(lowflagKw_kind, lowflagKw_raw, lowflagKw_code, body), lowflagKw_body_stmts, lowflagVec, lowflagKw_init_stmts, lowflagVec)
 	}
-	return let_result_3284
+	return let_result_3288
 }
 func compiler__record_ctor_function_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 4 {
@@ -23922,68 +23918,68 @@ func compiler__compile_go_interface_params_arity_1(elements flagrt.Value) flagrt
 		var types = lowflagVec
 		var sigs = lowflagVec
 		for {
-			var let_result_3286 bool
+			var let_result_3290 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3285 bool
+				var if_result_3289 bool
 				if or_tmp {
-					if_result_3285 = or_tmp
+					if_result_3289 = or_tmp
 				} else {
-					if_result_3285 = flagrt.IsEmpty(remaining)
+					if_result_3289 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3286 = if_result_3285
+				let_result_3290 = if_result_3289
 			}
-			var if_result_3296 flagrt.Value
-			if let_result_3286 {
-				if_result_3296 = flagrt.NewMap(lowflagKw_types, types, lowflagKw_sigs, sigs)
+			var if_result_3300 flagrt.Value
+			if let_result_3290 {
+				if_result_3300 = flagrt.NewMap(lowflagKw_types, types, lowflagKw_sigs, sigs)
 			} else {
-				var let_result_3295 flagrt.Value
+				var let_result_3299 flagrt.Value
 				{
 					var node = compiler__unwrap_ast_arity_1(flagrt.First(remaining))
-					var if_result_3287 flagrt.Value
+					var if_result_3291 flagrt.Value
 					if flagrt.Eq(lowflagKw_symbol, flagrt.KeywordGet(node, lowflagKw_kind)) {
-						if_result_3287 = flagrt.KeywordGet(node, lowflagKw_name)
+						if_result_3291 = flagrt.KeywordGet(node, lowflagKw_name)
 					} else {
-						if_result_3287 = flagrt.NilValue
+						if_result_3291 = flagrt.NilValue
 					}
-					var name = if_result_3287
-					var if_result_3294 flagrt.Value
+					var name = if_result_3291
+					var if_result_3298 flagrt.Value
 					if flagrt.IsNil(name) {
-						if_result_3294 = func() flagrt.Value {
+						if_result_3298 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("parameter type must be a symbol"), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_3293 flagrt.Value
+						var let_result_3297 flagrt.Value
 						{
 							var go_type = compiler__type_hint_to_go_type_arity_1(name)
-							var if_result_3292 flagrt.Value
+							var if_result_3296 flagrt.Value
 							if flagrt.IsNil(go_type) {
-								if_result_3292 = func() flagrt.Value {
+								if_result_3296 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("unsupported parameter type: ", name)), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var recur_3288 = flagrt.Rest(remaining)
-								var recur_3289 = flagrt.Inc(i)
-								var recur_3290 = flagrt.Conj(types, go_type)
-								var recur_3291 = flagrt.Conj(sigs, flagrt.NewString(flagrt.Str("p", i, " ", go_type)))
-								remaining = recur_3288
-								i = recur_3289
-								types = recur_3290
-								sigs = recur_3291
+								var recur_3292 = flagrt.Rest(remaining)
+								var recur_3293 = flagrt.Inc(i)
+								var recur_3294 = flagrt.Conj(types, go_type)
+								var recur_3295 = flagrt.Conj(sigs, flagrt.NewString(flagrt.Str("p", i, " ", go_type)))
+								remaining = recur_3292
+								i = recur_3293
+								types = recur_3294
+								sigs = recur_3295
 								continue
-								if_result_3292 = flagrt.NilValue
+								if_result_3296 = flagrt.NilValue
 							}
-							let_result_3293 = if_result_3292
+							let_result_3297 = if_result_3296
 						}
-						if_result_3294 = let_result_3293
+						if_result_3298 = let_result_3297
 					}
-					let_result_3295 = if_result_3294
+					let_result_3299 = if_result_3298
 				}
-				if_result_3296 = let_result_3295
+				if_result_3300 = let_result_3299
 			}
-			return if_result_3296
+			return if_result_3300
 		}
 	}()
 }
@@ -23995,43 +23991,43 @@ func compiler__compile_go_interface_params_variadic(args ...flagrt.Value) flagrt
 }
 
 func compiler__go_interface_body_arity_3(target_go flagrt.Value, types flagrt.Value, return_type flagrt.Value) flagrt.Value {
-	var let_result_3303 flagrt.Value
+	var let_result_3307 flagrt.Value
 	{
 		var n = flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(types))))
-		let_result_3303 = func() flagrt.Value {
+		let_result_3307 = func() flagrt.Value {
 			var remaining = compiler__stmt_list_arity_1(types)
 			var i = lowflagLong_1
 			var out = flagrt.NewString(flagrt.Str("args := make([]flagrt.Value, 0, ", n, ")\n"))
 			for {
-				var let_result_3298 bool
+				var let_result_3302 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3297 bool
+					var if_result_3301 bool
 					if or_tmp {
-						if_result_3297 = or_tmp
+						if_result_3301 = or_tmp
 					} else {
-						if_result_3297 = flagrt.IsEmpty(remaining)
+						if_result_3301 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3298 = if_result_3297
+					let_result_3302 = if_result_3301
 				}
-				var if_result_3302 flagrt.Value
-				if let_result_3298 {
-					if_result_3302 = flagrt.NewString(flagrt.Str(out, "\tresult := flagrt.Call(", target_go, ", args...)\n", "\treturn ", compiler__unbox_go_value_arity_2(lowflagStr_result, return_type), "\n"))
+				var if_result_3306 flagrt.Value
+				if let_result_3302 {
+					if_result_3306 = flagrt.NewString(flagrt.Str(out, "\tresult := flagrt.Call(", target_go, ", args...)\n", "\treturn ", compiler__unbox_go_value_arity_2(lowflagStr_result, return_type), "\n"))
 				} else {
-					var recur_3299 = flagrt.Rest(remaining)
-					var recur_3300 = flagrt.Inc(i)
-					var recur_3301 = flagrt.NewString(flagrt.Str(out, "\targs = append(args, ", compiler__box_go_value_arity_2(flagrt.NewString(flagrt.Str("p", i)), flagrt.First(remaining)), ")\n"))
-					remaining = recur_3299
-					i = recur_3300
-					out = recur_3301
+					var recur_3303 = flagrt.Rest(remaining)
+					var recur_3304 = flagrt.Inc(i)
+					var recur_3305 = flagrt.NewString(flagrt.Str(out, "\targs = append(args, ", compiler__box_go_value_arity_2(flagrt.NewString(flagrt.Str("p", i)), flagrt.First(remaining)), ")\n"))
+					remaining = recur_3303
+					i = recur_3304
+					out = recur_3305
 					continue
-					if_result_3302 = flagrt.NilValue
+					if_result_3306 = flagrt.NilValue
 				}
-				return if_result_3302
+				return if_result_3306
 			}
 		}()
 	}
-	return let_result_3303
+	return let_result_3307
 }
 func compiler__go_interface_body_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -24041,101 +24037,101 @@ func compiler__go_interface_body_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_go_interface_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3316 flagrt.Value
+	var let_result_3320 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
-		var if_result_3304 bool
+		var if_result_3308 bool
 		if flagrt.Eq(lowflagLong_4, flagrt.NewLong(int64(flagrt.Count(els)))) {
-			if_result_3304 = false
+			if_result_3308 = false
 		} else {
-			if_result_3304 = true
+			if_result_3308 = true
 		}
-		var if_result_3315 flagrt.Value
-		if if_result_3304 {
-			if_result_3315 = func() flagrt.Value {
+		var if_result_3319 flagrt.Value
+		if if_result_3308 {
+			if_result_3319 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("go-interface expects: function-name return-type [param-type ...]", compiler__form_at_suffix_arity_1(form))), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_3314 flagrt.Value
+			var let_result_3318 flagrt.Value
 			{
 				var target = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
 				var ret_sym = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(flagrt.Rest(els))))
 				var params_ast = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(flagrt.Rest(flagrt.Rest(els)))))
-				var if_result_3313 flagrt.Value
+				var if_result_3317 flagrt.Value
 				if flagrt.IsNil(target) {
-					if_result_3313 = func() flagrt.Value {
+					if_result_3317 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-interface expects a function name"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var if_result_3312 flagrt.Value
+					var if_result_3316 flagrt.Value
 					if flagrt.IsNil(ret_sym) {
-						if_result_3312 = func() flagrt.Value {
+						if_result_3316 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-interface expects a return type symbol"), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_3311 flagrt.Value
+						var let_result_3315 flagrt.Value
 						{
 							var return_type = compiler__type_hint_to_go_type_arity_1(ret_sym)
-							var if_result_3310 flagrt.Value
+							var if_result_3314 flagrt.Value
 							if flagrt.IsNil(return_type) {
-								if_result_3310 = func() flagrt.Value {
+								if_result_3314 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("unsupported return type: ", ret_sym)), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var let_result_3309 flagrt.Value
+								var let_result_3313 flagrt.Value
 								{
 									var target_go = flagrt.Get(flagrt.KeywordGet(ctx, lowflagKw_module), target)
-									var if_result_3308 flagrt.Value
+									var if_result_3312 flagrt.Value
 									if flagrt.IsNil(target_go) {
-										if_result_3308 = func() flagrt.Value {
+										if_result_3312 = func() flagrt.Value {
 											flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("function \"", target, "\" not defined")), flagrt.NewKeyword("data"), lowflagMap))
 											return flagrt.NilValue
 										}()
 									} else {
-										var if_result_3305 bool
+										var if_result_3309 bool
 										if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(params_ast, lowflagKw_kind)) {
-											if_result_3305 = false
+											if_result_3309 = false
 										} else {
-											if_result_3305 = true
+											if_result_3309 = true
 										}
-										var if_result_3307 flagrt.Value
-										if if_result_3305 {
-											if_result_3307 = func() flagrt.Value {
+										var if_result_3311 flagrt.Value
+										if if_result_3309 {
+											if_result_3311 = func() flagrt.Value {
 												flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("go-interface expects a parameter type vector"), flagrt.NewKeyword("data"), lowflagMap))
 												return flagrt.NilValue
 											}()
 										} else {
-											var let_result_3306 flagrt.Value
+											var let_result_3310 flagrt.Value
 											{
 												var parsed = compiler__compile_go_interface_params_arity_1(flagrt.KeywordGet(params_ast, lowflagKw_elements))
 												var wrapper = flagrt.Str(target, "_go")
-												let_result_3306 = flagrt.NewMap(lowflagKw_op, lowflagKw_go_interface, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(wrapper), lowflagKw_go_name, flagrt.NewString(wrapper), lowflagKw_variadic_name, lowflagStr_, lowflagKw_arity_name, lowflagStr_, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_doc, flagrt.NewString(flagrt.Str("Go interop wrapper for ", target)), lowflagKw_params, lowflagVec, lowflagKw_ir_decls, lowflagVec, lowflagKw_go_signature, flagrt.NewString(flagrt.Str("(", compiler__join_strings_arity_2(flagrt.KeywordGet(parsed, lowflagKw_sigs), lowflagStr____5), ") ", return_type)), lowflagKw_body_source, compiler__go_interface_body_arity_3(target_go, flagrt.KeywordGet(parsed, lowflagKw_types), return_type)), lowflagKw_ctx, ctx)
+												let_result_3310 = flagrt.NewMap(lowflagKw_op, lowflagKw_go_interface, lowflagKw_function, flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(wrapper), lowflagKw_go_name, flagrt.NewString(wrapper), lowflagKw_variadic_name, lowflagStr_, lowflagKw_arity_name, lowflagStr_, lowflagKw_has_rest, flagrt.NewBool(false), lowflagKw_doc, flagrt.NewString(flagrt.Str("Go interop wrapper for ", target)), lowflagKw_params, lowflagVec, lowflagKw_ir_decls, lowflagVec, lowflagKw_go_signature, flagrt.NewString(flagrt.Str("(", compiler__join_strings_arity_2(flagrt.KeywordGet(parsed, lowflagKw_sigs), lowflagStr____5), ") ", return_type)), lowflagKw_body_source, compiler__go_interface_body_arity_3(target_go, flagrt.KeywordGet(parsed, lowflagKw_types), return_type)), lowflagKw_ctx, ctx)
 											}
-											if_result_3307 = let_result_3306
+											if_result_3311 = let_result_3310
 										}
-										if_result_3308 = if_result_3307
+										if_result_3312 = if_result_3311
 									}
-									let_result_3309 = if_result_3308
+									let_result_3313 = if_result_3312
 								}
-								if_result_3310 = let_result_3309
+								if_result_3314 = let_result_3313
 							}
-							let_result_3311 = if_result_3310
+							let_result_3315 = if_result_3314
 						}
-						if_result_3312 = let_result_3311
+						if_result_3316 = let_result_3315
 					}
-					if_result_3313 = if_result_3312
+					if_result_3317 = if_result_3316
 				}
-				let_result_3314 = if_result_3313
+				let_result_3318 = if_result_3317
 			}
-			if_result_3315 = let_result_3314
+			if_result_3319 = let_result_3318
 		}
-		let_result_3316 = if_result_3315
+		let_result_3320 = if_result_3319
 	}
-	return let_result_3316
+	return let_result_3320
 }
 func compiler__compile_go_interface_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24150,36 +24146,36 @@ func compiler__compile_defrecord_fields_arity_1(elements flagrt.Value) flagrt.Va
 		var fields = lowflagVec
 		var params = lowflagVec
 		for {
-			var let_result_3318 bool
+			var let_result_3322 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3317 bool
+				var if_result_3321 bool
 				if or_tmp {
-					if_result_3317 = or_tmp
+					if_result_3321 = or_tmp
 				} else {
-					if_result_3317 = flagrt.IsEmpty(remaining)
+					if_result_3321 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3318 = if_result_3317
+				let_result_3322 = if_result_3321
 			}
-			var if_result_3323 flagrt.Value
-			if let_result_3318 {
-				if_result_3323 = flagrt.NewMap(lowflagKw_fields, fields, lowflagKw_params, params)
+			var if_result_3327 flagrt.Value
+			if let_result_3322 {
+				if_result_3327 = flagrt.NewMap(lowflagKw_fields, fields, lowflagKw_params, params)
 			} else {
-				var let_result_3322 flagrt.Value
+				var let_result_3326 flagrt.Value
 				{
 					var field = compiler__parse_record_field_arity_1(flagrt.First(remaining))
-					var recur_3319 = flagrt.Rest(remaining)
-					var recur_3320 = flagrt.Conj(fields, field)
-					var recur_3321 = flagrt.Conj(params, flagrt.KeywordGet(field, lowflagKw_param))
-					remaining = recur_3319
-					fields = recur_3320
-					params = recur_3321
+					var recur_3323 = flagrt.Rest(remaining)
+					var recur_3324 = flagrt.Conj(fields, field)
+					var recur_3325 = flagrt.Conj(params, flagrt.KeywordGet(field, lowflagKw_param))
+					remaining = recur_3323
+					fields = recur_3324
+					params = recur_3325
 					continue
-					let_result_3322 = flagrt.NilValue
+					let_result_3326 = flagrt.NilValue
 				}
-				if_result_3323 = let_result_3322
+				if_result_3327 = let_result_3326
 			}
-			return if_result_3323
+			return if_result_3327
 		}
 	}()
 }
@@ -24191,69 +24187,69 @@ func compiler__compile_defrecord_fields_variadic(args ...flagrt.Value) flagrt.Va
 }
 
 func compiler__compile_defrecord_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3339 flagrt.Value
+	var let_result_3343 flagrt.Value
 	{
 		var els = compiler__ast_elements_arity_1(form)
-		var if_result_3324 bool
+		var if_result_3328 bool
 		if flagrt.Eq(lowflagLong_3, flagrt.NewLong(int64(flagrt.Count(els)))) {
-			if_result_3324 = false
+			if_result_3328 = false
 		} else {
-			if_result_3324 = true
+			if_result_3328 = true
 		}
-		var if_result_3338 flagrt.Value
-		if if_result_3324 {
-			if_result_3338 = func() flagrt.Value {
+		var if_result_3342 flagrt.Value
+		if if_result_3328 {
+			if_result_3342 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("defrecord expects a name and field vector", compiler__form_at_suffix_arity_1(form))), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_3337 flagrt.Value
+			var let_result_3341 flagrt.Value
 			{
 				var name = compiler__ast_symbol_name_arity_1(flagrt.First(flagrt.Rest(els)))
 				var fields_ast = compiler__unwrap_ast_arity_1(flagrt.First(flagrt.Rest(flagrt.Rest(els))))
-				var if_result_3336 flagrt.Value
+				var if_result_3340 flagrt.Value
 				if flagrt.IsNil(name) {
-					if_result_3336 = func() flagrt.Value {
+					if_result_3340 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defrecord name must be a symbol"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var if_result_3325 bool
+					var if_result_3329 bool
 					if flagrt.Eq(lowflagKw_vector, flagrt.KeywordGet(fields_ast, lowflagKw_kind)) {
-						if_result_3325 = false
+						if_result_3329 = false
 					} else {
-						if_result_3325 = true
+						if_result_3329 = true
 					}
-					var if_result_3335 flagrt.Value
-					if if_result_3325 {
-						if_result_3335 = func() flagrt.Value {
+					var if_result_3339 flagrt.Value
+					if if_result_3329 {
+						if_result_3339 = func() flagrt.Value {
 							flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defrecord fields must be a vector"), flagrt.NewKeyword("data"), lowflagMap))
 							return flagrt.NilValue
 						}()
 					} else {
-						var let_result_3334 flagrt.Value
+						var let_result_3338 flagrt.Value
 						{
 							var type_name = compiler__go_ident_arity_1(name)
-							var let_result_3327 flagrt.Value
+							var let_result_3331 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_record_types)
-								var if_result_3326 flagrt.Value
+								var if_result_3330 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3326 = or_tmp
+									if_result_3330 = or_tmp
 								} else {
-									if_result_3326 = lowflagMap
+									if_result_3330 = lowflagMap
 								}
-								let_result_3327 = if_result_3326
+								let_result_3331 = if_result_3330
 							}
-							var prev = flagrt.Get(let_result_3327, type_name)
-							var if_result_3333 flagrt.Value
+							var prev = flagrt.Get(let_result_3331, type_name)
+							var if_result_3337 flagrt.Value
 							if flagrt.IsTruthy(prev) {
-								if_result_3333 = func() flagrt.Value {
+								if_result_3337 = func() flagrt.Value {
 									flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("record \"", name, "\" already defined as ", prev)), flagrt.NewKeyword("data"), lowflagMap))
 									return flagrt.NilValue
 								}()
 							} else {
-								var let_result_3332 flagrt.Value
+								var let_result_3336 flagrt.Value
 								{
 									var parsed = compiler__compile_defrecord_fields_arity_1(flagrt.KeywordGet(fields_ast, lowflagKw_elements))
 									var ctor_flag = flagrt.Str("->", name)
@@ -24263,46 +24259,46 @@ func compiler__compile_defrecord_form_arity_2(form flagrt.Value, ctx flagrt.Valu
 									var map_body = compiler__record_map_ctor_body_arity_3(type_name, flagrt.KeywordGet(parsed, lowflagKw_fields), ctx)
 									var ctor = compiler__record_ctor_function_arity_4(flagrt.NewString(ctor_flag), ctor_go, flagrt.KeywordGet(parsed, lowflagKw_params), compiler__record_ctor_body_arity_2(type_name, flagrt.KeywordGet(parsed, lowflagKw_fields)))
 									var map_ctor = compiler__record_ctor_function_arity_4(flagrt.NewString(map_flag), map_go, lowflagVec_13, flagrt.KeywordGet(map_body, lowflagKw_code))
-									var let_result_3329 flagrt.Value
+									var let_result_3333 flagrt.Value
 									{
 										var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_record_types)
-										var if_result_3328 flagrt.Value
+										var if_result_3332 flagrt.Value
 										if flagrt.IsTruthy(or_tmp) {
-											if_result_3328 = or_tmp
+											if_result_3332 = or_tmp
 										} else {
-											if_result_3328 = lowflagMap
+											if_result_3332 = lowflagMap
 										}
-										let_result_3329 = if_result_3328
+										let_result_3333 = if_result_3332
 									}
-									var let_result_3331 flagrt.Value
+									var let_result_3335 flagrt.Value
 									{
 										var or_tmp = flagrt.KeywordGet(ctx, lowflagKw_globals)
-										var if_result_3330 flagrt.Value
+										var if_result_3334 flagrt.Value
 										if flagrt.IsTruthy(or_tmp) {
-											if_result_3330 = or_tmp
+											if_result_3334 = or_tmp
 										} else {
-											if_result_3330 = lowflagMap
+											if_result_3334 = lowflagMap
 										}
-										let_result_3331 = if_result_3330
+										let_result_3335 = if_result_3334
 									}
-									var next_ctx = compiler__bind_module_name_arity_3(compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__register_fn_info_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.KeywordGet(map_body, lowflagKw_ctx), lowflagKw_record_types, compiler__map_put_arity_3(let_result_3329, type_name, name)), ctor_go, compiler__fn_call_info_arity_1(ctor)), map_go, compiler__fn_call_info_arity_1(map_ctor)), lowflagKw_globals, compiler__map_put_arity_3(compiler__map_put_arity_3(let_result_3331, ctor_go, lowflagKw_value), map_go, lowflagKw_value)), flagrt.NewString(ctor_flag), ctor_go), flagrt.NewString(map_flag), map_go)
-									let_result_3332 = flagrt.NewMap(lowflagKw_op, lowflagKw_defrecord, lowflagKw_type_decl, compiler__record_type_decl_arity_2(type_name, flagrt.KeywordGet(parsed, lowflagKw_fields)), lowflagKw_functions, flagrt.NewArray(ctor, map_ctor), lowflagKw_vars, flagrt.NewArray(compiler__defn_var_binding_arity_3(flagrt.NewString(ctor_flag), ctor_go, flagrt.KeywordGet(ctor, lowflagKw_variadic_name)), compiler__defn_var_binding_arity_3(flagrt.NewString(map_flag), map_go, flagrt.KeywordGet(map_ctor, lowflagKw_variadic_name))), lowflagKw_names, flagrt.NewArray(flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(ctor_flag), lowflagKw_go_name, ctor_go), flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(map_flag), lowflagKw_go_name, map_go)), lowflagKw_ctx, next_ctx)
+									var next_ctx = compiler__bind_module_name_arity_3(compiler__bind_module_name_arity_3(flagrt.Assoc(compiler__register_fn_info_arity_3(compiler__register_fn_info_arity_3(flagrt.Assoc(flagrt.KeywordGet(map_body, lowflagKw_ctx), lowflagKw_record_types, compiler__map_put_arity_3(let_result_3333, type_name, name)), ctor_go, compiler__fn_call_info_arity_1(ctor)), map_go, compiler__fn_call_info_arity_1(map_ctor)), lowflagKw_globals, compiler__map_put_arity_3(compiler__map_put_arity_3(let_result_3335, ctor_go, lowflagKw_value), map_go, lowflagKw_value)), flagrt.NewString(ctor_flag), ctor_go), flagrt.NewString(map_flag), map_go)
+									let_result_3336 = flagrt.NewMap(lowflagKw_op, lowflagKw_defrecord, lowflagKw_type_decl, compiler__record_type_decl_arity_2(type_name, flagrt.KeywordGet(parsed, lowflagKw_fields)), lowflagKw_functions, flagrt.NewArray(ctor, map_ctor), lowflagKw_vars, flagrt.NewArray(compiler__defn_var_binding_arity_3(flagrt.NewString(ctor_flag), ctor_go, flagrt.KeywordGet(ctor, lowflagKw_variadic_name)), compiler__defn_var_binding_arity_3(flagrt.NewString(map_flag), map_go, flagrt.KeywordGet(map_ctor, lowflagKw_variadic_name))), lowflagKw_names, flagrt.NewArray(flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(ctor_flag), lowflagKw_go_name, ctor_go), flagrt.NewMap(lowflagKw_flag_name, flagrt.NewString(map_flag), lowflagKw_go_name, map_go)), lowflagKw_ctx, next_ctx)
 								}
-								if_result_3333 = let_result_3332
+								if_result_3337 = let_result_3336
 							}
-							let_result_3334 = if_result_3333
+							let_result_3338 = if_result_3337
 						}
-						if_result_3335 = let_result_3334
+						if_result_3339 = let_result_3338
 					}
-					if_result_3336 = if_result_3335
+					if_result_3340 = if_result_3339
 				}
-				let_result_3337 = if_result_3336
+				let_result_3341 = if_result_3340
 			}
-			if_result_3338 = let_result_3337
+			if_result_3342 = let_result_3341
 		}
-		let_result_3339 = if_result_3338
+		let_result_3343 = if_result_3342
 	}
-	return let_result_3339
+	return let_result_3343
 }
 func compiler__compile_defrecord_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24312,51 +24308,51 @@ func compiler__compile_defrecord_form_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__compile_top_level_println_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3348 flagrt.Value
+	var let_result_3352 flagrt.Value
 	{
 		var ctx = compiler__require_top_level_form_arity_2(form, ctx)
-		let_result_3348 = func() flagrt.Value {
+		let_result_3352 = func() flagrt.Value {
 			var remaining = flagrt.Rest(compiler__ast_elements_arity_1(form))
 			var ctx = ctx
 			var stmts = lowflagVec
 			var irs = lowflagVec
 			for {
-				var let_result_3341 bool
+				var let_result_3345 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3340 bool
+					var if_result_3344 bool
 					if or_tmp {
-						if_result_3340 = or_tmp
+						if_result_3344 = or_tmp
 					} else {
-						if_result_3340 = flagrt.IsEmpty(remaining)
+						if_result_3344 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3341 = if_result_3340
+					let_result_3345 = if_result_3344
 				}
-				var if_result_3347 flagrt.Value
-				if let_result_3341 {
-					if_result_3347 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, stmts, lowflagKw_expr, compiler__fmt_call_ir_arity_2(lowflagStr_Println, flagrt.NewArray(compiler__literal_rt_call_arity_2(lowflagStr_Str, irs))), lowflagKw_kind, lowflagLong_0), lowflagKw_needs_fmt, flagrt.NewBool(true), lowflagKw_ctx, ctx)
+				var if_result_3351 flagrt.Value
+				if let_result_3345 {
+					if_result_3351 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, stmts, lowflagKw_expr, compiler__fmt_call_ir_arity_2(lowflagStr_Println, flagrt.NewArray(compiler__literal_rt_call_arity_2(lowflagStr_Str, irs))), lowflagKw_kind, lowflagLong_0), lowflagKw_needs_fmt, flagrt.NewBool(true), lowflagKw_ctx, ctx)
 				} else {
-					var let_result_3346 flagrt.Value
+					var let_result_3350 flagrt.Value
 					{
 						var part = compiler__compile_form_to_ir_arity_2(flagrt.First(remaining), ctx)
-						var recur_3342 = flagrt.Rest(remaining)
-						var recur_3343 = flagrt.KeywordGet(part, lowflagKw_ctx)
-						var recur_3344 = compiler__concat_stmts_arity_2(stmts, flagrt.KeywordGet(part, lowflagKw_stmts))
-						var recur_3345 = flagrt.Conj(irs, flagrt.KeywordGet(part, lowflagKw_expr))
-						remaining = recur_3342
-						ctx = recur_3343
-						stmts = recur_3344
-						irs = recur_3345
+						var recur_3346 = flagrt.Rest(remaining)
+						var recur_3347 = flagrt.KeywordGet(part, lowflagKw_ctx)
+						var recur_3348 = compiler__concat_stmts_arity_2(stmts, flagrt.KeywordGet(part, lowflagKw_stmts))
+						var recur_3349 = flagrt.Conj(irs, flagrt.KeywordGet(part, lowflagKw_expr))
+						remaining = recur_3346
+						ctx = recur_3347
+						stmts = recur_3348
+						irs = recur_3349
 						continue
-						let_result_3346 = flagrt.NilValue
+						let_result_3350 = flagrt.NilValue
 					}
-					if_result_3347 = let_result_3346
+					if_result_3351 = let_result_3350
 				}
-				return if_result_3347
+				return if_result_3351
 			}
 		}()
 	}
-	return let_result_3348
+	return let_result_3352
 }
 func compiler__compile_top_level_println_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24366,41 +24362,41 @@ func compiler__compile_top_level_println_variadic(args ...flagrt.Value) flagrt.V
 }
 
 func compiler__compile_top_level_print_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3353 flagrt.Value
+	var let_result_3357 flagrt.Value
 	{
 		var ctx = compiler__require_top_level_form_arity_2(form, ctx)
 		var args = flagrt.Rest(compiler__ast_elements_arity_1(form))
-		var if_result_3349 bool
+		var if_result_3353 bool
 		if flagrt.Eq(lowflagLong_1, flagrt.NewLong(int64(flagrt.Count(compiler__stmt_list_arity_1(args))))) {
-			if_result_3349 = false
+			if_result_3353 = false
 		} else {
-			if_result_3349 = true
+			if_result_3353 = true
 		}
-		var if_result_3352 flagrt.Value
-		if if_result_3349 {
-			if_result_3352 = func() flagrt.Value {
+		var if_result_3356 flagrt.Value
+		if if_result_3353 {
+			if_result_3356 = func() flagrt.Value {
 				flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("expected one argument"), flagrt.NewKeyword("data"), lowflagMap))
 				return flagrt.NilValue
 			}()
 		} else {
-			var let_result_3351 flagrt.Value
+			var let_result_3355 flagrt.Value
 			{
 				var part = compiler__compile_form_to_ir_arity_2(flagrt.First(args), ctx)
 				var flat = compiler__flatten_form_expr_arity_1(part)
-				var if_result_3350 flagrt.Value
+				var if_result_3354 flagrt.Value
 				if flagrt.Eq(lowflagKw_value, flagrt.KeywordGet(part, lowflagKw_expr_kind)) {
-					if_result_3350 = compiler__literal_rt_call_arity_2(lowflagStr_ValueToAny, flagrt.NewArray(flat))
+					if_result_3354 = compiler__literal_rt_call_arity_2(lowflagStr_ValueToAny, flagrt.NewArray(flat))
 				} else {
-					if_result_3350 = flat
+					if_result_3354 = flat
 				}
-				var arg = if_result_3350
-				let_result_3351 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, lowflagVec, lowflagKw_expr, compiler__fmt_call_ir_arity_2(lowflagStr_Print, flagrt.NewArray(arg)), lowflagKw_kind, lowflagLong_0), lowflagKw_needs_fmt, flagrt.NewBool(true), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
+				var arg = if_result_3354
+				let_result_3355 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, lowflagVec, lowflagKw_expr, compiler__fmt_call_ir_arity_2(lowflagStr_Print, flagrt.NewArray(arg)), lowflagKw_kind, lowflagLong_0), lowflagKw_needs_fmt, flagrt.NewBool(true), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
 			}
-			if_result_3352 = let_result_3351
+			if_result_3356 = let_result_3355
 		}
-		let_result_3353 = if_result_3352
+		let_result_3357 = if_result_3356
 	}
-	return let_result_3353
+	return let_result_3357
 }
 func compiler__compile_top_level_print_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24410,19 +24406,19 @@ func compiler__compile_top_level_print_variadic(args ...flagrt.Value) flagrt.Val
 }
 
 func compiler__compile_top_level_expr_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3355 flagrt.Value
+	var let_result_3359 flagrt.Value
 	{
 		var ctx = compiler__require_top_level_form_arity_2(form, ctx)
 		var part = compiler__compile_form_to_ir_arity_2(form, ctx)
-		var if_result_3354 flagrt.Value
+		var if_result_3358 flagrt.Value
 		if flagrt.IsTruthy(flagrt.KeywordGet(part, lowflagKw_defer_)) {
-			if_result_3354 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, flagrt.KeywordGet(part, lowflagKw_stmts), lowflagKw_defer_stmt, flagrt.KeywordGet(part, lowflagKw_stmt)), lowflagKw_needs_fmt, flagrt.NewBool(false), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
+			if_result_3358 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, flagrt.KeywordGet(part, lowflagKw_stmts), lowflagKw_defer_stmt, flagrt.KeywordGet(part, lowflagKw_stmt)), lowflagKw_needs_fmt, flagrt.NewBool(false), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
 		} else {
-			if_result_3354 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, flagrt.KeywordGet(part, lowflagKw_stmts), lowflagKw_expr, flagrt.KeywordGet(part, lowflagKw_expr), lowflagKw_kind, compiler__form_kind_number_arity_1(flagrt.KeywordGet(part, lowflagKw_expr_kind))), lowflagKw_needs_fmt, flagrt.NewBool(false), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
+			if_result_3358 = flagrt.NewMap(lowflagKw_op, lowflagKw_stmt, lowflagKw_stmt, flagrt.NewMap(lowflagKw_prelude_stmts, flagrt.KeywordGet(part, lowflagKw_stmts), lowflagKw_expr, flagrt.KeywordGet(part, lowflagKw_expr), lowflagKw_kind, compiler__form_kind_number_arity_1(flagrt.KeywordGet(part, lowflagKw_expr_kind))), lowflagKw_needs_fmt, flagrt.NewBool(false), lowflagKw_ctx, flagrt.KeywordGet(part, lowflagKw_ctx))
 		}
-		let_result_3355 = if_result_3354
+		let_result_3359 = if_result_3358
 	}
-	return let_result_3355
+	return let_result_3359
 }
 func compiler__compile_top_level_expr_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24432,107 +24428,107 @@ func compiler__compile_top_level_expr_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__compile_module_form_arity_2(form flagrt.Value, ctx flagrt.Value) flagrt.Value {
-	var let_result_3371 flagrt.Value
+	var let_result_3375 flagrt.Value
 	{
 		var head = compiler__list_head_name_arity_1(form)
-		var if_result_3370 flagrt.Value
+		var if_result_3374 flagrt.Value
 		if flagrt.IsNil(head) {
-			if_result_3370 = compiler__compile_top_level_expr_arity_2(form, ctx)
+			if_result_3374 = compiler__compile_top_level_expr_arity_2(form, ctx)
 		} else {
-			var if_result_3369 flagrt.Value
+			var if_result_3373 flagrt.Value
 			if flagrt.Eq(head, flagrt.NewString("ns")) {
-				if_result_3369 = func() flagrt.Value {
+				if_result_3373 = func() flagrt.Value {
 					flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("ns must be the first form (or use a module header map)"), flagrt.NewKeyword("data"), lowflagMap))
 					return flagrt.NilValue
 				}()
 			} else {
-				var if_result_3368 flagrt.Value
+				var if_result_3372 flagrt.Value
 				if flagrt.Eq(head, flagrt.NewString("defn-")) {
-					if_result_3368 = func() flagrt.Value {
+					if_result_3372 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("defn- is not supported; list public names in the module :exports instead"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				} else {
-					var if_result_3367 flagrt.Value
+					var if_result_3371 flagrt.Value
 					if flagrt.Eq(head, flagrt.NewString("defmacro")) {
-						if_result_3367 = flagrt.NewMap(lowflagKw_op, lowflagKw_skip, lowflagKw_ctx, ctx)
+						if_result_3371 = flagrt.NewMap(lowflagKw_op, lowflagKw_skip, lowflagKw_ctx, ctx)
 					} else {
-						var if_result_3366 flagrt.Value
+						var if_result_3370 flagrt.Value
 						if flagrt.Eq(head, flagrt.NewString("do")) {
-							if_result_3366 = flagrt.NewMap(lowflagKw_op, lowflagKw_splice, lowflagKw_forms, flagrt.Rest(compiler__ast_elements_arity_1(form)), lowflagKw_ctx, ctx)
+							if_result_3370 = flagrt.NewMap(lowflagKw_op, lowflagKw_splice, lowflagKw_forms, flagrt.Rest(compiler__ast_elements_arity_1(form)), lowflagKw_ctx, ctx)
 						} else {
-							var if_result_3365 flagrt.Value
+							var if_result_3369 flagrt.Value
 							if flagrt.Eq(head, flagrt.NewString("defn")) {
-								if_result_3365 = compiler__compile_defn_form_arity_2(form, ctx)
+								if_result_3369 = compiler__compile_defn_form_arity_2(form, ctx)
 							} else {
-								var if_result_3364 flagrt.Value
+								var if_result_3368 flagrt.Value
 								if flagrt.Eq(head, flagrt.NewString("def")) {
-									if_result_3364 = compiler__compile_def_form_arity_2(form, ctx)
+									if_result_3368 = compiler__compile_def_form_arity_2(form, ctx)
 								} else {
-									var if_result_3363 flagrt.Value
+									var if_result_3367 flagrt.Value
 									if flagrt.Eq(head, flagrt.NewString("deftest")) {
-										if_result_3363 = compiler__compile_deftest_form_arity_2(form, ctx)
+										if_result_3367 = compiler__compile_deftest_form_arity_2(form, ctx)
 									} else {
-										var if_result_3362 flagrt.Value
+										var if_result_3366 flagrt.Value
 										if flagrt.Eq(head, flagrt.NewString("declare")) {
-											if_result_3362 = compiler__compile_declare_form_arity_2(form, ctx)
+											if_result_3366 = compiler__compile_declare_form_arity_2(form, ctx)
 										} else {
-											var if_result_3361 flagrt.Value
+											var if_result_3365 flagrt.Value
 											if flagrt.Eq(head, flagrt.NewString("go-interface")) {
-												if_result_3361 = compiler__compile_go_interface_form_arity_2(form, ctx)
+												if_result_3365 = compiler__compile_go_interface_form_arity_2(form, ctx)
 											} else {
-												var let_result_3357 bool
+												var let_result_3361 bool
 												{
 													var or_tmp = flagrt.Eq(head, flagrt.NewString("defrecord"))
-													var if_result_3356 bool
+													var if_result_3360 bool
 													if or_tmp {
-														if_result_3356 = or_tmp
+														if_result_3360 = or_tmp
 													} else {
-														if_result_3356 = flagrt.Eq(head, flagrt.NewString("defrecord*"))
+														if_result_3360 = flagrt.Eq(head, flagrt.NewString("defrecord*"))
 													}
-													let_result_3357 = if_result_3356
+													let_result_3361 = if_result_3360
 												}
-												var if_result_3360 flagrt.Value
-												if let_result_3357 {
-													if_result_3360 = compiler__compile_defrecord_form_arity_2(form, ctx)
+												var if_result_3364 flagrt.Value
+												if let_result_3361 {
+													if_result_3364 = compiler__compile_defrecord_form_arity_2(form, ctx)
 												} else {
-													var if_result_3359 flagrt.Value
+													var if_result_3363 flagrt.Value
 													if flagrt.Eq(head, flagrt.NewString("println")) {
-														if_result_3359 = compiler__compile_top_level_println_arity_2(form, ctx)
+														if_result_3363 = compiler__compile_top_level_println_arity_2(form, ctx)
 													} else {
-														var if_result_3358 flagrt.Value
+														var if_result_3362 flagrt.Value
 														if flagrt.Eq(head, flagrt.NewString("print")) {
-															if_result_3358 = compiler__compile_top_level_print_arity_2(form, ctx)
+															if_result_3362 = compiler__compile_top_level_print_arity_2(form, ctx)
 														} else {
-															if_result_3358 = compiler__compile_top_level_expr_arity_2(form, ctx)
+															if_result_3362 = compiler__compile_top_level_expr_arity_2(form, ctx)
 														}
-														if_result_3359 = if_result_3358
+														if_result_3363 = if_result_3362
 													}
-													if_result_3360 = if_result_3359
+													if_result_3364 = if_result_3363
 												}
-												if_result_3361 = if_result_3360
+												if_result_3365 = if_result_3364
 											}
-											if_result_3362 = if_result_3361
+											if_result_3366 = if_result_3365
 										}
-										if_result_3363 = if_result_3362
+										if_result_3367 = if_result_3366
 									}
-									if_result_3364 = if_result_3363
+									if_result_3368 = if_result_3367
 								}
-								if_result_3365 = if_result_3364
+								if_result_3369 = if_result_3368
 							}
-							if_result_3366 = if_result_3365
+							if_result_3370 = if_result_3369
 						}
-						if_result_3367 = if_result_3366
+						if_result_3371 = if_result_3370
 					}
-					if_result_3368 = if_result_3367
+					if_result_3372 = if_result_3371
 				}
-				if_result_3369 = if_result_3368
+				if_result_3373 = if_result_3372
 			}
-			if_result_3370 = if_result_3369
+			if_result_3374 = if_result_3373
 		}
-		let_result_3371 = if_result_3370
+		let_result_3375 = if_result_3374
 	}
-	return let_result_3371
+	return let_result_3375
 }
 func compiler__compile_module_form_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -24554,321 +24550,321 @@ func compiler__compile_module_body_arity_2(forms flagrt.Value, ctx flagrt.Value)
 		var needs_fmt = flagrt.NewBool(false)
 		var type_decls = lowflagVec
 		for {
-			var let_result_3373 bool
+			var let_result_3377 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3372 bool
+				var if_result_3376 bool
 				if or_tmp {
-					if_result_3372 = or_tmp
+					if_result_3376 = or_tmp
 				} else {
-					if_result_3372 = flagrt.IsEmpty(remaining)
+					if_result_3376 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3373 = if_result_3372
+				let_result_3377 = if_result_3376
 			}
-			var if_result_3482 flagrt.Value
-			if let_result_3373 {
-				if_result_3482 = flagrt.NewMap(lowflagKw_functions, functions, lowflagKw_vars, vars, lowflagKw_tests, tests, lowflagKw_stmts, stmts, lowflagKw_defined, defined, lowflagKw_fn_info, fn_info, lowflagKw_ctx, ctx, lowflagKw_needs_fmt, needs_fmt, lowflagKw_type_decls, type_decls)
+			var if_result_3486 flagrt.Value
+			if let_result_3377 {
+				if_result_3486 = flagrt.NewMap(lowflagKw_functions, functions, lowflagKw_vars, vars, lowflagKw_tests, tests, lowflagKw_stmts, stmts, lowflagKw_defined, defined, lowflagKw_fn_info, fn_info, lowflagKw_ctx, ctx, lowflagKw_needs_fmt, needs_fmt, lowflagKw_type_decls, type_decls)
 			} else {
-				var let_result_3481 flagrt.Value
+				var let_result_3485 flagrt.Value
 				{
 					var item = compiler__compile_module_form_arity_2(flagrt.First(remaining), ctx)
 					var op = flagrt.KeywordGet(item, lowflagKw_op)
-					var if_result_3480 flagrt.Value
+					var if_result_3484 flagrt.Value
 					if flagrt.Eq(op, lowflagKw_skip) {
-						var recur_3374 = flagrt.Rest(remaining)
-						var recur_3375 = flagrt.KeywordGet(item, lowflagKw_ctx)
-						var recur_3376 = functions
-						var recur_3377 = vars
-						var recur_3378 = tests
-						var recur_3379 = stmts
-						var recur_3380 = defined
-						var recur_3381 = fn_info
-						var recur_3382 = needs_fmt
-						var recur_3383 = type_decls
-						remaining = recur_3374
-						ctx = recur_3375
-						functions = recur_3376
-						vars = recur_3377
-						tests = recur_3378
-						stmts = recur_3379
-						defined = recur_3380
-						fn_info = recur_3381
-						needs_fmt = recur_3382
-						type_decls = recur_3383
+						var recur_3378 = flagrt.Rest(remaining)
+						var recur_3379 = flagrt.KeywordGet(item, lowflagKw_ctx)
+						var recur_3380 = functions
+						var recur_3381 = vars
+						var recur_3382 = tests
+						var recur_3383 = stmts
+						var recur_3384 = defined
+						var recur_3385 = fn_info
+						var recur_3386 = needs_fmt
+						var recur_3387 = type_decls
+						remaining = recur_3378
+						ctx = recur_3379
+						functions = recur_3380
+						vars = recur_3381
+						tests = recur_3382
+						stmts = recur_3383
+						defined = recur_3384
+						fn_info = recur_3385
+						needs_fmt = recur_3386
+						type_decls = recur_3387
 						continue
-						if_result_3480 = flagrt.NilValue
+						if_result_3484 = flagrt.NilValue
 					} else {
-						var if_result_3479 flagrt.Value
+						var if_result_3483 flagrt.Value
 						if flagrt.Eq(op, lowflagKw_splice) {
-							var recur_3384 = compiler__concat_stmts_arity_2(flagrt.KeywordGet(item, lowflagKw_forms), flagrt.Rest(remaining))
-							var recur_3385 = flagrt.KeywordGet(item, lowflagKw_ctx)
-							var recur_3386 = functions
-							var recur_3387 = vars
-							var recur_3388 = tests
-							var recur_3389 = stmts
-							var recur_3390 = defined
-							var recur_3391 = fn_info
-							var recur_3392 = needs_fmt
-							var recur_3393 = type_decls
-							remaining = recur_3384
-							ctx = recur_3385
-							functions = recur_3386
-							vars = recur_3387
-							tests = recur_3388
-							stmts = recur_3389
-							defined = recur_3390
-							fn_info = recur_3391
-							needs_fmt = recur_3392
-							type_decls = recur_3393
+							var recur_3388 = compiler__concat_stmts_arity_2(flagrt.KeywordGet(item, lowflagKw_forms), flagrt.Rest(remaining))
+							var recur_3389 = flagrt.KeywordGet(item, lowflagKw_ctx)
+							var recur_3390 = functions
+							var recur_3391 = vars
+							var recur_3392 = tests
+							var recur_3393 = stmts
+							var recur_3394 = defined
+							var recur_3395 = fn_info
+							var recur_3396 = needs_fmt
+							var recur_3397 = type_decls
+							remaining = recur_3388
+							ctx = recur_3389
+							functions = recur_3390
+							vars = recur_3391
+							tests = recur_3392
+							stmts = recur_3393
+							defined = recur_3394
+							fn_info = recur_3395
+							needs_fmt = recur_3396
+							type_decls = recur_3397
 							continue
-							if_result_3479 = flagrt.NilValue
+							if_result_3483 = flagrt.NilValue
 						} else {
-							var if_result_3478 flagrt.Value
+							var if_result_3482 flagrt.Value
 							if flagrt.Eq(op, lowflagKw_defn) {
-								var recur_3394 = flagrt.Rest(remaining)
-								var recur_3395 = flagrt.KeywordGet(item, lowflagKw_ctx)
-								var recur_3396 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
-								var recur_3397 = flagrt.Conj(vars, flagrt.KeywordGet(item, lowflagKw_var))
-								var recur_3398 = tests
-								var recur_3399 = stmts
-								var recur_3400 = compiler__map_put_arity_3(defined, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_flag_name), flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_go_name))
-								var recur_3401 = compiler__map_put_arity_3(fn_info, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_flag_name), compiler__fn_call_info_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
-								var recur_3402 = needs_fmt
-								var recur_3403 = type_decls
-								remaining = recur_3394
-								ctx = recur_3395
-								functions = recur_3396
-								vars = recur_3397
-								tests = recur_3398
-								stmts = recur_3399
-								defined = recur_3400
-								fn_info = recur_3401
-								needs_fmt = recur_3402
-								type_decls = recur_3403
+								var recur_3398 = flagrt.Rest(remaining)
+								var recur_3399 = flagrt.KeywordGet(item, lowflagKw_ctx)
+								var recur_3400 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
+								var recur_3401 = flagrt.Conj(vars, flagrt.KeywordGet(item, lowflagKw_var))
+								var recur_3402 = tests
+								var recur_3403 = stmts
+								var recur_3404 = compiler__map_put_arity_3(defined, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_flag_name), flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_go_name))
+								var recur_3405 = compiler__map_put_arity_3(fn_info, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_function), lowflagKw_flag_name), compiler__fn_call_info_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
+								var recur_3406 = needs_fmt
+								var recur_3407 = type_decls
+								remaining = recur_3398
+								ctx = recur_3399
+								functions = recur_3400
+								vars = recur_3401
+								tests = recur_3402
+								stmts = recur_3403
+								defined = recur_3404
+								fn_info = recur_3405
+								needs_fmt = recur_3406
+								type_decls = recur_3407
 								continue
-								if_result_3478 = flagrt.NilValue
+								if_result_3482 = flagrt.NilValue
 							} else {
-								var if_result_3477 flagrt.Value
+								var if_result_3481 flagrt.Value
 								if flagrt.Eq(op, lowflagKw_def) {
-									var recur_3404 = flagrt.Rest(remaining)
-									var recur_3405 = flagrt.KeywordGet(item, lowflagKw_ctx)
-									var recur_3406 = functions
-									var recur_3407 = flagrt.Conj(vars, flagrt.KeywordGet(item, lowflagKw_var))
-									var recur_3408 = tests
-									var recur_3409 = stmts
-									var recur_3410 = compiler__map_put_arity_3(defined, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_var), lowflagKw_flag_name), flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_var), lowflagKw_go_name))
-									var recur_3411 = fn_info
-									var recur_3412 = needs_fmt
-									var recur_3413 = type_decls
-									remaining = recur_3404
-									ctx = recur_3405
-									functions = recur_3406
-									vars = recur_3407
-									tests = recur_3408
-									stmts = recur_3409
-									defined = recur_3410
-									fn_info = recur_3411
-									needs_fmt = recur_3412
-									type_decls = recur_3413
+									var recur_3408 = flagrt.Rest(remaining)
+									var recur_3409 = flagrt.KeywordGet(item, lowflagKw_ctx)
+									var recur_3410 = functions
+									var recur_3411 = flagrt.Conj(vars, flagrt.KeywordGet(item, lowflagKw_var))
+									var recur_3412 = tests
+									var recur_3413 = stmts
+									var recur_3414 = compiler__map_put_arity_3(defined, flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_var), lowflagKw_flag_name), flagrt.KeywordGet(flagrt.KeywordGet(item, lowflagKw_var), lowflagKw_go_name))
+									var recur_3415 = fn_info
+									var recur_3416 = needs_fmt
+									var recur_3417 = type_decls
+									remaining = recur_3408
+									ctx = recur_3409
+									functions = recur_3410
+									vars = recur_3411
+									tests = recur_3412
+									stmts = recur_3413
+									defined = recur_3414
+									fn_info = recur_3415
+									needs_fmt = recur_3416
+									type_decls = recur_3417
 									continue
-									if_result_3477 = flagrt.NilValue
+									if_result_3481 = flagrt.NilValue
 								} else {
-									var if_result_3476 flagrt.Value
+									var if_result_3480 flagrt.Value
 									if flagrt.Eq(op, lowflagKw_deftest) {
-										var recur_3414 = flagrt.Rest(remaining)
-										var recur_3415 = flagrt.KeywordGet(item, lowflagKw_ctx)
-										var recur_3416 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
-										var recur_3417 = vars
-										var recur_3418 = flagrt.Conj(tests, flagrt.KeywordGet(item, lowflagKw_test))
-										var recur_3419 = stmts
-										var recur_3420 = defined
-										var recur_3421 = fn_info
-										var recur_3422 = needs_fmt
-										var recur_3423 = type_decls
-										remaining = recur_3414
-										ctx = recur_3415
-										functions = recur_3416
-										vars = recur_3417
-										tests = recur_3418
-										stmts = recur_3419
-										defined = recur_3420
-										fn_info = recur_3421
-										needs_fmt = recur_3422
-										type_decls = recur_3423
+										var recur_3418 = flagrt.Rest(remaining)
+										var recur_3419 = flagrt.KeywordGet(item, lowflagKw_ctx)
+										var recur_3420 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
+										var recur_3421 = vars
+										var recur_3422 = flagrt.Conj(tests, flagrt.KeywordGet(item, lowflagKw_test))
+										var recur_3423 = stmts
+										var recur_3424 = defined
+										var recur_3425 = fn_info
+										var recur_3426 = needs_fmt
+										var recur_3427 = type_decls
+										remaining = recur_3418
+										ctx = recur_3419
+										functions = recur_3420
+										vars = recur_3421
+										tests = recur_3422
+										stmts = recur_3423
+										defined = recur_3424
+										fn_info = recur_3425
+										needs_fmt = recur_3426
+										type_decls = recur_3427
 										continue
-										if_result_3476 = flagrt.NilValue
+										if_result_3480 = flagrt.NilValue
 									} else {
-										var if_result_3475 flagrt.Value
+										var if_result_3479 flagrt.Value
 										if flagrt.Eq(op, lowflagKw_declare) {
-											var recur_3424 = flagrt.Rest(remaining)
-											var recur_3425 = flagrt.KeywordGet(item, lowflagKw_ctx)
-											var recur_3426 = functions
-											var recur_3427 = vars
-											var recur_3428 = tests
-											var recur_3429 = stmts
-											var recur_3430 = compiler__merge_defined_names_arity_2(defined, flagrt.KeywordGet(item, lowflagKw_names))
-											var recur_3431 = fn_info
-											var recur_3432 = needs_fmt
-											var recur_3433 = type_decls
-											remaining = recur_3424
-											ctx = recur_3425
-											functions = recur_3426
-											vars = recur_3427
-											tests = recur_3428
-											stmts = recur_3429
-											defined = recur_3430
-											fn_info = recur_3431
-											needs_fmt = recur_3432
-											type_decls = recur_3433
+											var recur_3428 = flagrt.Rest(remaining)
+											var recur_3429 = flagrt.KeywordGet(item, lowflagKw_ctx)
+											var recur_3430 = functions
+											var recur_3431 = vars
+											var recur_3432 = tests
+											var recur_3433 = stmts
+											var recur_3434 = compiler__merge_defined_names_arity_2(defined, flagrt.KeywordGet(item, lowflagKw_names))
+											var recur_3435 = fn_info
+											var recur_3436 = needs_fmt
+											var recur_3437 = type_decls
+											remaining = recur_3428
+											ctx = recur_3429
+											functions = recur_3430
+											vars = recur_3431
+											tests = recur_3432
+											stmts = recur_3433
+											defined = recur_3434
+											fn_info = recur_3435
+											needs_fmt = recur_3436
+											type_decls = recur_3437
 											continue
-											if_result_3475 = flagrt.NilValue
+											if_result_3479 = flagrt.NilValue
 										} else {
-											var if_result_3474 flagrt.Value
+											var if_result_3478 flagrt.Value
 											if flagrt.Eq(op, lowflagKw_go_interface) {
-												var recur_3434 = flagrt.Rest(remaining)
-												var recur_3435 = flagrt.KeywordGet(item, lowflagKw_ctx)
-												var recur_3436 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
-												var recur_3437 = vars
-												var recur_3438 = tests
-												var recur_3439 = stmts
-												var recur_3440 = defined
-												var recur_3441 = fn_info
-												var recur_3442 = needs_fmt
-												var recur_3443 = type_decls
-												remaining = recur_3434
-												ctx = recur_3435
-												functions = recur_3436
-												vars = recur_3437
-												tests = recur_3438
-												stmts = recur_3439
-												defined = recur_3440
-												fn_info = recur_3441
-												needs_fmt = recur_3442
-												type_decls = recur_3443
+												var recur_3438 = flagrt.Rest(remaining)
+												var recur_3439 = flagrt.KeywordGet(item, lowflagKw_ctx)
+												var recur_3440 = flagrt.Conj(functions, compiler__function_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_function)))
+												var recur_3441 = vars
+												var recur_3442 = tests
+												var recur_3443 = stmts
+												var recur_3444 = defined
+												var recur_3445 = fn_info
+												var recur_3446 = needs_fmt
+												var recur_3447 = type_decls
+												remaining = recur_3438
+												ctx = recur_3439
+												functions = recur_3440
+												vars = recur_3441
+												tests = recur_3442
+												stmts = recur_3443
+												defined = recur_3444
+												fn_info = recur_3445
+												needs_fmt = recur_3446
+												type_decls = recur_3447
 												continue
-												if_result_3474 = flagrt.NilValue
+												if_result_3478 = flagrt.NilValue
 											} else {
-												var if_result_3473 flagrt.Value
+												var if_result_3477 flagrt.Value
 												if flagrt.Eq(op, lowflagKw_defrecord) {
-													var recur_3449 = flagrt.Rest(remaining)
-													var recur_3450 = flagrt.KeywordGet(item, lowflagKw_ctx)
-													var recur_3451 = compiler__concat_stmts_arity_2(functions, compiler__functions_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_functions)))
-													var recur_3452 = compiler__concat_stmts_arity_2(vars, flagrt.KeywordGet(item, lowflagKw_vars))
-													var recur_3453 = tests
-													var recur_3454 = stmts
-													var recur_3455 = compiler__merge_defined_names_arity_2(defined, flagrt.KeywordGet(item, lowflagKw_names))
-													var recur_3456 = func() flagrt.Value {
+													var recur_3453 = flagrt.Rest(remaining)
+													var recur_3454 = flagrt.KeywordGet(item, lowflagKw_ctx)
+													var recur_3455 = compiler__concat_stmts_arity_2(functions, compiler__functions_with_source_arity_1(flagrt.KeywordGet(item, lowflagKw_functions)))
+													var recur_3456 = compiler__concat_stmts_arity_2(vars, flagrt.KeywordGet(item, lowflagKw_vars))
+													var recur_3457 = tests
+													var recur_3458 = stmts
+													var recur_3459 = compiler__merge_defined_names_arity_2(defined, flagrt.KeywordGet(item, lowflagKw_names))
+													var recur_3460 = func() flagrt.Value {
 														var remaining = flagrt.KeywordGet(item, lowflagKw_functions)
 														var info = fn_info
 														for {
-															var let_result_3445 bool
+															var let_result_3449 bool
 															{
 																var or_tmp = flagrt.IsNil(remaining)
-																var if_result_3444 bool
+																var if_result_3448 bool
 																if or_tmp {
-																	if_result_3444 = or_tmp
+																	if_result_3448 = or_tmp
 																} else {
-																	if_result_3444 = flagrt.IsEmpty(remaining)
+																	if_result_3448 = flagrt.IsEmpty(remaining)
 																}
-																let_result_3445 = if_result_3444
+																let_result_3449 = if_result_3448
 															}
-															var if_result_3448 flagrt.Value
-															if let_result_3445 {
-																if_result_3448 = info
+															var if_result_3452 flagrt.Value
+															if let_result_3449 {
+																if_result_3452 = info
 															} else {
-																var recur_3446 = flagrt.Rest(remaining)
-																var recur_3447 = compiler__map_put_arity_3(info, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_flag_name), compiler__fn_call_info_arity_1(flagrt.First(remaining)))
-																remaining = recur_3446
-																info = recur_3447
+																var recur_3450 = flagrt.Rest(remaining)
+																var recur_3451 = compiler__map_put_arity_3(info, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_flag_name), compiler__fn_call_info_arity_1(flagrt.First(remaining)))
+																remaining = recur_3450
+																info = recur_3451
 																continue
-																if_result_3448 = flagrt.NilValue
+																if_result_3452 = flagrt.NilValue
 															}
-															return if_result_3448
+															return if_result_3452
 														}
 													}()
-													var recur_3457 = needs_fmt
-													var recur_3458 = flagrt.Conj(type_decls, flagrt.KeywordGet(item, lowflagKw_type_decl))
-													remaining = recur_3449
-													ctx = recur_3450
-													functions = recur_3451
-													vars = recur_3452
-													tests = recur_3453
-													stmts = recur_3454
-													defined = recur_3455
-													fn_info = recur_3456
-													needs_fmt = recur_3457
-													type_decls = recur_3458
+													var recur_3461 = needs_fmt
+													var recur_3462 = flagrt.Conj(type_decls, flagrt.KeywordGet(item, lowflagKw_type_decl))
+													remaining = recur_3453
+													ctx = recur_3454
+													functions = recur_3455
+													vars = recur_3456
+													tests = recur_3457
+													stmts = recur_3458
+													defined = recur_3459
+													fn_info = recur_3460
+													needs_fmt = recur_3461
+													type_decls = recur_3462
 													continue
-													if_result_3473 = flagrt.NilValue
+													if_result_3477 = flagrt.NilValue
 												} else {
-													var if_result_3472 flagrt.Value
+													var if_result_3476 flagrt.Value
 													if flagrt.Eq(op, lowflagKw_stmt) {
-														var let_result_3460 flagrt.Value
+														var let_result_3464 flagrt.Value
 														{
 															var or_tmp = needs_fmt
-															var if_result_3459 flagrt.Value
+															var if_result_3463 flagrt.Value
 															if flagrt.IsTruthy(or_tmp) {
-																if_result_3459 = or_tmp
+																if_result_3463 = or_tmp
 															} else {
-																if_result_3459 = flagrt.KeywordGet(item, lowflagKw_needs_fmt)
+																if_result_3463 = flagrt.KeywordGet(item, lowflagKw_needs_fmt)
 															}
-															let_result_3460 = if_result_3459
+															let_result_3464 = if_result_3463
 														}
-														var if_result_3461 bool
-														if flagrt.IsTruthy(let_result_3460) {
-															if_result_3461 = true
+														var if_result_3465 bool
+														if flagrt.IsTruthy(let_result_3464) {
+															if_result_3465 = true
 														} else {
-															if_result_3461 = false
+															if_result_3465 = false
 														}
-														var recur_3462 = flagrt.Rest(remaining)
-														var recur_3463 = flagrt.KeywordGet(item, lowflagKw_ctx)
-														var recur_3464 = functions
-														var recur_3465 = vars
-														var recur_3466 = tests
-														var recur_3467 = flagrt.Conj(stmts, flagrt.KeywordGet(item, lowflagKw_stmt))
-														var recur_3468 = defined
-														var recur_3469 = fn_info
-														var recur_3470 = flagrt.NewBool(if_result_3461)
-														var recur_3471 = type_decls
-														remaining = recur_3462
-														ctx = recur_3463
-														functions = recur_3464
-														vars = recur_3465
-														tests = recur_3466
-														stmts = recur_3467
-														defined = recur_3468
-														fn_info = recur_3469
-														needs_fmt = recur_3470
-														type_decls = recur_3471
+														var recur_3466 = flagrt.Rest(remaining)
+														var recur_3467 = flagrt.KeywordGet(item, lowflagKw_ctx)
+														var recur_3468 = functions
+														var recur_3469 = vars
+														var recur_3470 = tests
+														var recur_3471 = flagrt.Conj(stmts, flagrt.KeywordGet(item, lowflagKw_stmt))
+														var recur_3472 = defined
+														var recur_3473 = fn_info
+														var recur_3474 = flagrt.NewBool(if_result_3465)
+														var recur_3475 = type_decls
+														remaining = recur_3466
+														ctx = recur_3467
+														functions = recur_3468
+														vars = recur_3469
+														tests = recur_3470
+														stmts = recur_3471
+														defined = recur_3472
+														fn_info = recur_3473
+														needs_fmt = recur_3474
+														type_decls = recur_3475
 														continue
-														if_result_3472 = flagrt.NilValue
+														if_result_3476 = flagrt.NilValue
 													} else {
-														if_result_3472 = func() flagrt.Value {
+														if_result_3476 = func() flagrt.Value {
 															flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("not handled by FLAG form lowering"), flagrt.NewKeyword("data"), flagrt.NewMap(lowflagKw_node, flagrt.First(remaining))))
 															return flagrt.NilValue
 														}()
 													}
-													if_result_3473 = if_result_3472
+													if_result_3477 = if_result_3476
 												}
-												if_result_3474 = if_result_3473
+												if_result_3478 = if_result_3477
 											}
-											if_result_3475 = if_result_3474
+											if_result_3479 = if_result_3478
 										}
-										if_result_3476 = if_result_3475
+										if_result_3480 = if_result_3479
 									}
-									if_result_3477 = if_result_3476
+									if_result_3481 = if_result_3480
 								}
-								if_result_3478 = if_result_3477
+								if_result_3482 = if_result_3481
 							}
-							if_result_3479 = if_result_3478
+							if_result_3483 = if_result_3482
 						}
-						if_result_3480 = if_result_3479
+						if_result_3484 = if_result_3483
 					}
-					let_result_3481 = if_result_3480
+					let_result_3485 = if_result_3484
 				}
-				if_result_3482 = let_result_3481
+				if_result_3486 = let_result_3485
 			}
-			return if_result_3482
+			return if_result_3486
 		}
 	}()
 }
@@ -24880,39 +24876,39 @@ func compiler__compile_module_body_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__compile_inline_modules_arity_3(modules flagrt.Value, ctx flagrt.Value, entry_path flagrt.Value) flagrt.Value {
-	var let_result_3519 flagrt.Value
+	var let_result_3523 flagrt.Value
 	{
 		var by_path = func() flagrt.Value {
 			var remaining = modules
 			var out = lowflagMap
 			for {
-				var let_result_3484 bool
+				var let_result_3488 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3483 bool
+					var if_result_3487 bool
 					if or_tmp {
-						if_result_3483 = or_tmp
+						if_result_3487 = or_tmp
 					} else {
-						if_result_3483 = flagrt.IsEmpty(remaining)
+						if_result_3487 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3484 = if_result_3483
+					let_result_3488 = if_result_3487
 				}
-				var if_result_3487 flagrt.Value
-				if let_result_3484 {
-					if_result_3487 = out
+				var if_result_3491 flagrt.Value
+				if let_result_3488 {
+					if_result_3491 = out
 				} else {
-					var recur_3485 = flagrt.Rest(remaining)
-					var recur_3486 = flagrt.Assoc(out, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_path), flagrt.First(remaining))
-					remaining = recur_3485
-					out = recur_3486
+					var recur_3489 = flagrt.Rest(remaining)
+					var recur_3490 = flagrt.Assoc(out, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_path), flagrt.First(remaining))
+					remaining = recur_3489
+					out = recur_3490
 					continue
-					if_result_3487 = flagrt.NilValue
+					if_result_3491 = flagrt.NilValue
 				}
-				return if_result_3487
+				return if_result_3491
 			}
 		}()
 		var prologue_path = compiler__program_prologue_path_arity_1(modules)
-		let_result_3519 = func() flagrt.Value {
+		let_result_3523 = func() flagrt.Value {
 			var remaining = modules
 			var shared = ctx
 			var module_defs = lowflagMap
@@ -24920,171 +24916,171 @@ func compiler__compile_inline_modules_arity_3(modules flagrt.Value, ctx flagrt.V
 			var module_fn_info = lowflagMap
 			var acc = lowflagMap_36
 			for {
-				var let_result_3489 bool
+				var let_result_3493 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3488 bool
+					var if_result_3492 bool
 					if or_tmp {
-						if_result_3488 = or_tmp
+						if_result_3492 = or_tmp
 					} else {
-						if_result_3488 = flagrt.IsEmpty(remaining)
+						if_result_3492 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3489 = if_result_3488
+					let_result_3493 = if_result_3492
 				}
-				var if_result_3518 flagrt.Value
-				if let_result_3489 {
-					var let_result_3493 flagrt.Value
+				var if_result_3522 flagrt.Value
+				if let_result_3493 {
+					var let_result_3497 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(flagrt.Get(by_path, entry_path), lowflagKw_namespace)
-						var if_result_3492 flagrt.Value
+						var if_result_3496 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_3492 = or_tmp
+							if_result_3496 = or_tmp
 						} else {
-							var let_result_3491 flagrt.Value
+							var let_result_3495 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(flagrt.Get(by_path, entry_path), lowflagKw_legacy_ns)
-								var if_result_3490 flagrt.Value
+								var if_result_3494 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3490 = or_tmp
+									if_result_3494 = or_tmp
 								} else {
-									if_result_3490 = flagrt.NewString("")
+									if_result_3494 = flagrt.NewString("")
 								}
-								let_result_3491 = if_result_3490
+								let_result_3495 = if_result_3494
 							}
-							if_result_3492 = let_result_3491
+							if_result_3496 = let_result_3495
 						}
-						let_result_3493 = if_result_3492
+						let_result_3497 = if_result_3496
 					}
-					var let_result_3495 flagrt.Value
+					var let_result_3499 flagrt.Value
 					{
 						var or_tmp = flagrt.KeywordGet(acc, lowflagKw_vars)
-						var if_result_3494 flagrt.Value
+						var if_result_3498 flagrt.Value
 						if flagrt.IsTruthy(or_tmp) {
-							if_result_3494 = or_tmp
+							if_result_3498 = or_tmp
 						} else {
-							if_result_3494 = lowflagVec
+							if_result_3498 = lowflagVec
 						}
-						let_result_3495 = if_result_3494
+						let_result_3499 = if_result_3498
 					}
-					if_result_3518 = flagrt.Assoc(acc, lowflagKw_ctx, shared, lowflagKw_namespace, let_result_3493, lowflagKw_defined, module_defs, lowflagKw_vars, flagrt.Into(let_result_3495, compiler__intern_var_defs_arity_1(flagrt.KeywordGet(shared, lowflagKw_constants))))
+					if_result_3522 = flagrt.Assoc(acc, lowflagKw_ctx, shared, lowflagKw_namespace, let_result_3497, lowflagKw_defined, module_defs, lowflagKw_vars, flagrt.Into(let_result_3499, compiler__intern_var_defs_arity_1(flagrt.KeywordGet(shared, lowflagKw_constants))))
 				} else {
-					var let_result_3517 flagrt.Value
+					var let_result_3521 flagrt.Value
 					{
 						var mod = compiler__with_implicit_prologue_import_arity_2(flagrt.First(remaining), prologue_path)
-						var let_result_3499 flagrt.Value
-						{
-							var or_tmp = flagrt.KeywordGet(mod, lowflagKw_namespace)
-							var if_result_3498 flagrt.Value
-							if flagrt.IsTruthy(or_tmp) {
-								if_result_3498 = or_tmp
-							} else {
-								var let_result_3497 flagrt.Value
-								{
-									var or_tmp = flagrt.KeywordGet(mod, lowflagKw_legacy_ns)
-									var if_result_3496 flagrt.Value
-									if flagrt.IsTruthy(or_tmp) {
-										if_result_3496 = or_tmp
-									} else {
-										if_result_3496 = flagrt.NewString("")
-									}
-									let_result_3497 = if_result_3496
-								}
-								if_result_3498 = let_result_3497
-							}
-							let_result_3499 = if_result_3498
-						}
-						var let_result_3501 flagrt.Value
-						{
-							var or_tmp = flagrt.KeywordGet(shared, lowflagKw_module)
-							var if_result_3500 flagrt.Value
-							if flagrt.IsTruthy(or_tmp) {
-								if_result_3500 = or_tmp
-							} else {
-								if_result_3500 = lowflagMap
-							}
-							let_result_3501 = if_result_3500
-						}
-						var ctx0 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(shared, lowflagKw_namespace, let_result_3499), lowflagKw_module, let_result_3501), lowflagKw_go_imports, lowflagVec)
-						var seeded = compiler__seed_imports_arity_6(ctx0, mod, by_path, module_defs, module_macros, module_fn_info)
-						var exported = compiler__apply_go_exports_arity_2(mod, flagrt.Assoc(seeded, lowflagKw_allow_top_level, flagrt.NewBool(flagrt.Eq(flagrt.KeywordGet(mod, lowflagKw_path), entry_path))))
-						var expanded = compiler__expand_module_forms_arity_2(flagrt.KeywordGet(flagrt.KeywordGet(exported, lowflagKw_ctx), lowflagKw_macro_forms), flagrt.KeywordGet(mod, lowflagKw_forms))
-						var compiled = compiler__compile_module_body_arity_2(expanded, flagrt.KeywordGet(exported, lowflagKw_ctx))
 						var let_result_3503 flagrt.Value
 						{
-							var or_tmp = flagrt.KeywordGet(exported, lowflagKw_vars)
+							var or_tmp = flagrt.KeywordGet(mod, lowflagKw_namespace)
 							var if_result_3502 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
 								if_result_3502 = or_tmp
 							} else {
-								if_result_3502 = lowflagVec
+								var let_result_3501 flagrt.Value
+								{
+									var or_tmp = flagrt.KeywordGet(mod, lowflagKw_legacy_ns)
+									var if_result_3500 flagrt.Value
+									if flagrt.IsTruthy(or_tmp) {
+										if_result_3500 = or_tmp
+									} else {
+										if_result_3500 = flagrt.NewString("")
+									}
+									let_result_3501 = if_result_3500
+								}
+								if_result_3502 = let_result_3501
 							}
 							let_result_3503 = if_result_3502
 						}
 						var let_result_3505 flagrt.Value
 						{
-							var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_vars)
+							var or_tmp = flagrt.KeywordGet(shared, lowflagKw_module)
 							var if_result_3504 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
 								if_result_3504 = or_tmp
 							} else {
-								if_result_3504 = lowflagVec
+								if_result_3504 = lowflagMap
 							}
 							let_result_3505 = if_result_3504
 						}
-						var compiled_vars = flagrt.Into(let_result_3503, let_result_3505)
+						var ctx0 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(shared, lowflagKw_namespace, let_result_3503), lowflagKw_module, let_result_3505), lowflagKw_go_imports, lowflagVec)
+						var seeded = compiler__seed_imports_arity_6(ctx0, mod, by_path, module_defs, module_macros, module_fn_info)
+						var exported = compiler__apply_go_exports_arity_2(mod, flagrt.Assoc(seeded, lowflagKw_allow_top_level, flagrt.NewBool(flagrt.Eq(flagrt.KeywordGet(mod, lowflagKw_path), entry_path))))
+						var expanded = compiler__expand_module_forms_arity_2(flagrt.KeywordGet(flagrt.KeywordGet(exported, lowflagKw_ctx), lowflagKw_macro_forms), flagrt.KeywordGet(mod, lowflagKw_forms))
+						var compiled = compiler__compile_module_body_arity_2(expanded, flagrt.KeywordGet(exported, lowflagKw_ctx))
+						var let_result_3507 flagrt.Value
+						{
+							var or_tmp = flagrt.KeywordGet(exported, lowflagKw_vars)
+							var if_result_3506 flagrt.Value
+							if flagrt.IsTruthy(or_tmp) {
+								if_result_3506 = or_tmp
+							} else {
+								if_result_3506 = lowflagVec
+							}
+							let_result_3507 = if_result_3506
+						}
+						var let_result_3509 flagrt.Value
+						{
+							var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_vars)
+							var if_result_3508 flagrt.Value
+							if flagrt.IsTruthy(or_tmp) {
+								if_result_3508 = or_tmp
+							} else {
+								if_result_3508 = lowflagVec
+							}
+							let_result_3509 = if_result_3508
+						}
+						var compiled_vars = flagrt.Into(let_result_3507, let_result_3509)
 						var compiled1 = flagrt.Assoc(flagrt.Assoc(compiled, lowflagKw_vars, compiled_vars), lowflagKw_defined, compiler__merge_compile_defined_arity_2(exported, compiled))
 						var macros = compiler__collect_defmacros_arity_1(flagrt.KeywordGet(mod, lowflagKw_forms))
-						var if_result_3506 flagrt.Value
+						var if_result_3510 flagrt.Value
 						if flagrt.IsTruthy(flagrt.KeywordGet(mod, lowflagKw_has_header)) {
-							if_result_3506 = compiler__validate_exports_arity_3(mod, flagrt.KeywordGet(compiled1, lowflagKw_defined), macros)
+							if_result_3510 = compiler__validate_exports_arity_3(mod, flagrt.KeywordGet(compiled1, lowflagKw_defined), macros)
 						} else {
-							if_result_3506 = flagrt.NilValue
+							if_result_3510 = flagrt.NilValue
 						}
-						_ = if_result_3506
-						var let_result_3508 flagrt.Value
+						_ = if_result_3510
+						var let_result_3512 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(shared, lowflagKw_module)
-							var if_result_3507 flagrt.Value
+							var if_result_3511 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3507 = or_tmp
+								if_result_3511 = or_tmp
 							} else {
-								if_result_3507 = lowflagMap
+								if_result_3511 = lowflagMap
 							}
-							let_result_3508 = if_result_3507
+							let_result_3512 = if_result_3511
 						}
-						var let_result_3510 flagrt.Value
+						var let_result_3514 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(compiled1, lowflagKw_fn_info)
-							var if_result_3509 flagrt.Value
+							var if_result_3513 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3509 = or_tmp
+								if_result_3513 = or_tmp
 							} else {
-								if_result_3509 = lowflagMap
+								if_result_3513 = lowflagMap
 							}
-							let_result_3510 = if_result_3509
+							let_result_3514 = if_result_3513
 						}
-						var recur_3511 = flagrt.Rest(remaining)
-						var recur_3512 = flagrt.Assoc(flagrt.Assoc(flagrt.KeywordGet(compiled1, lowflagKw_ctx), lowflagKw_module, let_result_3508), lowflagKw_go_imports, lowflagVec)
-						var recur_3513 = flagrt.Assoc(module_defs, flagrt.KeywordGet(mod, lowflagKw_path), flagrt.KeywordGet(compiled1, lowflagKw_defined))
-						var recur_3514 = flagrt.Assoc(module_macros, flagrt.KeywordGet(mod, lowflagKw_path), macros)
-						var recur_3515 = flagrt.Assoc(module_fn_info, flagrt.KeywordGet(mod, lowflagKw_path), let_result_3510)
-						var recur_3516 = compiler__append_compile_acc_arity_2(acc, compiled1)
-						remaining = recur_3511
-						shared = recur_3512
-						module_defs = recur_3513
-						module_macros = recur_3514
-						module_fn_info = recur_3515
-						acc = recur_3516
+						var recur_3515 = flagrt.Rest(remaining)
+						var recur_3516 = flagrt.Assoc(flagrt.Assoc(flagrt.KeywordGet(compiled1, lowflagKw_ctx), lowflagKw_module, let_result_3512), lowflagKw_go_imports, lowflagVec)
+						var recur_3517 = flagrt.Assoc(module_defs, flagrt.KeywordGet(mod, lowflagKw_path), flagrt.KeywordGet(compiled1, lowflagKw_defined))
+						var recur_3518 = flagrt.Assoc(module_macros, flagrt.KeywordGet(mod, lowflagKw_path), macros)
+						var recur_3519 = flagrt.Assoc(module_fn_info, flagrt.KeywordGet(mod, lowflagKw_path), let_result_3514)
+						var recur_3520 = compiler__append_compile_acc_arity_2(acc, compiled1)
+						remaining = recur_3515
+						shared = recur_3516
+						module_defs = recur_3517
+						module_macros = recur_3518
+						module_fn_info = recur_3519
+						acc = recur_3520
 						continue
-						let_result_3517 = flagrt.NilValue
+						let_result_3521 = flagrt.NilValue
 					}
-					if_result_3518 = let_result_3517
+					if_result_3522 = let_result_3521
 				}
-				return if_result_3518
+				return if_result_3522
 			}
 		}()
 	}
-	return let_result_3519
+	return let_result_3523
 }
 func compiler__compile_inline_modules_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -25094,353 +25090,353 @@ func compiler__compile_inline_modules_variadic(args ...flagrt.Value) flagrt.Valu
 }
 
 func compiler__compile_package_modules_arity_5(modules flagrt.Value, ctx flagrt.Value, prologue_exports flagrt.Value, entry_path flagrt.Value, prologue_names flagrt.Value) flagrt.Value {
-	var let_result_3578 flagrt.Value
+	var let_result_3582 flagrt.Value
 	{
 		var by_path = func() flagrt.Value {
 			var remaining = modules
 			var out = lowflagMap
 			for {
-				var let_result_3521 bool
+				var let_result_3525 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3520 bool
+					var if_result_3524 bool
 					if or_tmp {
-						if_result_3520 = or_tmp
+						if_result_3524 = or_tmp
 					} else {
-						if_result_3520 = flagrt.IsEmpty(remaining)
+						if_result_3524 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3521 = if_result_3520
+					let_result_3525 = if_result_3524
 				}
-				var if_result_3524 flagrt.Value
-				if let_result_3521 {
-					if_result_3524 = out
+				var if_result_3528 flagrt.Value
+				if let_result_3525 {
+					if_result_3528 = out
 				} else {
-					var recur_3522 = flagrt.Rest(remaining)
-					var recur_3523 = flagrt.Assoc(out, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_path), flagrt.First(remaining))
-					remaining = recur_3522
-					out = recur_3523
+					var recur_3526 = flagrt.Rest(remaining)
+					var recur_3527 = flagrt.Assoc(out, flagrt.KeywordGet(flagrt.First(remaining), lowflagKw_path), flagrt.First(remaining))
+					remaining = recur_3526
+					out = recur_3527
 					continue
-					if_result_3524 = flagrt.NilValue
+					if_result_3528 = flagrt.NilValue
 				}
-				return if_result_3524
+				return if_result_3528
 			}
 		}()
 		var prologue_path = compiler__program_prologue_path_arity_1(modules)
-		let_result_3578 = func() flagrt.Value {
+		let_result_3582 = func() flagrt.Value {
 			var remaining = modules
 			var used_pkgs = lowflagMap
 			var out = lowflagVec
 			for {
-				var let_result_3526 bool
+				var let_result_3530 bool
 				{
 					var or_tmp = flagrt.IsNil(remaining)
-					var if_result_3525 bool
+					var if_result_3529 bool
 					if or_tmp {
-						if_result_3525 = or_tmp
+						if_result_3529 = or_tmp
 					} else {
-						if_result_3525 = flagrt.IsEmpty(remaining)
+						if_result_3529 = flagrt.IsEmpty(remaining)
 					}
-					let_result_3526 = if_result_3525
+					let_result_3530 = if_result_3529
 				}
-				var if_result_3577 flagrt.Value
-				if let_result_3526 {
-					if_result_3577 = out
+				var if_result_3581 flagrt.Value
+				if let_result_3530 {
+					if_result_3581 = out
 				} else {
-					var let_result_3576 flagrt.Value
+					var let_result_3580 flagrt.Value
 					{
 						var mod = compiler__with_implicit_prologue_import_arity_2(flagrt.First(remaining), prologue_path)
 						var is_entry = flagrt.Eq(flagrt.KeywordGet(mod, lowflagKw_path), entry_path)
-						var let_result_3530 flagrt.Value
+						var let_result_3534 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(mod, lowflagKw_namespace)
-							var if_result_3529 flagrt.Value
+							var if_result_3533 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3529 = or_tmp
+								if_result_3533 = or_tmp
 							} else {
-								var let_result_3528 flagrt.Value
+								var let_result_3532 flagrt.Value
 								{
 									var or_tmp = flagrt.KeywordGet(mod, lowflagKw_legacy_ns)
-									var if_result_3527 flagrt.Value
+									var if_result_3531 flagrt.Value
 									if flagrt.IsTruthy(or_tmp) {
-										if_result_3527 = or_tmp
+										if_result_3531 = or_tmp
 									} else {
-										if_result_3527 = flagrt.NewString("")
+										if_result_3531 = flagrt.NewString("")
 									}
-									let_result_3528 = if_result_3527
+									let_result_3532 = if_result_3531
 								}
-								if_result_3529 = let_result_3528
+								if_result_3533 = let_result_3532
 							}
-							let_result_3530 = if_result_3529
+							let_result_3534 = if_result_3533
 						}
-						var ctx0 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_package_mode, flagrt.NewBool(true)), lowflagKw_constants, lowflagMap_37), lowflagKw_namespace, let_result_3530), lowflagKw_exported_names, compiler__module_export_set_arity_1(flagrt.KeywordGet(mod, lowflagKw_exports))), lowflagKw_module, lowflagMap), lowflagKw_functions, lowflagMap), lowflagKw_go_imports, lowflagVec)
+						var ctx0 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(ctx, lowflagKw_package_mode, flagrt.NewBool(true)), lowflagKw_constants, lowflagMap_37), lowflagKw_namespace, let_result_3534), lowflagKw_exported_names, compiler__module_export_set_arity_1(flagrt.KeywordGet(mod, lowflagKw_exports))), lowflagKw_module, lowflagMap), lowflagKw_functions, lowflagMap), lowflagKw_go_imports, lowflagVec)
 						var seeded = compiler__seed_imports_arity_6(ctx0, mod, by_path, func() flagrt.Value {
 							var pkgs = out
 							var defs = lowflagMap
 							for {
-								var let_result_3532 bool
+								var let_result_3536 bool
 								{
 									var or_tmp = flagrt.IsNil(pkgs)
-									var if_result_3531 bool
+									var if_result_3535 bool
 									if or_tmp {
-										if_result_3531 = or_tmp
+										if_result_3535 = or_tmp
 									} else {
-										if_result_3531 = flagrt.IsEmpty(pkgs)
+										if_result_3535 = flagrt.IsEmpty(pkgs)
 									}
-									let_result_3532 = if_result_3531
+									let_result_3536 = if_result_3535
 								}
-								var if_result_3535 flagrt.Value
-								if let_result_3532 {
-									if_result_3535 = defs
+								var if_result_3539 flagrt.Value
+								if let_result_3536 {
+									if_result_3539 = defs
 								} else {
-									var recur_3533 = flagrt.Rest(pkgs)
-									var recur_3534 = flagrt.Assoc(defs, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_defined))
-									pkgs = recur_3533
-									defs = recur_3534
+									var recur_3537 = flagrt.Rest(pkgs)
+									var recur_3538 = flagrt.Assoc(defs, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_defined))
+									pkgs = recur_3537
+									defs = recur_3538
 									continue
-									if_result_3535 = flagrt.NilValue
+									if_result_3539 = flagrt.NilValue
 								}
-								return if_result_3535
+								return if_result_3539
 							}
 						}(), func() flagrt.Value {
 							var pkgs = out
 							var macros = lowflagMap
 							for {
-								var let_result_3537 bool
+								var let_result_3541 bool
 								{
 									var or_tmp = flagrt.IsNil(pkgs)
-									var if_result_3536 bool
+									var if_result_3540 bool
 									if or_tmp {
-										if_result_3536 = or_tmp
+										if_result_3540 = or_tmp
 									} else {
-										if_result_3536 = flagrt.IsEmpty(pkgs)
+										if_result_3540 = flagrt.IsEmpty(pkgs)
 									}
-									let_result_3537 = if_result_3536
+									let_result_3541 = if_result_3540
 								}
-								var if_result_3540 flagrt.Value
-								if let_result_3537 {
-									if_result_3540 = macros
+								var if_result_3544 flagrt.Value
+								if let_result_3541 {
+									if_result_3544 = macros
 								} else {
-									var recur_3538 = flagrt.Rest(pkgs)
-									var recur_3539 = flagrt.Assoc(macros, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_macros))
-									pkgs = recur_3538
-									macros = recur_3539
+									var recur_3542 = flagrt.Rest(pkgs)
+									var recur_3543 = flagrt.Assoc(macros, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_macros))
+									pkgs = recur_3542
+									macros = recur_3543
 									continue
-									if_result_3540 = flagrt.NilValue
+									if_result_3544 = flagrt.NilValue
 								}
-								return if_result_3540
+								return if_result_3544
 							}
 						}(), func() flagrt.Value {
 							var pkgs = out
 							var info = lowflagMap
 							for {
-								var let_result_3542 bool
+								var let_result_3546 bool
 								{
 									var or_tmp = flagrt.IsNil(pkgs)
-									var if_result_3541 bool
+									var if_result_3545 bool
 									if or_tmp {
-										if_result_3541 = or_tmp
+										if_result_3545 = or_tmp
 									} else {
-										if_result_3541 = flagrt.IsEmpty(pkgs)
+										if_result_3545 = flagrt.IsEmpty(pkgs)
 									}
-									let_result_3542 = if_result_3541
+									let_result_3546 = if_result_3545
 								}
-								var if_result_3547 flagrt.Value
-								if let_result_3542 {
-									if_result_3547 = info
+								var if_result_3551 flagrt.Value
+								if let_result_3546 {
+									if_result_3551 = info
 								} else {
-									var let_result_3544 flagrt.Value
+									var let_result_3548 flagrt.Value
 									{
 										var or_tmp = flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_fn_info)
-										var if_result_3543 flagrt.Value
+										var if_result_3547 flagrt.Value
 										if flagrt.IsTruthy(or_tmp) {
-											if_result_3543 = or_tmp
+											if_result_3547 = or_tmp
 										} else {
-											if_result_3543 = lowflagMap
+											if_result_3547 = lowflagMap
 										}
-										let_result_3544 = if_result_3543
+										let_result_3548 = if_result_3547
 									}
-									var recur_3545 = flagrt.Rest(pkgs)
-									var recur_3546 = flagrt.Assoc(info, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), let_result_3544)
-									pkgs = recur_3545
-									info = recur_3546
+									var recur_3549 = flagrt.Rest(pkgs)
+									var recur_3550 = flagrt.Assoc(info, flagrt.KeywordGet(flagrt.First(pkgs), lowflagKw_path), let_result_3548)
+									pkgs = recur_3549
+									info = recur_3550
 									continue
-									if_result_3547 = flagrt.NilValue
+									if_result_3551 = flagrt.NilValue
 								}
-								return if_result_3547
+								return if_result_3551
 							}
 						}())
 						var exported = compiler__apply_go_exports_arity_2(mod, flagrt.Assoc(seeded, lowflagKw_allow_top_level, flagrt.NewBool(is_entry)))
 						var expanded = compiler__expand_module_forms_arity_2(flagrt.KeywordGet(flagrt.KeywordGet(exported, lowflagKw_ctx), lowflagKw_macro_forms), flagrt.KeywordGet(mod, lowflagKw_forms))
 						var compiled = compiler__compile_module_body_arity_2(expanded, flagrt.KeywordGet(exported, lowflagKw_ctx))
-						var let_result_3549 flagrt.Value
+						var let_result_3553 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(exported, lowflagKw_vars)
-							var if_result_3548 flagrt.Value
+							var if_result_3552 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3548 = or_tmp
+								if_result_3552 = or_tmp
 							} else {
-								if_result_3548 = lowflagVec
+								if_result_3552 = lowflagVec
 							}
-							let_result_3549 = if_result_3548
+							let_result_3553 = if_result_3552
 						}
-						var let_result_3551 flagrt.Value
+						var let_result_3555 flagrt.Value
 						{
 							var or_tmp = flagrt.KeywordGet(compiled, lowflagKw_vars)
-							var if_result_3550 flagrt.Value
+							var if_result_3554 flagrt.Value
 							if flagrt.IsTruthy(or_tmp) {
-								if_result_3550 = or_tmp
+								if_result_3554 = or_tmp
 							} else {
-								if_result_3550 = lowflagVec
+								if_result_3554 = lowflagVec
 							}
-							let_result_3551 = if_result_3550
+							let_result_3555 = if_result_3554
 						}
-						var compiled1 = flagrt.Assoc(flagrt.Assoc(compiled, lowflagKw_vars, flagrt.Into(flagrt.Into(let_result_3549, let_result_3551), compiler__intern_var_defs_arity_1(flagrt.KeywordGet(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagKw_constants)))), lowflagKw_defined, compiler__merge_compile_defined_arity_2(exported, compiled))
+						var compiled1 = flagrt.Assoc(flagrt.Assoc(compiled, lowflagKw_vars, flagrt.Into(flagrt.Into(let_result_3553, let_result_3555), compiler__intern_var_defs_arity_1(flagrt.KeywordGet(flagrt.KeywordGet(compiled, lowflagKw_ctx), lowflagKw_constants)))), lowflagKw_defined, compiler__merge_compile_defined_arity_2(exported, compiled))
 						var macros = compiler__collect_defmacros_arity_1(flagrt.KeywordGet(mod, lowflagKw_forms))
-						var if_result_3552 flagrt.Value
+						var if_result_3556 flagrt.Value
 						if flagrt.IsTruthy(flagrt.KeywordGet(mod, lowflagKw_has_header)) {
-							if_result_3552 = compiler__validate_exports_arity_3(mod, flagrt.KeywordGet(compiled1, lowflagKw_defined), macros)
+							if_result_3556 = compiler__validate_exports_arity_3(mod, flagrt.KeywordGet(compiled1, lowflagKw_defined), macros)
 						} else {
-							if_result_3552 = flagrt.NilValue
+							if_result_3556 = flagrt.NilValue
 						}
-						_ = if_result_3552
-						var let_result_3575 flagrt.Value
+						_ = if_result_3556
+						var let_result_3579 flagrt.Value
 						{
-							var if_result_3553 flagrt.Value
+							var if_result_3557 flagrt.Value
 							if flagrt.IsTruthy(compiler__result_refs_package_q_arity_2(compiled1, lowflagStr_prologue_)) {
-								if_result_3553 = flagrt.Assoc(compiled1, lowflagKw_ctx, compiler__add_go_import_arity_2(flagrt.KeywordGet(compiled1, lowflagKw_ctx), lowflagStr_prologue))
+								if_result_3557 = flagrt.Assoc(compiled1, lowflagKw_ctx, compiler__add_go_import_arity_2(flagrt.KeywordGet(compiled1, lowflagKw_ctx), lowflagStr_prologue))
 							} else {
-								if_result_3553 = compiled1
+								if_result_3557 = compiled1
 							}
-							var compiled2 = if_result_3553
-							var let_result_3557 flagrt.Value
+							var compiled2 = if_result_3557
+							var let_result_3561 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(mod, lowflagKw_namespace)
-								var if_result_3556 flagrt.Value
+								var if_result_3560 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3556 = or_tmp
+									if_result_3560 = or_tmp
 								} else {
-									var let_result_3555 flagrt.Value
+									var let_result_3559 flagrt.Value
 									{
 										var or_tmp = flagrt.KeywordGet(mod, lowflagKw_legacy_ns)
-										var if_result_3554 flagrt.Value
+										var if_result_3558 flagrt.Value
 										if flagrt.IsTruthy(or_tmp) {
-											if_result_3554 = or_tmp
+											if_result_3558 = or_tmp
 										} else {
-											if_result_3554 = flagrt.NewString("")
+											if_result_3558 = flagrt.NewString("")
 										}
-										let_result_3555 = if_result_3554
+										let_result_3559 = if_result_3558
 									}
-									if_result_3556 = let_result_3555
+									if_result_3560 = let_result_3559
 								}
-								let_result_3557 = if_result_3556
+								let_result_3561 = if_result_3560
 							}
-							var ns = let_result_3557
-							var let_result_3559 bool
+							var ns = let_result_3561
+							var let_result_3563 bool
 							{
 								var or_tmp = flagrt.IsNil(ns)
-								var if_result_3558 bool
+								var if_result_3562 bool
 								if or_tmp {
-									if_result_3558 = or_tmp
+									if_result_3562 = or_tmp
 								} else {
-									if_result_3558 = flagrt.Eq(ns, flagrt.NewString(""))
+									if_result_3562 = flagrt.Eq(ns, flagrt.NewString(""))
 								}
-								let_result_3559 = if_result_3558
+								let_result_3563 = if_result_3562
 							}
-							var if_result_3560 flagrt.Value
-							if let_result_3559 {
-								if_result_3560 = flagrt.NewString("")
+							var if_result_3564 flagrt.Value
+							if let_result_3563 {
+								if_result_3564 = flagrt.NewString("")
 							} else {
-								if_result_3560 = compiler__render_ir_stmt_arity_2(compiler__ns_to_ir_arity_1(ns), lowflagStr_)
+								if_result_3564 = compiler__render_ir_stmt_arity_2(compiler__ns_to_ir_arity_1(ns), lowflagStr_)
 							}
-							var let_result_3562 flagrt.Value
+							var let_result_3566 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(flagrt.KeywordGet(compiled2, lowflagKw_ctx), lowflagKw_go_imports)
-								var if_result_3561 flagrt.Value
+								var if_result_3565 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3561 = or_tmp
+									if_result_3565 = or_tmp
 								} else {
-									if_result_3561 = lowflagVec
+									if_result_3565 = lowflagVec
 								}
-								let_result_3562 = if_result_3561
+								let_result_3566 = if_result_3565
 							}
-							var compiled3 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(compiled2, lowflagKw_namespace, ns), lowflagKw_namespace_code, if_result_3560), lowflagKw_extra_imports, let_result_3562)
-							var if_result_3563 flagrt.Value
+							var compiled3 = flagrt.Assoc(flagrt.Assoc(flagrt.Assoc(compiled2, lowflagKw_namespace, ns), lowflagKw_namespace_code, if_result_3564), lowflagKw_extra_imports, let_result_3566)
+							var if_result_3567 flagrt.Value
 							if is_entry {
-								if_result_3563 = flagrt.NewString("main")
+								if_result_3567 = flagrt.NewString("main")
 							} else {
-								if_result_3563 = compiler__go_package_name_arity_1(ns)
+								if_result_3567 = compiler__go_package_name_arity_1(ns)
 							}
-							var pkg_name = if_result_3563
-							var if_result_3565 flagrt.Value
+							var pkg_name = if_result_3567
+							var if_result_3569 flagrt.Value
 							if is_entry {
-								if_result_3565 = used_pkgs
+								if_result_3569 = used_pkgs
 							} else {
-								var if_result_3564 flagrt.Value
+								var if_result_3568 flagrt.Value
 								if flagrt.IsTruthy(flagrt.Get(used_pkgs, pkg_name)) {
-									if_result_3564 = func() flagrt.Value {
+									if_result_3568 = func() flagrt.Value {
 										flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString(flagrt.Str("duplicate Go package name \"", pkg_name, "\" from ", flagrt.Get(used_pkgs, pkg_name), " and ", flagrt.KeywordGet(mod, lowflagKw_path))), flagrt.NewKeyword("data"), lowflagMap))
 										return flagrt.NilValue
 									}()
 								} else {
-									if_result_3564 = flagrt.Assoc(used_pkgs, compiler__as_value_arity_1(pkg_name), flagrt.KeywordGet(mod, lowflagKw_path))
+									if_result_3568 = flagrt.Assoc(used_pkgs, compiler__as_value_arity_1(pkg_name), flagrt.KeywordGet(mod, lowflagKw_path))
 								}
-								if_result_3565 = if_result_3564
+								if_result_3569 = if_result_3568
 							}
-							var used = if_result_3565
+							var used = if_result_3569
 							var src = compiler__compile_program_arity_3(pkg_name, compiled3, flagrt.NewBool(is_entry))
-							var if_result_3568 flagrt.Value
+							var if_result_3572 flagrt.Value
 							if is_entry {
-								if_result_3568 = flagrt.NewString("")
+								if_result_3572 = flagrt.NewString("")
 							} else {
-								var let_result_3567 flagrt.Value
+								var let_result_3571 flagrt.Value
 								{
 									var or_tmp = flagrt.KeywordGet(mod, lowflagKw_exports)
-									var if_result_3566 flagrt.Value
+									var if_result_3570 flagrt.Value
 									if flagrt.IsTruthy(or_tmp) {
-										if_result_3566 = or_tmp
+										if_result_3570 = or_tmp
 									} else {
-										if_result_3566 = flagrt.Into(flagrt.FnKeys(flagrt.KeywordGet(compiled3, lowflagKw_defined)), flagrt.FnKeys(macros))
+										if_result_3570 = flagrt.Into(flagrt.FnKeys(flagrt.KeywordGet(compiled3, lowflagKw_defined)), flagrt.FnKeys(macros))
 									}
-									let_result_3567 = if_result_3566
+									let_result_3571 = if_result_3570
 								}
-								if_result_3568 = compiler__emit_flagi_arity_5(ns, let_result_3567, flagrt.KeywordGet(mod, lowflagKw_go_exports), macros, flagrt.KeywordGet(compiled3, lowflagKw_defined))
+								if_result_3572 = compiler__emit_flagi_arity_5(ns, let_result_3571, flagrt.KeywordGet(mod, lowflagKw_go_exports), macros, flagrt.KeywordGet(compiled3, lowflagKw_defined))
 							}
-							var lowflagi = if_result_3568
-							var if_result_3569 flagrt.Value
+							var lowflagi = if_result_3572
+							var if_result_3573 flagrt.Value
 							if is_entry {
-								if_result_3569 = flagrt.NewString("")
+								if_result_3573 = flagrt.NewString("")
 							} else {
-								if_result_3569 = pkg_name
+								if_result_3573 = pkg_name
 							}
-							var let_result_3571 flagrt.Value
+							var let_result_3575 flagrt.Value
 							{
 								var or_tmp = flagrt.KeywordGet(compiled3, lowflagKw_fn_info)
-								var if_result_3570 flagrt.Value
+								var if_result_3574 flagrt.Value
 								if flagrt.IsTruthy(or_tmp) {
-									if_result_3570 = or_tmp
+									if_result_3574 = or_tmp
 								} else {
-									if_result_3570 = lowflagMap
+									if_result_3574 = lowflagMap
 								}
-								let_result_3571 = if_result_3570
+								let_result_3575 = if_result_3574
 							}
-							var recur_3572 = flagrt.Rest(remaining)
-							var recur_3573 = used
-							var recur_3574 = flagrt.Conj(out, flagrt.NewMap(lowflagKw_dir, if_result_3569, lowflagKw_name, pkg_name, lowflagKw_source, src, lowflagKw_flagi, lowflagi, lowflagKw_main_, flagrt.NewBool(is_entry), lowflagKw_path, flagrt.KeywordGet(mod, lowflagKw_path), lowflagKw_defined, flagrt.KeywordGet(compiled3, lowflagKw_defined), lowflagKw_fn_info, let_result_3571, lowflagKw_macros, macros))
-							remaining = recur_3572
-							used_pkgs = recur_3573
-							out = recur_3574
+							var recur_3576 = flagrt.Rest(remaining)
+							var recur_3577 = used
+							var recur_3578 = flagrt.Conj(out, flagrt.NewMap(lowflagKw_dir, if_result_3573, lowflagKw_name, pkg_name, lowflagKw_source, src, lowflagKw_flagi, lowflagi, lowflagKw_main_, flagrt.NewBool(is_entry), lowflagKw_path, flagrt.KeywordGet(mod, lowflagKw_path), lowflagKw_defined, flagrt.KeywordGet(compiled3, lowflagKw_defined), lowflagKw_fn_info, let_result_3575, lowflagKw_macros, macros))
+							remaining = recur_3576
+							used_pkgs = recur_3577
+							out = recur_3578
 							continue
-							let_result_3575 = flagrt.NilValue
+							let_result_3579 = flagrt.NilValue
 						}
-						let_result_3576 = let_result_3575
+						let_result_3580 = let_result_3579
 					}
-					if_result_3577 = let_result_3576
+					if_result_3581 = let_result_3580
 				}
-				return if_result_3577
+				return if_result_3581
 			}
 		}()
 	}
-	return let_result_3578
+	return let_result_3582
 }
 func compiler__compile_package_modules_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 5 {
@@ -25450,33 +25446,33 @@ func compiler__compile_package_modules_variadic(args ...flagrt.Value) flagrt.Val
 }
 
 func compiler__file_first_line_arity_1(s flagrt.Value) flagrt.Value {
-	var let_result_3582 flagrt.Value
+	var let_result_3586 flagrt.Value
 	{
 		var text = flagrt.Str(s)
 		var n = flagrt.NewLong(int64(flagrt.Count(flagrt.NewString(text))))
-		let_result_3582 = func() flagrt.Value {
+		let_result_3586 = func() flagrt.Value {
 			var i = lowflagLong_0
 			for {
-				var if_result_3581 flagrt.Value
+				var if_result_3585 flagrt.Value
 				if flagrt.Ge(i, n) {
-					if_result_3581 = flagrt.NewString(text)
+					if_result_3585 = flagrt.NewString(text)
 				} else {
-					var if_result_3580 flagrt.Value
+					var if_result_3584 flagrt.Value
 					if flagrt.Eq(flagrt.FnSubs(flagrt.NewString(text), i, flagrt.Add(i, lowflagLong_1)), flagrt.NewString("\n")) {
-						if_result_3580 = flagrt.FnSubs(flagrt.NewString(text), lowflagLong_0, i)
+						if_result_3584 = flagrt.FnSubs(flagrt.NewString(text), lowflagLong_0, i)
 					} else {
-						var recur_3579 = flagrt.Inc(i)
-						i = recur_3579
+						var recur_3583 = flagrt.Inc(i)
+						i = recur_3583
 						continue
-						if_result_3580 = flagrt.NilValue
+						if_result_3584 = flagrt.NilValue
 					}
-					if_result_3581 = if_result_3580
+					if_result_3585 = if_result_3584
 				}
-				return if_result_3581
+				return if_result_3585
 			}
 		}()
 	}
-	return let_result_3582
+	return let_result_3586
 }
 func compiler__file_first_line_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -25486,18 +25482,18 @@ func compiler__file_first_line_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__go_mod_is_flag_lang_q_arity_1(dir flagrt.Value) flagrt.Value {
-	var let_result_3584 bool
+	var let_result_3588 bool
 	{
 		var p = compiler__path_join_arity_2(dir, lowflagStr_go_mod)
-		var if_result_3583 bool
+		var if_result_3587 bool
 		if flagrt.IsTruthy(compiler__file_exists_q_arity_1(p)) {
-			if_result_3583 = flagrt.Eq(compiler__trim_space_arity_1(compiler__file_first_line_arity_1(compiler__read_text_file_arity_1(p))), flagrt.NewString("module flag-lang"))
+			if_result_3587 = flagrt.Eq(compiler__trim_space_arity_1(compiler__file_first_line_arity_1(compiler__read_text_file_arity_1(p))), flagrt.NewString("module flag-lang"))
 		} else {
-			if_result_3583 = false
+			if_result_3587 = false
 		}
-		let_result_3584 = if_result_3583
+		let_result_3588 = if_result_3587
 	}
-	return flagrt.NewBool(let_result_3584)
+	return flagrt.NewBool(let_result_3588)
 }
 func compiler__go_mod_is_flag_lang_q_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -25511,40 +25507,40 @@ func compiler__walk_flag_lang_root_arity_2(start flagrt.Value, seen flagrt.Value
 		var dir = start
 		var seen = seen
 		for {
-			var if_result_3591 flagrt.Value
+			var if_result_3595 flagrt.Value
 			if flagrt.Contains(seen, compiler__as_value_arity_1(dir)) {
-				if_result_3591 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_seen, seen)
+				if_result_3595 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_seen, seen)
 			} else {
-				var let_result_3590 flagrt.Value
+				var let_result_3594 flagrt.Value
 				{
 					var seen1 = flagrt.Assoc(seen, compiler__as_value_arity_1(dir), flagrt.NewBool(true))
-					var if_result_3589 flagrt.Value
+					var if_result_3593 flagrt.Value
 					if flagrt.IsTruthy(compiler__go_mod_is_flag_lang_q_arity_1(dir)) {
-						if_result_3589 = flagrt.NewMap(lowflagKw_path, dir, lowflagKw_seen, seen1)
+						if_result_3593 = flagrt.NewMap(lowflagKw_path, dir, lowflagKw_seen, seen1)
 					} else {
-						var let_result_3588 flagrt.Value
+						var let_result_3592 flagrt.Value
 						{
 							var parent = compiler__path_dir_arity_1(dir)
-							var if_result_3587 flagrt.Value
+							var if_result_3591 flagrt.Value
 							if flagrt.Eq(parent, dir) {
-								if_result_3587 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_seen, seen1)
+								if_result_3591 = flagrt.NewMap(lowflagKw_path, flagrt.NilValue, lowflagKw_seen, seen1)
 							} else {
-								var recur_3585 = parent
-								var recur_3586 = seen1
-								dir = recur_3585
-								seen = recur_3586
+								var recur_3589 = parent
+								var recur_3590 = seen1
+								dir = recur_3589
+								seen = recur_3590
 								continue
-								if_result_3587 = flagrt.NilValue
+								if_result_3591 = flagrt.NilValue
 							}
-							let_result_3588 = if_result_3587
+							let_result_3592 = if_result_3591
 						}
-						if_result_3589 = let_result_3588
+						if_result_3593 = let_result_3592
 					}
-					let_result_3590 = if_result_3589
+					let_result_3594 = if_result_3593
 				}
-				if_result_3591 = let_result_3590
+				if_result_3595 = let_result_3594
 			}
-			return if_result_3591
+			return if_result_3595
 		}
 	}()
 }
@@ -25556,40 +25552,40 @@ func compiler__walk_flag_lang_root_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__find_flag_lang_root_arity_1(start flagrt.Value) flagrt.Value {
-	var let_result_3596 flagrt.Value
+	var let_result_3600 flagrt.Value
 	{
 		var abs = compiler__abs_path_arity_1(start)
-		var if_result_3592 flagrt.Value
+		var if_result_3596 flagrt.Value
 		if flagrt.Eq(compiler__path_stat_kind_arity_1(abs), flagrt.NewString("dir")) {
-			if_result_3592 = abs
+			if_result_3596 = abs
 		} else {
-			if_result_3592 = compiler__path_dir_arity_1(abs)
+			if_result_3596 = compiler__path_dir_arity_1(abs)
 		}
-		var dir = if_result_3592
+		var dir = if_result_3596
 		var first = compiler__walk_flag_lang_root_arity_2(dir, lowflagMap)
-		var if_result_3595 flagrt.Value
+		var if_result_3599 flagrt.Value
 		if flagrt.IsTruthy(flagrt.KeywordGet(first, lowflagKw_path)) {
-			if_result_3595 = flagrt.KeywordGet(first, lowflagKw_path)
+			if_result_3599 = flagrt.KeywordGet(first, lowflagKw_path)
 		} else {
-			var let_result_3594 flagrt.Value
+			var let_result_3598 flagrt.Value
 			{
 				var second = compiler__walk_flag_lang_root_arity_2(compiler__cwd_path_arity_0(), flagrt.KeywordGet(first, lowflagKw_seen))
-				var if_result_3593 flagrt.Value
+				var if_result_3597 flagrt.Value
 				if flagrt.IsTruthy(flagrt.KeywordGet(second, lowflagKw_path)) {
-					if_result_3593 = flagrt.KeywordGet(second, lowflagKw_path)
+					if_result_3597 = flagrt.KeywordGet(second, lowflagKw_path)
 				} else {
-					if_result_3593 = func() flagrt.Value {
+					if_result_3597 = func() flagrt.Value {
 						flagrt.Throw(flagrt.NewMap(flagrt.NewKeyword("message"), flagrt.NewString("could not find flag-lang module root (go.mod with module flag-lang)"), flagrt.NewKeyword("data"), lowflagMap))
 						return flagrt.NilValue
 					}()
 				}
-				let_result_3594 = if_result_3593
+				let_result_3598 = if_result_3597
 			}
-			if_result_3595 = let_result_3594
+			if_result_3599 = let_result_3598
 		}
-		let_result_3596 = if_result_3595
+		let_result_3600 = if_result_3599
 	}
-	return let_result_3596
+	return let_result_3600
 }
 func compiler__find_flag_lang_root_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 1 {
@@ -25599,59 +25595,59 @@ func compiler__find_flag_lang_root_variadic(args ...flagrt.Value) flagrt.Value {
 }
 
 func compiler__write_one_compiled_package_arity_2(dir flagrt.Value, pkg flagrt.Value) flagrt.Value {
-	var if_result_3605 flagrt.Value
+	var if_result_3609 flagrt.Value
 	if flagrt.IsTruthy(flagrt.KeywordGet(pkg, lowflagKw_main_)) {
-		var let_result_3598 flagrt.Value
+		var let_result_3602 flagrt.Value
 		{
 			var or_tmp = flagrt.KeywordGet(pkg, lowflagKw_source)
-			var if_result_3597 flagrt.Value
+			var if_result_3601 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3597 = or_tmp
+				if_result_3601 = or_tmp
 			} else {
-				if_result_3597 = flagrt.NewString("")
+				if_result_3601 = flagrt.NewString("")
 			}
-			let_result_3598 = if_result_3597
+			let_result_3602 = if_result_3601
 		}
-		if_result_3605 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(dir, lowflagStr_main_go), let_result_3598)
+		if_result_3609 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(dir, lowflagStr_main_go), let_result_3602)
 	} else {
-		var let_result_3604 flagrt.Value
+		var let_result_3608 flagrt.Value
 		{
 			var pdir = compiler__path_join_arity_2(dir, flagrt.KeywordGet(pkg, lowflagKw_dir))
 			_ = compiler__mkdir_all_arity_1(pdir)
-			var let_result_3600 flagrt.Value
+			var let_result_3604 flagrt.Value
 			{
 				var or_tmp = flagrt.KeywordGet(pkg, lowflagKw_source)
-				var if_result_3599 flagrt.Value
+				var if_result_3603 flagrt.Value
 				if flagrt.IsTruthy(or_tmp) {
-					if_result_3599 = or_tmp
+					if_result_3603 = or_tmp
 				} else {
-					if_result_3599 = flagrt.NewString("")
+					if_result_3603 = flagrt.NewString("")
 				}
-				let_result_3600 = if_result_3599
+				let_result_3604 = if_result_3603
 			}
-			_ = compiler__write_text_file_arity_2(compiler__path_join_arity_2(pdir, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(pkg, lowflagKw_name), ".go"))), let_result_3600)
-			var let_result_3602 bool
+			_ = compiler__write_text_file_arity_2(compiler__path_join_arity_2(pdir, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(pkg, lowflagKw_name), ".go"))), let_result_3604)
+			var let_result_3606 bool
 			{
 				var or_tmp = flagrt.IsNil(flagrt.KeywordGet(pkg, lowflagKw_flagi))
-				var if_result_3601 bool
+				var if_result_3605 bool
 				if or_tmp {
-					if_result_3601 = or_tmp
+					if_result_3605 = or_tmp
 				} else {
-					if_result_3601 = flagrt.Eq(flagrt.KeywordGet(pkg, lowflagKw_flagi), flagrt.NewString(""))
+					if_result_3605 = flagrt.Eq(flagrt.KeywordGet(pkg, lowflagKw_flagi), flagrt.NewString(""))
 				}
-				let_result_3602 = if_result_3601
+				let_result_3606 = if_result_3605
 			}
-			var if_result_3603 flagrt.Value
-			if let_result_3602 {
-				if_result_3603 = flagrt.NilValue
+			var if_result_3607 flagrt.Value
+			if let_result_3606 {
+				if_result_3607 = flagrt.NilValue
 			} else {
-				if_result_3603 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(pdir, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(pkg, lowflagKw_name), ".flagi"))), flagrt.KeywordGet(pkg, lowflagKw_flagi))
+				if_result_3607 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(pdir, flagrt.NewString(flagrt.Str(flagrt.KeywordGet(pkg, lowflagKw_name), ".flagi"))), flagrt.KeywordGet(pkg, lowflagKw_flagi))
 			}
-			let_result_3604 = if_result_3603
+			let_result_3608 = if_result_3607
 		}
-		if_result_3605 = let_result_3604
+		if_result_3609 = let_result_3608
 	}
-	return if_result_3605
+	return if_result_3609
 }
 func compiler__write_one_compiled_package_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 2 {
@@ -25662,41 +25658,41 @@ func compiler__write_one_compiled_package_variadic(args ...flagrt.Value) flagrt.
 
 func compiler__write_compiled_packages_arity_2(dir flagrt.Value, pkgs flagrt.Value) flagrt.Value {
 	return func() flagrt.Value {
-		var let_result_3607 flagrt.Value
+		var let_result_3611 flagrt.Value
 		{
 			var or_tmp = pkgs
-			var if_result_3606 flagrt.Value
+			var if_result_3610 flagrt.Value
 			if flagrt.IsTruthy(or_tmp) {
-				if_result_3606 = or_tmp
+				if_result_3610 = or_tmp
 			} else {
-				if_result_3606 = lowflagVec
+				if_result_3610 = lowflagVec
 			}
-			let_result_3607 = if_result_3606
+			let_result_3611 = if_result_3610
 		}
-		var remaining = let_result_3607
+		var remaining = let_result_3611
 		for {
-			var let_result_3609 bool
+			var let_result_3613 bool
 			{
 				var or_tmp = flagrt.IsNil(remaining)
-				var if_result_3608 bool
+				var if_result_3612 bool
 				if or_tmp {
-					if_result_3608 = or_tmp
+					if_result_3612 = or_tmp
 				} else {
-					if_result_3608 = flagrt.IsEmpty(remaining)
+					if_result_3612 = flagrt.IsEmpty(remaining)
 				}
-				let_result_3609 = if_result_3608
+				let_result_3613 = if_result_3612
 			}
-			var if_result_3611 flagrt.Value
-			if let_result_3609 {
-				if_result_3611 = flagrt.NilValue
+			var if_result_3615 flagrt.Value
+			if let_result_3613 {
+				if_result_3615 = flagrt.NilValue
 			} else {
 				_ = compiler__write_one_compiled_package_arity_2(dir, flagrt.First(remaining))
-				var recur_3610 = flagrt.Rest(remaining)
-				remaining = recur_3610
+				var recur_3614 = flagrt.Rest(remaining)
+				remaining = recur_3614
 				continue
-				if_result_3611 = flagrt.NilValue
+				if_result_3615 = flagrt.NilValue
 			}
-			return if_result_3611
+			return if_result_3615
 		}
 	}()
 }
@@ -25708,28 +25704,28 @@ func compiler__write_compiled_packages_variadic(args ...flagrt.Value) flagrt.Val
 }
 
 func compiler__write_program_packages_arity_3(dir flagrt.Value, pkgs flagrt.Value, entry_path flagrt.Value) flagrt.Value {
-	var let_result_3614 flagrt.Value
+	var let_result_3618 flagrt.Value
 	{
 		var root = compiler__find_flag_lang_root_arity_1(entry_path)
 		var go_mod = flagrt.Str("module flagbuild\n\ngo 1.26.4\n\nrequire flag-lang v0.0.0\n\nreplace flag-lang => ", root, "\n")
 		_ = compiler__write_text_file_arity_2(compiler__path_join_arity_2(dir, lowflagStr_go_mod), flagrt.NewString(go_mod))
-		var let_result_3613 flagrt.Value
+		var let_result_3617 flagrt.Value
 		{
 			var sum_path = compiler__path_join_arity_2(root, lowflagStr_go_sum)
-			var if_result_3612 flagrt.Value
+			var if_result_3616 flagrt.Value
 			if flagrt.IsTruthy(compiler__file_exists_q_arity_1(sum_path)) {
-				if_result_3612 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(dir, lowflagStr_go_sum), compiler__read_text_file_arity_1(sum_path))
+				if_result_3616 = compiler__write_text_file_arity_2(compiler__path_join_arity_2(dir, lowflagStr_go_sum), compiler__read_text_file_arity_1(sum_path))
 			} else {
-				if_result_3612 = flagrt.NilValue
+				if_result_3616 = flagrt.NilValue
 			}
-			let_result_3613 = if_result_3612
+			let_result_3617 = if_result_3616
 		}
-		_ = let_result_3613
+		_ = let_result_3617
 		_ = compiler__write_compiled_packages_arity_2(dir, pkgs)
 		_ = compiler__go_mod_tidy_arity_1(dir)
-		let_result_3614 = flagrt.NilValue
+		let_result_3618 = flagrt.NilValue
 	}
-	return let_result_3614
+	return let_result_3618
 }
 func compiler__write_program_packages_variadic(args ...flagrt.Value) flagrt.Value {
 	if len(args) != 3 {
@@ -25784,7 +25780,6 @@ var prologue__get_in = flagrt.NewFunction(prologue__get_in_variadic)
 var prologue__update_in = flagrt.NewFunction(prologue__update_in_variadic)
 var prologue__assoc_in = flagrt.NewFunction(prologue__assoc_in_variadic)
 var prologue__dissoc_in = flagrt.NewFunction(prologue__dissoc_in_variadic)
-var prologue__juxt = flagrt.NewFunction(prologue__juxt_variadic)
 var prologue__partial = flagrt.NewFunction(prologue__partial_variadic)
 var prologue__complement = flagrt.NewFunction(prologue__complement_variadic)
 var prologue__fnil = flagrt.NewFunction(prologue__fnil_variadic)
@@ -25805,7 +25800,6 @@ var prologue__every_pred = flagrt.NewFunction(prologue__every_pred_variadic)
 var prologue__some_fn = flagrt.NewFunction(prologue__some_fn_variadic)
 var prologue__max_key = flagrt.NewFunction(prologue__max_key_variadic)
 var prologue__zipmap = flagrt.NewFunction(prologue__zipmap_variadic)
-var prologue__group_by = flagrt.NewFunction(prologue__group_by_variadic)
 var prologue__select_keys = flagrt.NewFunction(prologue__select_keys_variadic)
 var prologue__merge = flagrt.NewFunction(prologue__merge_variadic)
 var prologue__merge_with = flagrt.NewFunction(prologue__merge_with_variadic)
@@ -25871,6 +25865,7 @@ var compiler__apply_fn_to_ir = flagrt.NewFunction(compiler__apply_fn_to_ir_varia
 var compiler__pmap_to_ir = flagrt.NewFunction(compiler__pmap_to_ir_variadic)
 var compiler__filter_to_ir = flagrt.NewFunction(compiler__filter_to_ir_variadic)
 var compiler__reduce_to_ir = flagrt.NewFunction(compiler__reduce_to_ir_variadic)
+var compiler__group_by_to_ir = flagrt.NewFunction(compiler__group_by_to_ir_variadic)
 var compiler__doall_to_ir = flagrt.NewFunction(compiler__doall_to_ir_variadic)
 var compiler__some_to_ir = flagrt.NewFunction(compiler__some_to_ir_variadic)
 var compiler__set_to_ir = flagrt.NewFunction(compiler__set_to_ir_variadic)
@@ -26238,6 +26233,7 @@ var lowflagKw_set = flagrt.NewKeyword("set")
 var lowflagKw_list = flagrt.NewKeyword("list")
 var lowflagKw_array = flagrt.NewKeyword("array")
 var lowflagKw_lazy_list = flagrt.NewKeyword("lazy-list")
+var lowflagKw_range = flagrt.NewKeyword("range")
 var lowflagVec = flagrt.NewArray()
 var lowflagPipeVec = flagrt.NewVector()
 var lowflagMap = flagrt.NewMap()
@@ -26441,6 +26437,7 @@ var lowflagStr_ApplyFn = flagrt.NewString("ApplyFn")
 var lowflagStr_PMap = flagrt.NewString("PMap")
 var lowflagStr_Filter = flagrt.NewString("Filter")
 var lowflagStr_Reduce = flagrt.NewString("Reduce")
+var lowflagStr_GroupBy = flagrt.NewString("GroupBy")
 var lowflagStr_DoAll = flagrt.NewString("DoAll")
 var lowflagStr_Some = flagrt.NewString("Some")
 var lowflagStr_Set = flagrt.NewString("Set")
@@ -26509,6 +26506,10 @@ var lowflagStr_FnApply = flagrt.NewString("FnApply")
 var lowflagStr_FnPmap = flagrt.NewString("FnPmap")
 var lowflagStr_FnFilter = flagrt.NewString("FnFilter")
 var lowflagStr_FnReduce = flagrt.NewString("FnReduce")
+var lowflagStr_group_by = flagrt.NewString("group-by")
+var lowflagStr_FnGroupBy = flagrt.NewString("FnGroupBy")
+var lowflagStr_juxt = flagrt.NewString("juxt")
+var lowflagStr_FnJuxt = flagrt.NewString("FnJuxt")
 var lowflagStr_FnNotEmpty = flagrt.NewString("FnNotEmpty")
 var lowflagStr_FnSeq = flagrt.NewString("FnSeq")
 var lowflagStr_FnEmptyQ = flagrt.NewString("FnEmptyQ")
@@ -26587,7 +26588,7 @@ var lowflagStr_FnReMatches = flagrt.NewString("FnReMatches")
 var lowflagStr_FnExMessage = flagrt.NewString("FnExMessage")
 var lowflagStr_FnExData = flagrt.NewString("FnExData")
 var lowflagStr_FnExCause = flagrt.NewString("FnExCause")
-var lowflagMap_5 = flagrt.NewMap(lowflagStr__, lowflagStr_FnPlus, lowflagStr___1, lowflagStr_FnMul, lowflagStr___2, lowflagStr_FnSub, lowflagStr___3, lowflagStr_FnDiv, lowflagStr___4, lowflagStr_FnMod, lowflagStr_mod, lowflagStr_FnMod, lowflagStr_quot, lowflagStr_FnQuot, lowflagStr_rem, lowflagStr_FnRem, lowflagStr_compare, lowflagStr_FnCompare, lowflagStr___, lowflagStr_FnNumericEq, lowflagStr___5, lowflagStr_FnEq, lowflagStr___6, lowflagStr_FnLt, lowflagStr____1, lowflagStr_FnLe, lowflagStr___7, lowflagStr_FnGt, lowflagStr____2, lowflagStr_FnGe, lowflagStr_max, lowflagStr_FnMax, lowflagStr_min, lowflagStr_FnMin, lowflagStr_bit_and, lowflagStr_FnBitAnd, lowflagStr_bit_or, lowflagStr_FnBitOr, lowflagStr_bit_xor, lowflagStr_FnBitXor, lowflagStr_bit_not, lowflagStr_FnBitNot, lowflagStr_bit_shift_left, lowflagStr_FnBitShiftLeft, lowflagStr_bit_shift_right, lowflagStr_FnBitShiftRight, lowflagStr_unsigned_bit_shift_right, lowflagStr_FnUnsignedBitShiftRight, lowflagStr_bit_test, lowflagStr_FnBitTest, lowflagStr_bit_set, lowflagStr_FnBitSet, lowflagStr_bit_clear, lowflagStr_FnBitClear, lowflagStr_bit_flip, lowflagStr_FnBitFlip, lowflagStr_rand_int, lowflagStr_FnRandInt, lowflagStr_rand, lowflagStr_FnRand, lowflagStr_rand_nth, lowflagStr_FnRandNth, lowflagStr_shuffle, lowflagStr_FnShuffle, lowflagStr_first, lowflagStr_FnFirst, lowflagStr_fist, lowflagStr_FnFirst, lowflagStr_rest, lowflagStr_FnRest, lowflagStr_next, lowflagStr_FnNext, lowflagStr_last, lowflagStr_FnLast, lowflagStr_reverse, lowflagStr_FnReverse, lowflagStr_cons, lowflagStr_FnCons, lowflagStr_take, lowflagStr_FnTake, lowflagStr_drop, lowflagStr_FnDrop, lowflagStr_nth, lowflagStr_FnNth, lowflagStr_slow_nth, lowflagStr_FnSlowNth, lowflagStr_map, lowflagStr_FnMap, lowflagStr_concat, lowflagStr_FnConcat, lowflagStr_into, lowflagStr_FnInto, lowflagStr_sort_by, lowflagStr_FnSortBy, lowflagStr_apply, lowflagStr_FnApply, lowflagStr_pmap, lowflagStr_FnPmap, lowflagStr_filter, lowflagStr_FnFilter, lowflagStr_reduce, lowflagStr_FnReduce, lowflagStr_not_empty, lowflagStr_FnNotEmpty, lowflagStr_seq, lowflagStr_FnSeq, lowflagStr_empty_, lowflagStr_FnEmptyQ, lowflagStr_nil_, lowflagStr_FnNilQ, lowflagStr_type_of, lowflagStr_FnTypeOf, lowflagStr_set, lowflagStr_FnSet, lowflagStr_vec, lowflagStr_FnVec, lowflagStr_conj, lowflagStr_FnConj, lowflagStr_contains_, lowflagStr_FnContainsQ, lowflagStr_some, lowflagStr_FnSome, lowflagStr_seq_, lowflagStr_FnSeqQ, lowflagStr_doall, lowflagStr_FnDoall, lowflagStr_dorun, lowflagStr_FnDorun, lowflagStr_count, lowflagStr_FnCount, lowflagStr_double, lowflagStr_FnDouble, lowflagStr_numerator, lowflagStr_FnNumerator, lowflagStr_denominator, lowflagStr_FnDenominator, lowflagStr_format, lowflagStr_FnFormat, lowflagStr_subs, lowflagStr_FnSubs, lowflagStr_keyword, lowflagStr_FnKeyword, lowflagStr_get, lowflagStr_FnGet, lowflagStr_keys, lowflagStr_FnKeys, lowflagStr_vals, lowflagStr_FnVals, lowflagStr_find, lowflagStr_FnFind, lowflagStr_union, lowflagStr_FnUnion, lowflagStr_intersection, lowflagStr_FnIntersection, lowflagStr_difference, lowflagStr_FnDifference, lowflagStr_subset_, lowflagStr_FnSubsetQ, lowflagStr_superset_, lowflagStr_FnSupersetQ, lowflagStr_disjoint_, lowflagStr_FnDisjointQ, lowflagStr_rename_keys, lowflagStr_FnRenameKeys, lowflagStr_map_invert, lowflagStr_FnMapInvert, lowflagStr_select, lowflagStr_FnSelect, lowflagStr_project, lowflagStr_FnProject, lowflagStr_rename, lowflagStr_FnRename, lowflagStr_hash, lowflagStr_FnHash, lowflagStr_hash_map, lowflagStr_FnHashMap, lowflagStr_list, lowflagStr_FnList, lowflagStr_array, lowflagStr_FnArray, lowflagStr_repeat, lowflagStr_FnRepeat, lowflagStr_range, lowflagStr_FnRange, lowflagStr_assoc, lowflagStr_FnAssoc, lowflagStr_dissoc, lowflagStr_FnDissoc, lowflagStr_open_file, lowflagStr_FnOpenFile, lowflagStr_close_file, lowflagStr_FnCloseFile, lowflagStr_close_channel, lowflagStr_FnCloseChannel, lowflagStr_file_to_strings, lowflagStr_FnFileToStrings, lowflagStr_go_fn, lowflagStr_FnGoFn, lowflagStr_go_fn_args, lowflagStr_FnGoFnArgs, lowflagStr_re_pattern, lowflagStr_FnRePattern, lowflagStr_re_matches, lowflagStr_FnReMatches, lowflagStr_ex_message, lowflagStr_FnExMessage, lowflagStr_ex_data, lowflagStr_FnExData, lowflagStr_ex_cause, lowflagStr_FnExCause)
+var lowflagMap_5 = flagrt.NewMap(lowflagStr__, lowflagStr_FnPlus, lowflagStr___1, lowflagStr_FnMul, lowflagStr___2, lowflagStr_FnSub, lowflagStr___3, lowflagStr_FnDiv, lowflagStr___4, lowflagStr_FnMod, lowflagStr_mod, lowflagStr_FnMod, lowflagStr_quot, lowflagStr_FnQuot, lowflagStr_rem, lowflagStr_FnRem, lowflagStr_compare, lowflagStr_FnCompare, lowflagStr___, lowflagStr_FnNumericEq, lowflagStr___5, lowflagStr_FnEq, lowflagStr___6, lowflagStr_FnLt, lowflagStr____1, lowflagStr_FnLe, lowflagStr___7, lowflagStr_FnGt, lowflagStr____2, lowflagStr_FnGe, lowflagStr_max, lowflagStr_FnMax, lowflagStr_min, lowflagStr_FnMin, lowflagStr_bit_and, lowflagStr_FnBitAnd, lowflagStr_bit_or, lowflagStr_FnBitOr, lowflagStr_bit_xor, lowflagStr_FnBitXor, lowflagStr_bit_not, lowflagStr_FnBitNot, lowflagStr_bit_shift_left, lowflagStr_FnBitShiftLeft, lowflagStr_bit_shift_right, lowflagStr_FnBitShiftRight, lowflagStr_unsigned_bit_shift_right, lowflagStr_FnUnsignedBitShiftRight, lowflagStr_bit_test, lowflagStr_FnBitTest, lowflagStr_bit_set, lowflagStr_FnBitSet, lowflagStr_bit_clear, lowflagStr_FnBitClear, lowflagStr_bit_flip, lowflagStr_FnBitFlip, lowflagStr_rand_int, lowflagStr_FnRandInt, lowflagStr_rand, lowflagStr_FnRand, lowflagStr_rand_nth, lowflagStr_FnRandNth, lowflagStr_shuffle, lowflagStr_FnShuffle, lowflagStr_first, lowflagStr_FnFirst, lowflagStr_fist, lowflagStr_FnFirst, lowflagStr_rest, lowflagStr_FnRest, lowflagStr_next, lowflagStr_FnNext, lowflagStr_last, lowflagStr_FnLast, lowflagStr_reverse, lowflagStr_FnReverse, lowflagStr_cons, lowflagStr_FnCons, lowflagStr_take, lowflagStr_FnTake, lowflagStr_drop, lowflagStr_FnDrop, lowflagStr_nth, lowflagStr_FnNth, lowflagStr_slow_nth, lowflagStr_FnSlowNth, lowflagStr_map, lowflagStr_FnMap, lowflagStr_concat, lowflagStr_FnConcat, lowflagStr_into, lowflagStr_FnInto, lowflagStr_sort_by, lowflagStr_FnSortBy, lowflagStr_apply, lowflagStr_FnApply, lowflagStr_pmap, lowflagStr_FnPmap, lowflagStr_filter, lowflagStr_FnFilter, lowflagStr_reduce, lowflagStr_FnReduce, lowflagStr_group_by, lowflagStr_FnGroupBy, lowflagStr_juxt, lowflagStr_FnJuxt, lowflagStr_not_empty, lowflagStr_FnNotEmpty, lowflagStr_seq, lowflagStr_FnSeq, lowflagStr_empty_, lowflagStr_FnEmptyQ, lowflagStr_nil_, lowflagStr_FnNilQ, lowflagStr_type_of, lowflagStr_FnTypeOf, lowflagStr_set, lowflagStr_FnSet, lowflagStr_vec, lowflagStr_FnVec, lowflagStr_conj, lowflagStr_FnConj, lowflagStr_contains_, lowflagStr_FnContainsQ, lowflagStr_some, lowflagStr_FnSome, lowflagStr_seq_, lowflagStr_FnSeqQ, lowflagStr_doall, lowflagStr_FnDoall, lowflagStr_dorun, lowflagStr_FnDorun, lowflagStr_count, lowflagStr_FnCount, lowflagStr_double, lowflagStr_FnDouble, lowflagStr_numerator, lowflagStr_FnNumerator, lowflagStr_denominator, lowflagStr_FnDenominator, lowflagStr_format, lowflagStr_FnFormat, lowflagStr_subs, lowflagStr_FnSubs, lowflagStr_keyword, lowflagStr_FnKeyword, lowflagStr_get, lowflagStr_FnGet, lowflagStr_keys, lowflagStr_FnKeys, lowflagStr_vals, lowflagStr_FnVals, lowflagStr_find, lowflagStr_FnFind, lowflagStr_union, lowflagStr_FnUnion, lowflagStr_intersection, lowflagStr_FnIntersection, lowflagStr_difference, lowflagStr_FnDifference, lowflagStr_subset_, lowflagStr_FnSubsetQ, lowflagStr_superset_, lowflagStr_FnSupersetQ, lowflagStr_disjoint_, lowflagStr_FnDisjointQ, lowflagStr_rename_keys, lowflagStr_FnRenameKeys, lowflagStr_map_invert, lowflagStr_FnMapInvert, lowflagStr_select, lowflagStr_FnSelect, lowflagStr_project, lowflagStr_FnProject, lowflagStr_rename, lowflagStr_FnRename, lowflagStr_hash, lowflagStr_FnHash, lowflagStr_hash_map, lowflagStr_FnHashMap, lowflagStr_list, lowflagStr_FnList, lowflagStr_array, lowflagStr_FnArray, lowflagStr_repeat, lowflagStr_FnRepeat, lowflagStr_range, lowflagStr_FnRange, lowflagStr_assoc, lowflagStr_FnAssoc, lowflagStr_dissoc, lowflagStr_FnDissoc, lowflagStr_open_file, lowflagStr_FnOpenFile, lowflagStr_close_file, lowflagStr_FnCloseFile, lowflagStr_close_channel, lowflagStr_FnCloseChannel, lowflagStr_file_to_strings, lowflagStr_FnFileToStrings, lowflagStr_go_fn, lowflagStr_FnGoFn, lowflagStr_go_fn_args, lowflagStr_FnGoFnArgs, lowflagStr_re_pattern, lowflagStr_FnRePattern, lowflagStr_re_matches, lowflagStr_FnReMatches, lowflagStr_ex_message, lowflagStr_FnExMessage, lowflagStr_ex_data, lowflagStr_FnExData, lowflagStr_ex_cause, lowflagStr_FnExCause)
 var lowflagStr_First = flagrt.NewString("First")
 var lowflagStr_Rest = flagrt.NewString("Rest")
 var lowflagStr_Next = flagrt.NewString("Next")
@@ -26882,6 +26883,7 @@ var lowflagStr_apply_arguments_must_eva = flagrt.NewString("apply arguments must
 var lowflagStr_pmap_arguments_must_eval = flagrt.NewString("pmap arguments must evaluate to Value")
 var lowflagStr_filter_arguments_must_ev = flagrt.NewString("filter arguments must evaluate to Value")
 var lowflagStr_reduce_arguments_must_ev = flagrt.NewString("reduce arguments must evaluate to Value")
+var lowflagStr_group_by_arguments_must_ = flagrt.NewString("group-by arguments must evaluate to Value")
 var lowflagStr_doall_expects_an_argumen = flagrt.NewString("doall expects an argument that evaluates to Value")
 var lowflagStr_some_arguments_must_eval = flagrt.NewString("some arguments must evaluate to Value")
 var lowflagStr_set_expects_an_argument_ = flagrt.NewString("set expects an argument that evaluates to Value")

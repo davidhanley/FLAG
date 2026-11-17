@@ -49,7 +49,7 @@ No-arg; not a date. Prefer this over `t/now` for benchmarks.
 | `eager-range-sum`, `apply-max` | `reduce +`, `(apply max …)` | Every yielded long is still a boxed `Value`; `+` is polymorphic. Clojure `LongRange` + primitive combine. |
 | `keyword-gets`, `nested-keyword` | `(:name athlete)`, `(:race-name (:header r))` | Compiled `KeywordGet` into interned keyword keys; small maps are array-maps (≤8 pairs), then HAMT. |
 | `assoc-scores` | `add-scores-and-rank` | `assoc` of several keys per athlete. |
-| `group-by-name`, `juxt-keys` | `group-by :name`, `(juxt :name :age)` | Map `assoc` in a FLAG `reduce` (array-map until 9 keys). |
+| `group-by-name`, `juxt-keys` | `group-by :name`, `(juxt :name :age)` | `group-by` is Go `GroupBy`; keyword `juxt` is two `KeywordGet`s into an array. |
 | `mapcat-filter`, `sort-by-points` | `compute-sex-results` | Extra seq copies; no chunking. |
 | `string-pipeline` | CSV `trim` / `upper-case` | Usually closer to Clojure; not the FRS 4× by itself. |
 

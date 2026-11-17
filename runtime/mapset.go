@@ -422,7 +422,7 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 
 func fastGet(coll, key, missing Value) Value {
 	if m, ok := coll.impl.(*arrayMapImpl); ok {
-		if value, found := arrayMapLookup(m.kvs, key); found {
+		if value, found := arrayMapLookup(m.pairs(), key); found {
 			return value
 		}
 		return missing
@@ -450,7 +450,7 @@ func MapDissoc(coll Value, keys ...Value) Value {
 
 func (v Value) MapLen() int {
 	if isType[*arrayMapImpl](v) {
-		return len(asImpl[*arrayMapImpl](v, "MapLen").kvs) / 2
+		return asImpl[*arrayMapImpl](v, "MapLen").n / 2
 	}
 	if isType[*mapImpl](v) {
 		return v.mapPointer().items.Len()
@@ -463,8 +463,8 @@ func (v Value) MapLen() int {
 
 func unsortedMapEntries(v Value) []MapEntry {
 	if am, ok := v.impl.(*arrayMapImpl); ok {
-		entries := make([]MapEntry, 0, len(am.kvs)/2)
-		for i := 0; i < len(am.kvs); i += 2 {
+		entries := make([]MapEntry, 0, am.n/2)
+		for i := 0; i < am.n; i += 2 {
 			entries = append(entries, MapEntry{Key: am.kvs[i], Value: am.kvs[i+1]})
 		}
 		return entries

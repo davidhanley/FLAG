@@ -37,14 +37,32 @@ func NewKeyword(name string) Value {
 }
 
 // KeywordGet is (:kw coll). Direct, non-variadic map lookup for compiled
-// keyword invokes.
+// keyword invokes. Array-maps identity-scan interned keyword impls (Clojure
+// PersistentArrayMap.valAt for Keyword).
 func KeywordGet(coll, kw Value) Value {
+	if m, ok := coll.impl.(*arrayMapImpl); ok {
+		return arrayMapKeywordGet(m, kw, NilValue)
+	}
 	return fastGet(coll, kw, NilValue)
 }
 
 // KeywordGetDefault is (:kw coll missing).
 func KeywordGetDefault(coll, kw, missing Value) Value {
+	if m, ok := coll.impl.(*arrayMapImpl); ok {
+		return arrayMapKeywordGet(m, kw, missing)
+	}
 	return fastGet(coll, kw, missing)
+}
+
+func arrayMapKeywordGet(m *arrayMapImpl, kw, missing Value) Value {
+	kwImpl := kw.impl
+	n := m.n
+	for i := 0; i < n; i += 2 {
+		if m.kvs[i].impl == kwImpl {
+			return m.kvs[i+1]
+		}
+	}
+	return missing
 }
 
 func (v Value) SymbolObject() *SymbolObject {

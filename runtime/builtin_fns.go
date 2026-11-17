@@ -397,6 +397,19 @@ func FnFilter(args ...Value) Value {
 	return Filter(args[0], args[1])
 }
 
+// FnJuxt implements builtin juxt.
+func FnJuxt(args ...Value) Value {
+	return Juxt(args...)
+}
+
+// FnGroupBy implements builtin group-by.
+func FnGroupBy(args ...Value) Value {
+	if len(args) != 2 {
+		panic("group-by expects function and collection")
+	}
+	return GroupBy(args[0], args[1])
+}
+
 // FnReduce implements builtin reduce.
 func FnReduce(args ...Value) Value {
 	if len(args) != 2 && len(args) != 3 {

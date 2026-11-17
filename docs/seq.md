@@ -1,4 +1,4 @@
-# Sequence extras (`take-while`, `drop-while`, `take-last`, `drop-last`, `take-nth`)
+# Sequence extras (`take-while`, `drop-while`, `take-last`, `drop-last`, `take-nth`, `group-by`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
@@ -58,6 +58,31 @@ returns `coll`. `nil` is empty.
 
 `(take-nth n coll)` is every `n`th item, starting with the first. If `n <= 0`
 and `coll` is non-empty, Clojure repeats the first item forever (`repeat`).
+
+## `group-by`
+
+`(group-by f coll)` is a map from `(f x)` to an array of the `x`s in encounter
+order. Empty/`nil` coll is `{}`. Implemented in Go (`flagrt.GroupBy`): it walks
+a seq cursor, grows per-key slices, then freezes arrays. A keyword `f` uses
+`KeywordGet` (no `Call`).
+
+```clojure
+(group-by identity [1 2 2])   ;; {1 [1] 2 [2 2]}
+(group-by :k [{:k :a} {:k :a}])  ;; {:a [{:k :a} {:k :a}]}
+(group-by even? nil)          ;; {}
+```
+
+## `juxt`
+
+`(juxt f g ...)` returns a function that applies each `f` to the same arguments
+and returns an array of the results. Keyword fns with one argument use
+`KeywordGet`.
+
+```clojure
+((juxt first second) [1 2 3])           ;; [1 2]
+((juxt :name :age) {:name "ADA" :age 40})  ;; ["ADA" 40]
+((juxt +) 1 2 3)                        ;; [6]
+```
 
 ```clojure
 (take-nth 2 [1 2 3 4 5])           ;; [1 3 5]

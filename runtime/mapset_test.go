@@ -85,6 +85,51 @@ func TestArrayMapPromotesAtNine(t *testing.T) {
 	}
 }
 
+func TestArrayMapMultiAssocOneCopy(t *testing.T) {
+	base := NewMap(
+		NewKeyword("name"), NewString("A"),
+		NewKeyword("age"), NewLong(1),
+		NewKeyword("sex"), NewKeyword("m"),
+		NewKeyword("points"), NewLong(0),
+	)
+	got := Assoc(base,
+		NewKeyword("header"), NewLong(1),
+		NewKeyword("points-scored"), NewLong(2),
+		NewKeyword("overall-rank"), NewLong(3),
+	)
+	if !isType[*arrayMapImpl](got) || got.MapLen() != 7 {
+		t.Fatalf("expected 7-key array-map, got %T len=%d", got.impl, got.MapLen())
+	}
+	if Get(got, NewKeyword("name")).StringValue() != "A" || Get(got, NewKeyword("overall-rank")).Long() != 3 {
+		t.Fatalf("unexpected multi-assoc result: %s", got)
+	}
+	if base.MapLen() != 4 {
+		t.Fatalf("assoc must not mutate original, len=%d", base.MapLen())
+	}
+
+	last := Assoc(NewMap(NewKeyword("a"), NewLong(1)), NewKeyword("a"), NewLong(2), NewKeyword("a"), NewLong(3))
+	if last.MapLen() != 1 || Get(last, NewKeyword("a")).Long() != 3 {
+		t.Fatalf("expected last-wins in one assoc, got %s", last)
+	}
+
+	promoted := Assoc(nKeywordMap(8), NewKeyword("i"), NewLong(8), NewKeyword("j"), NewLong(9))
+	if !isType[*mapImpl](promoted) || promoted.MapLen() != 10 {
+		t.Fatalf("expected 10-key HAMT from multi-assoc, got %T len=%d", promoted.impl, promoted.MapLen())
+	}
+
+	entries := []Value{
+		NewKeyword("header"), NewLong(1),
+		NewKeyword("points-scored"), NewLong(2),
+		NewKeyword("overall-rank"), NewLong(3),
+	}
+	n := testing.AllocsPerRun(1000, func() {
+		_ = arrayMapAssoc(base, entries)
+	})
+	if n > 1 {
+		t.Fatalf("multi-pair array-map assoc allocated %.2f times; want ≤1 (one arrayMapImpl)", n)
+	}
+}
+
 func TestAssocAndDissocMap(t *testing.T) {
 	m := NewMap(NewKeyword("a"), NewLong(1))
 	m = Assoc(m, NewKeyword("b"), NewLong(2))
