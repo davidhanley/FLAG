@@ -10,12 +10,22 @@ import (
 	"unsafe"
 )
 
+// Immediate types are a single iface value so NewLong/NewDouble/NewBool do not
+// allocate. All longs share longType; equality still uses packed d.
+var (
+	longType   impl = longImpl{}
+	doubleType impl = doubleImpl{}
+	boolType   impl = boolImpl{}
+	TrueValue       = Value{d: 1, impl: boolType}
+	FalseValue      = Value{d: 0, impl: boolType}
+)
+
 func NewLong(v int64) Value {
-	return Value{d: packLong(v), impl: longImpl{}}
+	return Value{d: packLong(v), impl: longType}
 }
 
 func NewDouble(v float64) Value {
-	return Value{d: v, impl: doubleImpl{}}
+	return Value{d: v, impl: doubleType}
 }
 
 func Double(v Value) Value {
@@ -61,9 +71,9 @@ func NewBigIntFromBigInt(v *big.Int) Value {
 
 func NewBool(v bool) Value {
 	if v {
-		return Value{d: 1, impl: boolImpl{}}
+		return TrueValue
 	}
-	return Value{d: 0, impl: boolImpl{}}
+	return FalseValue
 }
 
 func (v Value) Long() int64 {
@@ -96,7 +106,27 @@ func (v Value) Bool() bool {
 }
 
 func Add(lhs, rhs Value) Value {
+	if _, ok := lhs.impl.(longImpl); ok {
+		if _, ok := rhs.impl.(longImpl); ok {
+			return addLongs(lhs.Long(), rhs.Long())
+		}
+		return rhs.impl.addLong(rhs, lhs.Long())
+	}
 	return lhs.impl.add(lhs, rhs)
+}
+
+func Inc(v Value) Value {
+	if _, ok := v.impl.(longImpl); ok {
+		return addLongs(v.Long(), 1)
+	}
+	return v.impl.addLong(v, 1)
+}
+
+func Dec(v Value) Value {
+	if _, ok := v.impl.(longImpl); ok {
+		return addLongs(v.Long(), -1)
+	}
+	return v.impl.addLong(v, -1)
 }
 
 func Mul(lhs, rhs Value) Value {
@@ -230,6 +260,18 @@ func NumericEq(values ...Value) bool {
 }
 
 func compareOrdered(lhs, rhs Value) int {
+	if _, ok := lhs.impl.(longImpl); ok {
+		if _, ok := rhs.impl.(longImpl); ok {
+			a, b := lhs.Long(), rhs.Long()
+			if a < b {
+				return -1
+			}
+			if a > b {
+				return 1
+			}
+			return 0
+		}
+	}
 	if lhs.impl.isNumeric(lhs) && rhs.impl.isNumeric(rhs) {
 		return compareNumeric(lhs, rhs)
 	}

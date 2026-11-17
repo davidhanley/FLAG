@@ -21,7 +21,7 @@ func TestCompilePrintProgram(t *testing.T) {
 		"package main",
 		`flagrt "flag-lang/runtime"`,
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))",
+		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -44,7 +44,7 @@ func TestCompileTokensPrintProgram(t *testing.T) {
 	for _, want := range []string{
 		"package main",
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))",
+		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -100,7 +100,7 @@ func TestCompileDocstringDefmacroStillExpands(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagrt.NewLong(7)))`) {
+	if !strings.Contains(got, `fmt.Println(flagrt.Str(flagLong_7))`) {
 		t.Fatalf("generated Go did not contain expected macro expansion:\n%s", got)
 	}
 }
@@ -119,8 +119,8 @@ func TestCompileMultiArityDefmacro(t *testing.T) {
 
 	got := string(output)
 	for _, want := range []string{
-		`fmt.Println(flagrt.Str(flagrt.NewLong(1)))`,
-		`fmt.Println(flagrt.Str(flagrt.NewLong(2)))`,
+		`fmt.Println(flagrt.Str(flagLong_1))`,
+		`fmt.Println(flagrt.Str(flagLong_2))`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -284,7 +284,7 @@ func TestCompileLetOrDefaultAndListDestructure(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"flagrt.Get(",
-		"flagrt.Add(flagrt.NewLong(1), flagrt.NewLong(2))",
+		"flagrt.Add(flagLong_1, flagLong_2)",
 		"flagrt.SeqFirst(",
 		"flagrt.SeqRest(",
 	} {
@@ -337,7 +337,7 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagrt.NewLong(42)))",
+		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -420,12 +420,35 @@ func TestCompileLoopRecurGeneratesIterativeCode(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"for {",
-		"flagrt.UnwrapRecur(__loopResult)",
-		"flagrt.NewRecur(",
+		"continue",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "UnwrapRecur") || strings.Contains(got, "NewRecur") {
+		t.Fatalf("compiled loop still boxes recur:\n%s", got)
+	}
+}
+
+func TestCompileIncDecInternsLongs(t *testing.T) {
+	output, err := Compile(`(println (inc 0) (dec 1))`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"flagrt.Inc(",
+		"flagrt.Dec(",
+		"flagLong_0",
+		"flagLong_1",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Inc_arity_1") {
+		t.Fatalf("inc still used prologue:\n%s", got)
 	}
 }
 
@@ -471,7 +494,7 @@ func TestCompileVariadicSelfCallUsesDirectVariadicFunction(t *testing.T) {
 	}
 
 	got := string(output)
-	if !strings.Contains(got, "countdown_variadic(flagrt.Sub(n, flagrt.NewLong(1)))") {
+	if !strings.Contains(got, "countdown_variadic(flagrt.Sub(n, flagLong_1))") {
 		t.Fatalf("expected direct variadic self-call lowering:\n%s", got)
 	}
 	if strings.Contains(got, "flagrt.Call(countdown,") {
@@ -787,7 +810,7 @@ func TestCompileDeferEmitsGoDefer(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		"defer flagrt.Call(",
-		"return flagrt.NewLong(1)",
+		"return flagLong_1",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -970,7 +993,7 @@ func TestCompileGoFunctionInteropForms(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`var f = flagrt.GoFunction("fmt.Sprintf")`,
-		`_ = f.Fn(flagStr_dave_is__d_years_old, flagrt.NewLong(23))`,
+		`_ = f.Fn(flagStr_dave_is__d_years_old, flagLong_23)`,
 		`fmt.Println(flagrt.Str(flagrt.GoFunctionArgs("fmt.Sprintf")))`,
 	} {
 		if !strings.Contains(got, want) {
@@ -1002,8 +1025,8 @@ func TestCompileSlashQualifiedGoFunctions(t *testing.T) {
 		`flagrt.GoBind_packages_StringCapitalize.Fn(flagStr_hELLO)`,
 		`flagrt.GoBind_packages_ToUppercase.Fn(flagStr_hello)`,
 		`flagrt.GoBind_packages_LongParse.Fn(flagStr_42)`,
-		`flagrt.GoBind_runtime_Abs.Fn(flagrt.NewLong(-42))`,
-		`flagrt.GoBind_runtime_Sqrt.Fn(flagrt.NewLong(4))`,
+		`flagrt.GoBind_runtime_Abs.Fn(flagLong__42)`,
+		`flagrt.GoBind_runtime_Sqrt.Fn(flagLong_4)`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -1086,7 +1109,7 @@ func TestCompileTopLevelExpressionExecutesInMain(t *testing.T) {
 	}
 
 	got := string(output)
-	want := "_ = fib_arity_1(flagrt.NewLong(7))"
+	want := "_ = fib_arity_1(flagLong_7)"
 	if !strings.Contains(got, want) {
 		t.Fatalf("generated Go did not contain expected top-level execution statement %q:\n%s", want, got)
 	}

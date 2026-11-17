@@ -6,6 +6,43 @@ import (
 	"time"
 )
 
+func TestImmediateConstructorsNoAlloc(t *testing.T) {
+	if n := testing.AllocsPerRun(1000, func() { _ = NewLong(42) }); n != 0 {
+		t.Fatalf("NewLong allocated %.2f times", n)
+	}
+	if n := testing.AllocsPerRun(1000, func() { _ = NewDouble(1.5) }); n != 0 {
+		t.Fatalf("NewDouble allocated %.2f times", n)
+	}
+	if n := testing.AllocsPerRun(1000, func() { _ = NewBool(true) }); n != 0 {
+		t.Fatalf("NewBool allocated %.2f times", n)
+	}
+	acc := NewLong(0)
+	if n := testing.AllocsPerRun(1000, func() { acc = Inc(acc) }); n != 0 {
+		t.Fatalf("Inc allocated %.2f times", n)
+	}
+	one := NewLong(1)
+	acc = NewLong(0)
+	if n := testing.AllocsPerRun(1000, func() { acc = Add(acc, one) }); n != 0 {
+		t.Fatalf("Add longs allocated %.2f times", n)
+	}
+}
+
+func TestKeywordGetArrayMapNoAlloc(t *testing.T) {
+	m := NewMap(NewKeyword("name"), NewString("ADA"), NewKeyword("age"), NewLong(40))
+	kw := NewKeyword("name")
+	if n := testing.AllocsPerRun(1000, func() { _ = KeywordGet(m, kw) }); n != 0 {
+		t.Fatalf("KeywordGet allocated %.2f times", n)
+	}
+	if got := KeywordGet(m, kw).StringValue(); got != "ADA" {
+		t.Fatalf("KeywordGet :name => %q", got)
+	}
+	inner := NewMap(NewKeyword("race-name"), NewString("BOSTON"))
+	outer := NewMap(NewKeyword("header"), inner)
+	if got := KeywordGet(KeywordGet(outer, NewKeyword("header")), NewKeyword("race-name")).StringValue(); got != "BOSTON" {
+		t.Fatalf("nested KeywordGet => %q", got)
+	}
+}
+
 func TestSubAndDiv(t *testing.T) {
 	sub := Sub(NewLong(10), NewDouble(2.5))
 	if got := sub.Double(); got != 7.5 {

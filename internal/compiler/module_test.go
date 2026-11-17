@@ -320,7 +320,7 @@ func TestCompileProgramLibraryImportInteropDefrecord(t *testing.T) {
 	for _, want := range []string{
 		"func flag_main____gtPerson_arity_2",
 		"func flag_main__map__gtPerson_arity_1",
-		`flag_main____gtPerson_arity_2(flagStr_Ada, flagrt.NewLong(36))`,
+		`flag_main____gtPerson_arity_2(flagStr_Ada, flagLong_36)`,
 		"flag_main__map__gtPerson_variadic",
 	} {
 		if !strings.Contains(got, want) {
@@ -555,7 +555,7 @@ func TestCompileProgramPackagesPreludeIsSeparatePackage(t *testing.T) {
 		t.Fatalf("prologue:\n%s", p)
 	}
 	e := string(entry.Source)
-	for _, want := range []string{"prologue.Inc", "prologue.Identity", "flagbuild/prologue"} {
+	for _, want := range []string{"flagrt.Inc", "prologue.Identity", "flagbuild/prologue"} {
 		if !strings.Contains(e, want) {
 			t.Fatalf("main missing %q in:\n%s", want, e)
 		}
@@ -624,7 +624,7 @@ func TestCompileProgramPackagesHelloWorldNoInlineIncDec(t *testing.T) {
 		t.Fatalf("missing packages: %#v", pkgs)
 	}
 	e := string(entry.Source)
-	for _, want := range []string{"prologue.Inc", "prologue.Dec", "Hello from FLAG"} {
+	for _, want := range []string{"flagrt.Inc", "flagrt.Dec", "Hello from FLAG"} {
 		if !strings.Contains(e, want) {
 			t.Fatalf("main missing %q in:\n%s", want, e)
 		}
@@ -678,7 +678,7 @@ func TestCompileProgramPackagesWithTests(t *testing.T) {
 		t.Fatalf("prologue:\n%s", p)
 	}
 	e := string(entry.Source)
-	for _, want := range []string{"package main", "flagTestCase", "prologue.Inc", "flagbuild/prologue"} {
+	for _, want := range []string{"package main", "flagTestCase", "flagrt.Inc"} {
 		if !strings.Contains(e, want) {
 			t.Fatalf("main missing %q in:\n%s", want, e)
 		}
@@ -763,9 +763,9 @@ func TestCompileProgramPackagesCallsArityFunctions(t *testing.T) {
 		"twice_arity_1(",
 		"nums.Add1_arity_1(",
 		"nums.Join_variadic(",
-		"prologue.Inc_arity_1(",
+		"flagrt.Inc(",
 		"flagrt.Range()",
-		"flagrt.Range(flagrt.NewLong(3))",
+		"flagrt.Range(flagLong_3)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("main missing arity call %q:\n%s", want, got)

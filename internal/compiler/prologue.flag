@@ -8,10 +8,10 @@
            keyword? map? vector? set? sequential? coll? empty
            zero? pos? neg? even? odd? not-empty? not-any? remove
            update get-in update-in assoc-in dissoc-in
-           juxt partial complement fnil comp iterate repeatedly
+           partial complement fnil comp iterate repeatedly
            take-while drop-while take-last drop-last take-nth
            keep map-indexed keep-indexed reduce-kv
-           every? every-pred some-fn max-key zipmap group-by select-keys
+           every? every-pred some-fn max-key zipmap select-keys
            merge merge-with mapcat distinct flatten interpose interleave
            partition partition-all partition-by sort]}
 
@@ -319,7 +319,8 @@
   (or (= (type-of x) :list)
       (= (type-of x) :array)
       (= (type-of x) :vector)
-      (= (type-of x) :lazy-list)))
+      (= (type-of x) :lazy-list)
+      (= (type-of x) :range)))
 
 (defn coll? [x]
   (or (sequential? x)
@@ -334,6 +335,7 @@
     :map {}
     :set #{}
     :lazy-list (list)
+    :range []
     :record {}
     nil))
 
@@ -410,10 +412,6 @@
               (assoc m k next)))
           (dissoc m k)))
       m)))
-
-(defn juxt [& fns]
-  (fn [& xs]
-    (vec (map (fn [f] (apply f xs)) fns))))
 
 (defn partial [f & bound]
   (fn [& more]
@@ -585,13 +583,6 @@
     (if (and (seq ks) (seq vs))
       (recur (rest ks) (rest vs) (assoc out (first ks) (first vs)))
       out)))
-
-(defn group-by [f coll]
-  (reduce (fn [acc x]
-            (let [k (f x)]
-              (assoc acc k (conj (or (get acc k) []) x))))
-          {}
-          coll))
 
 (defn select-keys [m ks]
   (reduce (fn [acc k]

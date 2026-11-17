@@ -134,7 +134,9 @@ the package var `flagrt.NilValue` (not a `NilValue()` call). No-arg runtime
 functions still use `literal-rt-call` (e.g. `Seq()`). The Go compiler calls this from `exprToGo`
 (`flagLiteralToIR`) and still hoists keywords, chars, bigints, ratios, and
 quoted symbols with `internIR`. FLAG `compile-form-to-ir` hoists the same
-literals (plus quoted lists as `List`) when ctx has `:constants`. String
+literals (plus quoted lists as `List`) when ctx has `:constants`. Int
+literals intern as `flagLong_*` (`-1` → `flagLong__1`). Negative
+ratios intern as `flagRatio__1_2`, not `flagRatio_-1_2`. String
 literals stay `:string` (`exprKindString`); wrapping them as Values interns
 `flagrt.NewString` as `flagStr_*` (`truncate-hint` 24 chars, same sanitizing as
 keywords). Constant vectors/maps/sets intern as `Vec`/`Map`/`Set`/`PipeVec`.
@@ -147,7 +149,9 @@ Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-for
 still interned as `List`. Odd-length maps error.
 
 `call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
-only for unknown callees (locals, maps, sets, keywords, `apply`).
+only for unknown callees (locals, maps, sets, `apply`). Keyword literals
+`(:name m)` / `(:name m default)` lower through `keyword-invoke-to-ir` to
+`flagrt.KeywordGet` / `KeywordGetDefault`.
 `known-call-fun` picks a direct Go call when the head is a known function:
 same-package FLAG defns use `goName_arity_N(...)` when that arity exists
 (`goName_variadic(...)` only for `& rest` or an unmatched arity). Imported
@@ -272,11 +276,12 @@ runs when that thunk returns (`with-open`). Empty `(do)` is still
 `flagrt.NilValue` in Go.
 
 `loop-to-ir` emits a value IIFE: init statements, `var` bindings, then
-`for { body; __loopResult := body-expr; if unwrap-recur { assign; continue }; return }`.
-Production `compile-form-to-ir` compiles bindings (symbols only) and the
-body via `do`, then calls this; Go `loopExprToGo` is the fallback. `recur-to-ir`
-is `flagrt.NewRecur(args...)`; FLAG and Go both require `recur` inside `loop`
-with matching arity.
+`for { body-stmts; return body-expr }`. `recur` compiles to temps for every
+argument, assigns the loop bindings, then `continue` (no `NewRecur` /
+`UnwrapRecur` in compiled loops). Helper `recur-to-ir` still builds
+`flagrt.NewRecur` for IR tests. FLAG requires `recur` inside `loop` with
+matching arity. `(inc x)` / `(dec x)` lower to `flagrt.Inc` / `Dec`
+(`addLong` ±1); `inc` as a function value still uses the prologue.
 
 `defer-to-ir` is `defer flagrt.Call(thunk)`. Production `compile-form-to-ir`
 compiles the zero-arg function (strings wrapped), sets `:defer?` / `:stmt`,

@@ -24,12 +24,77 @@ func NewMap(entries ...Value) Value {
 	if len(entries)%2 != 0 {
 		panic("NewMap expects key/value pairs")
 	}
+	kvs := compactMapKVs(entries)
+	if len(kvs)/2 > arrayMapMax {
+		return hashMapFromKVs(kvs)
+	}
+	return newArrayMap(kvs)
+}
 
-	items := immutable.NewMap[Value, Value](valueHasher{})
+func compactMapKVs(entries []Value) []Value {
+	out := make([]Value, 0, len(entries))
 	for i := 0; i < len(entries); i += 2 {
-		items = items.Set(entries[i], entries[i+1])
+		k, val := entries[i], entries[i+1]
+		found := -1
+		for j := 0; j < len(out); j += 2 {
+			if valueSlotEq(out[j], k) || Eq(out[j], k) {
+				found = j
+				break
+			}
+		}
+		if found >= 0 {
+			out[found+1] = val
+			continue
+		}
+		out = append(out, k, val)
+	}
+	return out
+}
+
+func hashMapFromKVs(kvs []Value) Value {
+	items := immutable.NewMap[Value, Value](valueHasher{})
+	for i := 0; i < len(kvs); i += 2 {
+		items = items.Set(kvs[i], kvs[i+1])
 	}
 	return newMapValue(items)
+}
+
+func mapsHash(v Value) uint64 {
+	h := hashSeedMap
+	n := uint64(0)
+	for _, entry := range unsortedMapEntries(v) {
+		h += mix(Hash(entry.Key), Hash(entry.Value))
+		n++
+	}
+	return mix(h, n)
+}
+
+func mapsEq(a, b Value) bool {
+	if !isMap(b) || a.MapLen() != b.MapLen() {
+		return false
+	}
+	for _, entry := range unsortedMapEntries(a) {
+		if !Contains(b, entry.Key) || !Eq(Get(b, entry.Key), entry.Value) {
+			return false
+		}
+	}
+	return true
+}
+
+func mapString(v Value) string {
+	entries := v.MapEntries()
+	var out strings.Builder
+	out.WriteByte('{')
+	for i, entry := range entries {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(entry.Key.String())
+		out.WriteByte(' ')
+		out.WriteString(entry.Value.String())
+	}
+	out.WriteByte('}')
+	return out.String()
 }
 
 func NewSet(values ...Value) Value {
@@ -221,13 +286,13 @@ func RenameKeys(coll Value, keyMap Value) Value {
 	if IsNil(coll) {
 		return NilValue
 	}
-	if !isType[*mapImpl](coll) {
+	if !isMap(coll) {
 		panic("rename-keys expects map and key-map")
 	}
 	if IsNil(keyMap) {
 		return coll
 	}
-	if !isType[*mapImpl](keyMap) {
+	if !isMap(keyMap) {
 		panic("rename-keys expects map and key-map")
 	}
 	out := coll
@@ -248,7 +313,7 @@ func MapInvert(coll Value) Value {
 	if IsNil(coll) {
 		return NilValue
 	}
-	if !isType[*mapImpl](coll) {
+	if !isMap(coll) {
 		panic("map-invert expects map")
 	}
 	out := NewMap()
@@ -313,7 +378,7 @@ func SetRename(rel Value, keyMap Value) Value {
 }
 
 func projectRow(row Value, keys []Value) Value {
-	if !isType[*mapImpl](row) && !isType[*dateImpl](row) && !isType[*recordImpl](row) {
+	if !isMap(row) && !isType[*dateImpl](row) && !isType[*recordImpl](row) {
 		panic("project expects set of map-like values")
 	}
 	out := NewMap()
@@ -326,6 +391,10 @@ func projectRow(row Value, keys []Value) Value {
 }
 
 func MapAssoc(coll Value, entries ...Value) Value {
+	return coll.impl.assoc(coll, entries...)
+}
+
+func hashMapAssoc(coll Value, entries ...Value) Value {
 	if len(entries) < 2 || len(entries)%2 != 0 {
 		panic("assoc expects collection and key/value pairs")
 	}
@@ -348,6 +417,22 @@ func Get(coll Value, key Value, notFound ...Value) Value {
 	if len(notFound) == 1 {
 		missing = notFound[0]
 	}
+	return fastGet(coll, key, missing)
+}
+
+func fastGet(coll, key, missing Value) Value {
+	if m, ok := coll.impl.(*arrayMapImpl); ok {
+		if value, found := arrayMapLookup(m.pairs(), key); found {
+			return value
+		}
+		return missing
+	}
+	if m, ok := coll.impl.(*mapImpl); ok {
+		if value, found := m.data.items.Get(key); found {
+			return value
+		}
+		return missing
+	}
 	return coll.impl.get(coll, key, missing)
 }
 
@@ -364,6 +449,9 @@ func MapDissoc(coll Value, keys ...Value) Value {
 }
 
 func (v Value) MapLen() int {
+	if isType[*arrayMapImpl](v) {
+		return asImpl[*arrayMapImpl](v, "MapLen").n / 2
+	}
 	if isType[*mapImpl](v) {
 		return v.mapPointer().items.Len()
 	}
@@ -373,9 +461,13 @@ func (v Value) MapLen() int {
 	panic("MapLen called on non-map Value")
 }
 
-func (v Value) MapEntries() []MapEntry {
-	if isType[*dateImpl](v) {
-		return dateEntries(v)
+func unsortedMapEntries(v Value) []MapEntry {
+	if am, ok := v.impl.(*arrayMapImpl); ok {
+		entries := make([]MapEntry, 0, am.n/2)
+		for i := 0; i < am.n; i += 2 {
+			entries = append(entries, MapEntry{Key: am.kvs[i], Value: am.kvs[i+1]})
+		}
+		return entries
 	}
 	itr := v.mapPointer().items.Iterator()
 	entries := make([]MapEntry, 0, v.MapLen())
@@ -383,6 +475,14 @@ func (v Value) MapEntries() []MapEntry {
 		key, value, _ := itr.Next()
 		entries = append(entries, MapEntry{Key: key, Value: value})
 	}
+	return entries
+}
+
+func (v Value) MapEntries() []MapEntry {
+	if isType[*dateImpl](v) {
+		return dateEntries(v)
+	}
+	entries := unsortedMapEntries(v)
 	sort.Slice(entries, func(i, j int) bool {
 		return valueLess(entries[i].Key, entries[j].Key)
 	})
@@ -434,48 +534,17 @@ type mapImpl struct {
 }
 
 func (mapImpl) hashImpl(v Value) uint64 {
-	h := hashSeedMap
-	n := uint64(0)
-	itr := v.mapPointer().items.Iterator()
-	for !itr.Done() {
-		key, value, _ := itr.Next()
-		h += mix(Hash(key), Hash(value))
-		n++
-	}
-	return mix(h, n)
+	return mapsHash(v)
 }
 func (mapImpl) eq(v Value, other Value) bool {
-	if !isType[*mapImpl](other) || v.MapLen() != other.MapLen() {
-		return false
-	}
-	itr := v.mapPointer().items.Iterator()
-	for !itr.Done() {
-		key, value, _ := itr.Next()
-		got, ok := other.mapPointer().items.Get(key)
-		if !ok || !Eq(got, value) {
-			return false
-		}
-	}
-	return true
+	return mapsEq(v, other)
 }
 func (mapImpl) typ(Value) Value { return typeMap }
 func (mapImpl) String(v Value) string {
-	entries := v.MapEntries()
-	var out strings.Builder
-	out.WriteByte('{')
-	for i, entry := range entries {
-		if i > 0 {
-			out.WriteByte(' ')
-		}
-		out.WriteString(entry.Key.String())
-		out.WriteByte(' ')
-		out.WriteString(entry.Value.String())
-	}
-	out.WriteByte('}')
-	return out.String()
+	return mapString(v)
 }
 func (mapImpl) assoc(v Value, entries ...Value) Value {
-	return MapAssoc(v, entries...)
+	return hashMapAssoc(v, entries...)
 }
 func (mapImpl) dissoc(v Value, keys ...Value) Value {
 	items := v.mapPointer().items
@@ -525,8 +594,8 @@ func (mapImpl) apply(v Value, args ...Value) Value {
 func (mapImpl) conj(v Value, entries ...Value) Value {
 	items := v.mapPointer().items
 	for _, entry := range entries {
-		if isType[*mapImpl](entry) {
-			for _, mapEntry := range entry.MapEntries() {
+		if isMap(entry) {
+			for _, mapEntry := range unsortedMapEntries(entry) {
 				items = items.Set(mapEntry.Key, mapEntry.Value)
 			}
 			continue

@@ -2,8 +2,10 @@
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
-`range` is a runtime builtin. Non-empty results are **lazy lists** (`:lazy-list`);
-the end is exclusive. Empty ranges are `[]`.
+`range` is a runtime builtin. Non-empty results are a **range seq** (`:range`):
+the current `int64` plus exclusive `end` and `step`. Stepping is native integer
+add/compare in Go (no lazy-list nodes or mutex). The end is exclusive. Empty
+ranges are `[]`.
 
 | Form | Result |
 |------|--------|
@@ -23,8 +25,12 @@ the end is exclusive. Empty ranges are `[]`.
 (take 2 (range 7 9 0))  ;; (7 7)
 ```
 
-Zero `step` with `start = end` is empty; otherwise it repeats `start` (lazy).
-Finite ranges stay lazy until `vec` / `doall` / `reduce` / `take`. `(range)` is
-an infinite lazy list from 0. `first`/`rest` on lazy lists are O(1) per step.
-`(count (range n))` is O(1) via a remaining-length hint. The compiler emits
-`flagrt.Range(...)`; `(apply range xs)` uses `flagrt.FnRange`.
+Zero `step` with `start = end` is empty; otherwise it repeats `start` (lazy
+list). Finite ranges are counted (`count` / `drop` / `slow-nth` / `last` are
+O(1)). `(range)` is infinite from 0. `reduce` / `vec` / `take` walk with a
+cursor that only bumps the current long.
+
+`(map f (range n))` is eager (an array). `(map f (range))` stays a lazy list so
+infinite maps do not hang until forced. Two equal ranges compare equal
+(`(= (range 3) (range 3))`). The compiler emits `flagrt.Range(...)`;
+`(apply range xs)` uses `flagrt.FnRange`.

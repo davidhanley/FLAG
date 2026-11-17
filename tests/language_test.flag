@@ -109,7 +109,9 @@
     (is (= :vector (type-of | 1 2 |)))
     (is (= :map (type-of {:a 1})))
     (is (= :set (type-of #{1})))
-    (is (= :fn (type-of identity)))))
+    (is (= :fn (type-of identity)))
+    (is (= :range (type-of (range 4))))
+    (is (= :range (type-of (range))))))
 
 (deftest numeric-predicates
   (testing "zero? pos? neg? number? int? float? even? odd?"
@@ -168,6 +170,7 @@
     (is (sequential? [1]))
     (is (sequential? '(1)))
     (is (sequential? | 1 |))
+    (is (sequential? (range 1)))
     (is (= false (sequential? {:a 1})))
     (is (= false (sequential? #{1})))
     (is (= false (sequential? "hi")))
@@ -176,6 +179,8 @@
     (is (coll? #{1}))
     (is (coll? '(1)))
     (is (coll? | 1 |))
+    (is (coll? (range 2)))
+    (is (= [] (empty (range 4))))
     (is (= false (coll? "hi")))
     (is (= false (coll? 1)))))
 
@@ -485,13 +490,14 @@
     (is (= 0 (reduce-kv (fn [acc _k v] (+ acc v)) 0 {})))
     (is (= 7 (reduce-kv (fn [acc _k v] (+ acc v)) 7 nil)))
     (expect-exception (reduce-kv (fn [acc _k _v] acc) 0 '(1 2)) "map, array, or vector")
-    (is (= :lazy-list (type-of (range))))
-    (is (= :lazy-list (type-of (range 4))))
-    (is (= :lazy-list (type-of (range 1 8))))
-    (is (= :lazy-list (type-of (range 0 8 2))))
+    (is (= :range (type-of (range))))
+    (is (= :range (type-of (range 4))))
+    (is (= :range (type-of (range 1 8))))
+    (is (= :range (type-of (range 0 8 2))))
     (is (= [0 1 2] (vec (range 0 3))))
     (is (= [0 1 2 3] (vec (range 4))))
     (is (= 4 (count (range 4))))
+    (is (= 3 (count (rest (range 4)))))
     (is (= [] (vec (range 0))))
     (is (= [] (vec (range -2))))
     (is (= [] (vec (range 5 1))))
@@ -500,6 +506,19 @@
     (is (= [0 1 2] (vec (take 3 (range)))))
     (is (= [7 7] (vec (take 2 (range 7 10 0)))))
     (is (= [0 1 2 3] (vec (apply range [4]))))
+    (is (= (range 3) (range 3)))
+    (is (= (rest (range 4)) (range 1 4)))
+    (is (= (hash (range 3)) (hash (range 3))))
+    (is (not (= (hash (range 3)) (hash (range 4)))))
+    (is (= 1 (bit-and (hash (range 8)) 1)))
+    (is (= 2 (last (range 3))))
+    (is (= [3 4 5] (vec (drop 3 (range 6)))))
+    (is (= [] (drop 8 (range 3))))
+    (is (= 6 (reduce + 0 (range 4))))
+    (is (= :array (type-of (map inc (range 4)))))
+    (is (= [1 2 3 4] (map inc (range 4))))
+    (is (= :lazy-list (type-of (map inc (range)))))
+    (is (= [0 1 2] (vec (take 3 (map identity (range))))))
     (is (= [1 2] (vec (take-while pos? [1 2 -1 3]))))
     (is (= [] (vec (take-while pos? [-1 2]))))
     (is (= [] (vec (take-while pos? []))))
@@ -641,6 +660,17 @@
     (is (= [1 2 3] (let [a [1 2 3]] (assoc a 1 9) a)))
     (expect-exception (assoc [1] 3 0) "out of bounds")
     (is (= {:a 1} (assoc {} :a 1)))
+    (is (= {:a 1 :b 2 :c 3} (assoc {} :a 1 :b 2 :c 3)))
+    (is (= {1 :b} (assoc {1 :a} 1.0 :b)))
+    (is (= 2 (get (assoc {1 1} 1.0 2) 1)))
+    (is (= :a (get {1 :a} 1.0)))
+    (is (= {:a 3} (assoc {:a 1} :a 2 :a 3)))
+    (is (= {:a 1 :b 2} (assoc {:a 1 :b 2} :a 1 :b 2)))
+    (is (= {:a 1} (let [m {:a 1}] (assoc m :b 2 :c 3) m)))
+    (is (= 7 (count (assoc {:name "A" :age 1 :sex :m :points 0}
+                          :header 1 :points-scored 2 :overall-rank 3))))
+    (is (= {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}
+           (assoc {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8} :i 9)))
     (is (= {} (let [m {}] (assoc m :a 1) m)))
     (is (= [7] (assoc [] 0 7)))
     (is (= | 7 | (assoc | | 0 7)))
@@ -720,6 +750,15 @@
     (is (= 1 ({:a 1} :a)))
     (is (= :missing (:z {:a 1} :missing)))
     (is (= :missing ({:a 1} :z :missing)))
+    (is (= nil (:z {:a 1})))
+    (is (= nil (:a nil)))
+    (is (= :no (:a nil :no)))
+    (is (= "ADA" (:name {:name "ADA" :age 40})))
+    (is (= 2 (:b (:a {:a {:b 2}}))))
+    (is (= 1 ((keyword "a") {:a 1})))
+    (is (= 1 (get {:a 1} (keyword "a"))))
+    (is (= :abc (keyword "abc")))
+    (is (= :name (keyword (str "na" "me"))))
     (is (= 2 (#{1 2} 2)))
     (is (= nil (#{1 2} 3)))
     (is (= :missing (#{1 2} 3 :missing)))
@@ -765,7 +804,33 @@
     (is (= [] (array)))
     (is (not (= (list 1 2 3) (array 1 2 3))))
     (is (= '(1 2 3) (apply list [1 2 3])))
-    (is (= [1 2 3] (apply array '(1 2 3))))))
+    (is (= [1 2 3] (apply array '(1 2 3)))))
+  (testing "small maps stay maps through 9 keys, eq, hash, nested get"
+    (let [eight (assoc {} :a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8)
+          nine (assoc eight :i 9)
+          nine-lit {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}
+          eight-lit {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8}
+          nested {:athlete {:name "ADA" :age 40}}]
+      (is (= :map (type-of {})))
+      (is (= :map (type-of eight)))
+      (is (= :map (type-of nine)))
+      (is (= :map (type-of nine-lit)))
+      (is (= 8 (count eight)))
+      (is (= 9 (count nine)))
+      (is (= eight eight-lit))
+      (is (= nine nine-lit))
+      (is (= (hash eight) (hash eight-lit)))
+      (is (= (hash nine) (hash nine-lit)))
+      (is (= {:a 2} {:a 1 :a 2}))
+      (is (= 8 (:h eight)))
+      (is (= 9 (:i nine)))
+      (is (= nil (:i eight)))
+      (is (= 8 (get nine :h)))
+      (is (= {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7} (dissoc eight :h)))
+      (is (= eight (dissoc nine :i)))
+      (is (= "ADA" (:name (:athlete nested))))
+      (is (= 40 (:age (:athlete nested))))
+      (is (= nil (:missing (:athlete nested)))))))
 
 (deftest hashes
   (testing "odd stable hashes"
@@ -857,6 +922,11 @@
 (deftest group-sort-max
   (testing "group-by sort-by sort max-key val"
     (is (= {1 [1] 2 [2 2]} (group-by identity [1 2 2])))
+    (is (= {} (group-by identity [])))
+    (is (= {} (group-by identity nil)))
+    (is (= {:a [{:k :a :v 1}] :b [{:k :b :v 2} {:k :b :v 3}]}
+           (group-by :k [{:k :a :v 1} {:k :b :v 2} {:k :b :v 3}])))
+    (is (= {true [2 4] false [1 3]} (group-by even? [1 2 3 4])))
     (is (= [1 2 3] (vec (sort-by identity [3 1 2]))))
     (is (= [1 2 3] (sort [3 1 2])))
     (is (= [1 2 3] (sort '(3 1 2))))
@@ -930,6 +1000,17 @@
     (is (= 2 (when-not false 2)))
     (is (= 2 (inc 1)))
     (is (= 1 (dec 2)))
+    (is (= -1 (dec 0)))
+    (is (= 2.5 (inc 1.5)))
+    (is (= 0.5 (dec 1.5)))
+    (is (= 3/2 (inc 1/2)))
+    (is (= -1/2 (dec 1/2)))
+    (is (= [2 3 4] (vec (map inc [1 2 3]))))
+    (is (= [0 1 2] (vec (map dec [1 2 3]))))
+    (expect-exception (inc "x") "Add expects numeric")
+    (expect-exception (dec :a) "Add expects numeric")
+    (expect-exception (inc nil) "Add expects numeric")
+    (expect-exception (dec nil) "Add expects numeric")
     (is (not= 1 2))
     (is (= :b (cond false :a :else :b)))
     (is (= :b (case 2 1 :a 2 :b 3 :c)))
@@ -994,7 +1075,18 @@
     (is (= 13 (fib 7)))
     (is (even? 8))
     (is (= false (even? 7)))
-    (is (= 6 (sum-to 3)))))
+    (is (= 6 (sum-to 3)))
+    (is (= 10 (loop [i 0]
+                (if (= i 10)
+                  i
+                  (recur (inc i))))))
+    (is (= 6 (loop [i 0 acc 0]
+               (if (= i 4)
+                 acc
+                 (recur (inc i) (+ acc i))))))
+    (is (= 5 (loop [i 0]
+               (let [n (inc i)]
+                 (if (= n 5) n (recur n))))))))
 
 (deftest symbols-and-names
   (testing "name keyword symbol"
@@ -1107,7 +1199,10 @@
     (is (= {:n 1} (max-key :n {:n 1}))))
   (testing "juxt partial"
     (is (= [1 2] (vec ((juxt first second) [1 2 3]))))
+    (is (= [1 2] ((juxt first second) [1 2 3])))
     (is (= [6] (vec ((juxt +) 1 2 3))))
+    (is (= ["ADA" 40] ((juxt :name :age) {:name "ADA" :age 40})))
+    (is (= [] ((juxt) 1)))
     (is (= [2 3] (vec ((partial map add1) [1 2]))))
     (is (= 6 ((partial + 1 2) 3)))))
 
@@ -1241,7 +1336,8 @@
       (is (= 3 (:month parsed)))
       (is (= 8 (:day parsed))))
     (is (= "\"#<fn>\"" (to-json identity)))
-    (is (= "\"#<lazy-list>\"" (to-json (range))))
+    (is (= "\"#<range>\"" (to-json (range))))
+    (is (= "\"#<range>\"" (to-json (range 4))))
     (is (= "hi" (ex-message (identity "hi"))))
     (is (= nil (ex-message 1)))
     (is (= 1 (get (json/read-str "{\"a\":1}") "a")))
@@ -1299,7 +1395,7 @@
     (is (= "HI" ((go-fn "str/upper-case") "hi")))
     (is (= 'str/trim (:name (go-fn-args "str/trim"))))
     (is (= :file (type-of (open-file "tests/language.flag"))))
-    (is (= :lazy-list (type-of (range))))
+    (is (= :range (type-of (range))))
     (is (= :record (type-of (->food 1 2))))))
 
 (deftest math-package

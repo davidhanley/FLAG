@@ -18,6 +18,7 @@ var (
 	typeList     = NewKeyword("list")
 	typeArray    = NewKeyword("array")
 	typeLazyList = NewKeyword("lazy-list")
+	typeRange    = NewKeyword("range")
 	typeChannel  = NewKeyword("channel")
 	typeRecur    = NewKeyword("recur")
 	typeRecord   = NewKeyword("record")

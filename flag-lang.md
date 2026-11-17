@@ -404,7 +404,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - `string?` / `symbol?` / `keyword?`
 - `map?` (`:map` / `:record`)
 - `vector?` (FLAG vectors `| … |` only; arrays are not vectors)
-- `set?` / `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list`) / `coll?`
+- `set?` / `sequential?` (`:list` / `:array` / `:vector` / `:lazy-list` / `:range`) / `coll?`
 - `number?` (`:int` / `:float` / `:bigint` / `:ratio`) / `int?` / `float?`
 - `zero?` / `pos?` / `neg?` (throw on non-numbers)
 - `even?` / `odd?` (integers including bigint; throw otherwise)
@@ -419,7 +419,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### Types — R
 
-- `type-of` → `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:channel`, `:atom`, `:record`
+- `type-of` → `:int`, `:float`, `:bigint`, `:ratio`, `:bool`, `:string`, `:keyword`, `:symbol`, `:nil`, `:list`, `:array`, `:vector`, `:map`, `:set`, `:fn`, `:date`, `:file`, `:lazy-list`, `:range`, `:channel`, `:atom`, `:record`
 
 ### Symbols / strings / printing
 
@@ -627,11 +627,11 @@ to double. `round` returns a long and ties toward +∞ (Java `Math.round`).
 
 ## Sequences and laziness
 
-- `(range)` is a lazy sequence `0, 1, 2, …`.
+- `(range)` is an infinite integer range seq `0, 1, 2, …` (`:range`).
 - `(range n)` is `0 .. n-1` (Clojure), not an infinite sequence from `n`.
 - `(range start end)` / `(range start end step)` are exclusive of `end`; negative `step` counts down.
 - `iterate` and `(repeatedly f)` are lazy.
-- map/filter/reduce/take/drop work across list/array/vector/lazy-list values.
+- map/filter/reduce/take/drop work across list/array/vector/lazy-list/range values.
 - Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.
 - `pmap` currently materializes input tuples, computes in parallel, and returns an eager array while preserving order.

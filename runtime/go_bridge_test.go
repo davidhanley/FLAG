@@ -21,7 +21,7 @@ func TestGoFunctionArgs(t *testing.T) {
 	RegisterGoFunction("test.meta", func(a int64, b ...int64) int64 { return a + int64(len(b)) })
 
 	meta := GoFunctionArgs("test.meta")
-	if !isType[*mapImpl](meta) {
+	if !isMap(meta) {
 		t.Fatalf("expected map metadata, got %v", TypeOf(meta))
 	}
 
