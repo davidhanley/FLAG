@@ -47,7 +47,7 @@ No-arg; not a date. Prefer this over `t/now` for benchmarks.
 | `lazy-range-sum`, `lazy-map-inc` | `(def fractions (map #(/ 5 …) (range)))` | `(range)` is an int64 cursor seq. Clojure still **chunks 32**. |
 | `ratio-scores`, `frs-score-shape` | `get-scores-list` | Boxed `Value` + ratio objects vs Clojure ratios after JIT. |
 | `eager-range-sum`, `apply-max` | `reduce +`, `(apply max …)` | Every yielded long is still a boxed `Value`; `+` is polymorphic. Clojure `LongRange` + primitive combine. |
-| `keyword-gets`, `nested-keyword` | `(:name athlete)`, `(:race-name (:header r))` | Compiled `KeywordGet` into interned keyword keys; small maps are array-maps (≤8 pairs), then HAMT. |
+| `keyword-gets`, `nested-keyword` | `(:name athlete)`, `(:race-name (:header r))` | Compiled `KeywordGet` into interned keyword keys; small maps are array-maps (≤8 pairs), then FLAG HAMT. |
 | `assoc-scores` | `add-scores-and-rank` | `assoc` of several keys per athlete. |
 | `group-by-name`, `juxt-keys` | `group-by :name`, `(juxt :name :age)` | `group-by` is Go `GroupBy`; keyword `juxt` is two `KeywordGet`s into an array. |
 | `mapcat-filter`, `sort-by-points` | `compute-sex-results` | Extra seq copies; no chunking. |
