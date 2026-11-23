@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -83,14 +85,19 @@ func TestPipeReduce(t *testing.T) {
 }
 
 func TestLinesPipe_FromPath(t *testing.T) {
-	// Use an absolute path to a known project file.
-	path := "/Users/davidhanley/projects/FLAG/runtime/channel_pipe.go"
+	path := filepath.Join(t.TempDir(), "lines.txt")
+	if err := os.WriteFile(path, []byte("package runtime\nsecond\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	ch := ChannelLinesPipe(NewString(path))
 	got := collectPipe(ch)
-	if len(got) == 0 {
-		t.Fatal("channel-lines returned no lines for channel_pipe.go")
+	if len(got) != 2 {
+		t.Fatalf("channel-lines got %d lines, want 2", len(got))
 	}
 	if !isType[*stringImpl](got[0]) || got[0].StringValue() != "package runtime" {
 		t.Fatalf("unexpected first line: %q", got[0].StringValue())
+	}
+	if got[1].StringValue() != "second" {
+		t.Fatalf("unexpected second line: %q", got[1].StringValue())
 	}
 }
