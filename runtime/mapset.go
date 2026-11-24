@@ -1,9 +1,8 @@
 package runtime
 
 import (
+	"flag-lang/runtime/hamt"
 	"sort"
-
-	"github.com/benbjohnson/immutable"
 	"strings"
 )
 
@@ -13,11 +12,15 @@ type MapEntry struct {
 }
 
 type mapData struct {
-	items *immutable.Map[Value, Value]
+	items hamt.Map[Value, Value]
 }
 
 type setData struct {
-	items immutable.Set[Value]
+	items hamt.Set[Value]
+}
+
+func valuesHamtEq(a, b Value) bool {
+	return (valueHasher{}).Equal(a, b)
 }
 
 func NewMap(entries ...Value) Value {
@@ -52,11 +55,11 @@ func compactMapKVs(entries []Value) []Value {
 }
 
 func hashMapFromKVs(kvs []Value) Value {
-	items := immutable.NewMap[Value, Value](valueHasher{})
+	tr := hamt.NewMap[Value, Value](Hash, valuesHamtEq).Transient()
 	for i := 0; i < len(kvs); i += 2 {
-		items = items.Set(kvs[i], kvs[i+1])
+		tr.Assoc(kvs[i], kvs[i+1])
 	}
-	return newMapValue(items)
+	return newMapValue(tr.Persistent())
 }
 
 func mapsHash(v Value) uint64 {
@@ -98,8 +101,11 @@ func mapString(v Value) string {
 }
 
 func NewSet(values ...Value) Value {
-	items := immutable.NewSet[Value](valueHasher{}, values...)
-	return newSetValue(items)
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
+	for _, v := range values {
+		tr.Add(v)
+	}
+	return newSetValue(tr.Persistent())
 }
 
 func Assoc(coll Value, entries ...Value) Value {
@@ -164,7 +170,7 @@ func findEntry(key Value, value Value, ok bool) Value {
 }
 
 func Union(sets ...Value) Value {
-	items := immutable.NewSet[Value](valueHasher{})
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
 	for _, set := range sets {
 		if IsNil(set) {
 			continue
@@ -172,11 +178,12 @@ func Union(sets ...Value) Value {
 		if !isType[*setImpl](set) {
 			panic("union expects set arguments")
 		}
-		for _, value := range set.SetValues() {
-			items = items.Add(value)
-		}
+		set.setPointer().items.Range(func(value Value) bool {
+			tr.Add(value)
+			return true
+		})
 	}
-	return newSetValue(items)
+	return newSetValue(tr.Persistent())
 }
 
 func Intersection(sets ...Value) Value {
@@ -195,8 +202,8 @@ func Intersection(sets ...Value) Value {
 	if IsNil(base) {
 		return NewSet()
 	}
-	items := immutable.NewSet[Value](valueHasher{})
-	for _, value := range base.SetValues() {
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
+	base.setPointer().items.Range(func(value Value) bool {
 		keep := true
 		for i := 1; i < len(sets); i++ {
 			if !sets[i].setPointer().items.Has(value) {
@@ -205,10 +212,11 @@ func Intersection(sets ...Value) Value {
 			}
 		}
 		if keep {
-			items = items.Add(value)
+			tr.Add(value)
 		}
-	}
-	return newSetValue(items)
+		return true
+	})
+	return newSetValue(tr.Persistent())
 }
 
 func Difference(sets ...Value) Value {
@@ -222,7 +230,7 @@ func Difference(sets ...Value) Value {
 	if !isType[*setImpl](first) {
 		panic("difference expects set arguments")
 	}
-	items := first.setPointer().items
+	tr := first.setPointer().items.Transient()
 	for _, set := range sets[1:] {
 		if IsNil(set) {
 			continue
@@ -230,11 +238,12 @@ func Difference(sets ...Value) Value {
 		if !isType[*setImpl](set) {
 			panic("difference expects set arguments")
 		}
-		for _, value := range set.SetValues() {
-			items = items.Delete(value)
-		}
+		set.setPointer().items.Range(func(value Value) bool {
+			tr.Delete(value)
+			return true
+		})
 	}
-	return newSetValue(items)
+	return newSetValue(tr.Persistent())
 }
 
 func Subset(set1 Value, set2 Value) bool {
@@ -330,13 +339,14 @@ func SetSelect(pred Value, set Value) Value {
 	if !isType[*setImpl](set) {
 		panic("select expects predicate and set")
 	}
-	items := immutable.NewSet[Value](valueHasher{})
-	for _, value := range set.SetValues() {
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
+	set.setPointer().items.Range(func(value Value) bool {
 		if IsTruthy(Call(pred, value)) {
-			items = items.Add(value)
+			tr.Add(value)
 		}
-	}
-	return newSetValue(items)
+		return true
+	})
+	return newSetValue(tr.Persistent())
 }
 
 func SetProject(rel Value, keys Value) Value {
@@ -356,11 +366,12 @@ func SetProject(rel Value, keys Value) Value {
 		keyList = append(keyList, key)
 	}
 
-	items := immutable.NewSet[Value](valueHasher{})
-	for _, row := range rel.SetValues() {
-		items = items.Add(projectRow(row, keyList))
-	}
-	return newSetValue(items)
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
+	rel.setPointer().items.Range(func(row Value) bool {
+		tr.Add(projectRow(row, keyList))
+		return true
+	})
+	return newSetValue(tr.Persistent())
 }
 
 func SetRename(rel Value, keyMap Value) Value {
@@ -370,11 +381,12 @@ func SetRename(rel Value, keyMap Value) Value {
 	if !isType[*setImpl](rel) {
 		panic("rename expects relation set and key-map")
 	}
-	items := immutable.NewSet[Value](valueHasher{})
-	for _, row := range rel.SetValues() {
-		items = items.Add(RenameKeys(row, keyMap))
-	}
-	return newSetValue(items)
+	tr := hamt.NewSet[Value](Hash, valuesHamtEq).Transient()
+	rel.setPointer().items.Range(func(row Value) bool {
+		tr.Add(RenameKeys(row, keyMap))
+		return true
+	})
+	return newSetValue(tr.Persistent())
 }
 
 func projectRow(row Value, keys []Value) Value {
@@ -399,10 +411,14 @@ func hashMapAssoc(coll Value, entries ...Value) Value {
 		panic("assoc expects collection and key/value pairs")
 	}
 	items := coll.mapPointer().items
-	for i := 0; i < len(entries); i += 2 {
-		items = items.Set(entries[i], entries[i+1])
+	if len(entries) == 2 {
+		return newMapValue(items.Assoc(entries[0], entries[1]))
 	}
-	return newMapValue(items)
+	tr := items.Transient()
+	for i := 0; i < len(entries); i += 2 {
+		tr.Assoc(entries[i], entries[i+1])
+	}
+	return newMapValue(tr.Persistent())
 }
 
 func Dissoc(coll Value, keys ...Value) Value {
@@ -469,12 +485,11 @@ func unsortedMapEntries(v Value) []MapEntry {
 		}
 		return entries
 	}
-	itr := v.mapPointer().items.Iterator()
 	entries := make([]MapEntry, 0, v.MapLen())
-	for !itr.Done() {
-		key, value, _ := itr.Next()
+	v.mapPointer().items.Range(func(key, value Value) bool {
 		entries = append(entries, MapEntry{Key: key, Value: value})
-	}
+		return true
+	})
 	return entries
 }
 
@@ -500,23 +515,22 @@ func (v Value) SetValues() []Value {
 	if !isType[*setImpl](v) {
 		panic("SetValues called on non-set Value")
 	}
-	itr := v.setPointer().items.Iterator()
 	values := make([]Value, 0, v.SetLen())
-	for !itr.Done() {
-		value, _ := itr.Next()
+	v.setPointer().items.Range(func(value Value) bool {
 		values = append(values, value)
-	}
+		return true
+	})
 	sort.Slice(values, func(i, j int) bool {
 		return valueLess(values[i], values[j])
 	})
 	return values
 }
 
-func newMapValue(items *immutable.Map[Value, Value]) Value {
+func newMapValue(items hamt.Map[Value, Value]) Value {
 	return Value{impl: &mapImpl{data: &mapData{items: items}}}
 }
 
-func newSetValue(items immutable.Set[Value]) Value {
+func newSetValue(items hamt.Set[Value]) Value {
 	return Value{impl: &setImpl{data: &setData{items: items}}}
 }
 
@@ -548,10 +562,14 @@ func (mapImpl) assoc(v Value, entries ...Value) Value {
 }
 func (mapImpl) dissoc(v Value, keys ...Value) Value {
 	items := v.mapPointer().items
-	for _, key := range keys {
-		items = items.Delete(key)
+	if len(keys) == 1 {
+		return newMapValue(items.Dissoc(keys[0]))
 	}
-	return newMapValue(items)
+	tr := items.Transient()
+	for _, key := range keys {
+		tr.Dissoc(key)
+	}
+	return newMapValue(tr.Persistent())
 }
 func (mapImpl) get(v Value, key Value, missing Value) Value {
 	value, ok := v.mapPointer().items.Get(key)
@@ -592,18 +610,18 @@ func (mapImpl) apply(v Value, args ...Value) Value {
 	return lookupApply(v, args, "map")
 }
 func (mapImpl) conj(v Value, entries ...Value) Value {
-	items := v.mapPointer().items
+	tr := v.mapPointer().items.Transient()
 	for _, entry := range entries {
 		if isMap(entry) {
 			for _, mapEntry := range unsortedMapEntries(entry) {
-				items = items.Set(mapEntry.Key, mapEntry.Value)
+				tr.Assoc(mapEntry.Key, mapEntry.Value)
 			}
 			continue
 		}
 		key, value := conjMapEntry(entry)
-		items = items.Set(key, value)
+		tr.Assoc(key, value)
 	}
-	return newMapValue(items)
+	return newMapValue(tr.Persistent())
 }
 
 type setImpl struct {
@@ -614,26 +632,26 @@ type setImpl struct {
 func (setImpl) hashImpl(v Value) uint64 {
 	h := hashSeedSet
 	n := uint64(0)
-	itr := v.setPointer().items.Iterator()
-	for !itr.Done() {
-		value, _ := itr.Next()
+	v.setPointer().items.Range(func(value Value) bool {
 		h += Hash(value)
 		n++
-	}
+		return true
+	})
 	return mix(h, n)
 }
 func (setImpl) eq(v Value, other Value) bool {
 	if !isType[*setImpl](other) || v.SetLen() != other.SetLen() {
 		return false
 	}
-	itr := v.setPointer().items.Iterator()
-	for !itr.Done() {
-		value, _ := itr.Next()
+	eq := true
+	v.setPointer().items.Range(func(value Value) bool {
 		if !Contains(other, value) {
+			eq = false
 			return false
 		}
-	}
-	return true
+		return true
+	})
+	return eq
 }
 func (setImpl) typ(Value) Value { return typeSet }
 func (setImpl) String(v Value) string {
@@ -689,11 +707,11 @@ func (setImpl) count(v Value) int      { return v.SetLen() }
 func (setImpl) isEmpty(v Value) bool   { return v.SetLen() == 0 }
 func (setImpl) notEmpty(v Value) Value { return notEmptyIf(v, v.SetLen() == 0) }
 func (setImpl) conj(v Value, entries ...Value) Value {
-	items := v.setPointer().items
+	tr := v.setPointer().items.Transient()
 	for _, item := range entries {
-		items = items.Add(item)
+		tr.Add(item)
 	}
-	return newSetValue(items)
+	return newSetValue(tr.Persistent())
 }
 func (setImpl) apply(v Value, args ...Value) Value {
 	if len(args) != 1 && len(args) != 2 {

@@ -123,9 +123,11 @@ Clojure `PersistentArrayMap.valAt` for `Keyword`. Keywords and
 symbols are interned in `NewKeyword` / `NewSymbol` (same name is the same
 `Value`, hash precomputed). Map lookup has an `*arrayMapImpl` then `*mapImpl`
 fast path. Maps of at most 8 unique keys are array-maps (linear scan, compact
-heap); the 9th unique key promotes to HAMT. `type-of` is `:map` for both, and
+heap); the 9th unique key promotes to a FLAG-owned 32-way bitmap HAMT
+(`docs/hamt.md`). `type-of` is `:map` for both, and
 `=` / `hash` match across representations. Dissoc does not demote HAMT back to
-array-map. Maps, dates,
+array-map. HAMT burst updates (multi-key `assoc`, `NewMap` of many pairs) copy
+each node once per transient session then freeze. Maps, dates,
 and records used as functions still `Call` and look up the argument in themselves
 (`({:a 1} :a)`). Sets return the member or the optional default. Functions run
 `Fn`. `asIndex` / `asCount` unbox non-negative integers without a type switch.
