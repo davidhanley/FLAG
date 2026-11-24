@@ -12,7 +12,25 @@ Use the `test` command:
 go run ./cmd/flag-lang test path/to/src
 go run ./cmd/flag-lang test examples/FRS
 go run ./cmd/flag-lang test examples/lispbench/work.flag
+go test ./...
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `go build ./...`, `go test ./...`, and
+`go run ./cmd/flag-lang test tests` on pull requests and on `main`/`master`. Checkout
+uses `submodules: recursive` so `TowerRunningRaceData` is present for FRS acceptance
+tests (`TestAcceptanceFRSFlagTests`). Lispbench is not in CI (it needs Clojure).
+
+Clone with data:
+
+```bash
+git clone --recurse-submodules git@github.com:davidhanley/FLAG.git
+git submodule update --init --recursive   # if you already cloned
+```
+
+To **block merge** until it passes: repo **Settings → Rules → Rulesets** (or
+**Branches → branch protection**) on the default branch. Require status check
+`CI / test`. The workflow must have run once on that branch before the check
+name appears.
 
 FLAG vs Clojure timings: `go run ./cmd/lispbench` ([lispbench.md](lispbench.md)).
 
