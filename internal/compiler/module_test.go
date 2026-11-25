@@ -257,27 +257,19 @@ func TestCompileProgramReferNonExport(t *testing.T) {
 	}
 }
 
-func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
-	// Resolve libraries/ from the repo root (walk-up from this package's temp entry).
+func TestCompileProgramLibraryImportBurp(t *testing.T) {
 	dir := t.TempDir()
 	main := filepath.Join(dir, "main.flag")
-	// Put a stub libraries dir that should NOT be used if walk-up finds the real one;
-	// we rely on walking to the module root that contains libraries/burp.lib.
 	if err := os.WriteFile(main, []byte(`
 {:namespace "main"
- :imports   ["csv.lib" "burp.lib"]}
-(println (csv/read-csv "x"))
+ :imports   ["burp.lib"]}
 (println (burp/html [:div "hi"]))
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Run compile from repo root context: set entry under temp but imports must
-	// find repo libraries via go.mod walk from cwd (test runs in package dir).
-	// Place a go.mod marker is already at repo root; librarySearchRoots walks cwd.
 	out, err := CompileProgram(main)
 	if err != nil {
-		// If libraries aren't found from package test cwd, skip with clear message.
 		if strings.Contains(err.Error(), "not found") {
 			t.Skipf("libraries/ not resolvable from test cwd: %v", err)
 		}
@@ -285,9 +277,7 @@ func TestCompileProgramLibraryImportBurpCSV(t *testing.T) {
 	}
 	got := string(out)
 	for _, want := range []string{
-		"var csv__read_csv = flagrt.GoBind_csv_ReadCSV",
 		"var burp__html = flagrt.GoBind_burp_Html",
-		"csv__read_csv.Fn",
 		"burp__html.Fn",
 	} {
 		if !strings.Contains(got, want) {

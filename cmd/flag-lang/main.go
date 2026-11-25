@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"flag-lang/internal/compiler"
+	"flag-lang/internal/muse"
 	"flag-lang/internal/repl"
 )
 
@@ -79,11 +80,27 @@ func runCompile(args []string) error {
 		return usageError("compile expects exactly one input file")
 	}
 
+	inputPath, err := resolveCLIInput(inputPath)
+	if err != nil {
+		return err
+	}
+	entryPath := inputPath
+	if isDir(inputPath) {
+		entry, ok, err := resolvePackageBuildEntry(inputPath)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("compile expects a FLAG file, a directory with an entry file, or a .muse project")
+		}
+		entryPath = entry
+	}
+
 	outDir, err := compilePackagesDir(inputPath, outputPath)
 	if err != nil {
 		return err
 	}
-	if err := removeStaleFatGo(inputPath, outputPath); err != nil {
+	if err := removeStaleFatGo(entryPath, outputPath); err != nil {
 		return err
 	}
 	if err := os.RemoveAll(outDir); err != nil {
@@ -92,7 +109,7 @@ func runCompile(args []string) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("create generated Go dir: %w", err)
 	}
-	pkgMode, err := writePackagesOrInline(outDir, inputPath, nil)
+	pkgMode, err := writePackagesOrInline(outDir, entryPath, nil)
 	if err != nil {
 		return err
 	}
@@ -134,6 +151,11 @@ func runBuild(args []string) error {
 
 	if inputPath == "" {
 		return usageError("build expects exactly one input file or directory")
+	}
+
+	inputPath, err := resolveCLIInput(inputPath)
+	if err != nil {
+		return err
 	}
 
 	if outputPath == "" {
@@ -355,6 +377,11 @@ func runTest(args []string) error {
 
 	if inputPath == "" {
 		return usageError("test expects exactly one input file or directory")
+	}
+
+	inputPath, err := resolveCLIInput(inputPath)
+	if err != nil {
+		return err
 	}
 
 	entryPath, testPaths, pkgMode, err := packageTestInput(inputPath)
@@ -1075,8 +1102,30 @@ func usageError(format string, args ...any) error {
 
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o dir] <input.flag>")
-	fmt.Fprintln(os.Stderr, "  flag-lang build [-o output-bin] <input.flag|source-dir>")
-	fmt.Fprintln(os.Stderr, "  flag-lang test [-o test-bin] <input.flag|source-dir>")
+	fmt.Fprintln(os.Stderr, "  flag-lang compile [-o dir] <input.flag|project.muse>")
+	fmt.Fprintln(os.Stderr, "  flag-lang build [-o output-bin] <input.flag|source-dir|project.muse>")
+	fmt.Fprintln(os.Stderr, "  flag-lang test [-o test-bin] <input.flag|source-dir|project.muse>")
 	fmt.Fprintln(os.Stderr, "  flag-lang repl")
+}
+
+// resolveCLIInput fetches MUSE libraries when the path is a .muse file or
+// lives in a directory that has one, then returns the path the rest of the
+// CLI should compile (the .muse file becomes the project directory).
+func resolveCLIInput(inputPath string) (string, error) {
+	abs, err := filepath.Abs(inputPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", inputPath, err)
+	}
+	musePath, ok := muse.Find(abs)
+	if !ok {
+		return abs, nil
+	}
+	dir, err := muse.Prepare(musePath)
+	if err != nil {
+		return "", err
+	}
+	if strings.EqualFold(filepath.Ext(abs), ".muse") {
+		return dir, nil
+	}
+	return abs, nil
 }

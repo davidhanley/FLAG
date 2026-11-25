@@ -164,8 +164,12 @@ func TestModuleImportPathsParseError(t *testing.T) {
 
 func TestGoBindIdent(t *testing.T) {
 	got, err := GoBindIdent("burp/html")
-	if err != nil || got != "GoBind_burp_Html" {
+	if err != nil || got != "flagrt.GoBind_burp_Html" {
 		t.Fatalf("got %q err %v", got, err)
+	}
+	csv, err := GoBindIdent("csv/read-csv")
+	if err != nil || csv != "flagbind.GoBind_csv_ReadCSV" {
+		t.Fatalf("csv got %q err %v", csv, err)
 	}
 	if _, err := GoBindIdent("not/a-bind"); err == nil || !strings.Contains(err.Error(), "unknown :go-exports host bind") {
 		t.Fatalf("unknown bind: %v", err)

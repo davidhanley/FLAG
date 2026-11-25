@@ -386,7 +386,7 @@ func WriteProgramPackages(dir, entryPath string) error {
 	if err != nil {
 		return err
 	}
-	return flagWriteProgramPackages(dir, pkgs, entryPath)
+	return flagWriteProgramPackages(dir, ensureLibraryAdapterImports(pkgs), entryPath)
 }
 
 // WriteProgramPackagesWithTests is WriteProgramPackages with test forms on the entry.
@@ -395,7 +395,7 @@ func WriteProgramPackagesWithTests(dir, entryPath string, testPaths []string) er
 	if err != nil {
 		return err
 	}
-	return flagWriteProgramPackages(dir, pkgs, entryPath)
+	return flagWriteProgramPackages(dir, ensureLibraryAdapterImports(pkgs), entryPath)
 }
 
 func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string) error {
@@ -413,6 +413,9 @@ func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string
 		if err := os.WriteFile(filepath.Join(dir, "go.sum"), data, 0o644); err != nil {
 			return fmt.Errorf("write go.sum: %w", err)
 		}
+	}
+	if err := CopyLibraryAdapters(dir); err != nil {
+		return err
 	}
 	for _, pkg := range pkgs {
 		if pkg.IsMain {

@@ -4890,7 +4890,7 @@
                 ctx2 (assoc ctx1 :globals (assoc (or (:globals ctx1) {}) go-name :value))]
             (recur (rest remaining)
                    ctx2
-                   (conj vars {:flag-name local :go-name go-name :expr (as-value (str "flagrt." rt))})
+                   (conj vars {:flag-name local :go-name go-name :expr (as-value (str rt))})
                    (assoc defined local go-name))))))))
 
 (defn intern-var-defs [constants]
@@ -5735,6 +5735,7 @@
           (write-text-file (path-join dir "go.sum") (read-text-file sum-path))
           nil))
       (write-compiled-packages dir pkgs)
+      ((go-fn "compiler/copy-library-adapters") dir)
       (go-mod-tidy dir)
       nil)))
 

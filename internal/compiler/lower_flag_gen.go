@@ -22538,7 +22538,7 @@ func compiler__apply_go_exports_arity_2(mod flagrt.Value, ctx flagrt.Value) flag
 							var ctx2 = flagrt.Assoc(ctx1, lowflagKw_globals, flagrt.Assoc(let_result_3105, go_name, lowflagKw_value))
 							var recur_3106 = flagrt.Rest(remaining)
 							var recur_3107 = ctx2
-							var recur_3108 = flagrt.Conj(vars, flagrt.NewMap(lowflagKw_flag_name, local, lowflagKw_go_name, go_name, lowflagKw_expr, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str("flagrt.", rt)))))
+							var recur_3108 = flagrt.Conj(vars, flagrt.NewMap(lowflagKw_flag_name, local, lowflagKw_go_name, go_name, lowflagKw_expr, compiler__as_value_arity_1(flagrt.NewString(flagrt.Str(rt)))))
 							var recur_3109 = flagrt.Assoc(defined, local, go_name)
 							remaining = recur_3106
 							ctx = recur_3107
@@ -25722,6 +25722,7 @@ func compiler__write_program_packages_arity_3(dir flagrt.Value, pkgs flagrt.Valu
 		}
 		_ = let_result_3617
 		_ = compiler__write_compiled_packages_arity_2(dir, pkgs)
+		_ = flagrt.Call(flagrt.GoFunction("compiler/copy-library-adapters"), dir)
 		_ = compiler__go_mod_tidy_arity_1(dir)
 		let_result_3618 = flagrt.NilValue
 	}

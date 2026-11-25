@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // Program is a loaded module graph rooted at an entry file.
@@ -138,6 +139,19 @@ func resolveImportPathGo(importerPath, importPath string) (string, error) {
 	return "", fmt.Errorf("not found (tried %s)", strings.Join(tried, ", "))
 }
 
+var (
+	extraLibraryRootsMu sync.Mutex
+	extraLibraryRoots   []string
+)
+
+// SetExtraLibraryRoots adds git-fetched MUSE checkouts to import search.
+// Each root should contain a libraries/ directory (or be the project that does).
+func SetExtraLibraryRoots(roots []string) {
+	extraLibraryRootsMu.Lock()
+	defer extraLibraryRootsMu.Unlock()
+	extraLibraryRoots = append([]string(nil), roots...)
+}
+
 // librarySearchRoots returns directories that may contain a libraries/ folder.
 // Walks from the importer and cwd toward filesystem roots, preferring trees
 // that already have libraries/ or a go.mod (project root).
@@ -159,6 +173,13 @@ func librarySearchRoots(importerPath string) []string {
 		}
 		seen[abs] = true
 		roots = append(roots, abs)
+	}
+
+	extraLibraryRootsMu.Lock()
+	extras := append([]string(nil), extraLibraryRoots...)
+	extraLibraryRootsMu.Unlock()
+	for _, extra := range extras {
+		add(extra)
 	}
 
 	for _, start := range starts {
