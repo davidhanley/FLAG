@@ -183,6 +183,13 @@ func librarySearchRoots(importerPath string) []string {
 	}
 
 	for _, start := range starts {
+		if flagRoot, err := findFlagLangRoot(start); err == nil {
+			add(filepath.Join(flagRoot, "testdata", "flag-csv"))
+			break
+		}
+	}
+
+	for _, start := range starts {
 		dir := start
 		for {
 			libDir := filepath.Join(dir, "libraries")

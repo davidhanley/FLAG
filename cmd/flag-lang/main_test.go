@@ -58,7 +58,7 @@ func TestRunCompileHelloWorldDoesNotInlineIncDec(t *testing.T) {
 		t.Fatalf("compile -o hello.go left inlined Go; inc/dec must not be in this file:\n%s", data)
 	}
 	inspect := filepath.Join(dir, ".flag-build")
-	assertPackageEmit(t, inspect, "prologue.Inc")
+	assertPackageEmit(t, inspect, "flagrt.Inc")
 	main, err := os.ReadFile(filepath.Join(inspect, "main.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -69,8 +69,8 @@ func TestRunCompileHelloWorldDoesNotInlineIncDec(t *testing.T) {
 			t.Fatalf("main.go inlined prologue %q:\n%s", refuse, got)
 		}
 	}
-	if !strings.Contains(got, "prologue.Dec") {
-		t.Fatalf("main.go missing prologue.Dec:\n%s", got)
+	if !strings.Contains(got, "flagrt.Dec") {
+		t.Fatalf("main.go missing flagrt.Dec:\n%s", got)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 		t.Fatalf("run returned error: %v", err)
 	}
 
-	assertPackageEmit(t, defaultOutput, "prologue.Inc")
+	assertPackageEmit(t, defaultOutput, "flagrt.Inc")
 	if _, err := os.Stat(filepath.Join(dir, "hello.go")); err == nil {
 		t.Fatalf("did not expect sidecar %s", filepath.Join(dir, "hello.go"))
 	}
