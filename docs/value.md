@@ -102,13 +102,16 @@ and nil override `find` (`nil` is `nil`). `Keys` / `Vals` are `v.impl.keys(v)` a
 `v.impl.vals(v)`; map, date, and nil override them (`nil` is `nil`). Other types
 inherit `defaultImpl`, which panics. `First` is `v.impl.first(v)`; nil, list, array,
 vector, lazy-list, range, set, and string override it. `Rest` is `v.impl.rest(v)` on the
-same types except nil (which panics; `SeqRest` wraps nil as `()`). `Next` is
+same types including nil (`nil`, cheaper than allocating `()`). `Next` is
 `v.impl.next(v)` (nil is `nil`; empty rest is `nil`). `Last` is `v.impl.last(v)`
-on list, array, vector, lazy-list, and range. `Conj` is `v.impl.conj(v, entries...)` after
-the arity check; list, array, vector, set, and map override it. `Count` /
+on nil, list, array, vector, lazy-list, and range (`last` of nil/`[]` is `nil`).
+`Conj` is `v.impl.conj(v, entries...)` after
+the arity check; nil (as empty list), list, array, vector, set, and map override it.
+`Count` /
 `IsEmpty` / `NotEmpty` / `Seq` dispatch the same way. Nil counts as 0 and is
 empty; string `seq` is `vec` of runes. `Nth` / `SlowNth` / `Drop` / `Cons` /
-`seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list, range).
+`seq?` dispatch the same way (`seq?` is true for list, array, vector, lazy-list, range;
+`drop` of nil with `n>0` is `()`, `drop 0` is identity).
 `newSeqCursor` is `v.impl.seqCursor(v)`. `Eq` /
 `IsTruthy` / `IsNil` / `Compare` dispatch through `impl`. Numeric `=` uses
 `isNumeric` then `cmpNum`. FFI conversion is the same: `ValueToAny` is

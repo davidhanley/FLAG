@@ -25,12 +25,22 @@ func (nilImpl) find(Value, Value) Value {
 func (nilImpl) keys(Value) Value   { return NilValue }
 func (nilImpl) vals(Value) Value   { return NilValue }
 func (nilImpl) first(Value) Value  { return NilValue }
+func (nilImpl) rest(Value) Value   { return NilValue }
 func (nilImpl) next(Value) Value   { return NilValue }
+func (nilImpl) last(Value) Value   { return NilValue }
+func (nilImpl) conj(_ Value, entries ...Value) Value {
+	out := NewList()
+	for _, item := range entries {
+		out = ListCons(out, item)
+	}
+	return out
+}
 func (nilImpl) count(Value) int    { return 0 }
 func (nilImpl) isEmpty(Value) bool { return true }
 func (nilImpl) notEmpty(Value) Value {
 	return NilValue
 }
+func (nilImpl) drop(Value, int) Value { return NewList() }
 func (nilImpl) cons(_ Value, item Value) Value {
 	return NewList(item)
 }
