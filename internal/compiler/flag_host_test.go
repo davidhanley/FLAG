@@ -87,6 +87,21 @@ func TestFLAGResolveImportPathMatchesGo(t *testing.T) {
 	if _, err := resolveImportPath(importer, ""); err == nil || !strings.Contains(err.Error(), "empty import path") {
 		t.Fatalf("empty import: %v", err)
 	}
+	frs := filepath.Join("..", "..", "examples", "FRS", "frs.flag")
+	csv, err := resolveImportPath(frs, "csv.lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(csv, filepath.Join("testdata", "flag-csv", "libraries", "csv.lib")) {
+		t.Fatalf("csv.lib %q", csv)
+	}
+	csvGo, err := resolveImportPathGo(frs, "csv.lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if csv != csvGo {
+		t.Fatalf("FLAG csv %q Go %q", csv, csvGo)
+	}
 }
 
 func TestPrologueFilePath(t *testing.T) {

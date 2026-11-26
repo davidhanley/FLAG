@@ -4503,11 +4503,42 @@
             {:seen seen2 :roots roots2}
             (recur parent seen2 roots2)))))))
 
-(defn library-search-roots [importer-path]
+(defn dir-is-flag-lang-root? [dir]
+  (let [p (path-join dir "go.mod")]
+    (if (file-exists? p)
+      (starts-with-str? (trim-space (read-text-file p)) "module flag-lang")
+      false)))
+
+(defn walk-to-flag-lang-root [start]
+  (loop [dir start]
+    (if (dir-is-flag-lang-root? dir)
+      dir
+      (let [parent (path-dir dir)]
+        (if (= parent dir)
+          nil
+          (recur parent))))))
+
+(defn testdata-csv-root [importer-path]
   (let [starts (if (or (nil? importer-path) (= importer-path ""))
                  [(cwd-path)]
                  [(path-dir importer-path) (cwd-path)])]
-    (:roots (loop [remaining starts seen {} roots []]
+    (loop [remaining starts]
+      (if (or (nil? remaining) (empty? remaining))
+        nil
+        (let [root (walk-to-flag-lang-root (first remaining))]
+          (if root
+            (path-join (path-join root "testdata") "flag-csv")
+            (recur (rest remaining))))))))
+
+(defn library-search-roots [importer-path]
+  (let [starts (if (or (nil? importer-path) (= importer-path ""))
+                 [(cwd-path)]
+                 [(path-dir importer-path) (cwd-path)])
+        csv (testdata-csv-root importer-path)
+        seeded (if csv
+                 (add-library-root csv {} [])
+                 {:seen {} :roots []})]
+    (:roots (loop [remaining starts seen (:seen seeded) roots (:roots seeded)]
               (if (or (nil? remaining) (empty? remaining))
                 {:seen seen :roots roots}
                 (let [walked (walk-library-root (first remaining) seen roots)]
