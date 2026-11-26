@@ -28,6 +28,9 @@ func (nilImpl) first(Value) Value  { return NilValue }
 func (nilImpl) next(Value) Value   { return NilValue }
 func (nilImpl) count(Value) int    { return 0 }
 func (nilImpl) isEmpty(Value) bool { return true }
+func (nilImpl) notEmpty(Value) Value {
+	return NilValue
+}
 func (nilImpl) cons(_ Value, item Value) Value {
 	return NewList(item)
 }

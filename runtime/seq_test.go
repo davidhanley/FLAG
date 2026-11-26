@@ -561,6 +561,12 @@ func TestConjAcrossCollectionTypes(t *testing.T) {
 }
 
 func TestNotEmptyAcrossContainerTypes(t *testing.T) {
+	if got := NotEmpty(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for nil, got %#v", got)
+	}
+	if got := Seq(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil seq for nil, got %#v", got)
+	}
 	if got := NotEmpty(NewList()); !IsNil(got) {
 		t.Fatalf("expected nil for empty list, got %#v", got)
 	}

@@ -138,7 +138,7 @@
         Use doall to make sure all processing happens before the file is closed."""
   [filename pfunc]
   (with-open [rdr (io/reader filename)]
-    (doall (pfunc (map clean-line (csv/read-csv rdr))))))
+    (doall (pfunc (map clean-line (csv/read-csv rdr {:keep-blank-lines true}))))))
 
 (defn scan-directories
   "Look for all the race data files, returning a list of them."

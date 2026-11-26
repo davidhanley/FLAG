@@ -85,7 +85,8 @@ User code may pass a map of **kebab-case keywords** that mirror Go option fields
 
 ```clojure
 (csv/read-csv-path "f.csv" {:fields-per-record -1
-                            :lazy-quotes true})
+                            :lazy-quotes true
+                            :keep-blank-lines true})
 ```
 
 The adapter owns the mapping (`:fields-per-record` → `Options.FieldsPerRecord`).  

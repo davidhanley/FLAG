@@ -32,6 +32,12 @@
       (is (= (:sex ath) :male))
       )))
 
+(deftest test-athlete-from-blank-csv-row
+  (testing "keep-blank-lines and short rows yield no athlete"
+    (is (nil? (athlete-from-row [])))
+    (is (nil? (athlete-from-row [""])))
+    (is (nil? (athlete-from-row ["1"])))))
+
 (comment deftest test-normalize-athlete
   (with-redefs [translate-name (fn [name]
                                  ({"DAVE" "DAVID"
