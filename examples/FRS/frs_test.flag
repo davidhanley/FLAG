@@ -73,6 +73,38 @@
       (is (= (:race-points header) 150))
       )))
 
+;; encoding/csv drops fully blank lines. Race files like 2026-ffa-dallas.csv use
+;;   name / date / <empty line> / points / athletes
+;; so the empty spacer disappears and get-race-from-csv-strings binds
+;; [name date _ points & athletes] with _ = 50 and points = first bib (3687).
+;; Hancock still works because its spacer is ",,,,," (a real empty-field row).
+(deftest test-get-race-from-csv-strings-with-blank-spacer
+  (testing "header points parse when the blank line between date and points is kept as an empty row"
+    (let [rows [["2026 FFA DALLAS"]
+                ["2026-4-25"]
+                [""]
+                ["50"]
+                ["3687" "JOSEPH STARTZ" "" "M" "6:13.0"]
+                ["3676" "STEPHANIE HARDY" "" "F" "7:18.5"]]
+          race (get-race-from-csv-strings rows (fn [_] true) "2026-ffa-dallas.csv")
+          header (:header race)
+          scored (add-scores-and-rank (:female race) header)
+          stephanie (first (filter #(= (:name %) "STEPHANIE HARDY") scored))]
+      (is (= 50 (:race-points header)))
+      (is (= 50 (:points-scored stephanie)))
+      (is (= 1 (:overall-rank stephanie))))))
+
+(deftest test-ffa-dallas-2026-points-are-not-bib-numbers
+  (testing "2026 FFA Dallas is a 50-point race; first woman scores 50, not bib 3687"
+    (let [race (read-csv-race "TowerRunningRaceData/2026-ffa-dallas.csv" (fn [_] true))
+          header (:header race)
+          scored (add-scores-and-rank (:female race) header)
+          stephanie (first (filter #(= (:name %) "STEPHANIE HARDY") scored))]
+      (is (= "2026 FFA DALLAS" (:race-name header)))
+      (is (= 50 (:race-points header)))
+      (is (= 50 (:points-scored stephanie)))
+      (is (= 1 (:overall-rank stephanie))))))
+
 
 (def hanleys
   [{:name "DAVID HANLEY" :age 30}

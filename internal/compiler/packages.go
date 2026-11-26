@@ -405,6 +405,9 @@ func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string
 	}
 	goMod := fmt.Sprintf("module %s\n\ngo 1.26.4\n\nrequire flag-lang v0.0.0\n\nreplace flag-lang => %s\n",
 		GeneratedModulePath, root)
+	if extras := libraryGoModuleReplaces(root); extras != "" {
+		goMod += extras
+	}
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644); err != nil {
 		return fmt.Errorf("write go.mod: %w", err)
 	}
@@ -445,6 +448,45 @@ func writeProgramPackagesGo(dir string, pkgs []CompiledPackage, entryPath string
 		return fmt.Errorf("go mod tidy: %w\n%s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+func libraryGoModuleReplaces(flagRoot string) string {
+	dirs := []string{filepath.Join(flagRoot, "testdata", "flag-csv")}
+	dirs = append(dirs, ExtraLibraryRoots()...)
+	seen := map[string]bool{}
+	var b strings.Builder
+	for _, dir := range dirs {
+		abs, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+		mod, ok := goModulePath(abs)
+		if !ok || seen[mod] {
+			continue
+		}
+		seen[mod] = true
+		b.WriteString("\nreplace ")
+		b.WriteString(mod)
+		b.WriteString(" => ")
+		b.WriteString(abs)
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func goModulePath(dir string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "module "))
+			return path, path != ""
+		}
+	}
+	return "", false
 }
 
 func findFlagLangRoot(start string) (string, error) {
