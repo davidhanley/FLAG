@@ -28,7 +28,8 @@ The repository currently includes:
 - Go code generation for an initial subset (`defn`, arithmetic, calls, printing)
 - a runtime with tagged values, numerics, ratios, lists, and arrays
 - an interactive REPL path using Yaegi evaluation
-- libraries under `libraries/` (e.g. `burp.lib`, `csv.lib`, `async.lib`) imported like any module
+- libraries under `libraries/` (e.g. `burp.lib`, `async.lib`) imported like any module
+- MUSE (`.muse`) fetches extra libraries from git (CSV is [davidhanley/CSV](https://github.com/davidhanley/CSV))
 - concurrency via `async.lib` ([docs/async.md](docs/async.md))
 - Go interop policy: pure Go packages + adapters ([docs/go-libraries.md](docs/go-libraries.md))
 

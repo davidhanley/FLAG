@@ -120,3 +120,70 @@ func goRetStringErr(name, v string, err error) Value {
 	}
 	return NewString(v)
 }
+
+func goArgBool(name string, idx int, v Value) bool {
+	if !isType[boolImpl](v) {
+		panic(fmt.Sprintf("%s argument %d: cannot convert %s to bool", name, idx+1, v.String()))
+	}
+	return v.Bool()
+}
+
+func goArgRune(name string, idx int, v Value) rune {
+	if isType[*stringImpl](v) {
+		s := v.StringValue()
+		if len([]rune(s)) != 1 {
+			panic(fmt.Sprintf("%s argument %d: expected single character string, got %q", name, idx+1, s))
+		}
+		return []rune(s)[0]
+	}
+	if isType[longImpl](v) {
+		return rune(v.Long())
+	}
+	panic(fmt.Sprintf("%s argument %d: cannot convert %s to rune", name, idx+1, v.String()))
+}
+
+// Exported helpers for MUSE library adapters compiled into flagbuild/<pkg>.
+
+func GoArgString(name string, idx int, v Value) string { return goArgString(name, idx, v) }
+func GoArgInt64(name string, idx int, v Value) int64   { return goArgInt64(name, idx, v) }
+func GoArgReader(name string, idx int, v Value) io.Reader {
+	return goArgReader(name, idx, v)
+}
+func GoArgBool(name string, idx int, v Value) bool { return goArgBool(name, idx, v) }
+func GoArgRune(name string, idx int, v Value) rune { return goArgRune(name, idx, v) }
+func GoRetStringMatrix(rows [][]string) Value      { return goRetStringMatrix(rows) }
+
+func IsFile(v Value) bool { return TypeOf(v) == typeFile }
+func IsMapType(v Value) bool {
+	return TypeOf(v) == typeMap
+}
+func IsSeq(v Value) bool { return v.impl.seqQ(v) }
+
+func SeqStrings(name string, v Value) []string {
+	if IsNil(v) {
+		return []string{}
+	}
+	cursor := newSeqCursor(v)
+	out := make([]string, 0, 16)
+	for {
+		item, ok := cursor.nextOrDone()
+		if !ok {
+			return out
+		}
+		out = append(out, goArgString(name, 0, item))
+	}
+}
+
+func AsIdent(v Value) (string, bool) {
+	return v.impl.asIdent(v)
+}
+
+func OptionKeyName(k Value) string {
+	if s, ok := AsIdent(k); ok {
+		return s
+	}
+	if s, ok := ValueToAny(k).(string); ok {
+		return s
+	}
+	panic(fmt.Sprintf("option key must be keyword/string, got %s", k.String()))
+}

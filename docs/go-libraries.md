@@ -13,7 +13,7 @@ open Java interop.
 - **Explicit adapters** that unbox FLAG values, call Go, and box results.
 - **Source in, binary out** — libraries are Go modules/packages; `go build`
   compiles and caches for the local OS/arch. No custom `.o` distribution.
-- **Importable FLAG surface** via `libraries/*.lib` (see [modules.md](modules.md)).
+- **Importable FLAG surface** via `.lib` modules (in-tree `libraries/*.lib` or MUSE git libraries; see [modules.md](modules.md) and [muse.md](muse.md)).
 
 ## Three layers
 
@@ -21,7 +21,7 @@ open Java interop.
 FLAG user code
     │  import "csv.lib" / "kafka.lib"
     ▼
-FLAG module  (libraries/*.lib)     — :exports, optional thin FLAG wrappers
+FLAG module  (.lib, in-tree or MUSE-fetched)  — :exports, optional thin FLAG wrappers
     │
     ▼
 Adapter  (runtime or hand-written binds)  — only layer that imports flag-lang/runtime
@@ -85,7 +85,8 @@ User code may pass a map of **kebab-case keywords** that mirror Go option fields
 
 ```clojure
 (csv/read-csv-path "f.csv" {:fields-per-record -1
-                            :lazy-quotes true})
+                            :lazy-quotes true
+                            :keep-blank-lines true})
 ```
 
 The adapter owns the mapping (`:fields-per-record` → `Options.FieldsPerRecord`).  
@@ -118,19 +119,20 @@ calling the matching pure function. The pure package still has only typed entry 
 
 ```text
 libraries/
-  csv/
-    read.go           # pure Go
-    options.go
-    read_test.go
-  csv.lib             # FLAG exports only
+  burp.lib              # in-tree FLAG surface
   kafka/
-    go/               # or flat package — pure Go wrapper around kafka-go
     kafka.lib
+
+github.com/davidhanley/CSV   # git repo fetched by MUSE
+  libraries/csv.lib          # FLAG exports
+  read.go, options.go        # pure Go module
+  flagbind/bind.go           # FLAG adapters (copied into generated builds)
 ```
 
-Adapters for CSV live under `runtime/` today (with other static binds). Hand-written
-adapters are preferred when signatures involve options maps or multi-arity
-dispatch; simple unary string/int APIs may stay generated.
+CSV adapters live in the library repo (`flagbind/`) and are copied into the
+generated Go module. In-tree libraries such as HTTP still keep adapters under
+`runtime/`. Hand-written adapters are preferred when signatures involve options
+maps or multi-arity dispatch; simple unary string/int APIs may stay generated.
 
 HTTP follows the same pattern: `http.lib` re-exports a thin wrapper over
 `net/http`, while `runtime/http_bind.go` handles the FLAG value conversions.
@@ -165,7 +167,7 @@ AOT programs should use static adapters and `.lib` imports only.
 1. Write pure Go package + Go tests (no `flag-lang/runtime`).
 2. Define `Options` / constructors with sensible defaults.
 3. Write adapters (unbox / call / box); map FLAG option keywords.
-4. Add `libraries/<name>.lib` with `:exports` and `:go-exports`.
+4. Add `libraries/<name>.lib` (in-tree or a MUSE git repo) with `:exports` and `:go-exports`.
 5. Document FLAG arities and option keys in `flag-lang.md` or the lib README.
 6. Ensure nothing is ambient without import.
 ```

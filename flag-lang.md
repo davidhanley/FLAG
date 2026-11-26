@@ -30,8 +30,15 @@ go run ./cmd/flag-lang build examples/hello -o hello
 ./hello
 ```
 
+A `.muse` file is a FLAG map listing git libraries. `compile` / `build` / `test` accept it like a directory (see [docs/muse.md](docs/muse.md)):
+
+```clojure
+{:libraries ["csv"]}
+```
+
 Build from a source directory:
 
+- If a `.muse` file is present, MUSE fetches those libraries first.
 - If `main.flag` (or `main.clj` / `main.cljc`) exists, it is the modular entry and imports are followed.
 - Otherwise all `.flag` / `.clj` / `.cljc` files are merged in lexical order (legacy).
 

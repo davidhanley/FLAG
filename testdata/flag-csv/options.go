@@ -20,6 +20,10 @@ type Options struct {
 
 	// Comment, if non-zero, is the comment character for csv.Reader.
 	Comment rune
+
+	// KeepBlankLines keeps fully blank lines as empty records ([""]).
+	// encoding/csv skips them when this is false (default).
+	KeepBlankLines bool
 }
 
 // DefaultOptions matches the historical FLAG CSV behavior used by FRS:
@@ -31,5 +35,6 @@ func DefaultOptions() Options {
 		TrimLeadingSpace: false,
 		Comma:            0,
 		Comment:          0,
+		KeepBlankLines:   false,
 	}
 }

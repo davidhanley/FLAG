@@ -137,6 +137,30 @@ func TestLastAcrossSequenceTypes(t *testing.T) {
 	}
 }
 
+func TestNilAsEmptySequence(t *testing.T) {
+	if got := Rest(NilValue); !IsNil(got) {
+		t.Fatalf("rest nil: got %s", got)
+	}
+	if got := Last(NilValue); !IsNil(got) {
+		t.Fatalf("last nil: got %#v", got)
+	}
+	if got := Conj(NilValue, NewLong(1)); got.String() != "(1)" {
+		t.Fatalf("conj nil 1: got %q", got.String())
+	}
+	if got := Conj(NilValue, NewLong(1), NewLong(2)); got.String() != "(2 1)" {
+		t.Fatalf("conj nil 1 2: got %q", got.String())
+	}
+	if got := Drop(NewLong(1), NilValue); !Eq(got, NewList()) {
+		t.Fatalf("drop 1 nil: got %s", got)
+	}
+	if got := Drop(NewLong(0), NilValue); !IsNil(got) {
+		t.Fatalf("drop 0 nil should be identity, got %s", got)
+	}
+	if got := Into(NilValue, NewArray(NewLong(1), NewLong(2))); got.String() != "(2 1)" {
+		t.Fatalf("into nil [1 2]: got %q", got.String())
+	}
+}
+
 func TestSeqPredicateAcrossSequenceTypes(t *testing.T) {
 	if got := SeqPredicate(NewList()); !isType[boolImpl](got) || !got.Bool() {
 		t.Fatalf("expected seq? true for empty list, got %#v", got)
@@ -561,6 +585,12 @@ func TestConjAcrossCollectionTypes(t *testing.T) {
 }
 
 func TestNotEmptyAcrossContainerTypes(t *testing.T) {
+	if got := NotEmpty(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for nil, got %#v", got)
+	}
+	if got := Seq(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil seq for nil, got %#v", got)
+	}
 	if got := NotEmpty(NewList()); !IsNil(got) {
 		t.Fatalf("expected nil for empty list, got %#v", got)
 	}

@@ -1,0 +1,34 @@
+{:namespace "lispbench.work-test"}
+
+(deftest time-nano-time-returns-long
+  (let [a (time/nano-time)
+        b (time/nano-time)]
+    (is (int? a))
+    (is (int? b))
+    (is (>= b a))))
+
+(deftest lispbench-work-functions
+  (testing "eager vs lazy range sums match"
+    (is (= 45 (eager-range-sum 10)))
+    (is (= 45 (lazy-range-sum 10)))
+    (is (= 55 (lazy-map-inc 10))))
+  (testing "ratio scores are 100 * sum of 5/(5+i)"
+    (is (= (+ (* 100 (/ 5 5)) (* 100 (/ 5 6)))
+           (ratio-scores 2))))
+  (testing "keyword loops count hits"
+    (is (= 7 (keyword-gets 7)))
+    (is (= 7 (nested-keyword 7))))
+  (testing "collection pipelines preserve count"
+    (is (= 8 (assoc-scores 8)))
+    (is (= 8 (group-by-name 8)))
+    (is (= 8 (mapcat-filter 8)))
+    (is (= 8 (sort-by-points 8)))
+    (is (= 8 (juxt-keys 8)))
+    (is (= 8 (string-pipeline 8)))
+    (is (= 8 (frs-score-shape 8))))
+  (testing "apply max"
+    (is (= 9 (apply-max 10))))
+  (testing "athlete shape"
+    (is (= "A3" (:name (athlete 3))))
+    (is (= :female (:sex (athlete 3))))
+    (is (= :male (:sex (athlete 2))))))

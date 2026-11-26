@@ -767,9 +767,6 @@ func SeqFirst(coll Value) Value {
 }
 
 func SeqRest(coll Value) Value {
-	if IsNil(coll) {
-		return NewList()
-	}
 	return Rest(coll)
 }
 

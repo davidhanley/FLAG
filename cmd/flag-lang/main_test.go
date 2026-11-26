@@ -58,7 +58,7 @@ func TestRunCompileHelloWorldDoesNotInlineIncDec(t *testing.T) {
 		t.Fatalf("compile -o hello.go left inlined Go; inc/dec must not be in this file:\n%s", data)
 	}
 	inspect := filepath.Join(dir, ".flag-build")
-	assertPackageEmit(t, inspect, "prologue.Inc")
+	assertPackageEmit(t, inspect, "flagrt.Inc")
 	main, err := os.ReadFile(filepath.Join(inspect, "main.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -69,8 +69,8 @@ func TestRunCompileHelloWorldDoesNotInlineIncDec(t *testing.T) {
 			t.Fatalf("main.go inlined prologue %q:\n%s", refuse, got)
 		}
 	}
-	if !strings.Contains(got, "prologue.Dec") {
-		t.Fatalf("main.go missing prologue.Dec:\n%s", got)
+	if !strings.Contains(got, "flagrt.Dec") {
+		t.Fatalf("main.go missing flagrt.Dec:\n%s", got)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestRunCompileWritesDefaultGoFile(t *testing.T) {
 		t.Fatalf("run returned error: %v", err)
 	}
 
-	assertPackageEmit(t, defaultOutput, "prologue.Inc")
+	assertPackageEmit(t, defaultOutput, "flagrt.Inc")
 	if _, err := os.Stat(filepath.Join(dir, "hello.go")); err == nil {
 		t.Fatalf("did not expect sidecar %s", filepath.Join(dir, "hello.go"))
 	}
@@ -733,6 +733,64 @@ func TestRunTestRemapsTestFileErrors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "at 3:") {
 		t.Fatalf("expected remapped line number in error, got: %v", err)
+	}
+}
+
+func TestRunBuildMuseFetchesGitLibrary(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	cache := t.TempDir()
+	t.Setenv("MUSE_CACHE", cache)
+
+	libRepo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(libRepo, "libraries"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	libSrc := `{:namespace "demo"
+ :exports   [ping]}
+(defn ping [] "pong")
+`
+	if err := os.WriteFile(filepath.Join(libRepo, "libraries", "demo.lib"), []byte(libSrc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"git", "init", "-q"},
+		{"git", "config", "user.email", "muse@example.com"},
+		{"git", "config", "user.name", "muse"},
+		{"git", "add", "."},
+		{"git", "commit", "-qm", "demo lib"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = libRepo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+
+	project := t.TempDir()
+	musePath := filepath.Join(project, "app.muse")
+	if err := os.WriteFile(musePath, []byte("{:libraries [\""+libRepo+"\"]}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mainPath := filepath.Join(project, "main.flag")
+	if err := os.WriteFile(mainPath, []byte(`{:namespace "main"
+ :imports   ["demo.lib"]}
+(println (demo/ping))
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(project, "app")
+	if err := run([]string{"build", musePath, "-o", bin}); err != nil {
+		t.Fatalf("build muse: %v", err)
+	}
+	out, err := exec.Command(bin).CombinedOutput()
+	if err != nil {
+		t.Fatalf("run bin: %v\n%s", err, out)
+	}
+	if strings.TrimSpace(string(out)) != "pong" {
+		t.Fatalf("output: %q", out)
 	}
 }
 
