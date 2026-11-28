@@ -136,7 +136,7 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 - [ ] **`:strs` destructuring** looks up symbol keys, not string keys.
 - [x] **`print` is not implemented** (only `println` / `str`).
 - [x] ** Arrays supporting push to the end and having size in the box breaks immutability** — persistent array `conj` always copies; use transients to grow in place.
-- [ ] Map / set / FLAG vector **transients** (`dissoc!` / `disj!`) — arrays are done.
+- [ ] Map / set **transients** (`dissoc!` / `disj!`) — arrays, lists, and vectors are done.
 
 
 ## Intentionally different (do not “fix” to Clojure)

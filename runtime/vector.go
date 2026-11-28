@@ -5,9 +5,27 @@ import (
 )
 
 func NewVector(values ...Value) Value {
-	items := make([]Value, len(values))
-	copy(items, values)
-	return newVectorValue(items, len(values))
+	if len(values) == 0 {
+		return emptyVectorValue
+	}
+	tr := emptyVecTree.asTransient()
+	for _, v := range values {
+		tr.conj(v)
+	}
+	return tr.persistent()
+}
+
+func newVectorFromTree(tree *vecTree, origin, length int) Value {
+	if tree == nil {
+		panic("invalid vector")
+	}
+	if length < 0 || origin < 0 || origin+length > tree.cnt {
+		panic("invalid vector length")
+	}
+	if length == 0 {
+		return emptyVectorValue
+	}
+	return Value{d: packLong(int64(length)), impl: &vectorImpl{tree: tree, origin: origin}}
 }
 
 func (v Value) VectorLen() int {
@@ -17,13 +35,27 @@ func (v Value) VectorLen() int {
 	return int(v.Long())
 }
 
+func (v Value) vectorTree() *vectorImpl {
+	return asImpl[*vectorImpl](v, "vectorTree called on non-vector Value")
+}
+
 func (v Value) VectorValues() []Value {
 	if !isType[*vectorImpl](v) {
 		panic("VectorValues called on non-vector Value")
 	}
-	items := v.vectorItems()
-	out := make([]Value, v.VectorLen())
-	copy(out, items[:v.VectorLen()])
+	n := v.VectorLen()
+	out := make([]Value, n)
+	impl := v.vectorTree()
+	for i := 0; i < n; {
+		arr := impl.tree.arrayFor(impl.origin + i)
+		start := (impl.origin + i) & vecMask
+		take := vecWidth - start
+		if take > n-i {
+			take = n - i
+		}
+		copy(out[i:], arr[start:start+take])
+		i += take
+	}
 	return out
 }
 
@@ -34,7 +66,8 @@ func VectorGet(vectorValue Value, index int) Value {
 	if index < 0 || index >= vectorValue.VectorLen() {
 		panic("vector index out of range")
 	}
-	return vectorValue.vectorItems()[index]
+	impl := vectorValue.vectorTree()
+	return impl.tree.get(impl.origin + index)
 }
 
 func VectorAssoc(vectorValue Value, index int, item Value) Value {
@@ -45,11 +78,9 @@ func VectorAssoc(vectorValue Value, index int, item Value) Value {
 	if index < 0 || index >= length {
 		panic("vector index out of range")
 	}
-	items := vectorValue.vectorItems()
-	next := make([]Value, len(items))
-	copy(next, items)
-	next[index] = item
-	return newVectorValue(next, length)
+	impl := vectorValue.vectorTree()
+	tree := impl.tree.assocN(impl.origin+index, item)
+	return newVectorFromTree(tree, impl.origin, length)
 }
 
 func VectorRest(vectorValue Value) Value {
@@ -57,62 +88,72 @@ func VectorRest(vectorValue Value) Value {
 		panic("VectorRest expects vector Value")
 	}
 	length := vectorValue.VectorLen()
-	items := vectorValue.vectorItems()
 	if length == 0 {
-		return newVectorValue(items[:0], 0)
+		return emptyVectorValue
 	}
-	return newVectorValue(items[1:length], length-1)
+	impl := vectorValue.vectorTree()
+	return newVectorFromTree(impl.tree, impl.origin+1, length-1)
 }
 
 func VectorAppend(vectorValue Value, item Value) Value {
 	if !isType[*vectorImpl](vectorValue) {
 		panic("VectorAppend expects vector Value")
 	}
+	impl := vectorValue.vectorTree()
 	length := vectorValue.VectorLen()
-	items := vectorValue.vectorItems()
-	if length < len(items) {
-		items[length] = item
-		return newVectorValueWithData(vectorValue.vectorPointer(), length+1)
+	tree := impl.tree.assocN(impl.origin+length, item)
+	return newVectorFromTree(tree, impl.origin, length+1)
+}
+
+func VectorPop(vectorValue Value) Value {
+	if !isType[*vectorImpl](vectorValue) {
+		panic("VectorPop expects vector Value")
 	}
-	nextCapacity := grownCapacity(length)
-	next := make([]Value, nextCapacity)
-	copy(next, items[:length])
-	next[length] = item
-	return newVectorValue(next, length+1)
-}
-
-func newVectorValue(items []Value, length int) Value {
-	return newVectorValueWithData(&arrayData{items: items}, length)
-}
-
-func newVectorValueWithData(data *arrayData, length int) Value {
-	if length < 0 || length > len(data.items) {
-		panic("invalid vector length")
+	n := vectorValue.VectorLen()
+	if n == 0 {
+		panic("Can't pop empty vector")
 	}
-	return Value{d: packLong(int64(length)), impl: &vectorImpl{data: data}}
-}
-
-func (v Value) vectorPointer() *arrayData {
-	return asImpl[*vectorImpl](v, "vectorPointer called on non-vector Value").data
-}
-
-func (v Value) vectorItems() []Value {
-	return v.vectorPointer().items
+	impl := vectorValue.vectorTree()
+	if impl.origin == 0 && n == impl.tree.cnt {
+		tree := impl.tree.pop()
+		return newVectorFromTree(tree, 0, tree.cnt)
+	}
+	return newVectorFromTree(impl.tree, impl.origin, n-1)
 }
 
 type vectorImpl struct {
 	defaultImpl
-	data *arrayData
+	tree   *vecTree
+	origin int
 }
 
 func (vectorImpl) hashImpl(v Value) uint64 {
-	return hashOrdered(hashSeedVector, v.vectorItems()[:v.VectorLen()])
+	n := v.VectorLen()
+	h := hashSeedVector
+	for i := 0; i < n; i++ {
+		h = mix(h, Hash(VectorGet(v, i)))
+	}
+	return mix(h, uint64(n))
 }
 func (vectorImpl) eq(v Value, other Value) bool {
 	if !isType[*vectorImpl](other) {
 		return false
 	}
-	return valuesEq(v.vectorItems()[:v.VectorLen()], other.vectorItems()[:other.VectorLen()])
+	n := v.VectorLen()
+	if n != other.VectorLen() {
+		return false
+	}
+	a := v.vectorTree()
+	b := other.vectorTree()
+	if a.tree == b.tree && a.origin == b.origin {
+		return true
+	}
+	for i := 0; i < n; i++ {
+		if !Eq(VectorGet(v, i), VectorGet(other, i)) {
+			return false
+		}
+	}
+	return true
 }
 func (vectorImpl) typ(Value) Value { return typeVector }
 func (vectorImpl) String(v Value) string {
@@ -143,7 +184,7 @@ func (vectorImpl) first(v Value) Value {
 	if v.VectorLen() == 0 {
 		return NilValue
 	}
-	return v.vectorItems()[0]
+	return VectorGet(v, 0)
 }
 func (vectorImpl) rest(v Value) Value {
 	return VectorRest(v)
@@ -157,7 +198,7 @@ func (vectorImpl) last(v Value) Value {
 	if n == 0 {
 		return NilValue
 	}
-	return v.vectorItems()[n-1]
+	return VectorGet(v, n-1)
 }
 func (vectorImpl) conj(v Value, entries ...Value) Value {
 	out := v
@@ -178,15 +219,17 @@ func (vectorImpl) slowNth(v Value, i int, missing Value, hasMissing bool) Value 
 func (vectorImpl) drop(v Value, n int) Value {
 	length := v.VectorLen()
 	if n >= length {
-		return NewVector()
+		return emptyVectorValue
 	}
-	items := v.vectorItems()
-	return newVectorValue(items[n:length], length-n)
+	if n <= 0 {
+		return v
+	}
+	impl := v.vectorTree()
+	return newVectorFromTree(impl.tree, impl.origin+n, length-n)
 }
 func (vectorImpl) seqQ(Value) bool { return true }
 func (vectorImpl) seqCursor(v Value) seqCursor {
-	length := v.VectorLen()
-	return arraySeqCursor(v.vectorItems()[:length])
+	return arraySeqCursor(v.VectorValues())
 }
 func (vectorImpl) toNative(v Value) any {
 	return nativeSeq(v.VectorValues())
