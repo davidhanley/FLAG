@@ -390,6 +390,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
 - **R** `set` (from a seq) / `vec` (from a seq)
 - **R** `conj` (collection + items) / `into` / `contains?` (`false` on `nil`; maps/sets/dates/records)
+- **R** `transient` / `persistent!` / `conj!` / `assoc!` / `pop!` / `dissoc!` / `disj!` (array, list, vector, map, and set transients; see [docs/transients.md](docs/transients.md))
 - **R** `seq` (`nil` if empty or `nil`) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
 - **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
 - **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`
@@ -639,7 +640,7 @@ to double. `round` returns a long and ties toward +∞ (Java `Math.round`).
 - `(range start end)` / `(range start end step)` are exclusive of `end`; negative `step` counts down.
 - `iterate` and `(repeatedly f)` are lazy.
 - map/filter/reduce/take/drop work across list/array/vector/lazy-list/range values.
-- Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. `vector/*` only accepts vectors.
+- Vectors are distinct from arrays: `| 1 2 3 |` vs `[1 2 3]`. Vectors are a 32-way trie (`docs/vectors.md`); `vector/*` only accepts vectors.
 - `map` returns a lazy sequence when every input sequence is lazy.
 - `pmap` currently materializes input tuples, computes in parallel, and returns an eager array while preserving order.
 

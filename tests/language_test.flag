@@ -1739,3 +1739,170 @@
     (expect-exception (math/sqrt "x") "numeric")
     (expect-exception (math/pow 1 "x") "numeric")
     (expect-exception (math/round :nope) "numeric")))
+
+(deftest transients
+  (testing "array round trip"
+    (is (= :transient-array (type-of (transient []))))
+    (is (= [] (persistent! (transient []))))
+    (is (= [1 2] (persistent! (transient [1 2]))))
+    (let [a [1 2]
+          t (transient a)]
+      (conj! t 3)
+      (is (= [1 2] a))
+      (is (= [1 2 3] (persistent! t)))))
+  (testing "conj! assoc! pop!"
+    (is (= [1 2 3] (persistent! (conj! (transient []) 1 2 3))))
+    (is (= [] (persistent! (conj! (transient [])))))
+    (is (= [1 9] (persistent! (assoc! (transient [1 2]) 1 9))))
+    (is (= [1 2 3] (persistent! (assoc! (transient [1 2]) 2 3))))
+    (is (= [1 2] (persistent! (pop! (transient [1 2 3])))))
+    (is (= [0 1 2 3 4 5 6 7 8 9]
+           (persistent! (conj! (transient []) 0 1 2 3 4 5 6 7 8 9))))
+    (let [t (transient [1])]
+      (is (= t (conj! t 2)))
+      (is (= 2 (count t)))
+      (is (= 2 (nth t 1)))
+      (is (= 1 (get t 0)))
+      (is (= :missing (get t 9 :missing)))))
+  (testing "into uses transients on arrays"
+    (let [a [1 2]]
+      (is (= [1 2 3 4] (into a [3 4])))
+      (is (= [1 2] a)))
+    (is (= [] (into [] nil)))
+    (is (= [1 2 3] (apply into [[] [1 2 3]]))))
+  (testing "clojure-style errors"
+    (expect-exception (transient nil) "transient")
+    (expect-exception (transient (transient [])) "transient")
+    (expect-exception (persistent! []) "persistent")
+    (expect-exception (conj! [] 1) "conj!")
+    (expect-exception (assoc! [] 0 1) "assoc!")
+    (expect-exception (pop! []) "pop!")
+    (expect-exception (pop! (transient [])) "empty")
+    (expect-exception (assoc! (transient [1]) 3 9) "bounds")
+    (expect-exception (assoc! (transient []) 0) "assoc!")
+    (expect-exception (conj (transient []) 1) "conj")
+    (expect-exception (seq (transient [1])) "seq")
+    (let [t (transient [1])]
+      (persistent! t)
+      (expect-exception (conj! t 2) "persistent")
+      (expect-exception (count t) "persistent")
+      (expect-exception (persistent! t) "persistent")))
+  (testing "function values"
+    (is (= [1] (persistent! (apply conj! [(transient []) 1]))))
+    (is (= [1] ((fn [t] (persistent! t)) (transient [1]))))
+    (expect-exception (transient) "exactly one")
+    (expect-exception (persistent!) "exactly one")
+    (expect-exception (pop! [1] 2) "exactly one"))
+  (testing "list transients conj at front"
+    (is (= :transient-list (type-of (transient '()))))
+    (is (= '() (persistent! (transient '()))))
+    (is (= '(1 2 3) (persistent! (transient '(1 2 3)))))
+    (is (= '(0 1 2) (persistent! (conj! (transient '(1 2)) 0))))
+    (is (= '(-1 0 1 2) (persistent! (conj! (transient '(1 2)) 0 -1))))
+    (is (= '(2 3) (persistent! (pop! (transient '(1 2 3))))))
+    (is (= 3 (count (transient '(1 2 3)))))
+    (is (= 0 (slow-nth (transient '(0 1 2)) 0)))
+    (let [a '(1 2)
+          t (transient a)]
+      (conj! t 0)
+      (is (= '(1 2) a))
+      (is (= '(0 1 2) (persistent! t))))
+    (is (= '(3 2 1) (into '() [1 2 3])))
+    (let [a '(1)]
+      (is (= '(3 2 1) (into a [2 3])))
+      (is (= '(1) a)))
+    (expect-exception (assoc! (transient '(1)) 0 9) "array")
+    (expect-exception (pop! (transient '())) "empty")
+    (expect-exception (nth (transient '(1 2)) 0) "slow-nth")
+    (let [t (transient '(1))]
+      (persistent! t)
+      (expect-exception (conj! t 2) "persistent")
+      (expect-exception (count t) "persistent")))
+  (testing "vector transients append like arrays"
+    (is (= :transient-vector (type-of (transient | |))))
+    (is (= | | (persistent! (transient | |))))
+    (is (= | 1 2 | (persistent! (transient | 1 2 |))))
+    (is (= | 1 2 3 | (persistent! (conj! (transient | 1 2 |) 3))))
+    (is (= | 1 9 | (persistent! (assoc! (transient | 1 2 |) 1 9))))
+    (is (= | 1 2 3 | (persistent! (assoc! (transient | 1 2 |) 2 3))))
+    (is (= | 1 2 | (persistent! (pop! (transient | 1 2 3 |)))))
+    (let [a | 1 2 |
+          t (transient a)]
+      (conj! t 3)
+      (is (= | 1 2 | a))
+      (is (= | 1 2 3 | (persistent! t))))
+    (is (= | 1 2 3 4 | (into | 1 2 | [3 4])))
+    (expect-exception (pop! (transient | |)) "empty")
+    (expect-exception (assoc! (transient | 1 |) 3 9) "bounds")
+    (let [t (transient | 1 |)]
+      (is (= 1 (nth t 0)))
+      (is (= 1 (get t 0)))
+      (persistent! t)
+      (expect-exception (conj! t 2) "persistent")))
+  (testing "map transients assoc! dissoc! conj!"
+    (is (= :transient-map (type-of (transient {}))))
+    (is (= {} (persistent! (transient {}))))
+    (is (= {:a 1} (persistent! (transient {:a 1}))))
+    (is (= {:a 1 :b 2} (persistent! (assoc! (transient {:a 1}) :b 2))))
+    (is (= {:a 9} (persistent! (assoc! (transient {:a 1}) :a 9))))
+    (is (= {:b 2} (persistent! (dissoc! (transient {:a 1 :b 2}) :a))))
+    (is (= {:a 1 :b 2} (persistent! (conj! (transient {}) [:a 1] {:b 2}))))
+    (let [m {:a 1}
+          t (transient m)]
+      (assoc! t :b 2)
+      (is (= {:a 1} m))
+      (is (= {:a 1 :b 2} (persistent! t))))
+    (is (= {:a 1 :b 2} (into {} [[:a 1] [:b 2]])))
+    (let [m (persistent! (assoc! (transient {}) 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8))]
+      (is (= 9 (count m)))
+      (is (= 8 (get m 8))))
+    (expect-exception (pop! (transient {})) "list")
+    (expect-exception (dissoc! (transient #{1}) :a) "map")
+    (let [t (transient {:a 1})]
+      (persistent! t)
+      (expect-exception (assoc! t :b 2) "persistent")
+      (expect-exception (count t) "persistent")))
+  (testing "set transients conj! disj!"
+    (is (= :transient-set (type-of (transient #{}))))
+    (is (= #{} (persistent! (transient #{}))))
+    (is (= #{1 2} (persistent! (transient #{1 2}))))
+    (is (= #{1 2 3} (persistent! (conj! (transient #{1 2}) 3))))
+    (is (= #{2 3} (persistent! (disj! (transient #{1 2 3}) 1))))
+    (is (= #{1 2 3} (into #{} [1 2 3])))
+    (let [s #{1}
+          t (transient s)]
+      (conj! t 2)
+      (is (= #{1} s))
+      (is (= #{1 2} (persistent! t))))
+    (expect-exception (assoc! (transient #{1}) :a 1) "map")
+    (expect-exception (pop! (transient #{})) "list")
+    (expect-exception (disj! (transient {}) :a) "set")
+    (let [t (transient #{1})]
+      (persistent! t)
+      (expect-exception (conj! t 2) "persistent")
+      (expect-exception (count t) "persistent"))))
+
+(deftest persistent-vectors
+  (testing "cheap append assoc pop across the 32-wide tail"
+    (let [v (into | | (range 40))]
+      (is (= 40 (count v)))
+      (is (= 0 (nth v 0)))
+      (is (= 32 (nth v 32)))
+      (is (= 39 (peek v)))
+      (is (vector? (rest v)))
+      (is (= 1 (first (rest v))))
+      (let [v2 (assoc v 32 :x)
+            v3 (conj v 40)]
+        (is (= :x (nth v2 32)))
+        (is (= 32 (nth v 32)))
+        (is (= 40 (count v)))
+        (is (= 41 (count v3)))
+        (is (= 40 (nth v3 40)))
+        (is (= 38 (last (pop v))))
+        (is (= 40 (count v))))))
+  (testing "into and transients past one trie leaf"
+    (let [v (into | | (range 33))]
+      (is (= 33 (count v)))
+      (is (= 32 (nth v 32)))
+      (is (= 31 (last (pop v))))
+      (is (= | 0 1 | (into | | [0 1]))))))

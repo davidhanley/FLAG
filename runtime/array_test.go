@@ -42,13 +42,13 @@ func TestArrayAppendReturnsNewArray(t *testing.T) {
 	}
 }
 
-func TestArrayAppendReusesBackingWhenCapacityAvailable(t *testing.T) {
+func TestArrayAppendCopiesBacking(t *testing.T) {
 	backing := []Value{NewLong(1), NewLong(2), NewLong(0), NewLong(0)}
 	original := newArrayValue(backing, 2)
 	appended := ArrayAppend(original, NewLong(3))
 
-	if original.arrayPointer() != appended.arrayPointer() {
-		t.Fatal("expected append to reuse backing storage")
+	if original.arrayPointer() == appended.arrayPointer() {
+		t.Fatal("expected append to copy backing storage")
 	}
 	if got := original.ArrayLen(); got != 2 {
 		t.Fatalf("expected original logical length 2, got %d", got)
@@ -59,26 +59,30 @@ func TestArrayAppendReusesBackingWhenCapacityAvailable(t *testing.T) {
 	if got := ArrayGet(appended, 2).Long(); got != 3 {
 		t.Fatalf("expected appended third element to be 3, got %d", got)
 	}
+	backing[0] = NewLong(99)
+	if got := ArrayGet(appended, 0).Long(); got != 1 {
+		t.Fatalf("expected appended to be independent of backing, got %d", got)
+	}
 	assertPanics(t, func() { ArrayGet(original, 2) })
 }
 
-func TestArrayAppendGrowthPolicy(t *testing.T) {
+func TestArrayAppendExactLength(t *testing.T) {
 	empty := newArrayValue([]Value{}, 0)
 	one := ArrayAppend(empty, NewLong(1))
-	if got := len(one.arrayItems()); got != 2 {
-		t.Fatalf("expected capacity 2 after append from 0, got %d", got)
+	if got := len(one.arrayItems()); got != 1 {
+		t.Fatalf("expected length 1 after append from 0, got %d", got)
 	}
 
 	single := newArrayValue([]Value{NewLong(1)}, 1)
 	two := ArrayAppend(single, NewLong(2))
 	if got := len(two.arrayItems()); got != 2 {
-		t.Fatalf("expected capacity 2 after append from 1, got %d", got)
+		t.Fatalf("expected length 2 after append from 1, got %d", got)
 	}
 
 	fullTwo := newArrayValue([]Value{NewLong(1), NewLong(2)}, 2)
 	three := ArrayAppend(fullTwo, NewLong(3))
 	if got := len(three.arrayItems()); got != 3 {
-		t.Fatalf("expected capacity 3 after append from 2, got %d", got)
+		t.Fatalf("expected length 3 after append from 2, got %d", got)
 	}
 }
 

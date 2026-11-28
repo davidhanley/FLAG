@@ -446,6 +446,17 @@ func Conj(coll Value, entries ...Value) Value {
 }
 
 func Into(coll Value, from Value) Value {
+	if isType[*arrayImpl](coll) || isType[*listImpl](coll) || isType[*vectorImpl](coll) || isMap(coll) || isType[*setImpl](coll) {
+		out := Transient(coll)
+		cursor := newSeqCursor(from)
+		for {
+			next, ok := cursor.nextOrDone()
+			if !ok {
+				return PersistentBang(out)
+			}
+			out = ConjBang(out, next)
+		}
+	}
 	cursor := newSeqCursor(from)
 	out := coll
 	for {
@@ -733,11 +744,7 @@ func Pop(coll Value) Value {
 		}
 		return NewArray(coll.arrayItems()[:n-1]...)
 	case isType[*vectorImpl](coll):
-		n := coll.VectorLen()
-		if n == 0 {
-			panic("Can't pop empty vector")
-		}
-		return NewVector(coll.vectorItems()[:n-1]...)
+		return VectorPop(coll)
 	default:
 		panic("pop expects list, array, or vector")
 	}

@@ -132,6 +132,20 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnVec)
 	case "conj":
 		return NewFunction(FnConj)
+	case "transient":
+		return NewFunction(FnTransient)
+	case "persistent!":
+		return NewFunction(FnPersistentBang)
+	case "conj!":
+		return NewFunction(FnConjBang)
+	case "assoc!":
+		return NewFunction(FnAssocBang)
+	case "pop!":
+		return NewFunction(FnPopBang)
+	case "dissoc!":
+		return NewFunction(FnDissocBang)
+	case "disj!":
+		return NewFunction(FnDisjBang)
 	case "contains?":
 		return NewFunction(FnContainsQ)
 	case "some":
