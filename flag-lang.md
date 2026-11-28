@@ -112,7 +112,7 @@ Implemented special forms:
 - `(if test then [else])`
 - `(do expr1 expr2 ... exprN)`
 - `(let [bindings...] body...)`
-- `(loop [bindings...] body...)` with `(recur args...)` only in **tail position** of the loop body (not nested in `let` / `if`)
+- `(loop [bindings...] body...)` with `(recur args...)` in **tail position** of `loop` or `fn`/`defn`/`#()` (nested `if` / `let` / `do` allowed when they are in tail position; not across `try`). See **[docs/recur.md](docs/recur.md)**.
 - `(for [bindings...] body)` list comprehension (eager array)
 - `(doseq [bindings...] body)` sequential side effects (currently lazy `mapcat`; do not rely on it to launch `go` — use `loop`)
 - `(doto obj form…)` thread `obj` as first argument
@@ -123,7 +123,7 @@ Implemented special forms:
 - `(throw x)` / `(ex-info msg map)` / `(ex-info msg map cause)`
 - `(try expr* catch-clause* finally-clause?)` with `(catch Type name expr*)` and `(finally expr*)`
 - `(ex-message e)` / `(ex-data e)` / `(ex-cause e)`
-- `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(println …)` / `(format fmt args…)`
+- `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(print …)` / `(println …)` / `(format fmt args…)`
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
 - `(testing "label" body...)` test grouping
@@ -277,7 +277,7 @@ Catch types (first match wins):
 - nil: `nil`
 - symbols: `'abc`
 - keywords: `:kw`
-- lists: `'(1 2 3)` or `(list 1 2 3)`
+- lists: `'(1 2 3)` or `(list 1 2 3)` — same `:list` seq (`cons`, `slow-nth`, `map`, …)
 - arrays: `[1 2 3]` or `(array 1 2 3)`
 - vectors: `| 1 2 3 |` or `(vector/vector 1 2 3)`
 - maps: `{:a 1 :b 2}`
@@ -358,12 +358,13 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 ### Sequence operations
 
 - **R** `first` (also `fist`) / `rest` / `next` (`next` is `nil` on empty) / `last` / `reverse` / `cons`
-- **P** `peek` = `first`, `pop` = `rest`
-- **P** `second` … `tenth`, `val` (second of a pair)
+- **R** `peek` / `pop` (list: front; array/vector: end; empty `peek` is `nil`; empty/`nil` `pop` panics)
+- **P** `second` … `tenth`, `val` (second of a pair), `ffirst` / `nfirst` / `nnext` / `fnnext`
 - **R** `take` / `drop` (`(drop n coll)`)
 - **R** `nth` (fast random-access; arrays/strings/vectors; optional not-found)
 - **R** `slow-nth` (sequential; lists/lazy seqs; optional not-found)
 - **R** `map` (lazy when every input is lazy) / `concat` / `filter` / `reduce` (2- or 3-arg) / `apply`
+- **R** `reduced` / `reduced?` / `ensure-reduced` / `unreduced` (`reduce` unwraps and stops)
 - **R** `pmap` (parallel map; workers = `NumCPU()*2`, capped by item count; eager array, order preserved)
 - **R** `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; array)
 - **P** `sort` (`(sort coll)` or `(sort comp coll)`; default `<`)
@@ -372,7 +373,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `some` (first truthy `(pred x)`, else `nil`)
 - **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)
 - **R** `line-seq` (lazy lines from a file; each line is a string)
-- **P** `take-while` / `drop-while` / `take-last` / `drop-last` / `take-nth` (Clojure collection arities; `take-nth` with `n <= 0` repeats the first item)
+- **P** `take-while` / `drop-while` / `split-at` / `split-with` / `cycle` / `reductions` / `frequencies` / `butlast` / `take-last` / `drop-last` / `take-nth` (Clojure collection arities; `take-nth` with `n <= 0` repeats the first item)
 - **P** `keep` / `mapcat` / `map-indexed` (`(map f (range) coll)`) / `keep-indexed`
 - **P** `reduce-kv` (maps: `f acc k v`; arrays/vectors: `f acc idx v`; `nil` → init)
 - **P** `distinct` (first occurrence, input order; array)
@@ -389,7 +390,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
 - **R** `set` (from a seq) / `vec` (from a seq)
 - **R** `conj` (collection + items) / `into` / `contains?` (`false` on `nil`; maps/sets/dates/records)
-- **R** `seq` (`nil` if empty) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
+- **R** `seq` (`nil` if empty or `nil`) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
 - **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
 - **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`
 - **R** `keys` / `vals` / `find` (entry pair or `nil`)
@@ -430,7 +431,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### Symbols / strings / printing
 
-- **R/special** `symbol` / `name` / `keyword` / `str` / `println` / `format` (Go `fmt.Sprintf`)
+- **R/special** `symbol` / `name` / `keyword` / `str` / `print` / `println` / `format` (Go `fmt.Sprintf`)
 - **R** `subs` (`(subs s start)` or `(subs s start end)`; rune indices, exclusive end; panics out of range)
 - **R** `re-pattern` / `re-matches`
 
@@ -466,7 +467,6 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 
 ### Prelude aliases (not extra implementations)
 
-- `peek` / `pop` — see sequences
 - `close` — see File I/O
 
 ### Go interop (early)

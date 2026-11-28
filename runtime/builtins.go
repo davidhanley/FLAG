@@ -66,6 +66,10 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnShuffle)
 	case "first", "fist":
 		return NewFunction(FnFirst)
+	case "peek":
+		return NewFunction(FnPeek)
+	case "pop":
+		return NewFunction(FnPop)
 	case "rest":
 		return NewFunction(FnRest)
 	case "next":
@@ -100,6 +104,14 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnFilter)
 	case "reduce":
 		return NewFunction(FnReduce)
+	case "reduced":
+		return NewFunction(FnReduced)
+	case "reduced?":
+		return NewFunction(FnReducedQ)
+	case "ensure-reduced":
+		return NewFunction(FnEnsureReduced)
+	case "unreduced":
+		return NewFunction(FnUnreduced)
 	case "group-by":
 		return NewFunction(FnGroupBy)
 	case "juxt":
@@ -138,6 +150,8 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnNumerator)
 	case "denominator":
 		return NewFunction(FnDenominator)
+	case "print":
+		return NewFunction(FnPrint)
 	case "format":
 		return NewFunction(FnFormat)
 	case "subs":

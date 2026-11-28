@@ -266,6 +266,22 @@ func FnFirst(args ...Value) Value {
 	return First(args[0])
 }
 
+// FnPeek implements builtin peek.
+func FnPeek(args ...Value) Value {
+	if len(args) != 1 {
+		panic("peek expects exactly one argument")
+	}
+	return Peek(args[0])
+}
+
+// FnPop implements builtin pop.
+func FnPop(args ...Value) Value {
+	if len(args) != 1 {
+		panic("pop expects exactly one argument")
+	}
+	return Pop(args[0])
+}
+
 // FnRest implements builtin rest.
 func FnRest(args ...Value) Value {
 	if len(args) != 1 {
@@ -418,6 +434,38 @@ func FnReduce(args ...Value) Value {
 	return Reduce(args[0], args[1:]...)
 }
 
+// FnReduced implements builtin reduced.
+func FnReduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("reduced expects exactly one argument")
+	}
+	return Reduced(args[0])
+}
+
+// FnReducedQ implements builtin reduced?.
+func FnReducedQ(args ...Value) Value {
+	if len(args) != 1 {
+		panic("reduced? expects exactly one argument")
+	}
+	return NewBool(IsReduced(args[0]))
+}
+
+// FnEnsureReduced implements builtin ensure-reduced.
+func FnEnsureReduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("ensure-reduced expects exactly one argument")
+	}
+	return EnsureReduced(args[0])
+}
+
+// FnUnreduced implements builtin unreduced.
+func FnUnreduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("unreduced expects exactly one argument")
+	}
+	return Unreduced(args[0])
+}
+
 // FnNotEmpty implements builtin not-empty.
 func FnNotEmpty(args ...Value) Value {
 	if len(args) != 1 {
@@ -552,6 +600,15 @@ func FnDenominator(args ...Value) Value {
 		panic("denominator expects exactly one argument")
 	}
 	return Denominator(args[0])
+}
+
+// FnPrint implements builtin print.
+func FnPrint(args ...Value) Value {
+	anys := make([]any, len(args))
+	for i, arg := range args {
+		anys[i] = arg
+	}
+	return Print(anys...)
 }
 
 // FnFormat implements builtin format.

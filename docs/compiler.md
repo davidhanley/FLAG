@@ -6,6 +6,11 @@ The self-hosted compiler lives in `libraries/compiler/`. `parse-file` is:
 
 `tokenize-file` → `build-ast-from-tokens` → `expand-macros`.
 
+`recur` lowering tracks `:tail?`, `:recur-target?`, and `:in-try` so nested
+`if` / `let` / `do` tails are legal, `fn`/`defn` bodies wrap in `for` +
+`continue`, and `try` / non-tail / wrong arity are compile errors. See
+**[recur.md](recur.md)**.
+
 The Go compiler embeds those libraries as `*_flag_gen.go`. Regenerate in order
 after lowering changes (flattening `if`/`let`, etc.):
 
@@ -84,7 +89,7 @@ Expression kinds: `:ident`, `:string`, `:int`, `:selector`, `:call`, `:index`,
 `seq-to-ir`, `drop-to-ir`, `take-to-ir`, `cons-to-ir`, `get-to-ir`, `nth-to-ir`,
 `not-empty-to-ir`, `type-of-to-ir`, `vec-to-ir`, `dissoc-to-ir`,
 `contains-pred-to-ir`, `into-to-ir`, `concat-to-ir`, `ex-message-to-ir`,
-`ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`, `compare-to-ir`,
+`ex-data-to-ir`, `ex-cause-to-ir`, `println-to-ir`, `print-to-ir`, `compare-to-ir`,
 `numeric-eq-to-ir`, `comparison-to-ir`, `symbol-ctor-to-ir`, `name-to-ir`,
 `keyword-ctor-to-ir`, `format-to-ir`, `map-to-ir`, `sort-by-to-ir`,
 `apply-to-ir`, `apply-fn-to-ir`, `pmap-to-ir`, `filter-to-ir`, `reduce-to-ir`, `doall-to-ir`,
@@ -145,8 +150,9 @@ Form errors without ` at ` get `form-at-suffix` (`str-contains?` / `annotate-for
 `quoted-ast-to-ir` lowers quoted collections: `:quoted-list` / `:list` →
 `NewList`, `:vector` → `NewArray`, `:pipe-vector` → `NewVector`, `:map` →
 `NewMap`, `:set` → `NewSet`. Nested symbols become `NewSymbol` (including
-`true`/`false`/`nil`). Go `quotedLiteralToIR` calls this; quoted lists are
-still interned as `List`. Odd-length maps error.
+`true`/`false`/`nil`). Strings and chars become `NewString`. Go
+`quotedLiteralToIR` calls this; quoted lists are interned as `List` and are
+ordinary seqs at runtime. Odd-length maps error.
 
 `call-to-ir` builds `flagrt.Call(callee, args...)` from IR maps. That is
 only for unknown callees (locals, maps, sets, `apply`). Keyword literals
@@ -217,7 +223,8 @@ wrap). `contains-pred-to-ir` is `Contains` as `:bool` (exactly two Values).
 `NewMap`) and wrap strings; `hash-map` needs even key/value pairs. `into-to-ir`
 is two collection Values. `concat-to-ir` wraps strings. `ex-message-to-ir` /
 `ex-data-to-ir` / `ex-cause-to-ir` wrap strings. `println-to-ir` is `str`
-args (`Println`) with result kind `:value`.
+args (`Println`) with result kind `:value`. `print-to-ir` is the same for
+`Print` (Clojure `print`: spaces, no newline, returns nil).
 
 `compare-to-ir` is two-arg `Compare` (strings wrapped). `numeric-eq-to-ir` is
 `NumericEq(...)` as `:bool` with no string wrap. `comparison-to-ir` chains
@@ -377,7 +384,7 @@ like Go. `go-interface` looks up the target in `:module` and emits `name_go` wit
 struct (`exported-record-field-name`, `eof` → `EOF`, reserved param `_`
 suffix), `->Name` / `map->Name` ctors, and interned field keywords.
 Top-level `println` is `fmt.Println(flagrt.Str(...))` with `needs-fmt`;
-`print` is `fmt.Print` of one arg (`ValueToAny` for Values). Other
+`print` is variadic `flagrt.Print(...)` (no `fmt` import). Other
 top-level exprs compile via `compile-form-to-ir` and require
 `:allow-top-level`. Production tries FLAG
 first after `:go-exports`. FLAG `deftest` bodies use the same comparison

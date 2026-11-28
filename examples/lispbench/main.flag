@@ -1,0 +1,28 @@
+{:namespace "lispbench"
+ :imports [["work.flag" :refer [eager-range-sum lazy-range-sum lazy-map-inc
+                                ratio-scores keyword-gets nested-keyword
+                                assoc-scores group-by-name mapcat-filter
+                                sort-by-points juxt-keys string-pipeline
+                                apply-max frs-score-shape]]]}
+
+(defn run-bench [name f]
+  (f)
+  (let [t0 (time/nano-time)
+        checksum (f)
+        t1 (time/nano-time)]
+    (println (str "BENCH " name " " (- t1 t0) " " checksum))))
+
+(run-bench "eager-range-sum" (fn [] (eager-range-sum 20000)))
+(run-bench "lazy-range-sum" (fn [] (lazy-range-sum 4000)))
+(run-bench "lazy-map-inc" (fn [] (lazy-map-inc 4000)))
+(run-bench "ratio-scores" (fn [] (ratio-scores 1500)))
+(run-bench "keyword-gets" (fn [] (keyword-gets 200000)))
+(run-bench "nested-keyword" (fn [] (nested-keyword 200000)))
+(run-bench "assoc-scores" (fn [] (assoc-scores 4000)))
+(run-bench "group-by-name" (fn [] (group-by-name 4000)))
+(run-bench "mapcat-filter" (fn [] (mapcat-filter 4000)))
+(run-bench "sort-by-points" (fn [] (sort-by-points 4000)))
+(run-bench "juxt-keys" (fn [] (juxt-keys 4000)))
+(run-bench "string-pipeline" (fn [] (string-pipeline 20000)))
+(run-bench "apply-max" (fn [] (apply-max 20000)))
+(run-bench "frs-score-shape" (fn [] (frs-score-shape 1500)))

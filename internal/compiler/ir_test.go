@@ -348,7 +348,7 @@ func TestRenderFnToIR(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := renderIRExpr(ir)
-	want := "flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 2 {\n\t\tpanic(\"fn expects exactly 2 arguments\")\n\t}\n\tx := args[0]\n\t_ = args[1]\n\treturn x\n})"
+	want := "flagrt.NewFunction(func(args ...flagrt.Value) flagrt.Value {\n\tif len(args) != 2 {\n\t\tpanic(\"fn expects exactly 2 arguments\")\n\t}\n\tx := args[0]\n\t_ = args[1]\n\tfor {\n\t\treturn x\n\t}\n})"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}

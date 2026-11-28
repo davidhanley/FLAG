@@ -239,7 +239,7 @@ Imported functions are not copied into the entry file. If `B` and `C` both impor
 
 The language prelude is a normal FLAG module compiled once to `flagbuild/prologue`. Unqualified names such as `inc` resolve to `prologue.Inc`. Macros expand at FLAG compile time and are not emitted as Go. Imported modules are never copied into the importer.
 
-`flag-lang compile`, `flag-lang build`, and `flag-lang test` all use this package emit when the entry has a module header. Two FLAG files that share a `:namespace` cannot be separate Go packages yet (for example `libraries/compiler/*.lib`); those programs still inline into one `package main`. Headerless / legacy `(ns …)` test trees also use the inlined path so unexported prelude names such as `peek` stay visible. The REPL and code generators (`tokengen` and friends) always inline.
+`flag-lang compile`, `flag-lang build`, and `flag-lang test` all use this package emit when the entry has a module header. Two FLAG files that share a `:namespace` cannot be separate Go packages yet (for example `libraries/compiler/*.lib`); those programs still inline into one `package main`. Headerless / legacy `(ns …)` test trees also use the inlined path so unexported prelude names such as `second` stay visible. The REPL and code generators (`tokengen` and friends) always inline.
 
 Directory builds should use an entry file (or a designated main module). Concatenating every file in a directory without regard to imports is the old model and will be phased out for modular projects.
 

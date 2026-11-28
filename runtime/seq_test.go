@@ -793,6 +793,12 @@ func TestMapCatFlattensMappedSequences(t *testing.T) {
 }
 
 func TestSeqReturnsNilForEmptyAndCollectionForNonEmpty(t *testing.T) {
+	if got := Seq(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for seq(nil), got %#v", got)
+	}
+	if got := NotEmpty(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for not-empty(nil), got %#v", got)
+	}
 	if got := Seq(NewArray()); !IsNil(got) {
 		t.Fatalf("expected nil for empty array seq, got %#v", got)
 	}
@@ -938,6 +944,72 @@ func TestReduceWithInitialOnNilCollection(t *testing.T) {
 	if got := Reduce(add, NewLong(10), NilValue); !isType[longImpl](got) || got.Long() != 10 {
 		t.Fatalf("expected reduce init value for nil collection, got %#v", got)
 	}
+}
+
+func TestPeekPopListFront(t *testing.T) {
+	coll := NewList(NewLong(1), NewLong(2), NewLong(3))
+	if got := Peek(coll); got.Long() != 1 {
+		t.Fatalf("list peek: %#v", got)
+	}
+	popped := Pop(coll)
+	if !isType[*listImpl](popped) || popped.ListLen() != 2 {
+		t.Fatalf("list pop kind/len: %#v", popped)
+	}
+	if First(popped).Long() != 2 || Last(popped).Long() != 3 {
+		t.Fatalf("list pop values: %#v", popped)
+	}
+	if Peek(NewList()) != NilValue || Peek(NilValue) != NilValue {
+		t.Fatal("empty/nil list peek should be nil")
+	}
+	if First(coll).Long() != 1 || coll.ListLen() != 3 {
+		t.Fatal("list pop must not mutate original")
+	}
+}
+
+func TestPeekPopArrayAndVectorEnd(t *testing.T) {
+	arr := NewArray(NewLong(1), NewLong(2), NewLong(3))
+	vec := NewVector(NewLong(1), NewLong(2), NewLong(3))
+	if Peek(arr).Long() != 3 || Peek(vec).Long() != 3 {
+		t.Fatalf("end peek: array=%s vector=%s", Peek(arr), Peek(vec))
+	}
+	arrPop := Pop(arr)
+	vecPop := Pop(vec)
+	if !isType[*arrayImpl](arrPop) || arrPop.ArrayLen() != 2 {
+		t.Fatalf("array pop: %#v", arrPop)
+	}
+	if ArrayGet(arrPop, 0).Long() != 1 || ArrayGet(arrPop, 1).Long() != 2 {
+		t.Fatalf("array pop values: %#v", arrPop)
+	}
+	if !isType[*vectorImpl](vecPop) || vecPop.VectorLen() != 2 {
+		t.Fatalf("vector pop: %#v", vecPop)
+	}
+	if VectorGet(vecPop, 0).Long() != 1 || VectorGet(vecPop, 1).Long() != 2 {
+		t.Fatalf("vector pop values: %#v", vecPop)
+	}
+	if arr.ArrayLen() != 3 || ArrayGet(arr, 2).Long() != 3 {
+		t.Fatal("array pop must not mutate original")
+	}
+	grown := Conj(arrPop, NewLong(99))
+	if ArrayGet(arr, 2).Long() != 3 {
+		t.Fatalf("conj on popped array mutated original: %#v", arr)
+	}
+	if ArrayGet(grown, 2).Long() != 99 {
+		t.Fatalf("conj on popped array: %#v", grown)
+	}
+	if Peek(NewArray()) != NilValue || Peek(NewVector()) != NilValue {
+		t.Fatal("empty array/vector peek should be nil")
+	}
+}
+
+func TestPeekPopPanics(t *testing.T) {
+	assertPanics(t, func() { Pop(NilValue) })
+	assertPanics(t, func() { Pop(NewList()) })
+	assertPanics(t, func() { Pop(NewArray()) })
+	assertPanics(t, func() { Pop(NewVector()) })
+	assertPanics(t, func() { Peek(NewMap()) })
+	assertPanics(t, func() { Pop(NewString("ab")) })
+	assertPanics(t, func() { FnPeek() })
+	assertPanics(t, func() { FnPop(NewLong(1), NewLong(2)) })
 }
 
 func TestDoAllIsNoOpForNonSequences(t *testing.T) {

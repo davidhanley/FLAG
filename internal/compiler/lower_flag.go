@@ -156,10 +156,15 @@ func flagBindParams(paramsExpr VectorExpr, label string, locals map[string]exprK
 	if err != nil {
 		return nil, nil, nil, false, err
 	}
+	preLoop, err := flagIRStmtSeq(flagMapGet(node, "pre-loop-stmts"))
+	if err != nil {
+		return nil, nil, nil, false, err
+	}
 	initStmts, err = flagIRStmtSeq(flagMapGet(node, "init-stmts"))
 	if err != nil {
 		return nil, nil, nil, false, err
 	}
+	initStmts = append(preLoop, initStmts...)
 	kinds, err = flagStringKindMap(flagMapGet(node, "locals"))
 	if err != nil {
 		return nil, nil, nil, false, err
@@ -676,6 +681,7 @@ func flagDefnToIR(arityName, variadicName, panicName string, params []string, ha
 		flagrt.NewString(panicName),
 		stringsToFlagVector(params),
 		flagrt.NewBool(hasRest),
+		irStmtsToFlagVector(nil),
 		irStmtsToFlagVector(initStmts),
 		irStmtsToFlagVector(bodyStmts),
 		irExprToFlagValue(bodyExpr),
@@ -715,6 +721,7 @@ func flagFnToIR(name string, params []string, hasRest bool, initStmts, bodyStmts
 		flagrt.NewString(name),
 		flagrt.NewArray(vals...),
 		flagrt.NewBool(hasRest),
+		irStmtsToFlagVector(nil),
 		irStmtsToFlagVector(initStmts),
 		irStmtsToFlagVector(bodyStmts),
 		irExprToFlagValue(bodyExpr),

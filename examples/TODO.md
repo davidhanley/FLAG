@@ -14,7 +14,7 @@
 ## Sequence + collection APIs
 
 - [x] Add **`nth`** (`not-found` arity included).
-- [x] Add **`peek` / `pop`** as FLAG aliases of `first` / `rest`.
+- [x] Add **`peek` / `pop`** with Clojure stack semantics (list front; array/vector end).
 - [x] Add **`interpose`**.
 - [x] Add **`interleave`**.
 - [x] Add **`partition`** and **`partition-all`**.
@@ -110,11 +110,11 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 
 - [ ] Add **`mapv`** / **`filterv`** (still open above).
 - [x] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
-- [ ] Add **`split-at`**, **`split-with`**.
-- [ ] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
-- [ ] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
+- [x] Add **`split-at`**, **`split-with`**.
+- [x] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
+- [x] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
 - [ ] Add **`lazy-seq`** / **`lazy-cat`** (or document that FLAG lazy lists are the substitute).
-- [ ] Add **`reduced`** / **`ensure-reduced`** / **`reduced?`** so `reduce` can short-circuit.
+- [x] Add **`reduced`** / **`ensure-reduced`** / **`reduced?`** so `reduce` can short-circuit.
 
 ## Exceptions / `try`
 
@@ -127,14 +127,14 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 
 - [x] **`(range n)`** is infinite starting at `n`. Clojure’s `(range n)` is `0 .. n-1`. Either match Clojure or make `flag-lang.md` shout this; current wording is easy to misread.
 - [x] **`inc` / `dec` are macros**, so they cannot be passed to `map`, `apply`, `swap!`, etc.
-- [ ] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
+- [x] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
 - [x] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
-- [ ] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
+- [x] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
 - [x] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
-- [ ] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
+- [x] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
 - [ ] **No `@` deref reader**; must write `(deref a)`. Easy to add if atoms stay.
 - [ ] **`:strs` destructuring** looks up symbol keys, not string keys.
-- [ ] **`print` is not implemented** (only `println` / `str`).
+- [x] **`print` is not implemented** (only `println` / `str`).
 - [ ] ** Arrays supporting push to the end and having size in the box breaks immutability
 
 

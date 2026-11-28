@@ -4,12 +4,14 @@
            when-let if-let if-not if-some when-some with-open with-channel
            close not identity constantly
            second third fourth fifth sixth seventh eighth ninth tenth val
+           ffirst nfirst nnext fnnext
            some? true? false? boolean number? int? float? string? symbol?
            keyword? map? vector? set? sequential? coll? empty
            zero? pos? neg? even? odd? not-empty? not-any? remove
            update get-in update-in assoc-in dissoc-in
            partial complement fnil comp iterate repeatedly
            take-while drop-while take-last drop-last take-nth
+           split-at split-with cycle reductions frequencies butlast
            keep map-indexed keep-indexed reduce-kv
            every? every-pred some-fn max-key zipmap select-keys
            merge merge-with mapcat distinct flatten interpose interleave
@@ -233,9 +235,6 @@
 (defmacro not [x]
   (if x false true))
 
-(def peek first)
-(def pop rest)
-
 (defn identity [x] x)
 
 (defn constantly [x]
@@ -267,6 +266,18 @@
 
 (defn tenth [coll]
   (slow-nth coll 9))
+
+(defn ffirst [coll]
+  (first (first coll)))
+
+(defn nfirst [coll]
+  (next (first coll)))
+
+(defn nnext [coll]
+  (next (next coll)))
+
+(defn fnnext [coll]
+  (first (next (next coll))))
 
 (defn val [entry]
   (second entry))
@@ -522,6 +533,50 @@
           acc
           (recur (drop n xs) (conj acc (first xs))))))))
 
+(defn split-at [n coll]
+  [(take n coll) (drop n coll)])
+
+(defn split-with [pred coll]
+  [(take-while pred coll) (drop-while pred coll)])
+
+(defn cycle [coll]
+  (if (or (nil? coll) (empty? coll))
+    []
+    (map first
+         (iterate (fn [xs]
+                    (let [nxt (rest xs)]
+                      (if (or (nil? nxt) (empty? nxt))
+                        coll
+                        nxt)))
+                  coll))))
+
+(defn reductions
+  ([f coll]
+   (if (or (nil? coll) (empty? coll))
+     [(f)]
+     (reductions f (first coll) (rest coll))))
+  ([f init coll]
+   (if (or (nil? coll) (empty? coll))
+     [init]
+     (let [^{:volatile true} acc init]
+       (concat [init]
+               (map (fn [x]
+                      (do
+                        (update! acc (f acc x))
+                        acc))
+                    coll))))))
+
+(defn frequencies [coll]
+  (reduce (fn [acc x]
+            (assoc acc x (inc (get acc x 0))))
+          {}
+          coll))
+
+(defn butlast [coll]
+  (if (or (nil? coll) (empty? coll) (empty? (rest coll)))
+    nil
+    (drop-last coll)))
+
 (defn keep [f coll]
   (filter some? (map f coll)))
 
@@ -537,10 +592,7 @@
     (if (map? coll)
       (reduce (fn [acc pair] (f acc (first pair) (val pair))) init coll)
       (if (or (= (type-of coll) :array) (vector? coll))
-        (loop [i 0 acc init]
-          (if (= i (count coll))
-            acc
-            (recur (inc i) (f acc i (nth coll i)))))
+        (reduce (fn [acc i] (f acc i (nth coll i))) init (range (count coll)))
         (throw "reduce-kv expects a map, array, or vector")))))
 
 (defn every? [pred coll]

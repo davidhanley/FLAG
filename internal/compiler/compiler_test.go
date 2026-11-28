@@ -21,7 +21,7 @@ func TestCompilePrintProgram(t *testing.T) {
 		"package main",
 		`flagrt "flag-lang/runtime"`,
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -44,7 +44,7 @@ func TestCompileTokensPrintProgram(t *testing.T) {
 	for _, want := range []string{
 		"package main",
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -337,7 +337,7 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -457,8 +457,108 @@ func TestCompileRejectsRecurOutsideLoop(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected recur outside loop to fail")
 	}
-	if !strings.Contains(err.Error(), "recur can only be used within loop") {
+	if !strings.Contains(err.Error(), "recur can only be used within loop or fn") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCompileRejectsNonTailRecur(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{"outside", `(recur 1)`, "within loop or fn"},
+		{"do-not-last", `(println (loop [x 1] (do (recur 2) x)))`, "tail position"},
+		{"if-test", `(println (loop [x 1] (if (recur 2) 1 2)))`, "tail position"},
+		{"let-binding", `(println (loop [x 1] (let [y (recur 2)] y)))`, "tail position"},
+		{"call-arg", `(println (loop [x 1] (+ (recur 2) 1)))`, "tail position"},
+		{"vector", `(println (loop [x 1] [(recur 2)]))`, "tail position"},
+		{"when-not-last", `(println (loop [n 0] (when (< n 3) (recur (inc n))) n))`, "tail position"},
+		{"try-body", `(println (loop [x 1] (try (recur 2) (catch Exception e e))))`, "across try"},
+		{"catch", `(println (loop [x 1] (try 1 (catch Exception e (recur 2)))))`, "across try"},
+		{"finally", `(println (loop [x 1] (try 1 (finally (recur 2)))))`, "across try"},
+		{"arity-loop", `(println (loop [x 1] (recur 1 2)))`, "expects 1"},
+		{"arity-inner-loop", `(println (loop [x 1] (loop [y 1] (recur 1 2))))`, "expects 1"},
+		{"arity-fn", `(defn f [x] (recur))`, "expects 1"},
+		{"arity-zero-fn", `(println ((fn [] (recur 1))))`, "expects 0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Compile(tc.src)
+			if err == nil {
+				t.Fatalf("expected compile error containing %q", tc.want)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestCompileFnRecurGeneratesIterativeCode(t *testing.T) {
+	output, err := Compile(`
+(defn countdown [n]
+  (if (= n 0)
+    n
+    (recur (- n 1))))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	for _, want := range []string{
+		"for {",
+		"continue",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "UnwrapRecur") || strings.Contains(got, "NewRecur") {
+		t.Fatalf("compiled fn still boxes recur:\n%s", got)
+	}
+}
+
+func TestCompileRestRecurKeepsRestOutsideLoop(t *testing.T) {
+	output, err := Compile(`
+(defn rest-len [n & xs]
+  (if (seq xs)
+    (recur (inc n) (next xs))
+    n))
+`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
+	}
+	got := string(output)
+	fnStart := strings.Index(got, "func rest_len_variadic")
+	if fnStart < 0 {
+		t.Fatalf("missing rest_len_variadic:\n%s", got)
+	}
+	fn := got[fnStart:]
+	if i := strings.Index(fn, "\nfunc "); i > 0 {
+		fn = fn[:i]
+	}
+	restIdx := strings.Index(fn, "flagrt.NewArray(")
+	forIdx := strings.Index(fn, "for {")
+	if restIdx < 0 || forIdx < 0 || restIdx > forIdx {
+		t.Fatalf("expected rest NewArray before for loop:\n%s", fn)
+	}
+	if !strings.Contains(fn, "continue") {
+		t.Fatalf("expected continue in rest recur:\n%s", fn)
+	}
+}
+
+func TestCompileLoopInsideTryAllowsRecur(t *testing.T) {
+	_, err := Compile(`
+(defn f []
+  (try
+    (loop [n 0]
+      (if (= n 3) n (recur (inc n))))
+    (catch Exception e e)))
+`)
+	if err != nil {
+		t.Fatalf("loop inside try should allow recur: %v", err)
 	}
 }
 
@@ -558,14 +658,17 @@ func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
 	}
 }
 
-func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
-	_, err := Compile(`(print "hello" "world")`)
-	if err == nil {
-		t.Fatal("Compile succeeded for unsupported argument list")
+func TestCompilePrintMultipleArguments(t *testing.T) {
+	output, err := Compile(`(print "hello" "world")`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
 	}
-
-	if !strings.Contains(err.Error(), "expected one argument") {
-		t.Fatalf("unexpected error: %v", err)
+	got := string(output)
+	if !strings.Contains(got, `flagrt.Print("hello", "world")`) {
+		t.Fatalf("generated Go did not contain multi-arg print:\n%s", got)
+	}
+	if strings.Contains(got, "fmt.Print") {
+		t.Fatalf("print should not use fmt.Print:\n%s", got)
 	}
 }
 
@@ -1132,16 +1235,16 @@ func TestCompilePeekPopAliases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileExpression peek returned error: %v", err)
 	}
-	if !strings.Contains(got, "flagrt.Call(peek,") {
-		t.Fatalf("expected peek to call prologue alias, got %s", got)
+	if !strings.Contains(got, "flagrt.Peek(") {
+		t.Fatalf("expected peek to call runtime Peek, got %s", got)
 	}
 
 	got, err = CompileExpression(`(pop (list 1 2))`)
 	if err != nil {
 		t.Fatalf("CompileExpression pop returned error: %v", err)
 	}
-	if !strings.Contains(got, "flagrt.Call(pop,") {
-		t.Fatalf("expected pop to call prologue alias, got %s", got)
+	if !strings.Contains(got, "flagrt.Pop(") {
+		t.Fatalf("expected pop to call runtime Pop, got %s", got)
 	}
 }
 

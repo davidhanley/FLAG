@@ -1,10 +1,12 @@
-# Sequence extras (`take-while`, `drop-while`, `take-last`, `drop-last`, `take-nth`, `group-by`)
+# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`, `reduced`, `peek`, `pop`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
-These are prologue functions with Clojure’s collection arities (no transducers).
-End-relative helpers walk with `drop` / `next`; `n` must be an integer (`pos?`
-for “how many”). Compare with `vec` when you only care about values.
+Most of these are prologue functions with Clojure’s collection arities (no
+transducers). `reduced` / `reduced?` / `ensure-reduced` / `unreduced` are
+runtime builtins. End-relative helpers walk with `drop` / `next`; `n` must be
+an integer (`pos?` for “how many”). Compare with `vec` when you only care
+about values.
 
 ## `take-while`
 
@@ -28,6 +30,141 @@ the rest (same collection kind when possible). `nil` stays `nil`.
 (drop-while pos? [1 2 -1 3])   ;; [-1 3]
 (drop-while pos? [1 2])        ;; []
 (drop-while pos? nil)          ;; nil
+```
+
+## `split-at`
+
+`(split-at n coll)` is `[(take n coll) (drop n coll)]`. `n` must be a
+non-negative integer (same as `take` / `drop`).
+
+```clojure
+(split-at 2 [1 2 3 4 5])   ;; [[1 2] [3 4 5]]
+(split-at 0 [1 2 3])       ;; [[] [1 2 3]]
+(split-at 10 [1 2 3])      ;; [[1 2 3] []]
+(split-at 0 nil)           ;; [[] nil]
+(split-at 2 nil)           ;; [[] ()]
+```
+
+`take` always yields an array. `drop` keeps the remaining collection kind.
+`coll` must be a list, array, vector, lazy-list, or range — the same kinds
+`drop` accepts (not strings). `(drop n nil)` for `n > 0` is `()`; `n = 0` is `nil`.
+
+## `split-with`
+
+`(split-with pred coll)` is `[(take-while pred coll) (drop-while pred coll)]`.
+
+```clojure
+(split-with pos? [1 2 -1 3])   ;; [[1 2] [-1 3]]
+(split-with pos? [-1 2])       ;; [[] [-1 2]]
+(split-with pos? nil)          ;; [[] nil]
+```
+
+Stops on a lazy input once `pred` fails, so
+`(split-with (fn [x] (< x 3)) (range))` is finite on the left.
+
+## `cycle`
+
+`(cycle coll)` repeats `coll` forever. Empty/`nil` is `[]`. Consume with
+`take` — the result is infinite when `coll` is non-empty.
+
+```clojure
+(take 5 (cycle [1 2 3]))   ;; [1 2 3 1 2]
+(cycle [])                 ;; []
+(cycle nil)                ;; []
+```
+
+## `reductions`
+
+`(reductions f coll)` is the intermediate values of `(reduce f coll)`.
+`(reductions f init coll)` starts from `init`. Empty `coll` without `init`
+is `[(f)]` (Clojure: `(reductions + [])` is `(0)`).
+
+```clojure
+(reductions + [1 2 3 4])       ;; [1 3 6 10]
+(reductions + 0 [1 2 3 4])     ;; [0 1 3 6 10]
+(reductions + [])              ;; [0]
+(take 4 (reductions + (range))) ;; [0 1 3 6]
+```
+
+## `frequencies`
+
+`(frequencies coll)` maps each distinct item to its count. Empty/`nil` is `{}`.
+
+```clojure
+(frequencies [:a :b :a])   ;; {:a 2 :b 1}
+(frequencies nil)          ;; {}
+```
+
+## `butlast`
+
+`(butlast coll)` is all but the last item, or `nil` when `coll` has fewer
+than two items (unlike `drop-last`, which yields `[]`).
+
+```clojure
+(butlast [1 2 3 4])   ;; [1 2 3]
+(butlast [1])         ;; nil
+(butlast [])          ;; nil
+(butlast nil)         ;; nil
+```
+
+## `peek` / `pop`
+
+Clojure stack ops. Lists grow at the front; FLAG arrays and vectors grow at the
+end.
+
+- `(peek coll)` — list: `first`; array/vector: `last`. Empty or `nil` → `nil`.
+- `(pop coll)` — list without first, or array/vector without last. Same kind.
+  Empty or `nil` panics. Not `rest` / `butlast`.
+
+```clojure
+(peek '(1 2 3))     ;; 1
+(pop '(1 2 3))      ;; (2 3)
+(peek [1 2 3])      ;; 3
+(pop [1 2 3])       ;; [1 2]
+(peek | 1 2 3 |)    ;; 3
+(pop | 1 2 3 |)     ;; | 1 2 |
+(peek [])           ;; nil
+(pop [])            ;; panic
+```
+
+Maps, sets, strings, ranges, and lazy seqs are not stacks.
+
+## `reduced` / `reduced?` / `ensure-reduced` / `unreduced`
+
+`(reduced x)` boxes `x`. When `f` returns a reduced value, `reduce` unwraps it
+and stops. Empty coll with a reduced init stays reduced. `(reduced? x)` is
+true only for that box. `(ensure-reduced x)` boxes unless already reduced.
+`(unreduced x)` unwraps once, or returns `x`. Equality is identity.
+`(type-of (reduced 1))` is `:reduced`.
+
+```clojure
+(reduce (fn [acc x]
+          (if (>= (+ acc x) 6)
+            (reduced (+ acc x))
+            (+ acc x)))
+        0
+        (range))          ;; 6
+(reduced? (reduced 1))    ;; true
+(unreduced (reduced 1))   ;; 1
+(reduce + (reduced 1) []) ;; still reduced
+```
+
+`reduce-kv` honors the same stop: return `(reduced acc)` from `f`.
+
+FLAG `deref` is atoms only — use `unreduced`, not `@`.
+
+## `ffirst` / `nfirst` / `nnext` / `fnnext`
+
+Clojure’s `first`/`next` shortcuts. `next` (not `rest`) means a missing tail is
+`nil`, not `[]`.
+
+```clojure
+(ffirst [[1 2] [3]])    ;; 1          ; (first (first x))
+(nfirst [[1 2 3] [4]])  ;; [2 3]      ; (next (first x))
+(nnext [1 2 3 4])       ;; [3 4]      ; (next (next x))
+(fnnext [1 2 3 4])      ;; 3          ; (first (nnext x))
+(nnext [1 2])           ;; nil
+(fnnext nil)            ;; nil
 ```
 
 ## `take-last`

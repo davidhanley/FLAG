@@ -185,6 +185,11 @@ func TestFLAGQuotedLowering(t *testing.T) {
 			`flagrt.NewList(flagrt.NewSymbol("true"))`,
 		},
 		{
+			"quoted-list-strings",
+			QuotedListExpr{Elements: []Expr{StringExpr{Value: "a"}, StringExpr{Value: "b"}}},
+			`flagrt.NewList(flagrt.NewString("a"), flagrt.NewString("b"))`,
+		},
+		{
 			"nested-vector",
 			VectorExpr{Elements: []Expr{
 				QuotedListExpr{Elements: []Expr{SymbolExpr{Name: "x"}}},
@@ -2156,6 +2161,29 @@ func TestFLAGCompileFormExFieldsPrintln(t *testing.T) {
 	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Println("a", flagrt.NewLong(1))` {
 		t.Fatalf("println %q", renderIRExpr(irFromGoExpr(got)))
 	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{SymbolExpr{Name: "print"}}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.kind != exprKindValue {
+		t.Fatalf("print kind %v", got.kind)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != "flagrt.Print()" {
+		t.Fatalf("empty print %q", renderIRExpr(irFromGoExpr(got)))
+	}
+
+	got, err = flagCompileForm(ListExpr{Elements: []Expr{
+		SymbolExpr{Name: "print"},
+		StringExpr{Value: "a"},
+		IntExpr{Value: 1},
+	}}, ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderIRExpr(irFromGoExpr(got)) != `flagrt.Print("a", flagrt.NewLong(1))` {
+		t.Fatalf("print %q", renderIRExpr(irFromGoExpr(got)))
+	}
 }
 
 func TestFLAGCompileFormRemainingRuntimeOps(t *testing.T) {
@@ -3362,7 +3390,7 @@ func TestFLAGCompileModuleBodyPrintlnPrint(t *testing.T) {
 	if result.stmts[0].code != `fmt.Println(flagrt.Str("Hello"))` {
 		t.Fatalf("println %q", result.stmts[0].code)
 	}
-	if result.stmts[1].code != "fmt.Print(flagrt.ValueToAny(flagLong_42))" {
+	if result.stmts[1].code != "flagrt.Print(flagLong_42)" {
 		t.Fatalf("print %q", result.stmts[1].code)
 	}
 	_, _, err = flagCompileModuleBody(ast.Forms, &ctx, false)

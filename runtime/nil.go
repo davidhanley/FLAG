@@ -37,9 +37,8 @@ func (nilImpl) conj(_ Value, entries ...Value) Value {
 }
 func (nilImpl) count(Value) int    { return 0 }
 func (nilImpl) isEmpty(Value) bool { return true }
-func (nilImpl) notEmpty(Value) Value {
-	return NilValue
-}
+func (nilImpl) notEmpty(Value) Value { return NilValue }
+func (nilImpl) seq(Value) Value      { return NilValue }
 func (nilImpl) drop(Value, int) Value { return NewList() }
 func (nilImpl) cons(_ Value, item Value) Value {
 	return NewList(item)

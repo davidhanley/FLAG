@@ -390,6 +390,11 @@
                                      {:kind :keyword :name "a"}]}))))
   (is (= "flagrt.NewList()"
          (ir/render-ir (lower/quoted-ast-to-ir {:kind :quoted-list :elements []}))))
+  (is (= "flagrt.NewList(flagrt.NewString(\"a\"), flagrt.NewString(\"b\"))"
+         (ir/render-ir (lower/quoted-ast-to-ir
+                         {:kind :quoted-list
+                          :elements [{:kind :string :value "a"}
+                                     {:kind :string :value "b"}]}))))
   (is (= "flagrt.NewList(flagrt.NewSymbol(\"true\"))"
          (ir/render-ir (lower/quoted-ast-to-ir
                          {:kind :quoted-list
@@ -858,6 +863,8 @@
          (ir/render-ir (lower/ex-cause-to-ir (ir/ir-ident "e")))))
   (is (= "flagrt.Println(\"a\", x)"
          (ir/render-ir (lower/println-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
+  (is (= "flagrt.Print(\"a\", x)"
+         (ir/render-ir (lower/print-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
                :elements [{:kind :symbol :name "type-of"}
@@ -897,6 +904,15 @@
                           {:kind :int :value 1}]}
               {})]
     (is (= "flagrt.Println(\"a\", flagrt.NewLong(1))"
+           (ir/render-ir (:expr out))))
+    (is (= :value (:expr-kind out))))
+  (let [out (lower/compile-form-to-ir
+              {:kind :list
+               :elements [{:kind :symbol :name "print"}
+                          {:kind :string :value "a"}
+                          {:kind :int :value 1}]}
+              {})]
+    (is (= "flagrt.Print(\"a\", flagrt.NewLong(1))"
            (ir/render-ir (:expr out))))
     (is (= :value (:expr-kind out)))))
 
@@ -1707,8 +1723,9 @@
     (is (:needs-fmt printed))
     (is (= :call (:kind (:expr (first (:stmts printed))))))
     (is (= "Println" (:name (:fun (:expr (first (:stmts printed)))))))
-    (is (:needs-fmt printed2))
-    (is (= "Print" (:name (:fun (:expr (first (:stmts printed2))))))))
+    (is (not (:needs-fmt printed2)))
+    (is (= "Print" (:name (:fun (:expr (first (:stmts printed2)))))))
+    (is (= "flagrt" (:pkg (:fun (:expr (first (:stmts printed2))))))))
    (let [ctx {:locals {} :globals {} :functions {} :module {"square" "compiler__square"} :go-fns {}
              :self-function-name "" :self-variadic-name "" :self-arity-name ""
              :self-function-rest false :self-function-arity 0

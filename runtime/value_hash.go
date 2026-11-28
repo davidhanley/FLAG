@@ -27,6 +27,7 @@ const (
 	hashSeedRange   uint64 = 0xf6f6f6f6f6f6f6f6
 	hashSeedRecord  uint64 = 0xf4f4f4f4f4f4f4f4
 	hashSeedRecur   uint64 = 0xf5f5f5f5f5f5f5f5
+	hashSeedReduced uint64 = 0xf7f7f7f7f7f7f7f7
 	hashMixConst    uint64 = 0x9e3779b97f4a7c15
 )
 
