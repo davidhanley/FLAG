@@ -34,9 +34,8 @@ mutate in place. `Persistent()` sets the session to dead so those nodes freeze
 without walking the tree. Using the transient after that panics
 (`transient used after persistent!`).
 
-Transients are **Go-only** builders. FLAG source has no `transient` /
-`persistent!` yet. `NewMap` of many pairs, HAMT `assoc` of several keys,
-`NewSet`, `union` / `intersection` / `difference`, `select`, `project`,
-`rename`, and `conj` onto HAMT maps/sets use transients internally then freeze.
-
-Do not store a `*Transient` or `*TSet` on a FLAG `Value`.
+FLAG `(transient {})` / `(transient #{})` wrap these sessions on a
+`Value` (`:transient-map` / `:transient-set`). See [transients.md](transients.md).
+`NewMap` of many pairs, HAMT `assoc` of several keys, `NewSet`, `union` /
+`intersection` / `difference`, `select`, `project`, `rename`, and persistent
+`conj` onto HAMT maps/sets also use transients internally then freeze.

@@ -446,7 +446,7 @@ func Conj(coll Value, entries ...Value) Value {
 }
 
 func Into(coll Value, from Value) Value {
-	if isType[*arrayImpl](coll) || isType[*listImpl](coll) || isType[*vectorImpl](coll) {
+	if isType[*arrayImpl](coll) || isType[*listImpl](coll) || isType[*vectorImpl](coll) || isMap(coll) || isType[*setImpl](coll) {
 		out := Transient(coll)
 		cursor := newSeqCursor(from)
 		for {

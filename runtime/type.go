@@ -28,6 +28,8 @@ var (
 	typeTransientArray  = NewKeyword("transient-array")
 	typeTransientList   = NewKeyword("transient-list")
 	typeTransientVector = NewKeyword("transient-vector")
+	typeTransientMap    = NewKeyword("transient-map")
+	typeTransientSet    = NewKeyword("transient-set")
 )
 
 func TypeOf(v Value) Value {

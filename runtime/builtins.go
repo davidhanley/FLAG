@@ -142,6 +142,10 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnAssocBang)
 	case "pop!":
 		return NewFunction(FnPopBang)
+	case "dissoc!":
+		return NewFunction(FnDissocBang)
+	case "disj!":
+		return NewFunction(FnDisjBang)
 	case "contains?":
 		return NewFunction(FnContainsQ)
 	case "some":

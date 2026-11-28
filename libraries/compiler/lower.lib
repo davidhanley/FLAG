@@ -511,6 +511,7 @@
    "conj" "FnConj" "contains?" "FnContainsQ"
    "transient" "FnTransient" "persistent!" "FnPersistentBang"
    "conj!" "FnConjBang" "assoc!" "FnAssocBang" "pop!" "FnPopBang"
+   "dissoc!" "FnDissocBang" "disj!" "FnDisjBang"
    "some" "FnSome" "seq?" "FnSeqQ"
    "doall" "FnDoall" "dorun" "FnDorun"
    "count" "FnCount" "double" "FnDouble"

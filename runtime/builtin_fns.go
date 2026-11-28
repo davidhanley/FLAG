@@ -570,6 +570,22 @@ func FnPopBang(args ...Value) Value {
 	return PopBang(args[0])
 }
 
+// FnDissocBang implements builtin dissoc!.
+func FnDissocBang(args ...Value) Value {
+	if len(args) < 1 {
+		panic("dissoc! expects transient")
+	}
+	return DissocBang(args[0], args[1:]...)
+}
+
+// FnDisjBang implements builtin disj!.
+func FnDisjBang(args ...Value) Value {
+	if len(args) < 1 {
+		panic("disj! expects transient")
+	}
+	return DisjBang(args[0], args[1:]...)
+}
+
 // FnContainsQ implements builtin contains?.
 func FnContainsQ(args ...Value) Value {
 	if len(args) != 2 {

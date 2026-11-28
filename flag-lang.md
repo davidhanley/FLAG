@@ -390,7 +390,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
 - **R** `set` (from a seq) / `vec` (from a seq)
 - **R** `conj` (collection + items) / `into` / `contains?` (`false` on `nil`; maps/sets/dates/records)
-- **R** `transient` / `persistent!` / `conj!` / `assoc!` / `pop!` (array, list, and vector transients; see [docs/transients.md](docs/transients.md))
+- **R** `transient` / `persistent!` / `conj!` / `assoc!` / `pop!` / `dissoc!` / `disj!` (array, list, vector, map, and set transients; see [docs/transients.md](docs/transients.md))
 - **R** `seq` (`nil` if empty or `nil`) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
 - **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
 - **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`
