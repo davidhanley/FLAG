@@ -18,7 +18,7 @@ binaries—not a JVM image with an always-on evaluator.
 | Sequences (`range`) | [range.md](range.md) |
 | Runtime `Value` / `impl` | [value.md](value.md) |
 | HAMT maps and sets | [hamt.md](hamt.md) |
-| Sequence extras (`take-while`, `split-at`, …) | [seq.md](seq.md) |
+| Sequence extras (`take-while`, `cycle`, …) | [seq.md](seq.md) |
 | File lines (`line-seq`) | [io.md](io.md) |
 | Write and run tests | [Testing guide](#testing-guide) |
 | Interactive workflow | [REPL guide](#repl-guide) |

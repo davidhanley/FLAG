@@ -1,4 +1,4 @@
-# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `take-last`, `drop-last`, `take-nth`, `group-by`)
+# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
@@ -58,6 +58,51 @@ non-negative integer (same as `take` / `drop`).
 
 Stops on a lazy input once `pred` fails, so
 `(split-with (fn [x] (< x 3)) (range))` is finite on the left.
+
+## `cycle`
+
+`(cycle coll)` repeats `coll` forever. Empty/`nil` is `[]`. Consume with
+`take` — the result is infinite when `coll` is non-empty.
+
+```clojure
+(take 5 (cycle [1 2 3]))   ;; [1 2 3 1 2]
+(cycle [])                 ;; []
+(cycle nil)                ;; []
+```
+
+## `reductions`
+
+`(reductions f coll)` is the intermediate values of `(reduce f coll)`.
+`(reductions f init coll)` starts from `init`. Empty `coll` without `init`
+is `[(f)]` (Clojure: `(reductions + [])` is `(0)`).
+
+```clojure
+(reductions + [1 2 3 4])       ;; [1 3 6 10]
+(reductions + 0 [1 2 3 4])     ;; [0 1 3 6 10]
+(reductions + [])              ;; [0]
+(take 4 (reductions + (range))) ;; [0 1 3 6]
+```
+
+## `frequencies`
+
+`(frequencies coll)` maps each distinct item to its count. Empty/`nil` is `{}`.
+
+```clojure
+(frequencies [:a :b :a])   ;; {:a 2 :b 1}
+(frequencies nil)          ;; {}
+```
+
+## `butlast`
+
+`(butlast coll)` is all but the last item, or `nil` when `coll` has fewer
+than two items (unlike `drop-last`, which yields `[]`).
+
+```clojure
+(butlast [1 2 3 4])   ;; [1 2 3]
+(butlast [1])         ;; nil
+(butlast [])          ;; nil
+(butlast nil)         ;; nil
+```
 
 ## `take-last`
 

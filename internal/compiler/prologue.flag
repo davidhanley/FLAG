@@ -10,7 +10,7 @@
            update get-in update-in assoc-in dissoc-in
            partial complement fnil comp iterate repeatedly
            take-while drop-while take-last drop-last take-nth
-           split-at split-with
+           split-at split-with cycle reductions frequencies butlast
            keep map-indexed keep-indexed reduce-kv
            every? every-pred some-fn max-key zipmap select-keys
            merge merge-with mapcat distinct flatten interpose interleave
@@ -528,6 +528,44 @@
 
 (defn split-with [pred coll]
   [(take-while pred coll) (drop-while pred coll)])
+
+(defn cycle [coll]
+  (if (or (nil? coll) (empty? coll))
+    []
+    (map first
+         (iterate (fn [xs]
+                    (let [nxt (rest xs)]
+                      (if (or (nil? nxt) (empty? nxt))
+                        coll
+                        nxt)))
+                  coll))))
+
+(defn reductions
+  ([f coll]
+   (if (or (nil? coll) (empty? coll))
+     [(f)]
+     (reductions f (first coll) (rest coll))))
+  ([f init coll]
+   (if (or (nil? coll) (empty? coll))
+     [init]
+     (let [^{:volatile true} acc init]
+       (concat [init]
+               (map (fn [x]
+                      (do
+                        (update! acc (f acc x))
+                        acc))
+                    coll))))))
+
+(defn frequencies [coll]
+  (reduce (fn [acc x]
+            (assoc acc x (inc (get acc x 0))))
+          {}
+          coll))
+
+(defn butlast [coll]
+  (if (or (nil? coll) (empty? coll) (empty? (rest coll)))
+    nil
+    (drop-last coll)))
 
 (defn keep [f coll]
   (filter some? (map f coll)))
