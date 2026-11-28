@@ -20,6 +20,7 @@ binaries—not a JVM image with an always-on evaluator.
 | HAMT maps and sets | [hamt.md](hamt.md) |
 | Sequence extras (`take-while`, `cycle`, `reduced`, `peek`/`pop`, …) | [seq.md](seq.md) |
 | Printing (`print`) | [print.md](print.md) |
+| Transients (`transient`, `conj!`, `persistent!`) | [transients.md](transients.md) |
 | `loop` / `fn` / `recur` tail position | [recur.md](recur.md) |
 | File lines (`line-seq`) | [io.md](io.md) |
 | Write and run tests | [Testing guide](#testing-guide) |

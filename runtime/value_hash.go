@@ -7,28 +7,29 @@ import (
 )
 
 const (
-	hashSeedNil     uint64 = 0x1111111111111111
-	hashSeedNum     uint64 = 0x2222222222222222
-	hashSeedBool    uint64 = 0x3333333333333333
-	hashSeedString  uint64 = 0x4444444444444444
-	hashSeedKeyword uint64 = 0x5555555555555555
-	hashSeedSymbol  uint64 = 0x6666666666666666
-	hashSeedList    uint64 = 0x7777777777777777
-	hashSeedArray   uint64 = 0x8888888888888888
-	hashSeedVector  uint64 = 0x9999999999999999
-	hashSeedMap     uint64 = 0xaaaaaaaaaaaaaaaa
-	hashSeedSet     uint64 = 0xbbbbbbbbbbbbbbbb
-	hashSeedDate    uint64 = 0xcccccccccccccccc
-	hashSeedFn      uint64 = 0xdddddddddddddddd
-	hashSeedAtom    uint64 = 0xeeeeeeeeeeeeeeee
-	hashSeedChannel uint64 = 0xf1f1f1f1f1f1f1f1
-	hashSeedFile    uint64 = 0xf2f2f2f2f2f2f2f2
-	hashSeedLazy    uint64 = 0xf3f3f3f3f3f3f3f3
-	hashSeedRange   uint64 = 0xf6f6f6f6f6f6f6f6
-	hashSeedRecord  uint64 = 0xf4f4f4f4f4f4f4f4
-	hashSeedRecur   uint64 = 0xf5f5f5f5f5f5f5f5
-	hashSeedReduced uint64 = 0xf7f7f7f7f7f7f7f7
-	hashMixConst    uint64 = 0x9e3779b97f4a7c15
+	hashSeedNil       uint64 = 0x1111111111111111
+	hashSeedNum       uint64 = 0x2222222222222222
+	hashSeedBool      uint64 = 0x3333333333333333
+	hashSeedString    uint64 = 0x4444444444444444
+	hashSeedKeyword   uint64 = 0x5555555555555555
+	hashSeedSymbol    uint64 = 0x6666666666666666
+	hashSeedList      uint64 = 0x7777777777777777
+	hashSeedArray     uint64 = 0x8888888888888888
+	hashSeedVector    uint64 = 0x9999999999999999
+	hashSeedMap       uint64 = 0xaaaaaaaaaaaaaaaa
+	hashSeedSet       uint64 = 0xbbbbbbbbbbbbbbbb
+	hashSeedDate      uint64 = 0xcccccccccccccccc
+	hashSeedFn        uint64 = 0xdddddddddddddddd
+	hashSeedAtom      uint64 = 0xeeeeeeeeeeeeeeee
+	hashSeedChannel   uint64 = 0xf1f1f1f1f1f1f1f1
+	hashSeedFile      uint64 = 0xf2f2f2f2f2f2f2f2
+	hashSeedLazy      uint64 = 0xf3f3f3f3f3f3f3f3
+	hashSeedRange     uint64 = 0xf6f6f6f6f6f6f6f6
+	hashSeedRecord    uint64 = 0xf4f4f4f4f4f4f4f4
+	hashSeedRecur     uint64 = 0xf5f5f5f5f5f5f5f5
+	hashSeedReduced   uint64 = 0xf7f7f7f7f7f7f7f7
+	hashSeedTransient uint64 = 0xf8f8f8f8f8f8f8f8
+	hashMixConst      uint64 = 0x9e3779b97f4a7c15
 )
 
 type hashCacher interface {

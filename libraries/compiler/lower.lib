@@ -509,6 +509,8 @@
    "nil?" "FnNilQ" "type-of" "FnTypeOf"
    "set" "FnSet" "vec" "FnVec"
    "conj" "FnConj" "contains?" "FnContainsQ"
+   "transient" "FnTransient" "persistent!" "FnPersistentBang"
+   "conj!" "FnConjBang" "assoc!" "FnAssocBang" "pop!" "FnPopBang"
    "some" "FnSome" "seq?" "FnSeqQ"
    "doall" "FnDoall" "dorun" "FnDorun"
    "count" "FnCount" "double" "FnDouble"

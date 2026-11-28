@@ -1739,3 +1739,61 @@
     (expect-exception (math/sqrt "x") "numeric")
     (expect-exception (math/pow 1 "x") "numeric")
     (expect-exception (math/round :nope) "numeric")))
+
+(deftest transients
+  (testing "array round trip"
+    (is (= :transient-array (type-of (transient []))))
+    (is (= [] (persistent! (transient []))))
+    (is (= [1 2] (persistent! (transient [1 2]))))
+    (let [a [1 2]
+          t (transient a)]
+      (conj! t 3)
+      (is (= [1 2] a))
+      (is (= [1 2 3] (persistent! t)))))
+  (testing "conj! assoc! pop!"
+    (is (= [1 2 3] (persistent! (conj! (transient []) 1 2 3))))
+    (is (= [] (persistent! (conj! (transient [])))))
+    (is (= [1 9] (persistent! (assoc! (transient [1 2]) 1 9))))
+    (is (= [1 2 3] (persistent! (assoc! (transient [1 2]) 2 3))))
+    (is (= [1 2] (persistent! (pop! (transient [1 2 3])))))
+    (is (= [0 1 2 3 4 5 6 7 8 9]
+           (persistent! (conj! (transient []) 0 1 2 3 4 5 6 7 8 9))))
+    (let [t (transient [1])]
+      (is (= t (conj! t 2)))
+      (is (= 2 (count t)))
+      (is (= 2 (nth t 1)))
+      (is (= 1 (get t 0)))
+      (is (= :missing (get t 9 :missing)))))
+  (testing "into uses transients on arrays"
+    (let [a [1 2]]
+      (is (= [1 2 3 4] (into a [3 4])))
+      (is (= [1 2] a)))
+    (is (= [] (into [] nil)))
+    (is (= [1 2 3] (apply into [[] [1 2 3]]))))
+  (testing "clojure-style errors"
+    (expect-exception (transient '()) "transient")
+    (expect-exception (transient {}) "transient")
+    (expect-exception (transient #{1}) "transient")
+    (expect-exception (transient | 1 |) "transient")
+    (expect-exception (transient nil) "transient")
+    (expect-exception (transient (transient [])) "transient")
+    (expect-exception (persistent! []) "persistent")
+    (expect-exception (conj! [] 1) "conj!")
+    (expect-exception (assoc! [] 0 1) "assoc!")
+    (expect-exception (pop! []) "pop!")
+    (expect-exception (pop! (transient [])) "empty")
+    (expect-exception (assoc! (transient [1]) 3 9) "bounds")
+    (expect-exception (assoc! (transient []) 0) "assoc!")
+    (expect-exception (conj (transient []) 1) "conj")
+    (expect-exception (seq (transient [1])) "seq")
+    (let [t (transient [1])]
+      (persistent! t)
+      (expect-exception (conj! t 2) "persistent")
+      (expect-exception (count t) "persistent")
+      (expect-exception (persistent! t) "persistent")))
+  (testing "function values"
+    (is (= [1] (persistent! (apply conj! [(transient []) 1]))))
+    (is (= [1] ((fn [t] (persistent! t)) (transient [1]))))
+    (expect-exception (transient) "exactly one")
+    (expect-exception (persistent!) "exactly one")
+    (expect-exception (pop! [1] 2) "exactly one")))

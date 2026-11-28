@@ -530,6 +530,46 @@ func FnConj(args ...Value) Value {
 	return Conj(args[0], args[1:]...)
 }
 
+// FnTransient implements builtin transient.
+func FnTransient(args ...Value) Value {
+	if len(args) != 1 {
+		panic("transient expects exactly one argument")
+	}
+	return Transient(args[0])
+}
+
+// FnPersistentBang implements builtin persistent!.
+func FnPersistentBang(args ...Value) Value {
+	if len(args) != 1 {
+		panic("persistent! expects exactly one argument")
+	}
+	return PersistentBang(args[0])
+}
+
+// FnConjBang implements builtin conj!.
+func FnConjBang(args ...Value) Value {
+	if len(args) < 1 {
+		panic("conj! expects transient")
+	}
+	return ConjBang(args[0], args[1:]...)
+}
+
+// FnAssocBang implements builtin assoc!.
+func FnAssocBang(args ...Value) Value {
+	if len(args) < 1 {
+		panic("assoc! expects transient and key/value pairs")
+	}
+	return AssocBang(args[0], args[1:]...)
+}
+
+// FnPopBang implements builtin pop!.
+func FnPopBang(args ...Value) Value {
+	if len(args) != 1 {
+		panic("pop! expects exactly one argument")
+	}
+	return PopBang(args[0])
+}
+
 // FnContainsQ implements builtin contains?.
 func FnContainsQ(args ...Value) Value {
 	if len(args) != 2 {

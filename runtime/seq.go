@@ -446,6 +446,17 @@ func Conj(coll Value, entries ...Value) Value {
 }
 
 func Into(coll Value, from Value) Value {
+	if isType[*arrayImpl](coll) {
+		out := Transient(coll)
+		cursor := newSeqCursor(from)
+		for {
+			next, ok := cursor.nextOrDone()
+			if !ok {
+				return PersistentBang(out)
+			}
+			out = ConjBang(out, next)
+		}
+	}
 	cursor := newSeqCursor(from)
 	out := coll
 	for {

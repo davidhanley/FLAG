@@ -63,14 +63,7 @@ func ArrayAppend(arrayValue Value, item Value) Value {
 	}
 	length := arrayValue.ArrayLen()
 	items := arrayValue.arrayItems()
-
-	if length < len(items) {
-		items[length] = item
-		return newArrayValueWithData(arrayValue.arrayPointer(), length+1)
-	}
-
-	nextCapacity := grownCapacity(length)
-	next := make([]Value, nextCapacity)
+	next := make([]Value, length+1)
 	copy(next, items[:length])
 	next[length] = item
 	return newArrayValue(next, length+1)
