@@ -6,7 +6,7 @@
              seq-to-ir drop-to-ir take-to-ir cons-to-ir get-to-ir nth-to-ir
              not-empty-to-ir type-of-to-ir vec-to-ir dissoc-to-ir contains-pred-to-ir
              into-to-ir concat-to-ir
-             ex-message-to-ir ex-data-to-ir ex-cause-to-ir println-to-ir
+             ex-message-to-ir ex-data-to-ir ex-cause-to-ir println-to-ir print-to-ir
              compare-to-ir numeric-eq-to-ir comparison-to-ir
              symbol-ctor-to-ir name-to-ir keyword-ctor-to-ir format-to-ir
              map-to-ir sort-by-to-ir apply-to-ir apply-fn-to-ir pmap-to-ir filter-to-ir
@@ -119,6 +119,10 @@
     (= mode :node)
     (let [kind (:kind node)]
       (cond
+        (= kind :string)
+        (literal-rt-call "NewString" [{:kind :string :value (:value node)}])
+        (= kind :char)
+        (literal-rt-call "NewString" [{:kind :string :value (:value node)}])
         (= kind :int) (ast-node-to-ir node)
         (= kind :bigint) (ast-node-to-ir node)
         (= kind :ratio) (ast-node-to-ir node)
@@ -165,7 +169,7 @@
     "max" "min"
     "bit-and" "bit-or" "bit-xor" "bit-not" "bit-shift-left" "bit-shift-right"
     "unsigned-bit-shift-right" "bit-test" "bit-set" "bit-clear" "bit-flip"
-    "str" "println" "testing" "ex-info" "ex-message" "ex-data" "ex-cause"
+    "str" "println" "print" "testing" "ex-info" "ex-message" "ex-data" "ex-cause"
     "throw" "try" "catch" "finally" "is" "expect-exception"
     "if" "do" "doto" "for" "doseq" "let" "loop" "recur" "defer" "update!"
     "symbol" "name" "keyword" "first" "fist" "peek" "pop" "rest" "next" "last"
@@ -368,6 +372,9 @@
 (defn println-to-ir [args]
   (literal-rt-call "Println" (if (or (nil? args) (empty? args)) [] args)))
 
+(defn print-to-ir [args]
+  (literal-rt-call "Print" (if (or (nil? args) (empty? args)) [] args)))
+
 (defn compare-to-ir [args]
   (literal-rt-call "Compare" args))
 
@@ -506,7 +513,7 @@
    "doall" "FnDoall" "dorun" "FnDorun"
    "count" "FnCount" "double" "FnDouble"
    "numerator" "FnNumerator" "denominator" "FnDenominator"
-   "format" "FnFormat" "subs" "FnSubs"
+   "format" "FnFormat" "print" "FnPrint" "subs" "FnSubs"
    "keyword" "FnKeyword" "get" "FnGet"
    "keys" "FnKeys" "vals" "FnVals"
    "find" "FnFind" "union" "FnUnion"
@@ -3194,10 +3201,10 @@
                      :value
                      (:ctx part))))
 
-    (= mode :println)
+    (or (= mode :println) (= mode :print))
     (loop [remaining (stmt-list node) ctx ctx stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
-        (form-result stmts (println-to-ir irs) :value ctx)
+        (form-result stmts (if (= mode :print) (print-to-ir irs) (println-to-ir irs)) :value ctx)
         (let [part (compile-form-node :form (first remaining) ctx)
               ir (if (= :bool (:expr-kind part))
                    (literal-rt-call "NewBool" [(:expr part)])
@@ -3531,6 +3538,7 @@
                 (= op "ex-data") (compile-form-node :ex-data args ctx)
                 (= op "ex-cause") (compile-form-node :ex-cause args ctx)
                 (= op "println") (compile-form-node :println args ctx)
+                (= op "print") (compile-form-node :print args ctx)
                 (contains? control-forms op) (compile-form-node :control [op args node] ctx)
                 (contains? remaining-runtime-ops op) (compile-form-node :runtime-op [op args] ctx)
                 (= op "=")
@@ -5390,21 +5398,23 @@
                  (conj irs (:expr part))))))))
 
 (defn compile-top-level-print [form ctx]
-  (let [ctx (require-top-level-form form ctx)
-        args (rest (ast-elements form))]
-    (if (not (= 1 (count (stmt-list args))))
-      (throw (ex-info "expected one argument" {}))
-      (let [part (compile-form-to-ir (first args) ctx)
-            flat (flatten-form-expr part)
-            arg (if (= :value (:expr-kind part))
-                  (literal-rt-call "ValueToAny" [flat])
-                  flat)]
+  (let [ctx (require-top-level-form form ctx)]
+    (loop [remaining (rest (ast-elements form)) ctx ctx stmts [] irs []]
+      (if (or (nil? remaining) (empty? remaining))
         {:op :stmt
-         :stmt {:prelude-stmts []
-                :expr (fmt-call-ir "Print" [arg])
+         :stmt {:prelude-stmts stmts
+                :expr (print-to-ir irs)
                 :kind 0}
-         :needs-fmt true
-         :ctx (:ctx part)}))))
+         :needs-fmt false
+         :ctx ctx}
+        (let [part (compile-form-to-ir (first remaining) ctx)
+              ir (if (= :bool (:expr-kind part))
+                   (literal-rt-call "NewBool" [(:expr part)])
+                   (:expr part))]
+          (recur (rest remaining)
+                 (:ctx part)
+                 (concat-stmts stmts (:stmts part))
+                 (conj irs ir)))))))
 
 (defn compile-top-level-expr [form ctx]
   (let [ctx (require-top-level-form form ctx)

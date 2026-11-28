@@ -150,6 +150,8 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnNumerator)
 	case "denominator":
 		return NewFunction(FnDenominator)
+	case "print":
+		return NewFunction(FnPrint)
 	case "format":
 		return NewFunction(FnFormat)
 	case "subs":

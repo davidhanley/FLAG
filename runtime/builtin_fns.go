@@ -602,6 +602,15 @@ func FnDenominator(args ...Value) Value {
 	return Denominator(args[0])
 }
 
+// FnPrint implements builtin print.
+func FnPrint(args ...Value) Value {
+	anys := make([]any, len(args))
+	for i, arg := range args {
+		anys[i] = arg
+	}
+	return Print(anys...)
+}
+
 // FnFormat implements builtin format.
 func FnFormat(args ...Value) Value {
 	if len(args) < 1 {

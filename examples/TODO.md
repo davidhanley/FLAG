@@ -131,10 +131,10 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 - [x] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
 - [x] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
 - [x] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.
-- [ ] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
+- [x] **Quoted lists** such as `'(1 2 3)` are not always usable as seqs (`cons`/`slow-nth` / `tenth` can fail). Clojure quoted lists are proper lists.
 - [ ] **No `@` deref reader**; must write `(deref a)`. Easy to add if atoms stay.
 - [ ] **`:strs` destructuring** looks up symbol keys, not string keys.
-- [ ] **`print` is not implemented** (only `println` / `str`).
+- [x] **`print` is not implemented** (only `println` / `str`).
 - [ ] ** Arrays supporting push to the end and having size in the box breaks immutability
 
 

@@ -21,7 +21,7 @@ func TestCompilePrintProgram(t *testing.T) {
 		"package main",
 		`flagrt "flag-lang/runtime"`,
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -44,7 +44,7 @@ func TestCompileTokensPrintProgram(t *testing.T) {
 	for _, want := range []string{
 		"package main",
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 		"// Source namespace: hello.core",
 	} {
 		if !strings.Contains(got, want) {
@@ -337,7 +337,7 @@ func TestCompilePrintProgramWithMixedWhitespace(t *testing.T) {
 	got := string(output)
 	for _, want := range []string{
 		`fmt.Println(flagrt.Str("Hello"))`,
-		"fmt.Print(flagrt.ValueToAny(flagLong_42))",
+		"flagrt.Print(flagLong_42)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated Go did not contain %q:\n%s", want, got)
@@ -658,14 +658,17 @@ func TestCompileIfUsesResultVarNotIIFE(t *testing.T) {
 	}
 }
 
-func TestCompileRejectsMultipleArgumentsForPrint(t *testing.T) {
-	_, err := Compile(`(print "hello" "world")`)
-	if err == nil {
-		t.Fatal("Compile succeeded for unsupported argument list")
+func TestCompilePrintMultipleArguments(t *testing.T) {
+	output, err := Compile(`(print "hello" "world")`)
+	if err != nil {
+		t.Fatalf("Compile returned error: %v", err)
 	}
-
-	if !strings.Contains(err.Error(), "expected one argument") {
-		t.Fatalf("unexpected error: %v", err)
+	got := string(output)
+	if !strings.Contains(got, `flagrt.Print("hello", "world")`) {
+		t.Fatalf("generated Go did not contain multi-arg print:\n%s", got)
+	}
+	if strings.Contains(got, "fmt.Print") {
+		t.Fatalf("print should not use fmt.Print:\n%s", got)
 	}
 }
 

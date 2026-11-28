@@ -298,6 +298,44 @@ func Println(args ...any) Value {
 	return NilValue
 }
 
+func Print(args ...any) Value {
+	fmt.Print(printJoin(args...))
+	return NilValue
+}
+
+func printJoin(args ...any) string {
+	if len(args) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	for i, arg := range args {
+		if i > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteString(printArgString(arg))
+	}
+	return out.String()
+}
+
+func printArgString(arg any) string {
+	switch value := arg.(type) {
+	case Value:
+		if IsNil(value) {
+			return "nil"
+		}
+		if isType[*stringImpl](value) {
+			return value.StringValue()
+		}
+		return value.String()
+	case string:
+		return value
+	case nil:
+		return "nil"
+	default:
+		return anyToString(arg)
+	}
+}
+
 func anyToString(arg any) string {
 	switch value := arg.(type) {
 	case Value:

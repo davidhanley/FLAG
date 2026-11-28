@@ -116,7 +116,7 @@ Implemented special forms:
 - `(throw x)` / `(ex-info msg map)` / `(ex-info msg map cause)`
 - `(try expr* catch-clause* finally-clause?)` with `(catch Type name expr*)` and `(finally expr*)`
 - `(ex-message e)` / `(ex-data e)` / `(ex-cause e)`
-- `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(println …)` / `(format fmt args…)`
+- `(symbol x)` / `(name x)` / `(keyword x)` / `(str …)` / `(print …)` / `(println …)` / `(format fmt args…)`
 - `_` and names starting with `_` are intentionally unused bindings (`fn`/`defn`/`let`/`loop`/`for`/`doseq`/destructuring). Multiple `_` are allowed. Prefixed names such as `_k` can still be referenced.
 - `(comment ...)` form comments, which the parser discards entirely
 - `(testing "label" body...)` test grouping
@@ -270,7 +270,7 @@ Catch types (first match wins):
 - nil: `nil`
 - symbols: `'abc`
 - keywords: `:kw`
-- lists: `'(1 2 3)` or `(list 1 2 3)`
+- lists: `'(1 2 3)` or `(list 1 2 3)` — same `:list` seq (`cons`, `slow-nth`, `map`, …)
 - arrays: `[1 2 3]` or `(array 1 2 3)`
 - vectors: `| 1 2 3 |` or `(vector/vector 1 2 3)`
 - maps: `{:a 1 :b 2}`
@@ -424,7 +424,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 ### Symbols / strings / printing
 
-- **R/special** `symbol` / `name` / `keyword` / `str` / `println` / `format` (Go `fmt.Sprintf`)
+- **R/special** `symbol` / `name` / `keyword` / `str` / `print` / `println` / `format` (Go `fmt.Sprintf`)
 - **R** `subs` (`(subs s start)` or `(subs s start end)`; rune indices, exclusive end; panics out of range)
 - **R** `re-pattern` / `re-matches`
 
