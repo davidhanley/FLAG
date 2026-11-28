@@ -42,11 +42,12 @@ non-negative integer (same as `take` / `drop`).
 (split-at 0 [1 2 3])       ;; [[] [1 2 3]]
 (split-at 10 [1 2 3])      ;; [[1 2 3] []]
 (split-at 0 nil)           ;; [[] nil]
+(split-at 2 nil)           ;; [[] ()]
 ```
 
 `take` always yields an array. `drop` keeps the remaining collection kind.
 `coll` must be a list, array, vector, lazy-list, or range — the same kinds
-`drop` accepts (not strings). `n > 0` with `nil` panics, like `drop`.
+`drop` accepts (not strings). `(drop n nil)` for `n > 0` is `()`; `n = 0` is `nil`.
 
 ## `split-with`
 

@@ -102,6 +102,7 @@ File-based modules (not Clojure classpath `ns` soup):
 - Private by default; exports are an allowlist
 - Macro exports and `libraries/*.lib`
 - Build / import graph vs legacy file merge
+- Git libraries via **[MUSE](muse.md)** (`.muse` `:libraries`)
 
 ---
 

@@ -14,6 +14,7 @@ func init() {
 	flagrt.RegisterGoFunction("compiler/module-import-paths", ModuleImportPaths)
 	flagrt.RegisterGoFunction("compiler/expand-forms", ExpandFormsHost)
 	flagrt.RegisterGoFunction("compiler/go-bind-ident", GoBindIdent)
+	flagrt.RegisterGoFunction("compiler/copy-library-adapters", CopyLibraryAdapters)
 	flagrt.RegisterGoFunction("compiler/prologue-path", PrologueFilePath)
 }
 
@@ -73,11 +74,7 @@ func ExpandFormsHost(seed, forms flagrt.Value) (flagrt.Value, error) {
 	return exprsToFlagVector(expanded), nil
 }
 
-// GoBindIdent returns the flagrt.GoBind_* identifier for a :go-exports host key.
+// GoBindIdent returns the package-qualified Go selector for a :go-exports host key.
 func GoBindIdent(host string) (string, error) {
-	ident, ok := libraryGoBinds[host]
-	if !ok {
-		return "", fmt.Errorf("unknown :go-exports host bind %q", host)
-	}
-	return ident, nil
+	return goBindSelector(host)
 }

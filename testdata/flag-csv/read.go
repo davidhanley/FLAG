@@ -1,9 +1,8 @@
-// Package csv is a pure Go CSV reader. It has no dependency on flag-lang/runtime.
-// FLAG code reaches it only through static adapters (see runtime/csv_bind.go)
-// and libraries/csv.lib.
+// Package csv is a pure Go CSV reader. It has no dependency on FLAG.
 package csv
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -16,7 +15,15 @@ func ReadAll(r io.Reader, opt Options) ([][]string, error) {
 	if r == nil {
 		return nil, fmt.Errorf("csv: nil reader")
 	}
-	reader := newReader(r, opt)
+	src := r
+	if opt.KeepBlankLines {
+		data, err := io.ReadAll(r)
+		if err != nil {
+			return nil, fmt.Errorf("csv read failed: %w", err)
+		}
+		src = bytes.NewReader(keepBlankRecords(data))
+	}
+	reader := newReader(src, opt)
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("csv read failed: %w", err)
@@ -49,6 +56,69 @@ func ReadLines(lines []string, opt Options) ([][]string, error) {
 		lines = []string{}
 	}
 	return ReadString(strings.Join(lines, "\n"), opt)
+}
+
+// keepBlankRecords rewrites empty lines that are not inside quoted fields as a
+// quoted-empty field. encoding/csv skips fully blank lines, which drops FRS
+// race headers of the form name / date / <blank> / points.
+func keepBlankRecords(data []byte) []byte {
+	var out bytes.Buffer
+	out.Grow(len(data) + 16)
+	inQuotes := false
+	atFieldStart := true
+	emptyRecord := true
+	i := 0
+	for i < len(data) {
+		c := data[i]
+		if inQuotes {
+			out.WriteByte(c)
+			if c == '"' {
+				if i+1 < len(data) && data[i+1] == '"' {
+					out.WriteByte('"')
+					i += 2
+					continue
+				}
+				inQuotes = false
+			}
+			i++
+			continue
+		}
+		if c == '\r' {
+			if i+1 < len(data) && data[i+1] == '\n' {
+				i++
+			}
+			c = '\n'
+		}
+		switch c {
+		case '\n':
+			if emptyRecord {
+				out.WriteString(`""`)
+			}
+			out.WriteByte('\n')
+			atFieldStart = true
+			emptyRecord = true
+			i++
+		case ',':
+			out.WriteByte(',')
+			atFieldStart = true
+			emptyRecord = false
+			i++
+		case '"':
+			if atFieldStart {
+				inQuotes = true
+			}
+			out.WriteByte('"')
+			atFieldStart = false
+			emptyRecord = false
+			i++
+		default:
+			out.WriteByte(c)
+			atFieldStart = false
+			emptyRecord = false
+			i++
+		}
+	}
+	return out.Bytes()
 }
 
 func newReader(r io.Reader, opt Options) *csv.Reader {

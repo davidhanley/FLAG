@@ -20,3 +20,21 @@ func TestBurpHtmlThroughStaticBind(t *testing.T) {
 		t.Fatalf("unexpected burp html: %q", got.String())
 	}
 }
+
+func TestBurpHtmlFlattensForLikeSequences(t *testing.T) {
+	got := Call(
+		GoBind_burp_Html,
+		NewArray(
+			NewKeyword("tr"),
+			NewArray(NewKeyword("th"), NewString("Name")),
+			NewArray(
+				NewArray(NewKeyword("th"), NewString("Event 1")),
+				NewArray(NewKeyword("th"), NewString("Event 2")),
+			),
+		),
+	)
+	want := `<tr><th>Name</th><th>Event 1</th><th>Event 2</th></tr>`
+	if !isType[*stringImpl](got) || got.StringValue() != want {
+		t.Fatalf("unexpected nested burp html: %q", got.String())
+	}
+}

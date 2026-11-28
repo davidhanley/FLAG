@@ -1086,9 +1086,9 @@ func (r *ReplCompiler) replGoExportSetups(mod *Module) ([]ReplCompiled, error) {
 	}
 	out := make([]ReplCompiled, 0, len(mod.Header.GoExports))
 	for localName, hostKey := range mod.Header.GoExports {
-		rtIdent, ok := libraryGoBinds[hostKey]
-		if !ok {
-			return nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
+		sel, err := GoBindIdent(hostKey)
+		if err != nil {
+			return nil, fmt.Errorf("%v for %s", err, localName)
 		}
 		goName, err := moduleGoIdent(r.ctx.namespace, localName)
 		if err != nil {
@@ -1099,9 +1099,9 @@ func (r *ReplCompiler) replGoExportSetups(mod *Module) ([]ReplCompiled, error) {
 		}
 		_, exists := r.ctx.globals[goName]
 		r.ctx.globals[goName] = exprKindValue
-		setup := fmt.Sprintf("%s = %s.%s", goName, runtimeAlias, rtIdent)
+		setup := fmt.Sprintf("%s = %s", goName, sel)
 		if !exists {
-			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s.%s", goName, goName, runtimeAlias, rtIdent)
+			setup = fmt.Sprintf("var %s flagrt.Value;;%s = %s", goName, goName, sel)
 		}
 		out = append(out, ReplCompiled{Setup: setup})
 	}
@@ -1394,9 +1394,9 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 	// generated flagrt.GoBind_* adapters.
 	if mod.HasModuleHeader {
 		for localName, hostKey := range mod.Header.GoExports {
-			rtIdent, ok := libraryGoBinds[hostKey]
-			if !ok {
-				return compileResult{}, nil, nil, fmt.Errorf("unknown :go-exports host bind %q for %s", hostKey, localName)
+			sel, err := GoBindIdent(hostKey)
+			if err != nil {
+				return compileResult{}, nil, nil, fmt.Errorf("%v for %s", err, localName)
 			}
 			goName, err := ctx.defGoIdent(localName)
 			if err != nil {
@@ -1410,7 +1410,7 @@ func compileModuleBody(mod *Module, ctx *compileContext, allowTopLevel bool) (co
 			vars = append(vars, varDef{
 				flagName: localName,
 				goName:   goName,
-				expr:     fmt.Sprintf("%s.%s", runtimeAlias, rtIdent),
+				expr:     sel,
 			})
 		}
 	}

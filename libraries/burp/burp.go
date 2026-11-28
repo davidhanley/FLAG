@@ -25,6 +25,12 @@ func Html(nodes ...any) string {
 }
 
 func Html5(nodes ...any) string {
+	if len(nodes) > 0 && isAttrMap(nodes[0]) {
+		wrapped := make([]any, 0, len(nodes)+1)
+		wrapped = append(wrapped, ":html", nodes[0])
+		wrapped = append(wrapped, nodes[1:]...)
+		return "<!DOCTYPE html>" + Html(wrapped)
+	}
 	return "<!DOCTYPE html>" + Html(nodes...)
 }
 
@@ -95,11 +101,32 @@ func looksLikeElement(items []any) bool {
 	if len(items) == 0 {
 		return false
 	}
-	tag, ok := tagToken(items[0])
-	if !ok {
+	return isTagToken(items[0])
+}
+
+func isTagToken(node any) bool {
+	if isSeqNode(node) {
 		return false
 	}
-	return strings.HasPrefix(tag, ":") || strings.ContainsAny(tag, "#.") || len(items) > 1
+	tag, ok := tagToken(node)
+	if !ok || tag == "" || strings.HasPrefix(tag, "[") {
+		return false
+	}
+	name := strings.TrimPrefix(tag, ":")
+	if name == "" {
+		return false
+	}
+	r := rune(name[0])
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+}
+
+func isSeqNode(node any) bool {
+	switch node.(type) {
+	case []any:
+		return true
+	}
+	rv := reflect.ValueOf(node)
+	return rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array)
 }
 
 func renderElement(out *strings.Builder, items []any) {

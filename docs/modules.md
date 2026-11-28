@@ -75,6 +75,7 @@ Each `:imports` entry is either a string or a vector:
 - Relative paths resolve against the **importing file’s directory** first
 - Then against the process working directory
 - Then against **`libraries/`** under the project root (directory containing `libraries/` or `go.mod`, walking up from the importer and cwd)
+- MUSE copies git-fetched `.lib` files into the project `libraries/` directory (see [muse.md](muse.md))
 - Extensions: `.flag`, `.lib`, `.flaglib` (extension may be omitted)
 
 Examples:
@@ -82,7 +83,7 @@ Examples:
 ```clojure
 :imports ["board.flag"]     ;; next to this file
 :imports ["burp.lib"]       ;; libraries/burp.lib
-:imports ["csv.lib"]        ;; libraries/csv.lib
+:imports ["csv.lib"]        ;; MUSE-fetched (see muse.md)
 ```
 
 ### What a bare import binds
@@ -170,7 +171,9 @@ The language prelude is a normal FLAG module (`internal/compiler/prologue.flag`)
 (`:as ""`, `:refer :all`, no Go import unless the emitted code uses `prologue.`).
 User files do not list it in `:imports`.
 
-Project libraries live under **`libraries/`** as `.lib` modules. Import them explicitly:
+In-tree language libraries live under **`libraries/`** as `.lib` modules. Project
+libraries listed in a `.muse` file are fetched from git (see [muse.md](muse.md)).
+Import them explicitly:
 
 ```clojure
 {:namespace "app"
