@@ -105,7 +105,7 @@ Implemented special forms:
 - `(if test then [else])`
 - `(do expr1 expr2 ... exprN)`
 - `(let [bindings...] body...)`
-- `(loop [bindings...] body...)` with `(recur args...)` only in **tail position** of the loop body (not nested in `let` / `if`)
+- `(loop [bindings...] body...)` with `(recur args...)` in **tail position** of `loop` or `fn`/`defn`/`#()` (nested `if` / `let` / `do` allowed when they are in tail position; not across `try`). See **[docs/recur.md](docs/recur.md)**.
 - `(for [bindings...] body)` list comprehension (eager array)
 - `(doseq [bindings...] body)` sequential side effects (currently lazy `mapcat`; do not rely on it to launch `go` — use `loop`)
 - `(doto obj form…)` thread `obj` as first argument
@@ -383,7 +383,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `list` / `array` / `hash-map` (constructors; evaluate arguments)
 - **R** `set` (from a seq) / `vec` (from a seq)
 - **R** `conj` (collection + items) / `into` / `contains?` (`false` on `nil`; maps/sets/dates/records)
-- **R** `seq` (`nil` if empty) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
+- **R** `seq` (`nil` if empty or `nil`) / `seq?` / `empty?` / `not-empty` (coll or `nil`) / `count`
 - **P** `not-empty?` (boolean) / `empty` (same-type empty; `nil` for non-collections)
 - **R** `get` (optional default) / `assoc` (maps by key; arrays and FLAG vectors by index, append at `count`) / `dissoc`
 - **R** `keys` / `vals` / `find` (entry pair or `nil`)

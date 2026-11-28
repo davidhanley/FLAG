@@ -6,6 +6,11 @@ The self-hosted compiler lives in `libraries/compiler/`. `parse-file` is:
 
 `tokenize-file` → `build-ast-from-tokens` → `expand-macros`.
 
+`recur` lowering tracks `:tail?`, `:recur-target?`, and `:in-try` so nested
+`if` / `let` / `do` tails are legal, `fn`/`defn` bodies wrap in `for` +
+`continue`, and `try` / non-tail / wrong arity are compile errors. See
+**[recur.md](recur.md)**.
+
 The Go compiler embeds those libraries as `*_flag_gen.go`. Regenerate in order
 after lowering changes (flattening `if`/`let`, etc.):
 

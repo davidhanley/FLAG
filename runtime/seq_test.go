@@ -763,6 +763,12 @@ func TestMapCatFlattensMappedSequences(t *testing.T) {
 }
 
 func TestSeqReturnsNilForEmptyAndCollectionForNonEmpty(t *testing.T) {
+	if got := Seq(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for seq(nil), got %#v", got)
+	}
+	if got := NotEmpty(NilValue); !IsNil(got) {
+		t.Fatalf("expected nil for not-empty(nil), got %#v", got)
+	}
 	if got := Seq(NewArray()); !IsNil(got) {
 		t.Fatalf("expected nil for empty array seq, got %#v", got)
 	}

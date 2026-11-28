@@ -795,6 +795,11 @@
 (defn loop-iter-body [body-stmts body-expr]
   (append-stmt body-stmts {:kind :return :expr body-expr}))
 
+(defn fn-iter-body [init-stmts body-stmts body-expr]
+  [{:kind :for
+    :body (append-stmt (concat-stmts init-stmts body-stmts)
+                       {:kind :return :expr body-expr})}])
+
 (defn loop-to-ir [init-stmts bindings body-stmts body-expr]
   {:kind :call
    :fun {:kind :func-lit
@@ -1032,20 +1037,18 @@
                    {:kind :define :names [p] :expr arg})]
         (recur (rest remaining) (inc i) (conj out stmt))))))
 
-(defn fn-to-ir [name params has-rest init-stmts body-stmts body-expr]
+(defn fn-to-ir [name params has-rest pre-loop init-stmts body-stmts body-expr]
   (literal-rt-call
     "NewFunction"
     [{:kind :func-lit
       :params "args ...flagrt.Value"
       :result "flagrt.Value"
-      :body (append-stmt
+      :body (concat-stmts
               (concat-stmts
-                (concat-stmts
-                  (concat-stmts [(fn-arity-check name (count (stmt-list params)) has-rest)]
-                                (fn-param-stmts params))
-                  init-stmts)
-                body-stmts)
-              {:kind :return :expr body-expr})}]))
+                (concat-stmts [(fn-arity-check name (count (stmt-list params)) has-rest)]
+                              (fn-param-stmts params))
+                (stmt-list pre-loop))
+              (fn-iter-body init-stmts body-stmts body-expr))}]))
 
 (defn ns-to-ir [namespace]
   {:kind :raw-stmt :code (str "// Source namespace: " namespace "\n")})
@@ -1067,8 +1070,7 @@
           (recur (rest remaining) (str out ", " piece) false))))))
 
 (defn defn-body [init-stmts body-stmts body-expr]
-  (append-stmt (concat-stmts init-stmts body-stmts)
-               {:kind :return :expr body-expr}))
+  (fn-iter-body init-stmts body-stmts body-expr))
 
 (defn defn-func-decl [name params result body]
   {:kind :func-decl :name name :params params :result result :body body})
@@ -1098,22 +1100,20 @@
                            :fun {:kind :ident :name arity-name}
                            :args (defn-call-args n)}}]))
 
-(defn defn-rest-to-ir [name panic-name params init-stmts body-stmts body-expr]
+(defn defn-rest-to-ir [name panic-name params pre-loop init-stmts body-stmts body-expr]
   (defn-func-decl name
                   "args ...flagrt.Value"
                   "flagrt.Value"
-                  (append-stmt
+                  (concat-stmts
                     (concat-stmts
-                      (concat-stmts
-                        (concat-stmts [(fn-arity-check panic-name (count (stmt-list params)) true)]
-                                      (fn-param-stmts params))
-                        init-stmts)
-                      body-stmts)
-                    {:kind :return :expr body-expr})))
+                      (concat-stmts [(fn-arity-check panic-name (count (stmt-list params)) true)]
+                                    (fn-param-stmts params))
+                      (stmt-list pre-loop))
+                    (fn-iter-body init-stmts body-stmts body-expr))))
 
-(defn defn-to-ir [arity-name variadic-name panic-name params has-rest init-stmts body-stmts body-expr]
+(defn defn-to-ir [arity-name variadic-name panic-name params has-rest pre-loop init-stmts body-stmts body-expr]
   (if has-rest
-    [(defn-rest-to-ir variadic-name panic-name params init-stmts body-stmts body-expr)]
+    [(defn-rest-to-ir variadic-name panic-name params pre-loop init-stmts body-stmts body-expr)]
     [(defn-arity-to-ir arity-name params init-stmts body-stmts body-expr)
      (defn-variadic-to-ir variadic-name arity-name panic-name (count (stmt-list params)))]))
 
@@ -1704,6 +1704,7 @@
          idx 0
          state {:params []
                 :init-stmts []
+                :pre-loop-stmts []
                 :locals (if (or (nil? locals) (empty? locals)) {} locals)
                 :declared {}
                 :temp 0
@@ -1713,6 +1714,8 @@
     (if (or (nil? remaining) (empty? remaining))
       {:params (:params state)
        :init-stmts (:init-stmts state)
+       :pre-loop-stmts (stmt-list (:pre-loop-stmts state))
+       :recur-rest (:recur-rest state)
        :locals (:locals state)
        :has-rest (:has-rest state)
        :ctx (:form-ctx state)}
@@ -1733,18 +1736,23 @@
                     source (rest-source-ir (count (:params st1)) ctor)
                     st2 (assoc st1 :has-rest true)
                     st3 (assoc st2 :locals (assoc (:locals st2) rest-name :value))
-                    st4 (assoc st3 :init-stmts
-                               (conj (conj (:init-stmts st3)
-                                           {:kind :var :name rest-name :type "" :expr source})
+                    st4 (assoc st3 :pre-loop-stmts
+                               (conj (stmt-list (:pre-loop-stmts st3))
+                                     {:kind :var :name rest-name :type "" :expr source}))
+                    st5 (assoc st4 :init-stmts
+                               (conj (stmt-list (:init-stmts st4))
                                      {:kind :expr-stmt
                                       :expr {:kind :ident :name rest-name}
                                       :discard true}))
-                    st5 (bind-pattern st4 rest-pat {:kind :ident :name rest-name})]
-                {:params (:params st5)
-                 :init-stmts (:init-stmts st5)
-                 :locals (:locals st5)
+                    st6 (assoc st5 :recur-rest rest-name)
+                    st7 (bind-pattern st6 rest-pat {:kind :ident :name rest-name})]
+                {:params (:params st7)
+                 :init-stmts (:init-stmts st7)
+                 :pre-loop-stmts (stmt-list (:pre-loop-stmts st7))
+                 :recur-rest rest-name
+                 :locals (:locals st7)
                  :has-rest true
-                 :ctx (:form-ctx st5)})))
+                 :ctx (:form-ctx st7)})))
           (if (and (= :symbol (:kind node)) (not (= "" (:name node))))
             (recur (rest remaining) (inc idx) (bind-symbol-param state (:name node)))
             (if (or (sequential-binding? (:kind node)) (= :map (:kind node)))
@@ -1760,6 +1768,34 @@
    :expr-kind kind
    :defer? false
    :ctx ctx})
+
+(defn non-tail-ctx [ctx]
+  (assoc ctx :tail? false))
+
+(def tail-special-ops
+  #{"if" "do" "let" "loop" "recur"})
+
+(defn fn-recur-names [bound]
+  (let [ps (stmt-list (:params bound))
+        rest-name (:recur-rest bound)]
+    (if (or (nil? rest-name) (= "" rest-name))
+      ps
+      (conj ps rest-name))))
+
+(defn with-fn-recur [ctx bound]
+  (-> (if (nil? ctx) {} ctx)
+      (assoc :locals (:locals bound))
+      (assoc :loop-binding-names (fn-recur-names bound))
+      (assoc :recur-target? true)
+      (assoc :tail? true)
+      (assoc :in-try false)))
+
+(defn with-loop-recur [ctx names]
+  (-> ctx
+      (assoc :loop-binding-names (stmt-list names))
+      (assoc :recur-target? true)
+      (assoc :tail? true)
+      (assoc :in-try false)))
 
 (defn next-form-temp [ctx prefix]
   (let [cur (if (nil? (:if-temps ctx)) 0 (:if-temps ctx))
@@ -2070,7 +2106,10 @@
 (defn restore-outer-scope [inner outer]
   (assoc inner
          :locals (:locals outer)
-         :loop-binding-names (:loop-binding-names outer)))
+         :loop-binding-names (:loop-binding-names outer)
+         :recur-target? (:recur-target? outer)
+         :tail? (:tail? outer)
+         :in-try (:in-try outer)))
 
 (defn sanitize-keyword-ident [name]
   (loop [remaining (str name) out ""]
@@ -2575,7 +2614,7 @@
 (defn compile-form-node [mode node ctx]
   (cond
     (= mode :seq)
-    (loop [remaining node ctx ctx stmts [] irs []]
+    (loop [remaining node ctx (non-tail-ctx ctx) stmts [] irs []]
       (if (or (nil? remaining) (empty? remaining))
         {:stmts stmts :irs irs :ctx ctx}
         (let [part (coerce-form-value (intern-string-part (compile-form-node :form (first remaining) ctx)))]
@@ -2587,7 +2626,7 @@
     (= mode :ctor-seq)
     (let [items (first node)
           label (first (rest node))]
-      (loop [remaining (stmt-list items) ctx ctx stmts [] irs []]
+      (loop [remaining (stmt-list items) ctx (non-tail-ctx ctx) stmts [] irs []]
         (if (or (nil? remaining) (empty? remaining))
           {:stmts stmts :irs irs :ctx ctx}
           (let [item (first remaining)
@@ -2618,14 +2657,15 @@
 
     (= mode :if)
     (let [args node
-          n (count (stmt-list args))]
+          n (count (stmt-list args))
+          saved-tail (:tail? ctx)]
       (if (and (not (= n 2)) (not (= n 3)))
         (throw (ex-info "if expects test, true branch, and optional false branch" {:args args}))
-        (let [cond-part (compile-form-node :form (first args) ctx)
-              then0 (compile-form-node :form (first (rest args)) (:ctx cond-part))
+        (let [cond-part (compile-form-node :form (first args) (non-tail-ctx ctx))
+              then0 (compile-form-node :form (first (rest args)) (assoc (:ctx cond-part) :tail? saved-tail))
               else0 (if (= n 3)
-                      (compile-form-node :form (first (rest (rest args))) (:ctx then0))
-                      (form-result [] (rt-nil) :value (:ctx then0)))
+                      (compile-form-node :form (first (rest (rest args))) (assoc (:ctx then0) :tail? saved-tail))
+                      (form-result [] (rt-nil) :value (assoc (:ctx then0) :tail? saved-tail)))
               then1 (if (and (= n 3) (not (= (:expr-kind then0) (:expr-kind else0))))
                       (coerce-form-value then0)
                       then0)
@@ -2650,7 +2690,8 @@
 
     (= mode :let)
     (let [args node
-          outer-ctx ctx]
+          outer-ctx ctx
+          saved-tail (:tail? ctx)]
   (if (or (nil? args) (empty? args))
     (throw (ex-info "let expects a binding vector" {}))
     (let [bindings-node (unwrap-ast (first args))
@@ -2661,12 +2702,12 @@
           (if (not (= 0 (% (count entries) 2)))
             (throw (ex-info "let binding vector expects name/value pairs" {}))
             (loop [remaining entries
-                   ctx ctx
+                   ctx (non-tail-ctx ctx)
                    bind-stmts []
                    declared {}
                    bind-temp 0]
               (if (or (nil? remaining) (empty? remaining))
-                (let [compiled (compile-form-node :forms body ctx)
+                (let [compiled (compile-form-node :forms body (assoc ctx :tail? saved-tail))
                       tmp (next-form-temp (:ctx compiled) "let_result")
                       let-stmts (let-to-ir (:name tmp)
                                            (go-type-for-kind (:expr-kind compiled))
@@ -2759,9 +2800,7 @@
           (if (not (= :vector (:kind params)))
             (throw (ex-info "fn expects a parameter vector" {:node params}))
             (let [bound (bind-params-to-ir params "fn" (:locals ctx) ctx (fn [n c] (compile-form-node :form n c)))
-                  inner (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
-                            (assoc :locals (:locals bound))
-                            (assoc :loop-binding-names []))
+                  inner (with-fn-recur (if (nil? (:ctx bound)) ctx (:ctx bound)) bound)
                   compiled0 (compile-form-node :form body inner)
                   compiled (if (:defer? compiled0)
                              (form-result [] (do-defer-to-ir "flagrt.Value" [compiled0]) :value (:ctx compiled0))
@@ -2769,6 +2808,7 @@
                   ir (fn-to-ir "fn"
                                (:params bound)
                                (:has-rest bound)
+                               (:pre-loop-stmts bound)
                                (:init-stmts bound)
                                (:stmts compiled)
                                (:expr compiled))]
@@ -2824,17 +2864,23 @@
         (form-result [] (throw-to-ir (:stmts part) (:expr part)) :value (:ctx part))))
 
     (= mode :recur)
-    (let [names (:loop-binding-names ctx)]
-      (if (or (nil? names) (empty? names))
-        (throw (ex-info "recur can only be used within loop" {}))
-        (if (not (= (count (stmt-list node)) (count names)))
-          (throw (ex-info (str "recur expects " (count names) " arguments") {}))
-          (let [compiled (compile-form-node :seq node ctx)
-                updated (recur-update-stmts names (:irs compiled) (:ctx compiled))]
-            (form-result (concat-stmts (:stmts compiled) (:stmts updated))
-                        (rt-nil)
-                        :value
-                        (:ctx updated))))))
+    (let [names (stmt-list (:loop-binding-names ctx))]
+      (cond
+        (not (:recur-target? ctx))
+        (throw (ex-info "recur can only be used within loop or fn" {}))
+        (:in-try ctx)
+        (throw (ex-info "cannot recur across try" {}))
+        (not (:tail? ctx))
+        (throw (ex-info "can only recur from tail position" {}))
+        (not (= (count (stmt-list node)) (count names)))
+        (throw (ex-info (str "recur expects " (count names) " arguments") {}))
+        :else
+        (let [compiled (compile-form-node :seq node ctx)
+              updated (recur-update-stmts names (:irs compiled) (:ctx compiled))]
+          (form-result (concat-stmts (:stmts compiled) (:stmts updated))
+                       (rt-nil)
+                       :value
+                       (:ctx updated)))))
 
     (= mode :loop)
     (let [args node
@@ -2857,14 +2903,12 @@
                         names []
                         declared {}]
                    (if (or (nil? remaining) (empty? remaining))
-                     (let [loop-ctx (assoc ctx :loop-binding-names names)
+                     (let [loop-ctx (with-loop-recur ctx names)
                            compiled (coerce-form-value (compile-form-node :forms body loop-ctx))]
                        (form-result []
                                     (loop-to-ir init-stmts bindings (:stmts compiled) (:expr compiled))
                                     :value
-                                    (assoc (:ctx compiled)
-                                           :locals (:locals outer-ctx)
-                                           :loop-binding-names (:loop-binding-names outer-ctx))))
+                                    (restore-outer-scope (:ctx compiled) outer-ctx)))
                      (let [pat (unwrap-ast (first remaining))
                            val-node (first (rest remaining))]
                        (if (or (not (= :symbol (:kind pat))) (= "" (:name pat)))
@@ -2877,7 +2921,7 @@
                                                  locals
                                                  (assoc locals go-name :mutable-value))
                                    next-ctx (assoc ctx :locals next-locals)
-                                   part (coerce-form-value (compile-form-node :form val-node next-ctx))
+                                   part (coerce-form-value (compile-form-node :form val-node (non-tail-ctx next-ctx)))
                                    unused (and (unused-binding? (:name pat)) (not (= go-name "_")))]
                                (recur (rest (rest remaining))
                                       (:ctx part)
@@ -3444,6 +3488,9 @@
             (compile-form-node :dot [(:name head) args] ctx)
           (if (= :symbol (:kind head))
             (let [op (:name head)
+                  ctx (if (contains? tail-special-ops op)
+                        ctx
+                        (non-tail-ctx ctx))
                   unary (get unary-runtime-ops op)
                   fold (get fold-runtime-ops op)
                   binary (get binary-runtime-ops op)
@@ -3630,9 +3677,7 @@
               params (hash-fn-param-vector n)
               rewritten (hash-fn-node :replace body 0)
               bound (bind-params-to-ir params "#()" (:locals ctx) ctx (fn [n c] (compile-form-node :form n c)))
-              inner (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
-                        (assoc :locals (:locals bound))
-                        (assoc :loop-binding-names []))
+              inner (with-fn-recur (if (nil? (:ctx bound)) ctx (:ctx bound)) bound)
               compiled0 (compile-form-node :form rewritten inner)
               compiled (if (:defer? compiled0)
                          (form-result [] (do-defer-to-ir "flagrt.Value" [compiled0]) :value (:ctx compiled0))
@@ -3640,6 +3685,7 @@
               ir (fn-to-ir "#()"
                            (:params bound)
                            (:has-rest bound)
+                           (:pre-loop-stmts bound)
                            (:init-stmts bound)
                            (:stmts compiled)
                            (:expr compiled))]
@@ -3652,9 +3698,11 @@
     (= mode :forms)
     (if (or (nil? node) (empty? node))
       (form-result [] (rt-nil) :value ctx)
+      (let [saved-tail (:tail? ctx)]
       (loop [remaining (stmt-list node) ctx ctx compiled []]
-        (let [part (compile-form-node :form (first remaining) ctx)
-              more (rest remaining)
+        (let [more (rest remaining)
+              last? (or (nil? more) (empty? more))
+              part (compile-form-node :form (first remaining) (assoc ctx :tail? (and last? saved-tail)))
               next-compiled (conj compiled part)]
           (if (or (nil? more) (empty? more))
             (if (forms-have-defer? next-compiled)
@@ -3667,7 +3715,7 @@
                            (:expr part)
                            (:expr-kind part)
                            (:ctx part)))
-            (recur more (:ctx part) next-compiled)))))
+            (recur more (:ctx part) next-compiled))))))
 
     (= mode :control)
     (let [op (first node)
@@ -3822,9 +3870,10 @@
           body-forms (:body parsed)
           catch-forms (:catches parsed)
           finally-forms (:finally parsed)
+          try-ctx (assoc (non-tail-ctx ctx) :in-try true)
           body (if (or (nil? body-forms) (empty? body-forms))
-                 (form-result [] (rt-nil) :value ctx)
-                 (coerce-form-value (compile-form-node :forms body-forms ctx)))]
+                 (form-result [] (rt-nil) :value try-ctx)
+                 (coerce-form-value (compile-form-node :forms body-forms try-ctx)))]
       (if (and (or (nil? catch-forms) (empty? catch-forms)) (nil? finally-forms))
         body
         (loop [remaining (stmt-list catch-forms) ctx (:ctx body) catches []]
@@ -4152,8 +4201,7 @@
                       :arity-name arity-name
                       :arity (if has-rest nil n)
                       :arity-names (if has-rest {} {n arity-name})}
-                fn-ctx (-> (if (nil? (:ctx bound)) ctx (:ctx bound))
-                           (assoc :locals (:locals bound))
+                fn-ctx (-> (with-fn-recur (if (nil? (:ctx bound)) ctx (:ctx bound)) bound)
                            (assoc :self-function-name name)
                            (assoc :self-function-arity n)
                            (assoc :self-variadic-name (as-value variadic))
@@ -4164,7 +4212,8 @@
                            (bind-module-name name go-name))
                 compiled (coerce-form-value (compile-forms-to-ir body-els fn-ctx))
                 decls (defn-to-ir arity-name variadic go-name params has-rest
-                                  (:init-stmts bound) (:stmts compiled) (:expr compiled))]
+                                  (:pre-loop-stmts bound) (:init-stmts bound)
+                                  (:stmts compiled) (:expr compiled))]
             {:op :defn
              :function {:flag-name name
                         :go-name go-name
@@ -4177,7 +4226,7 @@
                         :ir-decls decls
                         :body-expr (:expr compiled)
                         :body-stmts (:stmts compiled)
-                        :init-stmts (:init-stmts bound)}
+                        :init-stmts (concat-stmts (:pre-loop-stmts bound) (:init-stmts bound))}
              :var (defn-var-binding name go-name variadic)
              :ctx (module-ctx-after-fn ctx compiled name go-name info)}))))))
 
@@ -4234,8 +4283,8 @@
                        {:arities arities :ctx cur}
                        (let [item (first remaining)
                              body-els (rest (ast-elements (:list item)))
-                             fn-ctx (-> cur
-                                        (assoc :locals (:locals item))
+                             fn-ctx (-> (with-fn-recur cur {:params (:params item)
+                                                            :locals (:locals item)})
                                         (assoc :self-function-arity (:n item))
                                         (assoc :self-arity-name (as-value (:arity-name item))))
                              body (coerce-form-value (compile-forms-to-ir body-els fn-ctx))]
@@ -4349,7 +4398,7 @@
                 body-els (rest (rest els))
                 compiled (compile-forms-to-ir body-els ctx)
                 body-expr (testing-to-ir (:stmts compiled) (:expr compiled))
-                decls (defn-to-ir go-name (str go-name "_variadic") go-name [] false [] [] body-expr)]
+                decls (defn-to-ir go-name (str go-name "_variadic") go-name [] false [] [] [] body-expr)]
             {:op :deftest
              :function {:flag-name name
                         :go-name go-name
@@ -5202,7 +5251,7 @@
   (let [n (count (stmt-list params))
         variadic (str go-name "_variadic")
         arity-name (str go-name "_arity_" n)
-        decls (defn-to-ir arity-name variadic go-name params false [] [] {:kind :raw :code body})]
+        decls (defn-to-ir arity-name variadic go-name params false [] [] [] {:kind :raw :code body})]
     {:flag-name flag-name
      :go-name go-name
      :variadic-name variadic

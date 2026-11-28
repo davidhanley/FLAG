@@ -390,6 +390,7 @@
     (is (= false (contains? nil :a)))
     (is (= [1 2] (not-empty [1 2])))
     (is (= nil (not-empty [])))
+    (is (= nil (not-empty nil)))
     (is (= nil (not-empty '())))
     (is (= nil (not-empty | |)))
     (is (= nil (not-empty #{})))
@@ -429,6 +430,7 @@
     (is (= 3 (count (seq (identity "hi!")))))
     (is (= nil (seq (identity ""))))
     (is (= nil (seq [])))
+    (is (= nil (seq nil)))
     (expect-exception (count 1) "collection")
     (is (= 20 (nth [10 20 30] 1)))
     (is (= "😀" (nth "a😀" 1)))
@@ -1282,7 +1284,73 @@
                  (recur (inc i) (+ acc i))))))
     (is (= 5 (loop [i 0]
                (let [n (inc i)]
-                 (if (= n 5) n (recur n))))))))
+                 (if (= n 5) n (recur n)))))))
+  (testing "nested tail if let do cond when or"
+    (is (= 4 (loop [n 0]
+               (if (< n 2)
+                 (recur (inc n))
+                 (if (< n 4)
+                   (recur (inc n))
+                   n)))))
+    (is (= 3 (loop [n 0]
+               (do
+                 n
+                 (if (< n 3) (recur (inc n)) n)))))
+    (is (= 3 (loop [n 0]
+               (cond
+                 (< n 3) (recur (inc n))
+                 :else n))))
+    (is (= nil (loop [n 0]
+                 (when (< n 3)
+                   (recur (inc n))))))
+    (is (= true (loop [n 0]
+                  (or (= n 3) (recur (inc n))))))
+    (is (= false (loop [n 0]
+                  (and (< n 3) (recur (inc n)))))))
+  (testing "nested loop zero-arity fn defn rest destructure"
+    (is (= 2 (loop [i 0]
+               (if (= i 2)
+                 i
+                 (do
+                   (loop [j 0]
+                     (if (= j 2) j (recur (inc j))))
+                   (recur (inc i)))))))
+    (is (= 2 (let [^{:volatile true} n 0]
+               (loop []
+                 (if (= n 2)
+                   n
+                   (do (update! n (inc n))
+                       (recur)))))))
+    (is (= 6 ((fn [n acc]
+                (if (= n 0) acc (recur (dec n) (+ acc n))))
+              3 0)))
+    (is (= 3 (let [^{:volatile true} n 0]
+               ((fn []
+                  (if (= n 3)
+                    n
+                    (do (update! n (inc n))
+                        (recur))))))))
+    (is (= 3 (loop [n 0 _acc 0]
+               ((fn [x]
+                  (if (= x 3) x (recur (inc x))))
+                n))))
+    (is (= 0 (countdown-fn 0)))
+    (is (= 0 (countdown-fn 4)))
+    (is (= 0 (rest-len 0)))
+    (is (= 1 (rest-len 0 1)))
+    (is (= 3 (rest-len 0 1 2 3)))
+    (is (= 3 ((fn [n & xs]
+                (if (seq xs)
+                  (recur (inc n) (next xs))
+                  n))
+              0 1 2 3)))
+    (is (= 0 (#(if (= % 0) % (recur (dec %))) 4)))
+    (is (= 2 (peel-pair [1 2])))
+    (is (= 7 (peel-pair [7])))
+    (is (= 3 (try
+               (loop [n 0]
+                 (if (= n 3) n (recur (inc n))))
+               (catch Exception e e))))))
 
 (deftest symbols-and-names
   (testing "name keyword symbol"

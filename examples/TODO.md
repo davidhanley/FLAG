@@ -127,7 +127,7 @@ These surprise Clojure programmers and are **not** intentional FLAG design (unli
 
 - [x] **`(range n)`** is infinite starting at `n`. Clojure’s `(range n)` is `0 .. n-1`. Either match Clojure or make `flag-lang.md` shout this; current wording is easy to misread.
 - [x] **`inc` / `dec` are macros**, so they cannot be passed to `map`, `apply`, `swap!`, etc.
-- [ ] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
+- [x] **`recur` is only legal in the strict tail of `loop`**, not inside nested `let` / `if` (Clojure allows those when they are in tail position). Either extend tail analysis or document with examples.
 - [x] **`doseq` is lazy `mapcat`**: side effects (including `go`) may never run. Clojure `doseq` is eager. Make FLAG `doseq` eager.
 - [x] **`peek` / `pop` are `first` / `rest`**, not Clojure vector stack ops (end of vector). Rename, split array vs vector, or document as intentional — today it looks like a bug.
 - [x] **`line-seq` / `file-to-strings` yield symbols**, not strings. Clojure yields strings.

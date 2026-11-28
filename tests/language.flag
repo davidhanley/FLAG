@@ -22,6 +22,21 @@
       acc
       (recur (- i 1) (+ acc i)))))
 
+(defn countdown-fn [n]
+  (if (= n 0)
+    n
+    (recur (dec n))))
+
+(defn rest-len [n & xs]
+  (if (seq xs)
+    (recur (inc n) (next xs))
+    n))
+
+(defn peel-pair [[a b]]
+  (if b
+    (recur [b nil])
+    a))
+
 (defn add-pair [[a b] {:keys [x]}]
   (+ a b x))
 
