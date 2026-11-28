@@ -4,6 +4,7 @@
            when-let if-let if-not if-some when-some with-open with-channel
            close not identity constantly
            second third fourth fifth sixth seventh eighth ninth tenth val
+           ffirst nfirst nnext fnnext
            some? true? false? boolean number? int? float? string? symbol?
            keyword? map? vector? set? sequential? coll? empty
            zero? pos? neg? even? odd? not-empty? not-any? remove
@@ -268,6 +269,18 @@
 
 (defn tenth [coll]
   (slow-nth coll 9))
+
+(defn ffirst [coll]
+  (first (first coll)))
+
+(defn nfirst [coll]
+  (next (first coll)))
+
+(defn nnext [coll]
+  (next (next coll)))
+
+(defn fnnext [coll]
+  (first (next (next coll))))
 
 (defn val [entry]
   (second entry))

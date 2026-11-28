@@ -104,6 +104,20 @@ than two items (unlike `drop-last`, which yields `[]`).
 (butlast nil)         ;; nil
 ```
 
+## `ffirst` / `nfirst` / `nnext` / `fnnext`
+
+Clojure’s `first`/`next` shortcuts. `next` (not `rest`) means a missing tail is
+`nil`, not `[]`.
+
+```clojure
+(ffirst [[1 2] [3]])    ;; 1          ; (first (first x))
+(nfirst [[1 2 3] [4]])  ;; [2 3]      ; (next (first x))
+(nnext [1 2 3 4])       ;; [3 4]      ; (next (next x))
+(fnnext [1 2 3 4])      ;; 3          ; (first (nnext x))
+(nnext [1 2])           ;; nil
+(fnnext nil)            ;; nil
+```
+
 ## `take-last`
 
 `(take-last n coll)` is the last `n` items, or the whole seq if shorter. Empty

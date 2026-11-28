@@ -112,7 +112,7 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 - [x] Add **`take-while`**, **`drop-while`**, **`take-last`**, **`drop-last`**, **`take-nth`**.
 - [x] Add **`split-at`**, **`split-with`**.
 - [x] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
-- [ ] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
+- [x] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
 - [ ] Add **`lazy-seq`** / **`lazy-cat`** (or document that FLAG lazy lists are the substitute).
 - [ ] Add **`reduced`** / **`ensure-reduced`** / **`reduced?`** so `reduce` can short-circuit.
 

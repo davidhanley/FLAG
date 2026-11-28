@@ -352,7 +352,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 
 - **R** `first` (also `fist`) / `rest` / `next` (`next` is `nil` on empty) / `last` / `reverse` / `cons`
 - **P** `peek` = `first`, `pop` = `rest`
-- **P** `second` … `tenth`, `val` (second of a pair)
+- **P** `second` … `tenth`, `val` (second of a pair), `ffirst` / `nfirst` / `nnext` / `fnnext`
 - **R** `take` / `drop` (`(drop n coll)`)
 - **R** `nth` (fast random-access; arrays/strings/vectors; optional not-found)
 - **R** `slow-nth` (sequential; lists/lazy seqs; optional not-found)
