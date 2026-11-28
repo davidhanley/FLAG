@@ -864,7 +864,7 @@
   (is (= "flagrt.Println(\"a\", x)"
          (ir/render-ir (lower/println-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
   (is (= "flagrt.Print(\"a\", x)"
-         (ir/render-ir (lower/print-to-ir [(ir/ir-string "a") (ir/ir-ident "x")])))))
+         (ir/render-ir (lower/print-to-ir [(ir/ir-string "a") (ir/ir-ident "x")]))))
   (let [out (lower/compile-form-to-ir
               {:kind :list
                :elements [{:kind :symbol :name "type-of"}
@@ -1725,7 +1725,7 @@
     (is (= "Println" (:name (:fun (:expr (first (:stmts printed)))))))
     (is (not (:needs-fmt printed2)))
     (is (= "Print" (:name (:fun (:expr (first (:stmts printed2)))))))
-    (is (= "flagrt" (:pkg (:fun (:expr (first (:stmts printed2)))))))))
+    (is (= "flagrt" (:pkg (:fun (:expr (first (:stmts printed2))))))))
    (let [ctx {:locals {} :globals {} :functions {} :module {"square" "compiler__square"} :go-fns {}
              :self-function-name "" :self-variadic-name "" :self-arity-name ""
              :self-function-rest false :self-function-arity 0
