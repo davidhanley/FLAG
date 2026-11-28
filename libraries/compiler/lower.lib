@@ -168,7 +168,7 @@
     "str" "println" "testing" "ex-info" "ex-message" "ex-data" "ex-cause"
     "throw" "try" "catch" "finally" "is" "expect-exception"
     "if" "do" "doto" "for" "doseq" "let" "loop" "recur" "defer" "update!"
-    "symbol" "name" "keyword" "first" "fist" "rest" "next" "last"
+    "symbol" "name" "keyword" "first" "fist" "peek" "pop" "rest" "next" "last"
     "reverse" "cons" "take" "drop" "not-empty" "seq" "empty?" "nil?" "type-of"
     "count" "double" "into" "format" "hash-map" "list" "array" "map" "concat"
     "sort-by" "apply" "pmap" "filter" "reduce" "doall" "some" "seq?" "set"
@@ -485,6 +485,7 @@
    "rand-int" "FnRandInt" "rand" "FnRand"
    "rand-nth" "FnRandNth" "shuffle" "FnShuffle"
    "first" "FnFirst" "fist" "FnFirst"
+   "peek" "FnPeek" "pop" "FnPop"
    "rest" "FnRest" "next" "FnNext"
    "last" "FnLast" "reverse" "FnReverse"
    "cons" "FnCons" "take" "FnTake"
@@ -526,7 +527,8 @@
    "ex-cause" "FnExCause"})
 
 (def unary-runtime-ops
-  {"first" "First" "fist" "First" "rest" "Rest" "next" "Next" "last" "Last"
+  {"first" "First" "fist" "First" "peek" "Peek" "pop" "Pop"
+   "rest" "Rest" "next" "Next" "last" "Last"
    "reverse" "Reverse" "seq?" "SeqPredicate" "double" "Double" "bit-not" "BitNot"
    "inc" "Inc" "dec" "Dec"})
 

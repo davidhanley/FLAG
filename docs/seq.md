@@ -1,4 +1,4 @@
-# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`, `reduced`)
+# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`, `reduced`, `peek`, `pop`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
@@ -105,6 +105,28 @@ than two items (unlike `drop-last`, which yields `[]`).
 (butlast [])          ;; nil
 (butlast nil)         ;; nil
 ```
+
+## `peek` / `pop`
+
+Clojure stack ops. Lists grow at the front; FLAG arrays and vectors grow at the
+end.
+
+- `(peek coll)` — list: `first`; array/vector: `last`. Empty or `nil` → `nil`.
+- `(pop coll)` — list without first, or array/vector without last. Same kind.
+  Empty or `nil` panics. Not `rest` / `butlast`.
+
+```clojure
+(peek '(1 2 3))     ;; 1
+(pop '(1 2 3))      ;; (2 3)
+(peek [1 2 3])      ;; 3
+(pop [1 2 3])       ;; [1 2]
+(peek | 1 2 3 |)    ;; 3
+(pop | 1 2 3 |)     ;; | 1 2 |
+(peek [])           ;; nil
+(pop [])            ;; panic
+```
+
+Maps, sets, strings, ranges, and lazy seqs are not stacks.
 
 ## `reduced` / `reduced?` / `ensure-reduced` / `unreduced`
 

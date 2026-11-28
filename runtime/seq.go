@@ -700,6 +700,49 @@ func First(coll Value) Value {
 	return coll.impl.first(coll)
 }
 
+// Peek is Clojure-style stack peek: first of a list, last of an array or vector.
+// Empty collections and nil yield nil.
+func Peek(coll Value) Value {
+	switch {
+	case IsNil(coll):
+		return NilValue
+	case isType[*listImpl](coll):
+		return First(coll)
+	case isType[*arrayImpl](coll), isType[*vectorImpl](coll):
+		return Last(coll)
+	default:
+		panic("peek expects list, array, or vector")
+	}
+}
+
+// Pop is Clojure-style stack pop: drop the first of a list, or the last of an
+// array or vector. Empty collections and nil panic. Result keeps the input kind.
+func Pop(coll Value) Value {
+	switch {
+	case IsNil(coll):
+		panic("Can't pop empty list")
+	case isType[*listImpl](coll):
+		if coll.ListLen() == 0 {
+			panic("Can't pop empty list")
+		}
+		return ListRest(coll)
+	case isType[*arrayImpl](coll):
+		n := coll.ArrayLen()
+		if n == 0 {
+			panic("Can't pop empty array")
+		}
+		return NewArray(coll.arrayItems()[:n-1]...)
+	case isType[*vectorImpl](coll):
+		n := coll.VectorLen()
+		if n == 0 {
+			panic("Can't pop empty vector")
+		}
+		return NewVector(coll.vectorItems()[:n-1]...)
+	default:
+		panic("pop expects list, array, or vector")
+	}
+}
+
 func SeqPredicate(coll Value) Value {
 	return NewBool(coll.impl.seqQ(coll))
 }

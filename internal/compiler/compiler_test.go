@@ -1132,16 +1132,16 @@ func TestCompilePeekPopAliases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileExpression peek returned error: %v", err)
 	}
-	if !strings.Contains(got, "flagrt.Call(peek,") {
-		t.Fatalf("expected peek to call prologue alias, got %s", got)
+	if !strings.Contains(got, "flagrt.Peek(") {
+		t.Fatalf("expected peek to call runtime Peek, got %s", got)
 	}
 
 	got, err = CompileExpression(`(pop (list 1 2))`)
 	if err != nil {
 		t.Fatalf("CompileExpression pop returned error: %v", err)
 	}
-	if !strings.Contains(got, "flagrt.Call(pop,") {
-		t.Fatalf("expected pop to call prologue alias, got %s", got)
+	if !strings.Contains(got, "flagrt.Pop(") {
+		t.Fatalf("expected pop to call runtime Pop, got %s", got)
 	}
 }
 

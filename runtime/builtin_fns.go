@@ -266,6 +266,22 @@ func FnFirst(args ...Value) Value {
 	return First(args[0])
 }
 
+// FnPeek implements builtin peek.
+func FnPeek(args ...Value) Value {
+	if len(args) != 1 {
+		panic("peek expects exactly one argument")
+	}
+	return Peek(args[0])
+}
+
+// FnPop implements builtin pop.
+func FnPop(args ...Value) Value {
+	if len(args) != 1 {
+		panic("pop expects exactly one argument")
+	}
+	return Pop(args[0])
+}
+
 // FnRest implements builtin rest.
 func FnRest(args ...Value) Value {
 	if len(args) != 1 {

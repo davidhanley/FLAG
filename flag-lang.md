@@ -351,7 +351,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 ### Sequence operations
 
 - **R** `first` (also `fist`) / `rest` / `next` (`next` is `nil` on empty) / `last` / `reverse` / `cons`
-- **P** `peek` = `first`, `pop` = `rest`
+- **R** `peek` / `pop` (list: front; array/vector: end; empty `peek` is `nil`; empty/`nil` `pop` panics)
 - **P** `second` … `tenth`, `val` (second of a pair), `ffirst` / `nfirst` / `nnext` / `fnnext`
 - **R** `take` / `drop` (`(drop n coll)`)
 - **R** `nth` (fast random-access; arrays/strings/vectors; optional not-found)
@@ -460,7 +460,6 @@ Canonical names (aliases such as `string/…`, `datetime/…` also bind):
 
 ### Prelude aliases (not extra implementations)
 
-- `peek` / `pop` — see sequences
 - `close` — see File I/O
 
 ### Go interop (early)

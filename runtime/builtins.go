@@ -66,6 +66,10 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnShuffle)
 	case "first", "fist":
 		return NewFunction(FnFirst)
+	case "peek":
+		return NewFunction(FnPeek)
+	case "pop":
+		return NewFunction(FnPop)
 	case "rest":
 		return NewFunction(FnRest)
 	case "next":
