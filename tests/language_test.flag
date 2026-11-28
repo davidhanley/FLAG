@@ -110,6 +110,7 @@
     (is (= :map (type-of {:a 1})))
     (is (= :set (type-of #{1})))
     (is (= :fn (type-of identity)))
+    (is (= :reduced (type-of (reduced 1))))
     (is (= :range (type-of (range 4))))
     (is (= :range (type-of (range))))))
 
@@ -682,6 +683,54 @@
     (is (= nil (fnnext [1])))
     (is (= nil (fnnext nil)))
     (is (= 3 (apply fnnext [[1 2 3 4]])))
+    (is (reduced? (reduced 1)))
+    (is (= false (reduced? 1)))
+    (let [r (reduced 1)]
+      (is (= r r)))
+    (is (= false (= (reduced 1) (reduced 1))))
+    (is (reduced? (ensure-reduced 1)))
+    (is (reduced? (ensure-reduced (reduced 1))))
+    (is (= 1 (unreduced (reduced 1))))
+    (is (= 1 (unreduced 1)))
+    (is (= 1 (unreduced (ensure-reduced 1))))
+    (is (reduced? (unreduced (reduced (reduced 1)))))
+    (is (= 6 (reduce (fn [acc x]
+                       (if (>= (+ acc x) 6)
+                         (reduced (+ acc x))
+                         (+ acc x)))
+                     0
+                     (range))))
+    (is (= 6 (reduce (fn [acc x]
+                       (if (>= (+ acc x) 6)
+                         (reduced (+ acc x))
+                         (+ acc x)))
+                     0
+                     [1 2 3 4 5])))
+    (is (reduced? (reduce + (reduced 1) [])))
+    (is (= 1 (unreduced (reduce + (reduced 1) []))))
+    (is (= 42 (reduce (fn [] (reduced 42)) [])))
+    (is (= 6 (apply reduce [(fn [acc x]
+                              (if (>= (+ acc x) 6)
+                                (reduced (+ acc x))
+                                (+ acc x)))
+                            0
+                            [1 2 3 4 5]])))
+    (is (= 3 (reduce-kv (fn [acc i v]
+                          (if (= i 2)
+                            (reduced acc)
+                            (+ acc v)))
+                        0
+                        [1 2 3 4])))
+    (is (= 3 (reduce-kv (fn [acc i v]
+                          (if (= i 2)
+                            (reduced acc)
+                            (+ acc v)))
+                        0
+                        | 1 2 3 4 |)))
+    (expect-exception (reduced) "exactly one")
+    (expect-exception (reduced? 1 2) "exactly one")
+    (expect-exception (ensure-reduced) "exactly one")
+    (expect-exception (unreduced) "exactly one")
     (is (= nil (last [])))
     (is (= 3 (last [1 2 3])))
     (is (= 3 (last '(1 2 3))))

@@ -24,6 +24,7 @@ var (
 	typeRecord   = NewKeyword("record")
 	typeVector   = NewKeyword("vector")
 	typeAtom     = NewKeyword("atom")
+	typeReduced  = NewKeyword("reduced")
 )
 
 func TypeOf(v Value) Value {

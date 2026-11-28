@@ -1,10 +1,12 @@
-# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`)
+# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `cycle`, `reductions`, `frequencies`, `butlast`, `take-last`, `drop-last`, `take-nth`, `group-by`, `reduced`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
-These are prologue functions with Clojure’s collection arities (no transducers).
-End-relative helpers walk with `drop` / `next`; `n` must be an integer (`pos?`
-for “how many”). Compare with `vec` when you only care about values.
+Most of these are prologue functions with Clojure’s collection arities (no
+transducers). `reduced` / `reduced?` / `ensure-reduced` / `unreduced` are
+runtime builtins. End-relative helpers walk with `drop` / `next`; `n` must be
+an integer (`pos?` for “how many”). Compare with `vec` when you only care
+about values.
 
 ## `take-while`
 
@@ -103,6 +105,30 @@ than two items (unlike `drop-last`, which yields `[]`).
 (butlast [])          ;; nil
 (butlast nil)         ;; nil
 ```
+
+## `reduced` / `reduced?` / `ensure-reduced` / `unreduced`
+
+`(reduced x)` boxes `x`. When `f` returns a reduced value, `reduce` unwraps it
+and stops. Empty coll with a reduced init stays reduced. `(reduced? x)` is
+true only for that box. `(ensure-reduced x)` boxes unless already reduced.
+`(unreduced x)` unwraps once, or returns `x`. Equality is identity.
+`(type-of (reduced 1))` is `:reduced`.
+
+```clojure
+(reduce (fn [acc x]
+          (if (>= (+ acc x) 6)
+            (reduced (+ acc x))
+            (+ acc x)))
+        0
+        (range))          ;; 6
+(reduced? (reduced 1))    ;; true
+(unreduced (reduced 1))   ;; 1
+(reduce + (reduced 1) []) ;; still reduced
+```
+
+`reduce-kv` honors the same stop: return `(reduced acc)` from `f`.
+
+FLAG `deref` is atoms only — use `unreduced`, not `@`.
 
 ## `ffirst` / `nfirst` / `nnext` / `fnnext`
 

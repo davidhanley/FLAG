@@ -114,7 +114,7 @@ Have: `str`, `format`, `subs`, `str/trim`, `str/triml`, `str/trimr`, `str/trim-n
 - [x] Add **`cycle`**, **`reductions`**, **`frequencies`**, **`butlast`**.
 - [x] Add **`ffirst`**, **`nfirst`**, **`nnext`**, **`fnnext`**.
 - [ ] Add **`lazy-seq`** / **`lazy-cat`** (or document that FLAG lazy lists are the substitute).
-- [ ] Add **`reduced`** / **`ensure-reduced`** / **`reduced?`** so `reduce` can short-circuit.
+- [x] Add **`reduced`** / **`ensure-reduced`** / **`reduced?`** so `reduce` can short-circuit.
 
 ## Exceptions / `try`
 

@@ -357,6 +357,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `nth` (fast random-access; arrays/strings/vectors; optional not-found)
 - **R** `slow-nth` (sequential; lists/lazy seqs; optional not-found)
 - **R** `map` (lazy when every input is lazy) / `concat` / `filter` / `reduce` (2- or 3-arg) / `apply`
+- **R** `reduced` / `reduced?` / `ensure-reduced` / `unreduced` (`reduce` unwraps and stops)
 - **R** `pmap` (parallel map; workers = `NumCPU()*2`, capped by item count; eager array, order preserved)
 - **R** `sort-by` (`(sort-by keyfn coll)` or `(sort-by keyfn comp coll)`; array)
 - **P** `sort` (`(sort coll)` or `(sort comp coll)`; default `<`)

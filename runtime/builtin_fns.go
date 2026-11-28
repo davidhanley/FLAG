@@ -418,6 +418,38 @@ func FnReduce(args ...Value) Value {
 	return Reduce(args[0], args[1:]...)
 }
 
+// FnReduced implements builtin reduced.
+func FnReduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("reduced expects exactly one argument")
+	}
+	return Reduced(args[0])
+}
+
+// FnReducedQ implements builtin reduced?.
+func FnReducedQ(args ...Value) Value {
+	if len(args) != 1 {
+		panic("reduced? expects exactly one argument")
+	}
+	return NewBool(IsReduced(args[0]))
+}
+
+// FnEnsureReduced implements builtin ensure-reduced.
+func FnEnsureReduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("ensure-reduced expects exactly one argument")
+	}
+	return EnsureReduced(args[0])
+}
+
+// FnUnreduced implements builtin unreduced.
+func FnUnreduced(args ...Value) Value {
+	if len(args) != 1 {
+		panic("unreduced expects exactly one argument")
+	}
+	return Unreduced(args[0])
+}
+
 // FnNotEmpty implements builtin not-empty.
 func FnNotEmpty(args ...Value) Value {
 	if len(args) != 1 {

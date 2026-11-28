@@ -586,7 +586,7 @@ func Reduce(fn Value, args ...Value) Value {
 		cursor = newSeqCursor(args[0])
 		next, ok := cursor.nextOrDone()
 		if !ok {
-			return Call(fn)
+			return Unreduced(Call(fn))
 		}
 		acc = next
 	} else {
@@ -600,6 +600,9 @@ func Reduce(fn Value, args ...Value) Value {
 			break
 		}
 		acc = Call(fn, acc, next)
+		if IsReduced(acc) {
+			return Unreduced(acc)
+		}
 	}
 	return acc
 }

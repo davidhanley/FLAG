@@ -64,6 +64,9 @@ func ChannelPipeReduce(fn, init, inch Value) Value {
 			return acc
 		}
 		acc = Call(fn, acc, v)
+		if IsReduced(acc) {
+			return Unreduced(acc)
+		}
 	}
 }
 

@@ -100,6 +100,14 @@ func BuiltinFunction(name string) Value {
 		return NewFunction(FnFilter)
 	case "reduce":
 		return NewFunction(FnReduce)
+	case "reduced":
+		return NewFunction(FnReduced)
+	case "reduced?":
+		return NewFunction(FnReducedQ)
+	case "ensure-reduced":
+		return NewFunction(FnEnsureReduced)
+	case "unreduced":
+		return NewFunction(FnUnreduced)
 	case "group-by":
 		return NewFunction(FnGroupBy)
 	case "juxt":
