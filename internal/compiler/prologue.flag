@@ -10,6 +10,7 @@
            update get-in update-in assoc-in dissoc-in
            partial complement fnil comp iterate repeatedly
            take-while drop-while take-last drop-last take-nth
+           split-at split-with
            keep map-indexed keep-indexed reduce-kv
            every? every-pred some-fn max-key zipmap select-keys
            merge merge-with mapcat distinct flatten interpose interleave
@@ -521,6 +522,12 @@
         (if (or (nil? xs) (empty? xs))
           acc
           (recur (drop n xs) (conj acc (first xs))))))))
+
+(defn split-at [n coll]
+  [(take n coll) (drop n coll)])
+
+(defn split-with [pred coll]
+  [(take-while pred coll) (drop-while pred coll)])
 
 (defn keep [f coll]
   (filter some? (map f coll)))

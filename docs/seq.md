@@ -1,4 +1,4 @@
-# Sequence extras (`take-while`, `drop-while`, `take-last`, `drop-last`, `take-nth`, `group-by`)
+# Sequence extras (`take-while`, `drop-while`, `split-at`, `split-with`, `take-last`, `drop-last`, `take-nth`, `group-by`)
 
 Part of **[The FLAG Book](flag-book.md)** (chapter 2 companion).
 
@@ -29,6 +29,35 @@ the rest (same collection kind when possible). `nil` stays `nil`.
 (drop-while pos? [1 2])        ;; []
 (drop-while pos? nil)          ;; nil
 ```
+
+## `split-at`
+
+`(split-at n coll)` is `[(take n coll) (drop n coll)]`. `n` must be a
+non-negative integer (same as `take` / `drop`).
+
+```clojure
+(split-at 2 [1 2 3 4 5])   ;; [[1 2] [3 4 5]]
+(split-at 0 [1 2 3])       ;; [[] [1 2 3]]
+(split-at 10 [1 2 3])      ;; [[1 2 3] []]
+(split-at 0 nil)           ;; [[] nil]
+```
+
+`take` always yields an array. `drop` keeps the remaining collection kind.
+`coll` must be a list, array, vector, lazy-list, or range — the same kinds
+`drop` accepts (not strings). `n > 0` with `nil` panics, like `drop`.
+
+## `split-with`
+
+`(split-with pred coll)` is `[(take-while pred coll) (drop-while pred coll)]`.
+
+```clojure
+(split-with pos? [1 2 -1 3])   ;; [[1 2] [-1 3]]
+(split-with pos? [-1 2])       ;; [[] [-1 2]]
+(split-with pos? nil)          ;; [[] nil]
+```
+
+Stops on a lazy input once `pred` fails, so
+`(split-with (fn [x] (< x 3)) (range))` is finite on the left.
 
 ## `take-last`
 

@@ -365,7 +365,7 @@ Source of truth: `runtime/builtins.go` (Go) and `internal/compiler/prologue.flag
 - **R** `some` (first truthy `(pred x)`, else `nil`)
 - **R** `doall` (realize lazy seq, return it) / `dorun` (realize, return `nil`)
 - **R** `line-seq` (lazy lines from a file; each line is a string)
-- **P** `take-while` / `drop-while` / `take-last` / `drop-last` / `take-nth` (Clojure collection arities; `take-nth` with `n <= 0` repeats the first item)
+- **P** `take-while` / `drop-while` / `split-at` / `split-with` / `take-last` / `drop-last` / `take-nth` (Clojure collection arities; `take-nth` with `n <= 0` repeats the first item)
 - **P** `keep` / `mapcat` / `map-indexed` (`(map f (range) coll)`) / `keep-indexed`
 - **P** `reduce-kv` (maps: `f acc k v`; arrays/vectors: `f acc idx v`; `nil` → init)
 - **P** `distinct` (first occurrence, input order; array)
